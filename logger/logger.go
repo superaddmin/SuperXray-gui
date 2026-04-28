@@ -9,8 +9,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/superaddmin/SuperXray-gui/v2/config"
 	"github.com/op/go-logging"
+	"github.com/superaddmin/SuperXray-gui/v2/config"
+	"github.com/superaddmin/SuperXray-gui/v2/util/pathutil"
 )
 
 const (
@@ -91,7 +92,7 @@ func initFileBackend() logging.Backend {
 	}
 
 	logPath := filepath.Join(logDir, logFileName)
-	file, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o660)
+	file, err := pathutil.OpenFileUnder(logDir, logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to open log file %s: %v\n", logPath, err)
 		return nil

@@ -1,7 +1,7 @@
 package global
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"regexp"
 	"sync"
@@ -10,7 +10,7 @@ import (
 
 // HashEntry represents a stored hash entry with its value and timestamp.
 type HashEntry struct {
-	Hash      string    // MD5 hash string
+	Hash      string    // SHA-256 hash string
 	Value     string    // Original value
 	Timestamp time.Time // Time when the hash was created
 }
@@ -30,23 +30,23 @@ func NewHashStorage(expiration time.Duration) *HashStorage {
 	}
 }
 
-// SaveHash generates an MD5 hash for the given query string and stores it with a timestamp.
+// SaveHash generates a SHA-256 hash for the given query string and stores it with a timestamp.
 func (h *HashStorage) SaveHash(query string) string {
 	h.Lock()
 	defer h.Unlock()
 
-	md5Hash := md5.Sum([]byte(query))
-	md5HashString := hex.EncodeToString(md5Hash[:])
+	hash := sha256.Sum256([]byte(query))
+	hashString := hex.EncodeToString(hash[:])
 
 	entry := HashEntry{
-		Hash:      md5HashString,
+		Hash:      hashString,
 		Value:     query,
 		Timestamp: time.Now(),
 	}
 
-	h.Data[md5HashString] = entry
+	h.Data[hashString] = entry
 
-	return md5HashString
+	return hashString
 }
 
 // GetValue retrieves the original value for the given hash, returning true if found.
@@ -59,9 +59,9 @@ func (h *HashStorage) GetValue(hash string) (string, bool) {
 	return entry.Value, exists
 }
 
-// IsMD5 checks if the given string is a valid 32-character MD5 hash.
-func (h *HashStorage) IsMD5(hash string) bool {
-	match, _ := regexp.MatchString("^[a-f0-9]{32}$", hash)
+// IsHash checks if the given string is a valid 64-character SHA-256 hash.
+func (h *HashStorage) IsHash(hash string) bool {
+	match, _ := regexp.MatchString("^[a-f0-9]{64}$", hash)
 	return match
 }
 

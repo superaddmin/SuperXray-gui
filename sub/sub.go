@@ -5,6 +5,7 @@ package sub
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"html/template"
 	"io"
 	"io/fs"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
@@ -53,6 +55,17 @@ type Server struct {
 	cancel context.CancelFunc
 }
 
+func newHTTPServer(handler http.Handler) *http.Server {
+	return &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    512 * 1024,
+	}
+}
+
 // NewServer creates a new subscription server instance with a cancellable context.
 func NewServer() *Server {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -71,6 +84,7 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	gin.SetMode(gin.ReleaseMode)
 
 	engine := gin.Default()
+	engine.Use(middleware.SecurityHeadersMiddleware())
 
 	subDomain, err := s.settingService.GetSubDomain()
 	if err != nil {
@@ -300,7 +314,9 @@ func (s *Server) Start() (err error) {
 	// This is an anonymous function, no function name
 	defer func() {
 		if err != nil {
-			s.Stop()
+			if stopErr := s.Stop(); stopErr != nil {
+				logger.Warning("Failed to stop subscription server after startup error:", stopErr)
+			}
 		}
 	}()
 
@@ -358,12 +374,12 @@ func (s *Server) Start() (err error) {
 	}
 	s.listener = listener
 
-	s.httpServer = &http.Server{
-		Handler: engine,
-	}
+	s.httpServer = newHTTPServer(engine)
 
 	go func() {
-		s.httpServer.Serve(listener)
+		if serveErr := s.httpServer.Serve(listener); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			logger.Error("Sub server stopped with error:", serveErr)
+		}
 	}()
 
 	return nil

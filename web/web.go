@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"embed"
+	"errors"
 	"html/template"
 	"io"
 	"io/fs"
@@ -61,6 +62,17 @@ func (f *wrapAssetsFS) Open(name string) (fs.File, error) {
 
 type wrapAssetsFile struct {
 	fs.File
+}
+
+func newHTTPServer(handler http.Handler) *http.Server {
+	return &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    512 * 1024,
+	}
 }
 
 func (f *wrapAssetsFile) Stat() (fs.FileInfo, error) {
@@ -182,6 +194,7 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	}
 
 	engine := gin.Default()
+	engine.Use(middleware.SecurityHeadersMiddleware())
 
 	webDomain, err := s.settingService.GetWebDomain()
 	if err != nil {
@@ -210,6 +223,11 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 		Path:     basePath,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
+	}
+	certFileForCookie, _ := s.settingService.GetCertFile()
+	keyFileForCookie, _ := s.settingService.GetKeyFile()
+	if certFileForCookie != "" && keyFileForCookie != "" {
+		sessionOptions.Secure = true
 	}
 	if sessionMaxAge, err := s.settingService.GetSessionMaxAge(); err == nil && sessionMaxAge > 0 {
 		sessionOptions.MaxAge = sessionMaxAge * 60 // minutes -> seconds
@@ -297,16 +315,27 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 // startTask schedules background jobs (Xray checks, traffic jobs, cron
 // jobs) which the panel relies on for periodic maintenance and monitoring.
 func (s *Server) startTask() {
+	addCronJob := func(spec string, job cron.Job) {
+		if _, err := s.cron.AddJob(spec, job); err != nil {
+			logger.Warningf("failed to schedule cron job %q: %v", spec, err)
+		}
+	}
+	addCronFunc := func(spec string, cmd func()) {
+		if _, err := s.cron.AddFunc(spec, cmd); err != nil {
+			logger.Warningf("failed to schedule cron func %q: %v", spec, err)
+		}
+	}
+
 	s.customGeoService.EnsureOnStartup()
 	err := s.xrayService.RestartXray(true)
 	if err != nil {
 		logger.Warning("start xray failed:", err)
 	}
 	// Check whether xray is running every second
-	s.cron.AddJob("@every 1s", job.NewCheckXrayRunningJob())
+	addCronJob("@every 1s", job.NewCheckXrayRunningJob())
 
 	// Check if xray needs to be restarted every 30 seconds
-	s.cron.AddFunc("@every 30s", func() {
+	addCronFunc("@every 30s", func() {
 		if s.xrayService.IsNeedRestartAndSetFalse() {
 			err := s.xrayService.RestartXray(false)
 			if err != nil {
@@ -318,24 +347,24 @@ func (s *Server) startTask() {
 	go func() {
 		time.Sleep(time.Second * 5)
 		// Statistics every 10 seconds, start the delay for 5 seconds for the first time, and staggered with the time to restart xray
-		s.cron.AddJob("@every 10s", job.NewXrayTrafficJob())
+		addCronJob("@every 10s", job.NewXrayTrafficJob())
 	}()
 
 	// check client ips from log file every 10 sec
-	s.cron.AddJob("@every 10s", job.NewCheckClientIpJob())
+	addCronJob("@every 10s", job.NewCheckClientIpJob())
 
 	// check client ips from log file every day
-	s.cron.AddJob("@daily", job.NewClearLogsJob())
+	addCronJob("@daily", job.NewClearLogsJob())
 
 	// Inbound traffic reset jobs
 	// Run every hour
-	s.cron.AddJob("@hourly", job.NewPeriodicTrafficResetJob("hourly"))
+	addCronJob("@hourly", job.NewPeriodicTrafficResetJob("hourly"))
 	// Run once a day, midnight
-	s.cron.AddJob("@daily", job.NewPeriodicTrafficResetJob("daily"))
+	addCronJob("@daily", job.NewPeriodicTrafficResetJob("daily"))
 	// Run once a week, midnight between Sat/Sun
-	s.cron.AddJob("@weekly", job.NewPeriodicTrafficResetJob("weekly"))
+	addCronJob("@weekly", job.NewPeriodicTrafficResetJob("weekly"))
 	// Run once a month, midnight, first of month
-	s.cron.AddJob("@monthly", job.NewPeriodicTrafficResetJob("monthly"))
+	addCronJob("@monthly", job.NewPeriodicTrafficResetJob("monthly"))
 
 	// LDAP sync scheduling
 	if ldapEnabled, _ := s.settingService.GetLdapEnable(); ldapEnabled {
@@ -345,7 +374,7 @@ func (s *Server) startTask() {
 		}
 		j := job.NewLdapSyncJob()
 		// job has zero-value services with method receivers that read settings on demand
-		s.cron.AddJob(runtime, j)
+		addCronJob(runtime, j)
 	}
 
 	// Make a traffic condition every day, 8:30
@@ -368,12 +397,12 @@ func (s *Server) startTask() {
 		}
 
 		// check for Telegram bot callback query hash storage reset
-		s.cron.AddJob("@every 2m", job.NewCheckHashStorageJob())
+		addCronJob("@every 2m", job.NewCheckHashStorageJob())
 
 		// Check CPU load and alarm to TgBot if threshold passes
 		cpuThreshold, err := s.settingService.GetTgCpu()
 		if (err == nil) && (cpuThreshold > 0) {
-			s.cron.AddJob("@every 10s", job.NewCheckCpuJob())
+			addCronJob("@every 10s", job.NewCheckCpuJob())
 		}
 	} else {
 		s.cron.Remove(entry)
@@ -385,7 +414,9 @@ func (s *Server) Start() (err error) {
 	// This is an anonymous function, no function name
 	defer func() {
 		if err != nil {
-			s.Stop()
+			if stopErr := s.Stop(); stopErr != nil {
+				logger.Warning("Failed to stop web server after startup error:", stopErr)
+			}
 		}
 	}()
 
@@ -442,12 +473,12 @@ func (s *Server) Start() (err error) {
 	}
 	s.listener = listener
 
-	s.httpServer = &http.Server{
-		Handler: engine,
-	}
+	s.httpServer = newHTTPServer(engine)
 
 	go func() {
-		s.httpServer.Serve(listener)
+		if serveErr := s.httpServer.Serve(listener); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			logger.Error("Web server stopped with error:", serveErr)
+		}
 	}()
 
 	s.startTask()
@@ -455,7 +486,9 @@ func (s *Server) Start() (err error) {
 	isTgbotenabled, err := s.settingService.GetTgbotEnabled()
 	if (err == nil) && (isTgbotenabled) {
 		tgBot := s.tgbotService.NewTgbot()
-		tgBot.Start(i18nFS)
+		if err := tgBot.Start(i18nFS); err != nil {
+			logger.Warning("Failed to start Telegram bot:", err)
+		}
 	}
 
 	return nil
@@ -464,7 +497,9 @@ func (s *Server) Start() (err error) {
 // Stop gracefully shuts down the web server, stops Xray, cron jobs, and Telegram bot.
 func (s *Server) Stop() error {
 	s.cancel()
-	s.xrayService.StopXray()
+	if err := s.xrayService.StopXray(); err != nil {
+		logger.Warning("Failed to stop Xray:", err)
+	}
 	if s.cron != nil {
 		s.cron.Stop()
 	}

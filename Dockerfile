@@ -21,7 +21,7 @@ RUN ./DockerInit.sh "$TARGETARCH"
 # ========================================================
 # Stage: Final Image of 3x-ui
 # ========================================================
-FROM alpine
+FROM alpine:3.22
 ENV TZ=Asia/Tehran
 WORKDIR /app
 

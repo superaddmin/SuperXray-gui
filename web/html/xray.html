@@ -467,8 +467,8 @@
           this.templateSettings.routing.rules.forEach(
             (routingRule) => {
               if (
-                routingRule.hasOwnProperty(property) &&
-                routingRule.hasOwnProperty("outboundTag") &&
+                Object.prototype.hasOwnProperty.call(routingRule, property) &&
+                Object.prototype.hasOwnProperty.call(routingRule, "outboundTag") &&
                 routingRule.outboundTag === outboundTag
               ) {
                 result.push(...routingRule[property]);
@@ -497,8 +497,8 @@
           newTemplateSettings.routing.rules.forEach(
             (routingRule) => {
               if (
-                routingRule.hasOwnProperty(property) &&
-                routingRule.hasOwnProperty("outboundTag") &&
+                Object.prototype.hasOwnProperty.call(routingRule, property) &&
+                Object.prototype.hasOwnProperty.call(routingRule, "outboundTag") &&
                 routingRule.outboundTag === outboundTag
               ) {
                 if (!insertedOnce && data.length > 0) {

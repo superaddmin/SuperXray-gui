@@ -18,6 +18,56 @@ type WarpService struct {
 	SettingService
 }
 
+type warpRegistrationPayload struct {
+	Key   string `json:"key"`
+	TOS   string `json:"tos"`
+	Type  string `json:"type"`
+	Model string `json:"model"`
+	Name  string `json:"name"`
+}
+
+type warpLicensePayload struct {
+	License string `json:"license"`
+}
+
+type warpStoredData struct {
+	AccessToken string `json:"access_token"`
+	DeviceID    string `json:"device_id"`
+	LicenseKey  string `json:"license_key"`
+	PrivateKey  string `json:"private_key"`
+}
+
+func buildWarpRegistrationPayload(publicKey, tos, hostName string) ([]byte, error) {
+	return json.Marshal(warpRegistrationPayload{
+		Key:   publicKey,
+		TOS:   tos,
+		Type:  "PC",
+		Model: "x-ui",
+		Name:  hostName,
+	})
+}
+
+func buildWarpLicensePayload(license string) ([]byte, error) {
+	return json.Marshal(warpLicensePayload{License: license})
+}
+
+func buildWarpStoredData(token, deviceID, license, secretKey string) ([]byte, error) {
+	return json.MarshalIndent(warpStoredData{
+		AccessToken: token,
+		DeviceID:    deviceID,
+		LicenseKey:  license,
+		PrivateKey:  secretKey,
+	}, "", "  ")
+}
+
+func buildWarpResult(storedData []byte, config []byte) ([]byte, error) {
+	result := map[string]json.RawMessage{
+		"data":   json.RawMessage(storedData),
+		"config": json.RawMessage(config),
+	}
+	return json.MarshalIndent(result, "", "  ")
+}
+
 func (s *WarpService) GetWarpData() (string, error) {
 	warp, err := s.SettingService.GetWarp()
 	if err != nil {
@@ -53,29 +103,33 @@ func (s *WarpService) GetWarpConfig() (string, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+warpData["access_token"])
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := serviceHTTPClient.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	buffer := &bytes.Buffer{}
-	_, err = buffer.ReadFrom(resp.Body)
+	if err := validateContentLength(resp, maxAPIResponseBytes); err != nil {
+		return "", err
+	}
+	body, err := readBodyLimited(resp.Body, maxAPIResponseBytes)
 	if err != nil {
 		return "", err
 	}
 
-	return buffer.String(), nil
+	return string(body), nil
 }
 
 func (s *WarpService) RegWarp(secretKey string, publicKey string) (string, error) {
 	tos := time.Now().UTC().Format("2006-01-02T15:04:05.000Z")
 	hostName, _ := os.Hostname()
-	data := fmt.Sprintf(`{"key":"%s","tos":"%s","type": "PC","model": "x-ui", "name": "%s"}`, publicKey, tos, hostName)
+	data, err := buildWarpRegistrationPayload(publicKey, tos, hostName)
+	if err != nil {
+		return "", err
+	}
 
 	url := "https://api.cloudflareclient.com/v0a2158/reg"
 
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer([]byte(data)))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return "", err
 	}
@@ -83,40 +137,58 @@ func (s *WarpService) RegWarp(secretKey string, publicKey string) (string, error
 	req.Header.Add("CF-Client-Version", "a-7.21-0721")
 	req.Header.Add("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := serviceHTTPClient.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	buffer := &bytes.Buffer{}
-	_, err = buffer.ReadFrom(resp.Body)
+	if err := validateContentLength(resp, maxAPIResponseBytes); err != nil {
+		return "", err
+	}
+	body, err := readBodyLimited(resp.Body, maxAPIResponseBytes)
 	if err != nil {
 		return "", err
 	}
 
 	var rspData map[string]any
-	err = json.Unmarshal(buffer.Bytes(), &rspData)
+	err = json.Unmarshal(body, &rspData)
 	if err != nil {
 		return "", err
 	}
 
-	deviceId := rspData["id"].(string)
-	token := rspData["token"].(string)
-	license, ok := rspData["account"].(map[string]any)["license"].(string)
+	deviceId, ok := rspData["id"].(string)
+	if !ok || deviceId == "" {
+		return "", common.NewError("missing WARP device id")
+	}
+	token, ok := rspData["token"].(string)
+	if !ok || token == "" {
+		return "", common.NewError("missing WARP access token")
+	}
+	account, ok := rspData["account"].(map[string]any)
+	if !ok {
+		return "", common.NewError("missing WARP account data")
+	}
+	license, ok := account["license"].(string)
 	if !ok {
 		logger.Debug("Error accessing license value.")
+		return "", common.NewError("missing WARP license")
+	}
+
+	warpData, err := buildWarpStoredData(token, deviceId, license, secretKey)
+	if err != nil {
 		return "", err
 	}
 
-	warpData := fmt.Sprintf("{\n  \"access_token\": \"%s\",\n  \"device_id\": \"%s\",", token, deviceId)
-	warpData += fmt.Sprintf("\n  \"license_key\": \"%s\",\n  \"private_key\": \"%s\"\n}", license, secretKey)
+	if err := s.SettingService.SetWarp(string(warpData)); err != nil {
+		return "", err
+	}
 
-	s.SettingService.SetWarp(warpData)
+	result, err := buildWarpResult(warpData, body)
+	if err != nil {
+		return "", err
+	}
 
-	result := fmt.Sprintf("{\n  \"data\": %s,\n  \"config\": %s\n}", warpData, buffer.String())
-
-	return result, nil
+	return string(result), nil
 }
 
 func (s *WarpService) SetWarpLicense(license string) (string, error) {
@@ -131,28 +203,32 @@ func (s *WarpService) SetWarpLicense(license string) (string, error) {
 	}
 
 	url := fmt.Sprintf("https://api.cloudflareclient.com/v0a2158/reg/%s/account", warpData["device_id"])
-	data := fmt.Sprintf(`{"license": "%s"}`, license)
+	data, err := buildWarpLicensePayload(license)
+	if err != nil {
+		return "", err
+	}
 
-	req, err := http.NewRequest("PUT", url, bytes.NewBuffer([]byte(data)))
+	req, err := http.NewRequest("PUT", url, bytes.NewBuffer(data))
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Authorization", "Bearer "+warpData["access_token"])
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := serviceHTTPClient.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
-	buffer := &bytes.Buffer{}
-	_, err = buffer.ReadFrom(resp.Body)
+	if err := validateContentLength(resp, maxAPIResponseBytes); err != nil {
+		return "", err
+	}
+	body, err := readBodyLimited(resp.Body, maxAPIResponseBytes)
 	if err != nil {
 		return "", err
 	}
 
 	var response map[string]any
-	err = json.Unmarshal(buffer.Bytes(), &response)
+	err = json.Unmarshal(body, &response)
 	if err != nil {
 		return "", err
 	}
@@ -167,7 +243,9 @@ func (s *WarpService) SetWarpLicense(license string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	s.SettingService.SetWarp(string(newWarpData))
+	if err := s.SettingService.SetWarp(string(newWarpData)); err != nil {
+		return "", err
+	}
 
 	return string(newWarpData), nil
 }

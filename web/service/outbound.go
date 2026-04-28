@@ -198,13 +198,19 @@ func (s *OutboundService) TestOutbound(outboundJSON string, testURL string, allO
 			Error:   fmt.Sprintf("Failed to create test config path: %v", err),
 		}, nil
 	}
-	defer os.Remove(testConfigPath) // ensure temp file is removed even if process is not stopped
+	defer func() {
+		if err := os.Remove(testConfigPath); err != nil && !os.IsNotExist(err) {
+			logger.Warning("failed to remove test xray config:", err)
+		}
+	}()
 
 	// Create temporary xray process with its own config file
 	testProcess := xray.NewTestProcess(testConfig, testConfigPath)
 	defer func() {
 		if testProcess.IsRunning() {
-			testProcess.Stop()
+			if err := testProcess.Stop(); err != nil {
+				logger.Warning("failed to stop test xray process:", err)
+			}
 		}
 	}()
 
@@ -363,8 +369,13 @@ func (s *OutboundService) testConnection(proxyPort int, testURL string) (int64, 
 	if err != nil {
 		return 0, 0, common.NewErrorf("Request failed: %v", err)
 	}
-	io.Copy(io.Discard, warmupResp.Body)
-	warmupResp.Body.Close()
+	if _, err := io.Copy(io.Discard, warmupResp.Body); err != nil {
+		_ = warmupResp.Body.Close()
+		return 0, 0, common.NewErrorf("Failed to drain warmup response: %v", err)
+	}
+	if err := warmupResp.Body.Close(); err != nil {
+		return 0, 0, common.NewErrorf("Failed to close warmup response: %v", err)
+	}
 
 	// Measure the actual request on the warm connection
 	startTime := time.Now()
@@ -374,8 +385,13 @@ func (s *OutboundService) testConnection(proxyPort int, testURL string) (int64, 
 	if err != nil {
 		return 0, 0, common.NewErrorf("Request failed: %v", err)
 	}
-	io.Copy(io.Discard, resp.Body)
-	resp.Body.Close()
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		_ = resp.Body.Close()
+		return 0, 0, common.NewErrorf("Failed to drain response: %v", err)
+	}
+	if err := resp.Body.Close(); err != nil {
+		return 0, 0, common.NewErrorf("Failed to close response: %v", err)
+	}
 
 	return delay, resp.StatusCode, nil
 }
@@ -386,7 +402,9 @@ func waitForPort(port int, timeout time.Duration) error {
 	for time.Now().Before(deadline) {
 		conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 100*time.Millisecond)
 		if err == nil {
-			conn.Close()
+			if err := conn.Close(); err != nil {
+				return err
+			}
 			return nil
 		}
 		time.Sleep(50 * time.Millisecond)
@@ -415,7 +433,9 @@ func createTestConfigPath() (string, error) {
 	}
 	path := tmpFile.Name()
 	if err := tmpFile.Close(); err != nil {
-		os.Remove(path)
+		if removeErr := os.Remove(path); removeErr != nil && !os.IsNotExist(removeErr) {
+			logger.Warning("failed to remove temp xray config after close error:", removeErr)
+		}
 		return "", err
 	}
 	return path, nil

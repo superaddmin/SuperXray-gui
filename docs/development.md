@@ -27,19 +27,48 @@
 
 ### 2.1 Go 环境配置
 
-```bash
-# 安装 Go 1.26+
-# macOS
-brew install go
+本项目需要 Go 1.26 或更高版本（参见 `go.mod`）。Ubuntu 默认仓库中的 Go 版本可能过旧（Ubuntu 22.04 仅提供 Go 1.18，Ubuntu 24.04 仅提供 Go 1.22），建议通过以下方式安装：
 
-# Ubuntu/Debian
+#### 方法一：使用官方二进制包安装（推荐）
+
+```bash
+# 下载 Go 1.26.2 Linux amd64 版本
 wget https://go.dev/dl/go1.26.2.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.26.2.linux-amd64.tar.gz
-export PATH=$PATH:/usr/local/go/bin
+
+# 解压到 /usr/local
+sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.26.2.linux-amd64.tar.gz
+
+# 将 Go 添加到 PATH
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+source ~/.bashrc
 
 # 验证安装
 go version
-# 输出: go version go1.26.2 linux/amd64
+```
+
+> **注意**：如果使用 ARM64（aarch64）架构，请将下载链接中的 `linux-amd64` 替换为 `linux-arm64`。
+
+#### 方法二：使用 go install（需要预先安装旧版 Go）
+
+```bash
+# 如果系统已安装 Go 1.22+，可直接升级
+go install golang.org/dl/go1.26.2@latest
+go1.26.2 download
+```
+
+#### 方法三：使用 Homebrew（macOS）
+
+```bash
+brew install go
+```
+
+#### 验证
+
+安装完成后，运行以下命令确认版本：
+
+```bash
+go version
+# 应输出: go version go1.26.2 linux/amd64
 ```
 
 ### 2.2 克隆与构建
@@ -162,7 +191,7 @@ XUI_BIN_FOLDER=x-ui      # 二进制目录
 │   │   └── session.go         # Cookie Store
 │   ├── global/                # 全局变量
 │   │   ├── global.go          # WebServer/SubServer 接口
-│   │   └── hashStorage.go     # MD5 哈希存储
+│   │   └── hashStorage.go     # SHA-256 哈希存储
 │   ├── locale/                # 国际化系统
 │   │   └── locale.go          # go-i18n 集成
 │   ├── html/                  # HTML 模板

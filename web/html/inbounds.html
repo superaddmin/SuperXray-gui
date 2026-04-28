@@ -1263,7 +1263,7 @@
             if (ObjectUtil.deepSearch(inbound, key)) {
               const newInbound = new DBInbound(inbound);
               const inboundSettings = JSON.parse(inbound.settings);
-              if (inboundSettings.hasOwnProperty('clients')) {
+              if (Object.prototype.hasOwnProperty.call(inboundSettings, 'clients')) {
                 const searchedSettings = { "clients": [] };
                 inboundSettings.clients.forEach(client => {
                   if (ObjectUtil.deepSearch(client, key)) {
@@ -1285,7 +1285,7 @@
           this.dbInbounds.forEach(inbound => {
             const newInbound = new DBInbound(inbound);
             const inboundSettings = JSON.parse(inbound.settings);
-            if (this.clientCount[inbound.id] && this.clientCount[inbound.id].hasOwnProperty(this.filterBy)) {
+            if (this.clientCount[inbound.id] && Object.prototype.hasOwnProperty.call(this.clientCount[inbound.id], this.filterBy)) {
               const list = this.clientCount[inbound.id][this.filterBy];
               if (list.length > 0) {
                 const filteredSettings = { "clients": [] };

@@ -832,9 +832,9 @@
         if (index > 0) formattedLogs += '<br>';
 
         if (parts.length === 3) {
-          const d = parts[0];
-          const t = parts[1];
-          const level = parts[2];
+          const d = HtmlUtil.escape(parts[0]);
+          const t = HtmlUtil.escape(parts[1]);
+          const level = HtmlUtil.escape(parts[2]);
           const levelIndex = levels.indexOf(level, levels) || 5;
 
           //formattedLogs += `<span style="color: gray;">${index + 1}.</span>`;
@@ -842,14 +842,14 @@
           formattedLogs += `<span style="color: ${levelColors[levelIndex]}">${level}</span>`;
         } else {
           const levelIndex = levels.indexOf(data, levels) || 5;
-          formattedLogs += `<span style="color: ${levelColors[levelIndex]}">${data}</span>`;
+          formattedLogs += `<span style="color: ${levelColors[levelIndex]}">${HtmlUtil.escape(data)}</span>`;
         }
 
         if (message) {
           if (message.startsWith("XRAY:"))
-            message = "<b>XRAY: </b>" + message.substring(5);
+            message = "<b>XRAY: </b>" + HtmlUtil.escape(message.substring(5));
           else
-            message = "<b>X-UI: </b>" + message;
+            message = "<b>X-UI: </b>" + HtmlUtil.escape(message);
         }
 
         formattedLogs += message ? ' - ' + message : '';
@@ -910,16 +910,16 @@
 
           let text = ``;
           if (log.Email !== "") {
-            text = `<td>${log.Email}</td>`;
+            text = `<td>${HtmlUtil.escape(log.Email)}</td>`;
           }
 
           formattedLogs += `
 <tr ${outboundColor}>
-    <td><b>${IntlUtil.formatDate(log.DateTime)}</b></td>
-    <td>${log.FromAddress}</td>
-    <td>${log.ToAddress}</td>
-    <td>${log.Inbound}</td>
-    <td>${log.Outbound}</td>
+    <td><b>${HtmlUtil.escape(IntlUtil.formatDate(log.DateTime))}</b></td>
+    <td>${HtmlUtil.escape(log.FromAddress)}</td>
+    <td>${HtmlUtil.escape(log.ToAddress)}</td>
+    <td>${HtmlUtil.escape(log.Inbound)}</td>
+    <td>${HtmlUtil.escape(log.Outbound)}</td>
     ${text}
 </tr>
 `;

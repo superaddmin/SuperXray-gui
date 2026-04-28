@@ -189,7 +189,7 @@ class RandomUtil {
 class ObjectUtil {
     static getPropIgnoreCase(obj, prop) {
         for (const name in obj) {
-            if (!obj.hasOwnProperty(name)) {
+            if (!Object.prototype.hasOwnProperty.call(obj, name)) {
                 continue;
             }
             if (name.toLowerCase() === prop.toLowerCase()) {
@@ -208,7 +208,7 @@ class ObjectUtil {
             }
         } else if (obj instanceof Object) {
             for (let name in obj) {
-                if (!obj.hasOwnProperty(name)) {
+                if (!Object.prototype.hasOwnProperty.call(obj, name)) {
                     continue;
                 }
                 if (this.deepSearch(obj[name], key)) {
@@ -276,9 +276,9 @@ class ObjectUtil {
         }
         const ignoreEmpty = this.isArrEmpty(ignoreProps);
         for (const key of Object.keys(src)) {
-            if (!src.hasOwnProperty(key)) {
+            if (!Object.prototype.hasOwnProperty.call(src, key)) {
                 continue;
-            } else if (!dest.hasOwnProperty(key)) {
+            } else if (!Object.prototype.hasOwnProperty.call(dest, key)) {
                 continue;
             } else if (src[key] === undefined) {
                 continue;
@@ -331,6 +331,18 @@ class ObjectUtil {
             if (a[key] !== b[key]) return false;
         }
         return true;
+    }
+}
+
+class HtmlUtil {
+    static escape(value) {
+        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+        })[char]);
     }
 }
 

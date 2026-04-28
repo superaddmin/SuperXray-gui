@@ -44,7 +44,9 @@ func runWebServer() {
 		log.Fatalf("Unknown log level: %v", config.GetLogLevel())
 	}
 
-	godotenv.Load()
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		logger.Debug("No .env file loaded:", err)
+	}
 
 	err := database.InitDB(config.GetDBPath())
 	if err != nil {
@@ -121,8 +123,12 @@ func runWebServer() {
 			service.StopBot()
 			// ------------------------------------------------------------
 
-			server.Stop()
-			subServer.Stop()
+			if err := server.Stop(); err != nil {
+				logger.Debug("Error stopping web server:", err)
+			}
+			if err := subServer.Stop(); err != nil {
+				logger.Debug("Error stopping sub server:", err)
+			}
 			log.Println("Shutting down servers.")
 			return
 		}
@@ -300,7 +306,10 @@ func updateSetting(port int, username string, password string, webBasePath strin
 		if err != nil {
 			fmt.Println("Failed to reset two-factor authentication:", err)
 		} else {
-			settingService.SetTwoFactorToken("")
+			if err := settingService.SetTwoFactorToken(""); err != nil {
+				fmt.Println("Failed to reset two-factor token:", err)
+				return err
+			}
 			fmt.Println("Two-factor authentication reset successfully")
 		}
 	}

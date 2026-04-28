@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 
+	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
 	"github.com/superaddmin/SuperXray-gui/v2/web/service"
 	"github.com/superaddmin/SuperXray-gui/v2/web/session"
 
@@ -39,6 +40,7 @@ func (a *APIController) initRouter(g *gin.RouterGroup, customGeo *service.Custom
 	// Main API group
 	api := g.Group("/panel/api")
 	api.Use(a.checkAPIAuth)
+	api.Use(middleware.CSRFMiddleware())
 
 	// Inbounds API
 	inbounds := api.Group("/inbounds")
@@ -51,10 +53,11 @@ func (a *APIController) initRouter(g *gin.RouterGroup, customGeo *service.Custom
 	NewCustomGeoController(api.Group("/custom-geo"), customGeo)
 
 	// Extra routes
-	api.GET("/backuptotgbot", a.BackuptoTgbot)
+	api.POST("/backuptotgbot", a.BackuptoTgbot)
 }
 
 // BackuptoTgbot sends a backup of the panel data to Telegram bot admins.
 func (a *APIController) BackuptoTgbot(c *gin.Context) {
 	a.Tgbot.SendBackupToAdmins()
+	jsonMsg(c, "", nil)
 }

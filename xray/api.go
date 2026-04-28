@@ -92,7 +92,9 @@ func (x *XrayAPI) Init(apiPort int) error {
 // Close closes the gRPC connection and resets the XrayAPI client state.
 func (x *XrayAPI) Close() {
 	if x.grpcClient != nil {
-		x.grpcClient.Close()
+		if err := x.grpcClient.Close(); err != nil {
+			logger.Warning("Failed to close Xray gRPC client:", err)
+		}
 	}
 	x.HandlerServiceClient = nil
 	x.StatsServiceClient = nil

@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/superaddmin/SuperXray-gui/v2/util/pathutil"
 )
 
 //go:embed version
@@ -113,13 +115,13 @@ func GetLogFolder() string {
 }
 
 func copyFile(src, dst string) error {
-	in, err := os.Open(src)
+	in, err := pathutil.OpenUnder(filepath.Dir(src), src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
 
-	out, err := os.Create(dst)
+	out, err := pathutil.OpenFileUnder(filepath.Dir(dst), dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}

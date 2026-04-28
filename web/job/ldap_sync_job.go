@@ -1,6 +1,7 @@
 package job
 
 import (
+	"encoding/json"
 	"time"
 
 	"strings"
@@ -9,8 +10,6 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	ldaputil "github.com/superaddmin/SuperXray-gui/v2/util/ldap"
 	"github.com/superaddmin/SuperXray-gui/v2/web/service"
-
-	"strconv"
 
 	"github.com/google/uuid"
 )
@@ -307,52 +306,47 @@ func (j *LdapSyncJob) deleteClientsNotInLDAP(inboundTag string, ldapEmails map[s
 
 // clientsToJSON serializes an array of clients to JSON
 func (j *LdapSyncJob) clientsToJSON(clients []model.Client) string {
-	b := strings.Builder{}
-	b.WriteString("{\"clients\":[")
-	for i, c := range clients {
-		if i > 0 {
-			b.WriteString(",")
-		}
-		b.WriteString(j.clientToJSON(c))
+	type clientsPayload struct {
+		Clients []json.RawMessage `json:"clients"`
 	}
-	b.WriteString("]}")
-	return b.String()
+
+	payload := clientsPayload{
+		Clients: make([]json.RawMessage, 0, len(clients)),
+	}
+	for _, c := range clients {
+		payload.Clients = append(payload.Clients, json.RawMessage(j.clientToJSON(c)))
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		logger.Warningf("failed to serialize LDAP clients: %v", err)
+		return `{"clients":[]}`
+	}
+	return string(data)
 }
 
 // clientToJSON serializes minimal client fields to JSON object string without extra deps
 func (j *LdapSyncJob) clientToJSON(c model.Client) string {
-	// construct minimal JSON manually to avoid importing json for simple case
-	b := strings.Builder{}
-	b.WriteString("{")
+	payload := map[string]any{
+		"email":   c.Email,
+		"enable":  c.Enable,
+		"limitIp": c.LimitIP,
+		"totalGB": c.TotalGB,
+	}
 	if c.ID != "" {
-		b.WriteString("\"id\":\"")
-		b.WriteString(c.ID)
-		b.WriteString("\",")
+		payload["id"] = c.ID
 	}
 	if c.Password != "" {
-		b.WriteString("\"password\":\"")
-		b.WriteString(c.Password)
-		b.WriteString("\",")
+		payload["password"] = c.Password
 	}
-	b.WriteString("\"email\":\"")
-	b.WriteString(c.Email)
-	b.WriteString("\",")
-	b.WriteString("\"enable\":")
-	if c.Enable {
-		b.WriteString("true")
-	} else {
-		b.WriteString("false")
-	}
-	b.WriteString(",")
-	b.WriteString("\"limitIp\":")
-	b.WriteString(strconv.Itoa(c.LimitIP))
-	b.WriteString(",")
-	b.WriteString("\"totalGB\":")
-	b.WriteString(strconv.FormatInt(c.TotalGB, 10))
 	if c.ExpiryTime > 0 {
-		b.WriteString(",\"expiryTime\":")
-		b.WriteString(strconv.FormatInt(c.ExpiryTime, 10))
+		payload["expiryTime"] = c.ExpiryTime
 	}
-	b.WriteString("}")
-	return b.String()
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		logger.Warningf("failed to serialize LDAP client %q: %v", c.Email, err)
+		return `{}`
+	}
+	return string(data)
 }

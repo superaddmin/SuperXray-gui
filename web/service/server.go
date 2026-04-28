@@ -4,10 +4,10 @@ import (
 	"archive/zip"
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -24,6 +24,7 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/database"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
+	"github.com/superaddmin/SuperXray-gui/v2/util/pathutil"
 	"github.com/superaddmin/SuperXray-gui/v2/util/sys"
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
 
@@ -41,9 +42,11 @@ type ProcessState string
 
 // Process state constants
 const (
-	Running ProcessState = "running" // Process is running normally
-	Stop    ProcessState = "stop"    // Process is stopped
-	Error   ProcessState = "error"   // Process is in error state
+	Running             ProcessState = "running" // Process is running normally
+	Stop                ProcessState = "stop"    // Process is stopped
+	Error               ProcessState = "error"   // Process is in error state
+	MaxImportDBFileSize int64        = 64 * 1024 * 1024
+	xrayCommandTimeout               = 10 * time.Second
 )
 
 // Status represents comprehensive system and application status information.
@@ -88,7 +91,7 @@ type Status struct {
 		IPv6 string `json:"ipv6"`
 	} `json:"publicIP"`
 	AppStats struct {
-		Threads uint32 `json:"threads"`
+		Threads uint64 `json:"threads"`
 		Mem     uint64 `json:"mem"`
 		Uptime  uint64 `json:"uptime"`
 	} `json:"appStats"`
@@ -212,7 +215,7 @@ func getPublicIP(url string) string {
 		return "N/A"
 	}
 
-	ip, err := io.ReadAll(resp.Body)
+	ip, err := readBodyLimited(resp.Body, maxPublicIPResponseBytes)
 	if err != nil {
 		return "N/A"
 	}
@@ -407,7 +410,7 @@ func (s *ServerService) GetStatus(lastStatus *Status) *Status {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
 	status.AppStats.Mem = rtm.Sys
-	status.AppStats.Threads = uint32(runtime.NumGoroutine())
+	status.AppStats.Threads = goroutineCount()
 	if p != nil && p.IsRunning() {
 		status.AppStats.Uptime = p.GetUptime()
 	} else {
@@ -415,6 +418,15 @@ func (s *ServerService) GetStatus(lastStatus *Status) *Status {
 	}
 
 	return status
+}
+
+func goroutineCount() uint64 {
+	count := runtime.NumGoroutine()
+	value, err := strconv.ParseUint(strconv.Itoa(count), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return value
 }
 
 func (s *ServerService) AppendCpuSample(t time.Time, v float64) {
@@ -519,19 +531,25 @@ func (s *ServerService) sampleCPUUtilization() (float64, error) {
 
 func (s *ServerService) GetXrayVersions() ([]string, error) {
 	const (
-		XrayURL    = "https://api.github.com/repos/XTLS/Xray-core/releases"
-		bufferSize = 8192
+		XrayURL = "https://api.github.com/repos/XTLS/Xray-core/releases"
 	)
 
-	resp, err := http.Get(XrayURL)
+	req, err := http.NewRequest(http.MethodGet, XrayURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := serviceHTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if err := validateContentLength(resp, maxAPIResponseBytes); err != nil {
+		return nil, err
+	}
 
 	// Check HTTP status code - GitHub API returns object instead of array on error
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := readBodyLimited(resp.Body, maxAPIResponseBytes)
 		var errorResponse struct {
 			Message string `json:"message"`
 		}
@@ -541,14 +559,13 @@ func (s *ServerService) GetXrayVersions() ([]string, error) {
 		return nil, fmt.Errorf("GitHub API returned status %d: %s", resp.StatusCode, resp.Status)
 	}
 
-	buffer := bytes.NewBuffer(make([]byte, bufferSize))
-	buffer.Reset()
-	if _, err := buffer.ReadFrom(resp.Body); err != nil {
+	bodyBytes, err := readBodyLimited(resp.Body, maxAPIResponseBytes)
+	if err != nil {
 		return nil, err
 	}
 
 	var releases []Release
-	if err := json.Unmarshal(buffer.Bytes(), &releases); err != nil {
+	if err := json.Unmarshal(bodyBytes, &releases); err != nil {
 		return nil, err
 	}
 
@@ -622,21 +639,31 @@ func (s *ServerService) downloadXRay(version string) (string, error) {
 
 	fileName := fmt.Sprintf("Xray-%s-%s.zip", osName, arch)
 	url := fmt.Sprintf("https://github.com/XTLS/Xray-core/releases/download/%s/%s", version, fileName)
-	resp, err := http.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := serviceHTTPClient.Do(req)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("download Xray failed with status %d: %s", resp.StatusCode, resp.Status)
+	}
+	if err := validateContentLength(resp, maxDownloadFileBytes); err != nil {
+		return "", err
+	}
 
-	os.Remove(fileName)
-	file, err := os.Create(fileName)
+	_ = os.Remove(fileName)
+	file, err := pathutil.OpenFileUnder(".", fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, resp.Body)
-	if err != nil {
+	if err = copyLimited(file, resp.Body, maxDownloadFileBytes); err != nil {
+		_ = os.Remove(fileName)
 		return "", err
 	}
 
@@ -654,9 +681,13 @@ func (s *ServerService) UpdateXray(version string) error {
 	if err != nil {
 		return err
 	}
-	defer os.Remove(zipFileName)
+	defer func() {
+		if err := os.Remove(zipFileName); err != nil && !os.IsNotExist(err) {
+			logger.Warning("Failed to remove downloaded Xray archive:", err)
+		}
+	}()
 
-	zipFile, err := os.Open(zipFileName)
+	zipFile, err := pathutil.OpenUnder(".", zipFileName)
 	if err != nil {
 		return err
 	}
@@ -678,15 +709,17 @@ func (s *ServerService) UpdateXray(version string) error {
 			return err
 		}
 		defer zipFile.Close()
-		os.MkdirAll(filepath.Dir(fileName), 0755)
-		os.Remove(fileName)
-		file, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR|os.O_TRUNC, fs.ModePerm)
+		if err := os.MkdirAll(filepath.Dir(fileName), 0o750); err != nil {
+			return err
+		}
+		_ = os.Remove(fileName)
+		// #nosec G302 -- the extracted Xray binary must keep executable bits.
+		file, err := pathutil.OpenFileUnder(filepath.Dir(fileName), fileName, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o750)
 		if err != nil {
 			return err
 		}
 		defer file.Close()
-		_, err = io.Copy(file, zipFile)
-		return err
+		return copyLimited(file, zipFile, maxDownloadFileBytes)
 	}
 
 	// 4. Extract correct binary
@@ -741,11 +774,17 @@ func (s *ServerService) GetLogs(count string, level string, syslog string) []str
 		}
 
 		// Use hardcoded command with validated parameters
-		cmd := exec.Command("journalctl", "-u", "x-ui", "--no-pager", "-n", strconv.Itoa(countInt), "-p", level)
+		ctx, cancel := context.WithTimeout(context.Background(), xrayCommandTimeout)
+		defer cancel()
+		// #nosec G204 -- command is fixed and all variable arguments are allowlisted above.
+		cmd := exec.CommandContext(ctx, "journalctl", "-u", "x-ui", "--no-pager", "-n", strconv.Itoa(countInt), "-p", level)
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		err = cmd.Run()
 		if err != nil {
+			if ctx.Err() == context.DeadlineExceeded {
+				return []string{"journalctl command timed out."}
+			}
 			return []string{"Failed to run journalctl command! Make sure systemd is available and x-ui service is registered."}
 		}
 		lines = strings.Split(out.String(), "\n")
@@ -763,8 +802,8 @@ func (s *ServerService) GetXrayLogs(
 	showBlocked string,
 	showProxy string,
 	freedoms []string,
-	blackholes []string) []LogEntry {
-
+	blackholes []string,
+) []LogEntry {
 	const (
 		Direct = iota
 		Blocked
@@ -779,7 +818,7 @@ func (s *ServerService) GetXrayLogs(
 		return nil
 	}
 
-	file, err := os.Open(pathToAccessLog)
+	file, err := pathutil.OpenUnder(filepath.Dir(pathToAccessLog), pathToAccessLog)
 	if err != nil {
 		return nil
 	}
@@ -791,12 +830,12 @@ func (s *ServerService) GetXrayLogs(
 		line := strings.TrimSpace(scanner.Text())
 
 		if line == "" || strings.Contains(line, "api -> api") {
-			//skipping empty lines and api calls
+			// skipping empty lines and api calls
 			continue
 		}
 
 		if filter != "" && !strings.Contains(line, filter) {
-			//applying filter if it's not empty
+			// applying filter if it's not empty
 			continue
 		}
 
@@ -888,7 +927,7 @@ func (s *ServerService) GetDb() ([]byte, error) {
 		return nil, err
 	}
 	// Open the file for reading
-	file, err := os.Open(config.GetDBPath())
+	file, err := pathutil.OpenUnder(config.GetDBFolderPath(), config.GetDBPath())
 	if err != nil {
 		return nil, err
 	}
@@ -930,7 +969,7 @@ func (s *ServerService) ImportDB(file multipart.File) error {
 	}
 
 	// Create the temporary file
-	tempFile, err := os.Create(tempPath)
+	tempFile, err := pathutil.OpenFileUnder(config.GetDBFolderPath(), tempPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o600)
 	if err != nil {
 		return common.NewErrorf("Error creating temporary db file: %v", err)
 	}
@@ -950,7 +989,7 @@ func (s *ServerService) ImportDB(file multipart.File) error {
 	}()
 
 	// Save uploaded file to temporary file
-	if _, err = io.Copy(tempFile, file); err != nil {
+	if err = copyLimited(tempFile, file, MaxImportDBFileSize); err != nil {
 		return common.NewErrorf("Error saving db: %v", err)
 	}
 
@@ -1091,12 +1130,14 @@ func (s *ServerService) UpdateGeofile(fileName string) error {
 			}
 		}
 
-		client := &http.Client{}
-		resp, err := client.Do(req)
+		resp, err := serviceHTTPClient.Do(req)
 		if err != nil {
 			return common.NewErrorf("Failed to download Geofile from %s: %v", url, err)
 		}
 		defer resp.Body.Close()
+		if err := validateContentLength(resp, maxDownloadFileBytes); err != nil {
+			return common.NewErrorf("Failed to download Geofile from %s: %v", url, err)
+		}
 
 		// Parse Last-Modified header from server
 		var serverModTime time.Time
@@ -1129,14 +1170,14 @@ func (s *ServerService) UpdateGeofile(fileName string) error {
 			return common.NewErrorf("Failed to download Geofile from %s: received status code %d", url, resp.StatusCode)
 		}
 
-		file, err := os.Create(destPath)
+		file, err := pathutil.OpenFileUnder(filepath.Dir(destPath), destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 		if err != nil {
 			return common.NewErrorf("Failed to create Geofile %s: %v", destPath, err)
 		}
 		defer file.Close()
 
-		_, err = io.Copy(file, resp.Body)
-		if err != nil {
+		if err = copyLimited(file, resp.Body, maxDownloadFileBytes); err != nil {
+			_ = os.Remove(destPath)
 			return common.NewErrorf("Failed to save Geofile %s: %v", destPath, err)
 		}
 
@@ -1174,23 +1215,65 @@ func (s *ServerService) UpdateGeofile(fileName string) error {
 	return nil
 }
 
-func (s *ServerService) GetNewX25519Cert() (any, error) {
-	// Run the command
-	cmd := exec.Command(xray.GetBinaryPath(), "x25519")
+func runXrayCommand(args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), xrayCommandTimeout)
+	defer cancel()
+
+	// #nosec G204 -- Xray binary path is project-controlled and arguments are passed without a shell.
+	cmd := exec.CommandContext(ctx, xray.GetBinaryPath(), args...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	err := cmd.Run()
+	if err := cmd.Run(); err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return "", fmt.Errorf("xray command timed out after %s", xrayCommandTimeout)
+		}
+		return "", err
+	}
+	return out.String(), nil
+}
+
+func parseCommandValue(lines []string, index int, field string) (string, error) {
+	if len(lines) <= index {
+		return "", common.NewErrorf("invalid xray output: missing %s", field)
+	}
+	parts := strings.SplitN(lines[index], ":", 2)
+	if len(parts) != 2 {
+		return "", common.NewErrorf("invalid xray output: missing separator for %s", field)
+	}
+	value := strings.TrimSpace(parts[1])
+	if value == "" {
+		return "", common.NewErrorf("invalid xray output: empty %s", field)
+	}
+	return value, nil
+}
+
+func validateECHServerName(sni string) error {
+	sni = strings.TrimSpace(sni)
+	if sni == "" {
+		return common.NewError("server name is required")
+	}
+	if strings.HasPrefix(sni, "-") || strings.ContainsAny(sni, " \t\r\n\x00") {
+		return common.NewError("invalid server name")
+	}
+	return nil
+}
+
+func (s *ServerService) GetNewX25519Cert() (any, error) {
+	output, err := runXrayCommand("x25519")
 	if err != nil {
 		return nil, err
 	}
 
-	lines := strings.Split(out.String(), "\n")
+	lines := strings.Split(output, "\n")
 
-	privateKeyLine := strings.Split(lines[0], ":")
-	publicKeyLine := strings.Split(lines[1], ":")
-
-	privateKey := strings.TrimSpace(privateKeyLine[1])
-	publicKey := strings.TrimSpace(publicKeyLine[1])
+	privateKey, err := parseCommandValue(lines, 0, "private key")
+	if err != nil {
+		return nil, err
+	}
+	publicKey, err := parseCommandValue(lines, 1, "public key")
+	if err != nil {
+		return nil, err
+	}
 
 	keyPair := map[string]any{
 		"privateKey": privateKey,
@@ -1201,22 +1284,21 @@ func (s *ServerService) GetNewX25519Cert() (any, error) {
 }
 
 func (s *ServerService) GetNewmldsa65() (any, error) {
-	// Run the command
-	cmd := exec.Command(xray.GetBinaryPath(), "mldsa65")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
+	output, err := runXrayCommand("mldsa65")
 	if err != nil {
 		return nil, err
 	}
 
-	lines := strings.Split(out.String(), "\n")
+	lines := strings.Split(output, "\n")
 
-	SeedLine := strings.Split(lines[0], ":")
-	VerifyLine := strings.Split(lines[1], ":")
-
-	seed := strings.TrimSpace(SeedLine[1])
-	verify := strings.TrimSpace(VerifyLine[1])
+	seed, err := parseCommandValue(lines, 0, "seed")
+	if err != nil {
+		return nil, err
+	}
+	verify, err := parseCommandValue(lines, 1, "verify")
+	if err != nil {
+		return nil, err
+	}
 
 	keyPair := map[string]any{
 		"seed":   seed,
@@ -1227,16 +1309,16 @@ func (s *ServerService) GetNewmldsa65() (any, error) {
 }
 
 func (s *ServerService) GetNewEchCert(sni string) (any, error) {
-	// Run the command
-	cmd := exec.Command(xray.GetBinaryPath(), "tls", "ech", "--serverName", sni)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
+	if err := validateECHServerName(sni); err != nil {
+		return nil, err
+	}
+
+	output, err := runXrayCommand("tls", "ech", "--serverName", strings.TrimSpace(sni))
 	if err != nil {
 		return nil, err
 	}
 
-	lines := strings.Split(out.String(), "\n")
+	lines := strings.Split(output, "\n")
 	if len(lines) < 4 {
 		return nil, common.NewError("invalid ech cert")
 	}
@@ -1251,14 +1333,12 @@ func (s *ServerService) GetNewEchCert(sni string) (any, error) {
 }
 
 func (s *ServerService) GetNewVlessEnc() (any, error) {
-	cmd := exec.Command(xray.GetBinaryPath(), "vlessenc")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if err := cmd.Run(); err != nil {
+	output, err := runXrayCommand("vlessenc")
+	if err != nil {
 		return nil, err
 	}
 
-	lines := strings.Split(out.String(), "\n")
+	lines := strings.Split(output, "\n")
 	var auths []map[string]string
 	var current map[string]string
 
@@ -1302,22 +1382,21 @@ func (s *ServerService) GetNewUUID() (map[string]string, error) {
 }
 
 func (s *ServerService) GetNewmlkem768() (any, error) {
-	// Run the command
-	cmd := exec.Command(xray.GetBinaryPath(), "mlkem768")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
+	output, err := runXrayCommand("mlkem768")
 	if err != nil {
 		return nil, err
 	}
 
-	lines := strings.Split(out.String(), "\n")
+	lines := strings.Split(output, "\n")
 
-	SeedLine := strings.Split(lines[0], ":")
-	ClientLine := strings.Split(lines[1], ":")
-
-	seed := strings.TrimSpace(SeedLine[1])
-	client := strings.TrimSpace(ClientLine[1])
+	seed, err := parseCommandValue(lines, 0, "seed")
+	if err != nil {
+		return nil, err
+	}
+	client, err := parseCommandValue(lines, 1, "client")
+	if err != nil {
+		return nil, err
+	}
 
 	keyPair := map[string]any{
 		"seed":   seed,

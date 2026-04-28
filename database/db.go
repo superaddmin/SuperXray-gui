@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/fs"
 	"log"
 	"os"
 	"path"
@@ -123,7 +122,7 @@ func isTableEmpty(tableName string) (bool, error) {
 // InitDB sets up the database connection, migrates models, and runs seeders.
 func InitDB(dbPath string) error {
 	dir := path.Dir(dbPath)
-	err := os.MkdirAll(dir, fs.ModePerm)
+	err := os.MkdirAll(dir, 0o750)
 	if err != nil {
 		return err
 	}

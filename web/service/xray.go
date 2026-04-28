@@ -103,7 +103,9 @@ func (s *XrayService) GetXrayConfig() (*xray.Config, error) {
 		return nil, err
 	}
 
-	s.inboundService.AddTraffic(nil, nil)
+	if err, _ := s.inboundService.AddTraffic(nil, nil); err != nil {
+		return nil, err
+	}
 
 	inbounds, err := s.inboundService.GetAllInbounds()
 	if err != nil {
@@ -115,7 +117,9 @@ func (s *XrayService) GetXrayConfig() (*xray.Config, error) {
 		}
 		// get settings clients
 		settings := map[string]any{}
-		json.Unmarshal([]byte(inbound.Settings), &settings)
+		if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+			return nil, err
+		}
 		clients, ok := settings["clients"].([]any)
 		if ok {
 			// Fast O(N) lookup map for client traffic enablement
@@ -170,7 +174,9 @@ func (s *XrayService) GetXrayConfig() (*xray.Config, error) {
 		if len(inbound.StreamSettings) > 0 {
 			// Unmarshal stream JSON
 			var stream map[string]any
-			json.Unmarshal([]byte(inbound.StreamSettings), &stream)
+			if err := json.Unmarshal([]byte(inbound.StreamSettings), &stream); err != nil {
+				return nil, err
+			}
 
 			// Remove the "settings" field under "tlsSettings" and "realitySettings"
 			tlsSettings, ok1 := stream["tlsSettings"].(map[string]any)
@@ -237,7 +243,9 @@ func (s *XrayService) RestartXray(isForce bool) error {
 			logger.Debug("It does not need to restart Xray")
 			return nil
 		}
-		p.Stop()
+		if err := p.Stop(); err != nil {
+			return err
+		}
 	}
 
 	p = xray.NewProcess(xrayConfig)

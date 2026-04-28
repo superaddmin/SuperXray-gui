@@ -18,6 +18,7 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/database"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
+	"github.com/superaddmin/SuperXray-gui/v2/util/pathutil"
 )
 
 const (
@@ -400,7 +401,7 @@ func (s *CustomGeoService) downloadToPathOnce(resourceURL, destPath string, last
 	}
 
 	binDir := filepath.Dir(safeDestPath)
-	if err = os.MkdirAll(binDir, 0o755); err != nil {
+	if err = os.MkdirAll(binDir, 0o750); err != nil {
 		return false, "", fmt.Errorf("%w: %v", ErrCustomGeoDownload, err)
 	}
 
@@ -408,7 +409,7 @@ func (s *CustomGeoService) downloadToPathOnce(resourceURL, destPath string, last
 	if err != nil {
 		return false, "", fmt.Errorf("%w: %v", ErrCustomGeoDownload, err)
 	}
-	out, err := os.Create(safeTmpPath)
+	out, err := pathutil.OpenFileUnder(filepath.Dir(safeTmpPath), safeTmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return false, "", fmt.Errorf("%w: %v", ErrCustomGeoDownload, err)
 	}

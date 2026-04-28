@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
@@ -16,6 +17,7 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/database"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
+	"github.com/superaddmin/SuperXray-gui/v2/util/pathutil"
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
 )
 
@@ -94,22 +96,46 @@ func (j *CheckClientIpJob) Run() {
 }
 
 func (j *CheckClientIpJob) clearAccessLog() {
-	logAccessP, err := os.OpenFile(xray.GetAccessPersistentLogPath(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
-	j.checkError(err)
-	defer logAccessP.Close()
+	accessPersistentLogPath := xray.GetAccessPersistentLogPath()
+	logAccessP, err := pathutil.OpenFileUnder(filepath.Dir(accessPersistentLogPath), accessPersistentLogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		j.checkError(err)
+		return
+	}
+	defer func() {
+		if err := logAccessP.Close(); err != nil {
+			j.checkError(err)
+		}
+	}()
 
 	accessLogPath, err := xray.GetAccessLogPath()
-	j.checkError(err)
+	if err != nil {
+		j.checkError(err)
+		return
+	}
 
-	file, err := os.Open(accessLogPath)
-	j.checkError(err)
-	defer file.Close()
+	file, err := pathutil.OpenUnder(filepath.Dir(accessLogPath), accessLogPath)
+	if err != nil {
+		j.checkError(err)
+		return
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			j.checkError(err)
+		}
+	}()
 
 	_, err = io.Copy(logAccessP, file)
-	j.checkError(err)
+	if err != nil {
+		j.checkError(err)
+		return
+	}
 
 	err = os.Truncate(accessLogPath, 0)
-	j.checkError(err)
+	if err != nil {
+		j.checkError(err)
+		return
+	}
 
 	j.lastClear = time.Now().Unix()
 }
@@ -129,7 +155,10 @@ func (j *CheckClientIpJob) hasLimitIp() bool {
 		}
 
 		settings := map[string][]model.Client{}
-		json.Unmarshal([]byte(inbound.Settings), &settings)
+		if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+			logger.Warning("failed to parse inbound settings while checking IP limits:", err)
+			continue
+		}
 		clients := settings["clients"]
 
 		for _, client := range clients {
@@ -149,9 +178,21 @@ func (j *CheckClientIpJob) processLogFile() bool {
 	emailRegex := regexp.MustCompile(`email: (.+)$`)
 	timestampRegex := regexp.MustCompile(`^(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})`)
 
-	accessLogPath, _ := xray.GetAccessLogPath()
-	file, _ := os.Open(accessLogPath)
-	defer file.Close()
+	accessLogPath, err := xray.GetAccessLogPath()
+	if err != nil {
+		logger.Warning("failed to get access log path:", err)
+		return false
+	}
+	file, err := pathutil.OpenUnder(filepath.Dir(accessLogPath), accessLogPath)
+	if err != nil {
+		logger.Warning("failed to open access log:", err)
+		return false
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			logger.Warning("failed to close access log:", err)
+		}
+	}()
 
 	// Track IPs with their last seen timestamp
 	inboundClientIps := make(map[string]map[string]int64, 100)
@@ -211,7 +252,9 @@ func (j *CheckClientIpJob) processLogFile() bool {
 
 		clientIpsRecord, err := j.getInboundClientIps(email)
 		if err != nil {
-			j.addInboundClientIps(email, ipsWithTime)
+			if err := j.addInboundClientIps(email, ipsWithTime); err != nil {
+				logger.Warning("failed to add inbound client IPs:", err)
+			}
 			continue
 		}
 
@@ -356,7 +399,10 @@ func (j *CheckClientIpJob) updateInboundClientIps(inboundClientIps *model.Inboun
 	}
 
 	settings := map[string][]model.Client{}
-	json.Unmarshal([]byte(inbound.Settings), &settings)
+	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+		logger.Warningf("failed to parse inbound settings for %s: %v", clientEmail, err)
+		return false
+	}
 	clients := settings["clients"]
 
 	// Find the client's IP limit
@@ -382,7 +428,10 @@ func (j *CheckClientIpJob) updateInboundClientIps(inboundClientIps *model.Inboun
 	// Parse old IPs from database
 	var oldIpsWithTime []IPWithTimestamp
 	if inboundClientIps.Ips != "" {
-		json.Unmarshal([]byte(inboundClientIps.Ips), &oldIpsWithTime)
+		if err := json.Unmarshal([]byte(inboundClientIps.Ips), &oldIpsWithTime); err != nil {
+			logger.Warningf("failed to parse stored IPs for %s: %v", clientEmail, err)
+			oldIpsWithTime = nil
+		}
 	}
 
 	// Merge old and new IPs, evicting entries that haven't been
@@ -401,12 +450,17 @@ func (j *CheckClientIpJob) updateInboundClientIps(inboundClientIps *model.Inboun
 	j.disAllowedIps = []string{}
 
 	// Open log file
-	logIpFile, err := os.OpenFile(xray.GetIPLimitLogPath(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	ipLimitLogPath := xray.GetIPLimitLogPath()
+	logIpFile, err := pathutil.OpenFileUnder(filepath.Dir(ipLimitLogPath), ipLimitLogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 	if err != nil {
 		logger.Errorf("failed to open IP limit log file: %s", err)
 		return false
 	}
-	defer logIpFile.Close()
+	defer func() {
+		if err := logIpFile.Close(); err != nil {
+			logger.Warning("failed to close IP limit log file:", err)
+		}
+	}()
 	log.SetOutput(logIpFile)
 	log.SetFlags(log.LstdFlags)
 
@@ -474,8 +528,15 @@ func (j *CheckClientIpJob) disconnectClientTemporarily(inbound *model.Inbound, c
 	for _, client := range clients {
 		if client.Email == clientEmail {
 			// Convert client to map for API
-			clientBytes, _ := json.Marshal(client)
-			json.Unmarshal(clientBytes, &clientConfig)
+			clientBytes, err := json.Marshal(client)
+			if err != nil {
+				logger.Warningf("[LIMIT_IP] Failed to marshal client %s: %v", clientEmail, err)
+				return
+			}
+			if err := json.Unmarshal(clientBytes, &clientConfig); err != nil {
+				logger.Warningf("[LIMIT_IP] Failed to convert client %s: %v", clientEmail, err)
+				return
+			}
 			break
 		}
 	}
@@ -558,7 +619,7 @@ func (j *CheckClientIpJob) resolveXrayAPIPort() int {
 }
 
 func getAPIPortFromConfigPath(configPath string) (int, error) {
-	configData, err := os.ReadFile(configPath)
+	configData, err := pathutil.ReadFileUnder(filepath.Dir(configPath), configPath)
 	if err != nil {
 		return 0, err
 	}

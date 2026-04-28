@@ -5,6 +5,7 @@ package session
 import (
 	"encoding/gob"
 	"net/http"
+	"strings"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 
@@ -62,10 +63,12 @@ func ClearSession(c *gin.Context) {
 	if cookiePath == "" {
 		cookiePath = "/"
 	}
+	secureCookie := c.Request.TLS != nil || strings.EqualFold(c.GetHeader("X-Forwarded-Proto"), "https")
 	s.Options(sessions.Options{
 		Path:     cookiePath,
 		MaxAge:   -1,
 		HttpOnly: true,
+		Secure:   secureCookie,
 		SameSite: http.SameSiteLaxMode,
 	})
 }

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/web/global"
 	"github.com/superaddmin/SuperXray-gui/v2/web/service"
 	"github.com/superaddmin/SuperXray-gui/v2/web/websocket"
@@ -15,6 +16,11 @@ import (
 )
 
 var filenameRegex = regexp.MustCompile(`^[a-zA-Z0-9_\-.]+$`)
+
+const (
+	maxImportDBFileSize    int64 = service.MaxImportDBFileSize
+	maxImportDBRequestSize int64 = service.MaxImportDBFileSize + 1024*1024
+)
 
 // ServerController handles server management and status-related operations.
 type ServerController struct {
@@ -77,11 +83,13 @@ func (a *ServerController) refreshStatus() {
 func (a *ServerController) startTask() {
 	webServer := global.GetWebServer()
 	c := webServer.GetCron()
-	c.AddFunc("@every 2s", func() {
+	if _, err := c.AddFunc("@every 2s", func() {
 		// Always refresh to keep CPU history collected continuously.
 		// Sampling is lightweight and capped to ~6 hours in memory.
 		a.refreshStatus()
-	})
+	}); err != nil {
+		logger.Warning("failed to schedule server status refresh:", err)
+	}
 }
 
 // status returns the current server status information.
@@ -271,7 +279,9 @@ func (a *ServerController) getDb(c *gin.Context) {
 	c.Header("Content-Disposition", "attachment; filename="+filename)
 
 	// Write the file contents to the response
-	c.Writer.Write(db)
+	if _, err := c.Writer.Write(db); err != nil {
+		logger.Warning("failed to write database backup response:", err)
+	}
 }
 
 func isValidFilename(filename string) bool {
@@ -279,10 +289,28 @@ func isValidFilename(filename string) bool {
 	return filenameRegex.MatchString(filename)
 }
 
+func validateImportDBFileSize(size int64) error {
+	if size > maxImportDBFileSize {
+		return fmt.Errorf("database file is too large: max %d bytes", maxImportDBFileSize)
+	}
+	return nil
+}
+
 // importDB imports a database file and restarts the Xray service.
 func (a *ServerController) importDB(c *gin.Context) {
-	// Get the file from the request body
-	file, _, err := c.Request.FormFile("db")
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxImportDBRequestSize)
+
+	fileHeader, err := c.FormFile("db")
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.index.readDatabaseError"), err)
+		return
+	}
+	if err := validateImportDBFileSize(fileHeader.Size); err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.index.readDatabaseError"), err)
+		return
+	}
+
+	file, err := fileHeader.Open()
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.index.readDatabaseError"), err)
 		return

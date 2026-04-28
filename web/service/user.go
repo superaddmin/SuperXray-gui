@@ -116,8 +116,12 @@ func (s *UserService) UpdateUser(id int, username string, password string) error
 	}
 
 	if twoFactorEnable {
-		s.settingService.SetTwoFactorEnable(false)
-		s.settingService.SetTwoFactorToken("")
+		if err := s.settingService.SetTwoFactorEnable(false); err != nil {
+			return err
+		}
+		if err := s.settingService.SetTwoFactorToken(""); err != nil {
+			return err
+		}
 	}
 
 	return db.Model(model.User{}).

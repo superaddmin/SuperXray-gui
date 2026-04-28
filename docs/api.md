@@ -743,6 +743,6 @@ trojan://password@server:443?type=tcp&security=tls#remark
 
 ## 11. 其他 API
 
-### GET /panel/api/backuptotgbot
+### POST /panel/api/backuptotgbot
 
-发送数据库备份到 Telegram Bot 管理员（需启用 TG Bot）。
+发送数据库备份到 Telegram Bot 管理员（需启用 TG Bot）。该接口会产生副作用，必须使用已登录会话和同源 AJAX 请求。

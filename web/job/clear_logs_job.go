@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
+	"github.com/superaddmin/SuperXray-gui/v2/util/pathutil"
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
 )
 
@@ -20,16 +21,15 @@ func NewClearLogsJob() *ClearLogsJob {
 // ensureFileExists creates the necessary directories and file if they don't exist
 func ensureFileExists(path string) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
 
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0644)
+	file, err := pathutil.OpenFileUnder(dir, path, os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		return err
 	}
-	file.Close()
-	return nil
+	return file.Close()
 }
 
 // Here Run is an interface method of the Job interface
@@ -48,16 +48,18 @@ func (j *ClearLogsJob) Run() {
 	for i := range len(logFiles) {
 		if i > 0 {
 			// Copy to previous logs
-			logFilePrev, err := os.OpenFile(logFilesPrev[i-1], os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+			logFilePrev, err := pathutil.OpenFileUnder(filepath.Dir(logFilesPrev[i-1]), logFilesPrev[i-1], os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 			if err != nil {
 				logger.Warning("Failed to open previous log file for writing:", logFilesPrev[i-1], "-", err)
 				continue
 			}
 
-			logFile, err := os.OpenFile(logFiles[i], os.O_RDONLY, 0644)
+			logFile, err := pathutil.OpenFileUnder(filepath.Dir(logFiles[i]), logFiles[i], os.O_RDONLY, 0o600)
 			if err != nil {
 				logger.Warning("Failed to open current log file for reading:", logFiles[i], "-", err)
-				logFilePrev.Close()
+				if closeErr := logFilePrev.Close(); closeErr != nil {
+					logger.Warning("Failed to close previous log file:", logFilesPrev[i-1], "-", closeErr)
+				}
 				continue
 			}
 
@@ -66,8 +68,12 @@ func (j *ClearLogsJob) Run() {
 				logger.Warning("Failed to copy log file:", logFiles[i], "to", logFilesPrev[i-1], "-", err)
 			}
 
-			logFile.Close()
-			logFilePrev.Close()
+			if closeErr := logFile.Close(); closeErr != nil {
+				logger.Warning("Failed to close current log file:", logFiles[i], "-", closeErr)
+			}
+			if closeErr := logFilePrev.Close(); closeErr != nil {
+				logger.Warning("Failed to close previous log file:", logFilesPrev[i-1], "-", closeErr)
+			}
 		}
 
 		err := os.Truncate(logFiles[i], 0)

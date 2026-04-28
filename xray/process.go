@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"runtime"
@@ -95,7 +94,9 @@ func GetAccessLogPath() (string, error) {
 
 // stopProcess calls Stop on the given Process instance.
 func stopProcess(p *Process) {
-	p.Stop()
+	if err := p.Stop(); err != nil {
+		logger.Warning("Failed to stop Xray process finalizer:", err)
+	}
 }
 
 // Process wraps an Xray process instance and provides management methods.
@@ -217,6 +218,7 @@ func (p *process) refreshAPIPort() {
 
 // refreshVersion updates the version string by running the Xray binary with -version.
 func (p *process) refreshVersion() {
+	// #nosec G204 -- binary path is resolved by project configuration and no shell is invoked.
 	cmd := exec.Command(GetBinaryPath(), "-version")
 	data, err := cmd.Output()
 	if err != nil {
@@ -249,7 +251,7 @@ func (p *process) Start() (err error) {
 		return common.NewErrorf("Failed to generate XRAY configuration files: %v", err)
 	}
 
-	err = os.MkdirAll(config.GetLogFolder(), 0o770)
+	err = os.MkdirAll(config.GetLogFolder(), 0o750)
 	if err != nil {
 		logger.Warningf("Failed to create log folder: %s", err)
 	}
@@ -258,11 +260,12 @@ func (p *process) Start() (err error) {
 	if p.configPath != "" {
 		configPath = p.configPath
 	}
-	err = os.WriteFile(configPath, data, fs.ModePerm)
+	err = os.WriteFile(configPath, data, 0o600)
 	if err != nil {
 		return common.NewErrorf("Failed to write configuration file: %v", err)
 	}
 
+	// #nosec G204 -- binary path and config path are local project-controlled values; no shell is invoked.
 	cmd := exec.Command(GetBinaryPath(), "-c", configPath)
 	p.cmd = cmd
 
@@ -318,5 +321,5 @@ func (p *process) Stop() error {
 // writeCrashReport writes a crash report to the binary folder with a timestamped filename.
 func writeCrashReport(m []byte) error {
 	crashReportPath := config.GetBinFolderPath() + "/core_crash_" + time.Now().Format("20060102_150405") + ".log"
-	return os.WriteFile(crashReportPath, m, os.ModePerm)
+	return os.WriteFile(crashReportPath, m, 0o600)
 }

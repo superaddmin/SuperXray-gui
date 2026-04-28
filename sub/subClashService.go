@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/goccy/go-json"
 	yaml "github.com/goccy/go-yaml"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
@@ -195,7 +194,9 @@ func (s *SubClashService) buildProxy(inbound *model.Inbound, client model.Client
 			proxy["flow"] = client.Flow
 		}
 		var inboundSettings map[string]any
-		json.Unmarshal([]byte(inbound.Settings), &inboundSettings)
+		if !decodeJSONString(inbound.Settings, &inboundSettings, "vless inbound settings") {
+			return nil
+		}
 		if encryption, ok := inboundSettings["encryption"].(string); ok && encryption != "" {
 			proxy["packet-encoding"] = encryption
 		}
@@ -206,7 +207,9 @@ func (s *SubClashService) buildProxy(inbound *model.Inbound, client model.Client
 		proxy["type"] = "ss"
 		proxy["password"] = client.Password
 		var inboundSettings map[string]any
-		json.Unmarshal([]byte(inbound.Settings), &inboundSettings)
+		if !decodeJSONString(inbound.Settings, &inboundSettings, "shadowsocks inbound settings") {
+			return nil
+		}
 		method, _ := inboundSettings["method"].(string)
 		if method == "" {
 			return nil
@@ -236,7 +239,9 @@ func (s *SubClashService) buildProxy(inbound *model.Inbound, client model.Client
 // block) that the hysteria proxy wants preserved.
 func (s *SubClashService) buildHysteriaProxy(inbound *model.Inbound, client model.Client, extraRemark string) map[string]any {
 	var inboundSettings map[string]any
-	_ = json.Unmarshal([]byte(inbound.Settings), &inboundSettings)
+	if !decodeJSONString(inbound.Settings, &inboundSettings, "hysteria inbound settings") {
+		return nil
+	}
 
 	proxyType := "hysteria2"
 	authKey := "password"
@@ -255,7 +260,9 @@ func (s *SubClashService) buildHysteriaProxy(inbound *model.Inbound, client mode
 	}
 
 	var rawStream map[string]any
-	_ = json.Unmarshal([]byte(inbound.StreamSettings), &rawStream)
+	if !decodeJSONString(inbound.StreamSettings, &rawStream, "hysteria stream settings") {
+		return nil
+	}
 
 	// TLS details — hysteria always uses TLS.
 	if tlsSettings, ok := rawStream["tlsSettings"].(map[string]any); ok {
@@ -411,7 +418,9 @@ func (s *SubClashService) applySecurity(proxy map[string]any, security string, s
 
 func (s *SubClashService) streamData(stream string) map[string]any {
 	var streamSettings map[string]any
-	json.Unmarshal([]byte(stream), &streamSettings)
+	if !decodeJSONString(stream, &streamSettings, "clash stream settings") {
+		return map[string]any{}
+	}
 	security, _ := streamSettings["security"].(string)
 	switch security {
 	case "tls":

@@ -121,13 +121,17 @@ func (w *WebSocketController) readPump(client *websocket.Client, conn *ws.Conn) 
 			logger.Error("WebSocket readPump panic recovered:", r)
 		}
 		w.hub.Unregister(client)
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			logger.Debugf("WebSocket close error for client %s: %v", client.ID, err)
+		}
 	}()
 
-	conn.SetReadDeadline(time.Now().Add(pongWait))
+	if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		logger.Debugf("WebSocket set read deadline error for client %s: %v", client.ID, err)
+		return
+	}
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(pongWait))
-		return nil
+		return conn.SetReadDeadline(time.Now().Add(pongWait))
 	})
 	conn.SetReadLimit(maxMessageSize)
 
@@ -160,16 +164,23 @@ func (w *WebSocketController) writePump(client *websocket.Client, conn *ws.Conn)
 			logger.Error("WebSocket writePump panic recovered:", r)
 		}
 		ticker.Stop()
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			logger.Debugf("WebSocket close error for client %s: %v", client.ID, err)
+		}
 	}()
 
 	for {
 		select {
 		case message, ok := <-client.Send:
-			conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+				logger.Debugf("WebSocket set write deadline error for client %s: %v", client.ID, err)
+				return
+			}
 			if !ok {
 				// Hub closed the channel
-				conn.WriteMessage(ws.CloseMessage, []byte{})
+				if err := conn.WriteMessage(ws.CloseMessage, []byte{}); err != nil {
+					logger.Debugf("WebSocket close message error for client %s: %v", client.ID, err)
+				}
 				return
 			}
 
@@ -181,7 +192,10 @@ func (w *WebSocketController) writePump(client *websocket.Client, conn *ws.Conn)
 			}
 
 		case <-ticker.C:
-			conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := conn.SetWriteDeadline(time.Now().Add(writeWait)); err != nil {
+				logger.Debugf("WebSocket set write deadline error for client %s: %v", client.ID, err)
+				return
+			}
 			if err := conn.WriteMessage(ws.PingMessage, nil); err != nil {
 				logger.Debugf("WebSocket ping error for client %s: %v", client.ID, err)
 				return
