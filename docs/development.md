@@ -15,8 +15,8 @@
 
 欢迎通过以下方式贡献：
 
-- 🐛 **提交 Bug**：[GitHub Issues](https://github.com/superaddmin/3x-ui/issues)
-- 💡 **功能建议**：[GitHub Issues](https://github.com/superaddmin/3x-ui/issues)
+- 🐛 **提交 Bug**：[GitHub Issues](https://github.com/superaddmin/SuperXray-gui/issues)
+- 💡 **功能建议**：[GitHub Issues](https://github.com/superaddmin/SuperXray-gui/issues)
 - 🔧 **代码贡献**：提交 Pull Request
 - 🌍 **翻译贡献**：添加或改进翻译文件
 - 📖 **文档改进**：完善项目文档
@@ -46,7 +46,7 @@ go version
 
 ```bash
 # 克隆仓库
-git clone https://github.com/superaddmin/3x-ui.git
+git clone https://github.com/superaddmin/SuperXray-gui.git
 cd 3x-ui
 
 # 安装依赖

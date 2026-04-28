@@ -112,7 +112,7 @@ rc-service crond start
 
 ```bash
 sudo -i
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/3x-ui/main/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh)
 ```
 
 如需指定二进制 Release 下载源，可在命令前设置 `XUI_RELEASE_REPO=仓库所有者/仓库名`。默认保持使用已有 Release 的上游仓库，以避免新仓库尚未发布 Release 时安装失败。
@@ -416,7 +416,7 @@ systemctl reload caddy
 仓库提供的 `docker-compose.yml` 会从本地源码构建镜像，并使用宿主机网络：
 
 ```bash
-git clone https://github.com/superaddmin/3x-ui.git
+git clone https://github.com/superaddmin/SuperXray-gui.git
 cd 3x-ui
 docker compose up -d --build
 ```
@@ -516,7 +516,7 @@ go version
 ### 8.2 编译程序并下载 Xray
 
 ```bash
-git clone https://github.com/superaddmin/3x-ui.git
+git clone https://github.com/superaddmin/SuperXray-gui.git
 cd 3x-ui
 go mod download
 CGO_ENABLED=1 go build -ldflags "-w -s" -o build/x-ui main.go

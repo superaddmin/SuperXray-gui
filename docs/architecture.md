@@ -15,7 +15,7 @@
 |------|-----|
 | 项目名称 | `x-ui` |
 | 当前版本 | `2.9.3` |
-| 模块路径 | `github.com/mhsanaei/3x-ui/v2` |
+| 模块路径 | `github.com/superaddmin/SuperXray-gui/v2` |
 | 许可证 | GPL V3 |
 | Go 版本 | `1.26.2` |
 

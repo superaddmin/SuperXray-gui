@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/mhsanaei/3x-ui/v2/logger"
-	"github.com/mhsanaei/3x-ui/v2/util/common"
-	"github.com/mhsanaei/3x-ui/v2/web/session"
-	"github.com/mhsanaei/3x-ui/v2/web/websocket"
+	"github.com/superaddmin/SuperXray-gui/v2/logger"
+	"github.com/superaddmin/SuperXray-gui/v2/util/common"
+	"github.com/superaddmin/SuperXray-gui/v2/web/session"
+	"github.com/superaddmin/SuperXray-gui/v2/web/websocket"
 
 	"github.com/gin-gonic/gin"
 	ws "github.com/gorilla/websocket"

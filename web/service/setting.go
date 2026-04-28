@@ -11,14 +11,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mhsanaei/3x-ui/v2/database"
-	"github.com/mhsanaei/3x-ui/v2/database/model"
-	"github.com/mhsanaei/3x-ui/v2/logger"
-	"github.com/mhsanaei/3x-ui/v2/util/common"
-	"github.com/mhsanaei/3x-ui/v2/util/random"
-	"github.com/mhsanaei/3x-ui/v2/util/reflect_util"
-	"github.com/mhsanaei/3x-ui/v2/web/entity"
-	"github.com/mhsanaei/3x-ui/v2/xray"
+	"github.com/superaddmin/SuperXray-gui/v2/database"
+	"github.com/superaddmin/SuperXray-gui/v2/database/model"
+	"github.com/superaddmin/SuperXray-gui/v2/logger"
+	"github.com/superaddmin/SuperXray-gui/v2/util/common"
+	"github.com/superaddmin/SuperXray-gui/v2/util/random"
+	"github.com/superaddmin/SuperXray-gui/v2/util/reflect_util"
+	"github.com/superaddmin/SuperXray-gui/v2/web/entity"
+	"github.com/superaddmin/SuperXray-gui/v2/xray"
 )
 
 //go:embed config.json

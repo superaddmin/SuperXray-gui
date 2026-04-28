@@ -7,12 +7,12 @@ import (
 	"maps"
 	"strings"
 
-	"github.com/mhsanaei/3x-ui/v2/database/model"
-	"github.com/mhsanaei/3x-ui/v2/logger"
-	"github.com/mhsanaei/3x-ui/v2/util/json_util"
-	"github.com/mhsanaei/3x-ui/v2/util/random"
-	"github.com/mhsanaei/3x-ui/v2/web/service"
-	"github.com/mhsanaei/3x-ui/v2/xray"
+	"github.com/superaddmin/SuperXray-gui/v2/database/model"
+	"github.com/superaddmin/SuperXray-gui/v2/logger"
+	"github.com/superaddmin/SuperXray-gui/v2/util/json_util"
+	"github.com/superaddmin/SuperXray-gui/v2/util/random"
+	"github.com/superaddmin/SuperXray-gui/v2/web/service"
+	"github.com/superaddmin/SuperXray-gui/v2/xray"
 )
 
 //go:embed default.json

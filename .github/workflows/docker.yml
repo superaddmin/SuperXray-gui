@@ -25,7 +25,7 @@ jobs:
         with:
           images: |
             hsanaeii/3x-ui
-            ghcr.io/mhsanaei/3x-ui
+            ghcr.io/superaddmin/SuperXray-gui
           tags: |
             type=ref,event=branch
             type=ref,event=tag

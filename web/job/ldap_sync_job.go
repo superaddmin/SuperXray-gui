@@ -5,10 +5,10 @@ import (
 
 	"strings"
 
-	"github.com/mhsanaei/3x-ui/v2/database/model"
-	"github.com/mhsanaei/3x-ui/v2/logger"
-	ldaputil "github.com/mhsanaei/3x-ui/v2/util/ldap"
-	"github.com/mhsanaei/3x-ui/v2/web/service"
+	"github.com/superaddmin/SuperXray-gui/v2/database/model"
+	"github.com/superaddmin/SuperXray-gui/v2/logger"
+	ldaputil "github.com/superaddmin/SuperXray-gui/v2/util/ldap"
+	"github.com/superaddmin/SuperXray-gui/v2/web/service"
 
 	"strconv"
 

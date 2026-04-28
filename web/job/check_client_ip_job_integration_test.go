@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mhsanaei/3x-ui/v2/database"
-	"github.com/mhsanaei/3x-ui/v2/database/model"
-	xuilogger "github.com/mhsanaei/3x-ui/v2/logger"
+	"github.com/superaddmin/SuperXray-gui/v2/database"
+	"github.com/superaddmin/SuperXray-gui/v2/database/model"
+	xuilogger "github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/op/go-logging"
 )
 

@@ -7,13 +7,13 @@
   </picture>
 </p>
 
-[![Release](https://img.shields.io/github/v/release/mhsanaei/3x-ui.svg)](https://github.com/MHSanaei/3x-ui/releases)
-[![Build](https://img.shields.io/github/actions/workflow/status/mhsanaei/3x-ui/release.yml.svg)](https://github.com/MHSanaei/3x-ui/actions)
-[![GO Version](https://img.shields.io/github/go-mod/go-version/mhsanaei/3x-ui.svg)](#)
-[![Downloads](https://img.shields.io/github/downloads/mhsanaei/3x-ui/total.svg)](https://github.com/MHSanaei/3x-ui/releases/latest)
+[![Release](https://img.shields.io/github/v/release/superaddmin/SuperXray-gui.svg)](https://github.com/superaddmin/SuperXray-gui/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/superaddmin/SuperXray-gui/release.yml.svg)](https://github.com/superaddmin/SuperXray-gui/actions)
+[![GO Version](https://img.shields.io/github/go-mod/go-version/superaddmin/SuperXray-gui.svg)](#)
+[![Downloads](https://img.shields.io/github/downloads/superaddmin/SuperXray-gui/total.svg)](https://github.com/superaddmin/SuperXray-gui/releases/latest)
 [![License](https://img.shields.io/badge/license-GPL%20V3-blue.svg?longCache=true)](https://www.gnu.org/licenses/gpl-3.0.en.html)
-[![Go Reference](https://pkg.go.dev/badge/github.com/mhsanaei/3x-ui/v2.svg)](https://pkg.go.dev/github.com/mhsanaei/3x-ui/v2)
-[![Go Report Card](https://goreportcard.com/badge/github.com/mhsanaei/3x-ui/v2)](https://goreportcard.com/report/github.com/mhsanaei/3x-ui/v2)
+[![Go Reference](https://pkg.go.dev/badge/github.com/superaddmin/SuperXray-gui/v2.svg)](https://pkg.go.dev/github.com/superaddmin/SuperXray-gui/v2)
+[![Go Report Card](https://goreportcard.com/badge/github.com/superaddmin/SuperXray-gui/v2)](https://goreportcard.com/report/github.com/superaddmin/SuperXray-gui/v2)
 
 **3X-UI** — 一个基于网页的高级开源控制面板，专为管理 Xray-core 服务器而设计。它提供了用户友好的界面，用于配置和监控各种 VPN 和代理协议。
 
@@ -106,7 +106,7 @@
 ## 🚀 快速开始
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/3x-ui/main/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh)
 ```
 
 安装完成后访问 `http://<服务器IP>:2053`，使用默认账号登录：
@@ -123,7 +123,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/3x-ui/main/install
 ### 方式一：一键脚本安装（推荐）
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/3x-ui/main/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh)
 ```
 
 **支持的操作系统**：Ubuntu 16.04+、Debian 9+、CentOS 7+、Arch Linux、Alpine
@@ -145,7 +145,7 @@ x-ui update-all-geofiles  # 更新 GeoIP/GeoSite 数据
 
 ```bash
 # 克隆仓库
-git clone https://github.com/superaddmin/3x-ui.git
+git clone https://github.com/superaddmin/SuperXray-gui.git
 cd 3x-ui
 
 # 启动服务
@@ -176,7 +176,7 @@ services:
 
 ```bash
 # 克隆仓库
-git clone https://github.com/superaddmin/3x-ui.git
+git clone https://github.com/superaddmin/SuperXray-gui.git
 cd 3x-ui
 
 # 编译（需要 Go 1.26+ 和 CGO）
@@ -339,7 +339,7 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 go version
 
 # 克隆仓库
-git clone https://github.com/superaddmin/3x-ui.git
+git clone https://github.com/superaddmin/SuperXray-gui.git
 cd 3x-ui
 ```
 
@@ -433,7 +433,7 @@ x-ui migrate                                # 数据库迁移
 | [API 接口说明](docs/api.md) | 完整的 REST API 文档、请求/响应示例 |
 | [开发者贡献指南](docs/development.md) | 开发环境搭建、代码规范、测试、CI/CD |
 
-更多使用说明请参阅 [项目 Wiki](https://github.com/superaddmin/3x-ui/wiki)。
+更多使用说明请参阅 [项目 Wiki](https://github.com/superaddmin/SuperXray-gui/wiki)。
 
 ---
 
@@ -532,4 +532,4 @@ cp /etc/x-ui/x-ui.db /backup/x-ui-$(date +%Y%m%d).db
 
 ## Stargazers over Time
 
-[![Stargazers over time](https://starchart.cc/MHSanaei/3x-ui.svg?variant=adaptive)](https://starchart.cc/MHSanaei/3x-ui)
+[![Stargazers over time](https://starchart.cc/superaddmin/SuperXray-gui.svg?variant=adaptive)](https://starchart.cc/superaddmin/SuperXray-gui)

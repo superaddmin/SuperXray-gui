@@ -3,10 +3,10 @@ package job
 import (
 	"encoding/json"
 
-	"github.com/mhsanaei/3x-ui/v2/logger"
-	"github.com/mhsanaei/3x-ui/v2/web/service"
-	"github.com/mhsanaei/3x-ui/v2/web/websocket"
-	"github.com/mhsanaei/3x-ui/v2/xray"
+	"github.com/superaddmin/SuperXray-gui/v2/logger"
+	"github.com/superaddmin/SuperXray-gui/v2/web/service"
+	"github.com/superaddmin/SuperXray-gui/v2/web/websocket"
+	"github.com/superaddmin/SuperXray-gui/v2/xray"
 
 	"github.com/valyala/fasthttp"
 )

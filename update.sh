@@ -8,8 +8,8 @@ plain='\033[0m'
 
 xui_folder="${XUI_MAIN_FOLDER:=/usr/local/x-ui}"
 xui_service="${XUI_SERVICE:=/etc/systemd/system}"
-script_repo="${XUI_SCRIPT_REPO:=superaddmin/3x-ui}"
-release_repo="${XUI_RELEASE_REPO:=MHSanaei/3x-ui}"
+script_repo="${XUI_SCRIPT_REPO:=superaddmin/SuperXray-gui}"
+release_repo="${XUI_RELEASE_REPO:=superaddmin/SuperXray-gui}"
 raw_base="https://raw.githubusercontent.com/${script_repo}/main"
 release_base="https://github.com/${release_repo}"
 release_api="https://api.github.com/repos/${release_repo}"

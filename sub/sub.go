@@ -15,13 +15,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mhsanaei/3x-ui/v2/logger"
-	"github.com/mhsanaei/3x-ui/v2/util/common"
-	webpkg "github.com/mhsanaei/3x-ui/v2/web"
-	"github.com/mhsanaei/3x-ui/v2/web/locale"
-	"github.com/mhsanaei/3x-ui/v2/web/middleware"
-	"github.com/mhsanaei/3x-ui/v2/web/network"
-	"github.com/mhsanaei/3x-ui/v2/web/service"
+	"github.com/superaddmin/SuperXray-gui/v2/logger"
+	"github.com/superaddmin/SuperXray-gui/v2/util/common"
+	webpkg "github.com/superaddmin/SuperXray-gui/v2/web"
+	"github.com/superaddmin/SuperXray-gui/v2/web/locale"
+	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
+	"github.com/superaddmin/SuperXray-gui/v2/web/network"
+	"github.com/superaddmin/SuperXray-gui/v2/web/service"
 
 	"github.com/gin-gonic/gin"
 )

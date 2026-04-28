@@ -3,8 +3,8 @@ package controller
 import (
 	"net/http"
 
-	"github.com/mhsanaei/3x-ui/v2/web/service"
-	"github.com/mhsanaei/3x-ui/v2/web/session"
+	"github.com/superaddmin/SuperXray-gui/v2/web/service"
+	"github.com/superaddmin/SuperXray-gui/v2/web/session"
 
 	"github.com/gin-gonic/gin"
 )
