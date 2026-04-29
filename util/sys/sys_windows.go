@@ -66,6 +66,7 @@ func ftToUint64(ft filetime) uint64 {
 // as it initializes the baseline. Subsequent calls compute deltas.
 func CPUPercentRaw() (float64, error) {
 	var idleFT, kernelFT, userFT filetime
+	// #nosec G103 -- Windows GetSystemTimes requires passing FILETIME buffers via unsafe syscall pointers.
 	r1, _, e1 := procGetSystemTimes.Call(
 		uintptr(unsafe.Pointer(&idleFT)),
 		uintptr(unsafe.Pointer(&kernelFT)),

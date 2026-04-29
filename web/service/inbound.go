@@ -800,6 +800,7 @@ func (s *InboundService) writeBackClientSubID(sourceInboundID int, sourceProtoco
 		return false, common.NewError("empty client ID")
 	}
 
+	// #nosec G117 -- Xray client settings must include protocol credential fields in trusted config JSON.
 	settingsBytes, err := json.Marshal(map[string][]model.Client{
 		"clients": {client},
 	})
@@ -954,6 +955,7 @@ func (s *InboundService) CopyInboundClients(targetInboundID int, sourceInboundID
 		return result, needRestart, nil
 	}
 
+	// #nosec G117 -- Xray client settings must include protocol credential fields in trusted config JSON.
 	settingsPayload, err := json.Marshal(map[string][]model.Client{
 		"clients": newClients,
 	})

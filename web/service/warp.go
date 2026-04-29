@@ -52,6 +52,7 @@ func buildWarpLicensePayload(license string) ([]byte, error) {
 }
 
 func buildWarpStoredData(token, deviceID, license, secretKey string) ([]byte, error) {
+	// #nosec G117 -- WARP export data intentionally stores provider-issued credentials for Xray config use.
 	return json.MarshalIndent(warpStoredData{
 		AccessToken: token,
 		DeviceID:    deviceID,

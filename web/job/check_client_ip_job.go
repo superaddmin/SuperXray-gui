@@ -528,6 +528,7 @@ func (j *CheckClientIpJob) disconnectClientTemporarily(inbound *model.Inbound, c
 	for _, client := range clients {
 		if client.Email == clientEmail {
 			// Convert client to map for API
+			// #nosec G117 -- protocol credential fields are required in the in-memory Xray API payload.
 			clientBytes, err := json.Marshal(client)
 			if err != nil {
 				logger.Warningf("[LIMIT_IP] Failed to marshal client %s: %v", clientEmail, err)

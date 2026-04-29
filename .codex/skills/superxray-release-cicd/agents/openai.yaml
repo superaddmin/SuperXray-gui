@@ -1,0 +1,4 @@
+interface:
+  display_name: "SuperXray 发布流水线"
+  short_description: "验证并维护 SuperXray 多架构发布流水线"
+  default_prompt: "Use $superxray-release-cicd to verify release readiness and maintain the GitHub Releases CI/CD workflow."

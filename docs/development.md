@@ -137,13 +137,13 @@ XUI_BIN_FOLDER=x-ui      # 本地 Xray 二进制目录；生产环境建议 bin
 ├── go.mod / go.sum            # Go 模块定义与依赖锁定
 ├── Dockerfile                 # 多阶段 Docker 构建
 ├── docker-compose.yml         # Docker Compose 编排
-├── install.sh                 # 一键安装脚本（987 行）
+├── install.sh                 # 一键安装脚本（约 990 行）
 ├── update.sh                  # 更新脚本
 ├── .env.example               # 环境变量示例
 │
 ├── config/                    # 配置管理
 │   ├── config.go              # 配置加载（版本/日志/路径）
-│   ├── version                # 版本号：2.9.3
+│   ├── version                # 版本号：2.9.4
 │   └── name                   # 应用名：x-ui
 │
 ├── database/                  # 数据库层
@@ -485,7 +485,7 @@ docs(api): update API documentation for inbound endpoints
 
 ```
 主版本号.次版本号.修订号
-2.9.3
+2.9.4
 ```
 
 版本号存储在 [`config/version`](../config/version) 文件中。

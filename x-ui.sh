@@ -51,7 +51,7 @@ is_domain() {
 }
 
 # check root
-[[ $EUID -ne 0 ]] && LOGE "错误：必须使用 root 权限运行此脚本！\n" && exit 1
+[[ $EUID -ne 0 ]] && LOGE "ERROR: You must be root to run this script! \n" && exit 1
 
 # Check OS and set release variable
 if [[ -f /etc/os-release ]]; then
@@ -241,7 +241,7 @@ reset_user() {
     
     echo -e "面板登录用户名已重置为：${green} ${config_account} ${plain}"
     echo -e "面板登录密码已重置为：${green} ${config_password} ${plain}"
-    echo -e "${green} 请使用新的登录用户名和密码访问 3X-UI 面板，请妥善保管！${plain}"
+    echo -e "${green} 请使用新的登录用户名和密码访问 SuperXray 面板，请妥善保管！${plain}"
     confirm_restart
 }
 
@@ -491,7 +491,7 @@ show_log() {
         esac
     else
         echo -e "${green}\t1.${plain} Debug Log"
-        echo -e "${green}\t2.${plain} 清空所有日志"
+        echo -e "${green}\t2.${plain} Clear All logs"
         echo -e "${green}\t0.${plain} 返回主菜单"
         read -rp "请选择一个选项: " choice
 
@@ -546,7 +546,7 @@ bbr_menu() {
 disable_bbr() {
 
     if [[ $(sysctl -n net.ipv4.tcp_congestion_control) != "bbr" ]] || [[ ! $(sysctl -n net.core.default_qdisc) =~ ^(fq|cake)$ ]]; then
-        echo -e "${yellow}当前未启用 BBR。${plain}"
+        echo -e "${yellow}BBR is not currently enabled.${plain}"
         before_show_menu
     fi
 
@@ -574,7 +574,7 @@ disable_bbr() {
 
 enable_bbr() {
     if [[ $(sysctl -n net.ipv4.tcp_congestion_control) == "bbr" ]] && [[ $(sysctl -n net.core.default_qdisc) =~ ^(fq|cake)$ ]]; then
-        echo -e "${green}BBR 已启用！${plain}"
+        echo -e "${green}BBR is already enabled!${plain}"
         before_show_menu
     fi
 
@@ -789,7 +789,7 @@ install_firewall() {
         apt-get update
         apt-get install -y ufw
     else
-        echo "ufw 防火墙已安装"
+        echo "ufw firewall is already installed"
     fi
 
     # Check if the firewall is inactive
@@ -949,7 +949,7 @@ update_geo() {
     echo -e "${green}\t1.${plain} Loyalsoldier (geoip.dat, geosite.dat)"
     echo -e "${green}\t2.${plain} chocolate4u (geoip_IR.dat, geosite_IR.dat)"
     echo -e "${green}\t3.${plain} runetfreedom (geoip_RU.dat, geosite_RU.dat)"
-    echo -e "${green}\t4.${plain} 全部"
+    echo -e "${green}\t4.${plain} All"
     echo -e "${green}\t0.${plain} 返回主菜单"
     read -rp "请选择一个选项: " choice
 
@@ -989,7 +989,7 @@ update_geo() {
 install_acme() {
     # Check if acme.sh is already installed
     if command -v ~/.acme.sh/acme.sh &>/dev/null; then
-        LOGI "acme.sh 已安装。"
+        LOGI "acme.sh is already installed."
         return 0
     fi
 
@@ -1069,7 +1069,7 @@ ssl_cert_issue_main() {
                 local cert_path="/root/cert/${domain}/fullchain.pem"
                 local key_path="/root/cert/${domain}/privkey.pem"
                 if [[ -f "${cert_path}" && -f "${key_path}" ]]; then
-                    echo -e "域名：${domain}"
+                    echo -e "Domain: ${domain}"
                     echo -e "\t证书路径：${cert_path}"
                     echo -e "\t私钥路径：${key_path}"
                 else
@@ -1350,10 +1350,10 @@ ssl_cert_issue() {
         ;;
     esac
     if [ $? -ne 0 ]; then
-        LOGE "socat 安装失败，请检查日志"
+            LOGE "socat 安装失败，请检查日志"
         exit 1
     else
-        LOGI "socat 安装成功..."
+        LOGI "install socat succeed..."
     fi
 
     # get the domain here, and we need to verify it
@@ -1678,7 +1678,7 @@ run_speedtest() {
             fi
 
             if [[ -z $pkg_manager ]]; then
-                echo "错误：未找到包管理器，可能需要手动安装 Speedtest。"
+                echo "Error: Package manager not found. You may need to install Speedtest manually."
                 return 1
             else
                 echo "正在使用 $pkg_manager 安装 Speedtest..."
@@ -1866,7 +1866,7 @@ install_iplimit() {
         echo -e "${yellow}Fail2ban 已安装。${plain}\n"
     fi
 
-    echo -e "${green}正在配置 IP 限制...${plain}\n"
+    echo -e "${green}Configuring IP Limit...${plain}\n"
 
     # make sure there's no conflict for jail files
     iplimit_remove_conflicts
@@ -1977,39 +1977,39 @@ remove_iplimit() {
 show_banlog() {
     local system_log="/var/log/fail2ban.log"
 
-    echo -e "${green}正在检查封禁日志...${plain}\n"
+    echo -e "${green}Checking ban logs...${plain}\n"
 
     if [[ $release == "alpine" ]]; then
         if [[ $(rc-service fail2ban status | grep -F 'status: started' -c) == 0 ]]; then
-            echo -e "${red}Fail2ban 服务未运行！${plain}\n"
+            echo -e "${red}Fail2ban service is not running!${plain}\n"
             return 1
         fi
     else
         if ! systemctl is-active --quiet fail2ban; then
-            echo -e "${red}Fail2ban 服务未运行！${plain}\n"
+            echo -e "${red}Fail2ban service is not running!${plain}\n"
             return 1
         fi
     fi
 
     if [[ -f "$system_log" ]]; then
-        echo -e "${green}fail2ban.log 中最近的系统封禁活动：${plain}"
-        grep "3x-ipl" "$system_log" | grep -E "Ban|Unban" | tail -n 10 || echo -e "${yellow}未找到最近的系统封禁活动${plain}"
+        echo -e "${green}Recent system ban activities from fail2ban.log:${plain}"
+        grep "3x-ipl" "$system_log" | grep -E "Ban|Unban" | tail -n 10 || echo -e "${yellow}No recent system ban activities found${plain}"
         echo ""
     fi
 
     if [[ -f "${iplimit_banned_log_path}" ]]; then
-        echo -e "${green}3X-IPL 封禁日志条目：${plain}"
+        echo -e "${green}3X-IPL ban log entries:${plain}"
         if [[ -s "${iplimit_banned_log_path}" ]]; then
-            grep -v "INIT" "${iplimit_banned_log_path}" | tail -n 10 || echo -e "${yellow}未找到封禁条目${plain}"
+            grep -v "INIT" "${iplimit_banned_log_path}" | tail -n 10 || echo -e "${yellow}No ban entries found${plain}"
         else
-            echo -e "${yellow}封禁日志文件为空${plain}"
+            echo -e "${yellow}Ban log file is empty${plain}"
         fi
     else
-        echo -e "${red}未找到封禁日志文件：${iplimit_banned_log_path}${plain}"
+        echo -e "${red}Ban log file not found at: ${iplimit_banned_log_path}${plain}"
     fi
 
-    echo -e "\n${green}当前 jail 状态：${plain}"
-    fail2ban-client status 3x-ipl || echo -e "${yellow}无法获取 jail 状态${plain}"
+    echo -e "\n${green}Current jail status:${plain}"
+    fail2ban-client status 3x-ipl || echo -e "${yellow}Unable to get jail status${plain}"
 }
 
 create_iplimit_jails() {
@@ -2070,7 +2070,7 @@ protocol = tcp
 chain = INPUT
 EOF
 
-    echo -e "${green}IP 限制 jail 文件已创建，封禁时长为 ${bantime} 分钟。${plain}"
+    echo -e "${green}Ip Limit jail files created with a bantime of ${bantime} minutes.${plain}"
 }
 
 iplimit_remove_conflicts() {
@@ -2083,7 +2083,7 @@ iplimit_remove_conflicts() {
         # Check for [3x-ipl] config in jail file then remove it
         if test -f "${file}" && grep -qw '3x-ipl' ${file}; then
             sed -i "/\[3x-ipl\]/,/^$/d" ${file}
-            echo -e "${yellow}正在移除 jail (${file}) 中与 [3x-ipl] 冲突的配置！${plain}\n"
+            echo -e "${yellow}Removing conflicts of [3x-ipl] in jail (${file})!${plain}\n"
         fi
     done
 }
@@ -2165,12 +2165,12 @@ SSH_port_forwarding() {
             restart
         else
             config_listenIP="${existing_listenIP}"
-            echo -e "${green}当前监听 IP 已设置为 ${config_listenIP}。${plain}"
+            echo -e "${green}Current listen IP is already set to ${config_listenIP}.${plain}"
         fi
         ;;
     2)
         ${xui_folder}/x-ui setting -listenIP 0.0.0.0 >/dev/null 2>&1
-        echo -e "${green}监听 IP 已清除。${plain}"
+        echo -e "${green}Listen IP has been cleared.${plain}"
         restart
         ;;
     0)
@@ -2209,7 +2209,7 @@ show_usage() {
 show_menu() {
     echo -e "
 ╔════════════════════════════════════════════════╗
-║   ${green}3X-UI 面板管理脚本${plain}                            ║
+║   ${green}SuperXray 面板管理脚本${plain}                            ║
 ║   ${green}0.${plain} 退出脚本                                ║
 ╠════════════════════════════════════════════════╣
 ║   ${green}1.${plain} 安装面板                                ║

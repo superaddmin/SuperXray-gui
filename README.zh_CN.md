@@ -269,7 +269,7 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 ├── main.go                    # 程序入口，CLI 命令解析
 ├── config/                    # 配置管理
 │   ├── config.go              # 配置加载与环境变量
-│   ├── version                # 版本号 (2.9.3)
+│   ├── version                # 版本号 (2.9.4)
 │   └── name                   # 应用名 (x-ui)
 ├── database/                  # 数据库层
 │   ├── db.go                  # SQLite 初始化与迁移
