@@ -1,20 +1,23 @@
-{{define "form/tlsSettings"}}
+{{define "form/tlsSecurity"}}
 <!-- tls enable -->
+<a-form v-if="inbound.canEnableTls() && inbound.protocol !== Protocols.HYSTERIA" :colon="false"
+  :label-col="{ md: {span:8} }" :wrapper-col="{ md: {span:14} }">
+  <a-divider :style="{ margin: '3px 0' }"></a-divider>
+  <a-form-item label='{{ i18n "security" }}'>
+    <a-radio-group v-model="inbound.stream.security" button-style="solid">
+      <a-radio-button value="none">{{ i18n "none" }}</a-radio-button>
+      <a-radio-button v-if="inbound.canEnableReality()"
+        value="reality">Reality</a-radio-button>
+      <a-radio-button value="tls">TLS</a-radio-button>
+    </a-radio-group>
+  </a-form-item>
+</a-form>
+{{end}}
+
+{{define "form/tlsSettings"}}
 <a-form v-if="inbound.canEnableTls()" :colon="false"
   :label-col="{ md: {span:8} }" :wrapper-col="{ md: {span:14} }">
-  <template v-if="inbound.protocol !== Protocols.HYSTERIA">
-    <a-divider :style="{ margin: '3px 0' }"></a-divider>
-    <a-form-item label='{{ i18n "security" }}'>
-      <a-radio-group v-model="inbound.stream.security" button-style="solid">
-        <a-radio-button value="none">{{ i18n "none" }}</a-radio-button>
-        <a-radio-button v-if="inbound.canEnableReality()"
-          value="reality">Reality</a-radio-button>
-        <a-radio-button value="tls">TLS</a-radio-button>
-      </a-radio-group>
-    </a-form-item>
-  </template>
-  <template v-else><a-divider style="margin:0;">TLS</a-divider></template>
-
+  <template v-if="inbound.protocol === Protocols.HYSTERIA"><a-divider style="margin:0;">TLS</a-divider></template>
   <!-- tls settings -->
   <template v-if="inbound.stream.isTls">
     <a-form-item label="SNI" placeholder="Server Name Indication">

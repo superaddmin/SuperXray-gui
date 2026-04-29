@@ -1,4 +1,4 @@
-{{define "form/streamSettings"}}
+{{define "form/streamNetwork"}}
 <!-- select stream network -->
 <a-form
   :colon="false"
@@ -22,7 +22,9 @@
     </a-select>
   </a-form-item>
 </a-form>
+{{end}}
 
+{{define "form/streamSettings"}}
 <!-- tcp -->
 <template v-if="inbound.stream.network === 'tcp'">
   {{template "form/streamTCP"}}

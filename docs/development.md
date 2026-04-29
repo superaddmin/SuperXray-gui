@@ -1,6 +1,7 @@
 # 开发者贡献指南
 
 > **目标读者**：贡献者
+> **适用版本**：`v2.9.8`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [部署指南](deployment.md)
 
 ---
@@ -123,7 +124,7 @@ XUI_LOG_FOLDER=x-ui      # 本地日志目录；生产环境建议 /var/log/x-ui
 XUI_BIN_FOLDER=x-ui      # 本地 Xray 二进制目录；生产环境建议 bin
 ```
 
-**默认账号**：首次运行时自动创建 `admin` / `admin`。
+**默认账号**：本地调试数据库首次初始化时会创建默认账号。生产部署请使用一键脚本生成随机用户名、密码、端口和 `webBasePath`；Docker 或源码直跑后也要立即手动修改默认安全配置。
 
 ---
 
@@ -137,13 +138,13 @@ SuperXray-gui/
 ├── go.mod / go.sum            # Go 模块定义与依赖锁定
 ├── Dockerfile                 # 多阶段 Docker 构建
 ├── docker-compose.yml         # Docker Compose 编排
-├── install.sh                 # 一键安装脚本（约 990 行）
+├── install.sh                 # 一键安装脚本（约 1050 行）
 ├── update.sh                  # 更新脚本
 ├── .env.example               # 环境变量示例
 │
 ├── config/                    # 配置管理
 │   ├── config.go              # 配置加载（版本/日志/路径）
-│   ├── version                # 版本号：2.9.7
+│   ├── version                # 版本号：2.9.8
 │   └── name                   # 应用名：x-ui
 │
 ├── database/                  # 数据库层
@@ -465,7 +466,7 @@ docs(api): update API documentation for inbound endpoints
 2. 创建功能分支（`git checkout -b feat/my-feature`）
 3. 提交变更（遵循 Commit Message 格式）
 4. 推送到 Fork 仓库
-5. 创建 Pull Request 到 `master` 分支
+5. 创建 Pull Request 到 `main` 分支
 6. 等待 Code Review
 
 ### 7.3 Code Review 要求
@@ -485,7 +486,7 @@ docs(api): update API documentation for inbound endpoints
 
 ```
 主版本号.次版本号.修订号
-2.9.7
+2.9.8
 ```
 
 版本号存储在 [`config/version`](../config/version) 文件中。
@@ -496,10 +497,12 @@ docs(api): update API documentation for inbound endpoints
 
 | 工作流 | 文件 | 触发条件 | 功能 |
 |--------|------|---------|------|
-| Release | [`release.yml`](../.github/workflows/release.yml) | Tag 推送 | 构建多平台二进制 + 发布 |
-| Docker | [`docker.yml`](../.github/workflows/docker.yml) | Tag 推送 | 构建 Docker 镜像 + 推送 |
+| Release | [`release.yml`](../.github/workflows/release.yml) | Tag 推送 | 构建并发布 Linux `amd64` / `arm64` 二进制包 |
+| Docker | [`docker.yml`](../.github/workflows/docker.yml) | Tag 推送 / 手动触发 | 构建 `linux/amd64,linux/arm64` 镜像并推送到 GHCR |
 | CodeQL | [`codeql.yml`](../.github/workflows/codeql.yml) | PR/Push | 代码安全分析 |
 | Cache Cleanup | [`cleanup_caches.yml`](../.github/workflows/cleanup_caches.yml) | PR 关闭 | 清理 CI 缓存 |
+
+发布标签必须匹配 `vX.Y.Z`，并与 [`config/version`](../config/version) 保持一致。当前 Docker 发布目标是 `ghcr.io/superaddmin/superxray-gui`，未配置其他默认镜像仓库。
 
 ### 8.3 Docker 镜像构建
 
@@ -511,7 +514,7 @@ FROM golang:1.26-alpine AS builder
 # 编译 Go 二进制 + 下载 Xray + GeoIP 数据
 
 # Stage 2: Final Image
-FROM alpine
+FROM alpine:3.22
 # 复制二进制 + 配置 fail2ban + 设置入口点
 ```
 
@@ -521,6 +524,11 @@ FROM alpine
 # 本地构建 Docker 镜像
 docker build -t superxray-gui .
 
-# 多架构构建
-docker buildx build --platform linux/amd64,linux/arm64 -t superxray-gui .
+# 本地构建并打 GHCR 风格标签
+docker build -t ghcr.io/superaddmin/superxray-gui:dev .
+
+# 多架构构建；本地验证时可去掉 --push 并改用 --load 单架构加载
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/superaddmin/superxray-gui:dev \
+  --push .
 ```

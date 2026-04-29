@@ -75,6 +75,14 @@ func newHTTPServer(handler http.Handler) *http.Server {
 	}
 }
 
+func newCronScheduler(loc *time.Location) *cron.Cron {
+	return cron.New(
+		cron.WithLocation(loc),
+		cron.WithSeconds(),
+		cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)),
+	)
+}
+
 func (f *wrapAssetsFile) Stat() (fs.FileInfo, error) {
 	info, err := f.File.Stat()
 	if err != nil {
@@ -424,7 +432,7 @@ func (s *Server) Start() (err error) {
 	if err != nil {
 		return err
 	}
-	s.cron = cron.New(cron.WithLocation(loc), cron.WithSeconds())
+	s.cron = newCronScheduler(loc)
 	s.cron.Start()
 
 	s.customGeoService = service.NewCustomGeoService()

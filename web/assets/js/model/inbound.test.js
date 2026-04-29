@@ -33,6 +33,9 @@ function loadInboundModel() {
             randomSeq(length) {
                 return 'b'.repeat(length);
             },
+            randomShortIds() {
+                return ['0123456789abcdef'];
+            },
             randomShadowsocksPassword() {
                 return 'password';
             },
@@ -77,4 +80,80 @@ test('blank Telegram ID input serializes as zero', () => {
 
     assert.equal(client.toJson().tgId, 0);
     assert.equal(typeof client.toJson().tgId, 'number');
+});
+
+test('default inbound settings serialize clients as an array', () => {
+    const { Inbound } = loadInboundModel();
+
+    const inbound = new Inbound();
+    const settings = JSON.parse(inbound.settings.toString());
+
+    assert.ok(Array.isArray(settings.clients));
+    assert.equal(typeof settings.clients, 'object');
+    assert.notEqual(typeof settings.clients, 'string');
+});
+
+test('add inbound form shows connection choices before protocol client fields', () => {
+    const form = fs.readFileSync('web/html/form/inbound.html', 'utf8');
+
+    const streamNetworkIndex = form.indexOf('{{template "form/streamNetwork"}}');
+    const tlsSecurityIndex = form.indexOf('{{template "form/tlsSecurity"}}');
+    const vlessClientIndex = form.indexOf('{{template "form/vless"}}');
+
+    assert.notEqual(streamNetworkIndex, -1);
+    assert.notEqual(tlsSecurityIndex, -1);
+    assert.notEqual(vlessClientIndex, -1);
+    assert.ok(streamNetworkIndex < vlessClientIndex);
+    assert.ok(tlsSecurityIndex < vlessClientIndex);
+});
+
+test('VLESS protocol advanced fields are hidden when TLS or Reality is selected', () => {
+    const vlessForm = fs.readFileSync('web/html/form/protocol/vless.html', 'utf8');
+
+    assert.match(vlessForm, /!inbound\.stream\.isTls\s+&&\s+!inbound\.stream\.isReality/);
+    assert.doesNotMatch(vlessForm, /inbound\.stream\.isTLS/);
+});
+
+test('inbounds page serializes client payloads with JSON.stringify', () => {
+    const page = fs.readFileSync('web/html/inbounds.html', 'utf8');
+
+    assert.doesNotMatch(page, /settings:\s*['"`]\{"clients":\s*\[/);
+    assert.doesNotMatch(page, /clients\.toString\(\)/);
+    assert.match(page, /JSON\.stringify\(\{\s*clients:/);
+});
+
+test('inbounds page encodes path parameters that can contain special characters', () => {
+    const page = fs.readFileSync('web/html/inbounds.html', 'utf8');
+
+    assert.match(page, /encodeURIComponent\(clientId\)/);
+    assert.match(page, /encodeURIComponent\(client\.email\)/);
+});
+
+test('inbounds page does not leak high-risk locals into global scope', () => {
+    const page = fs.readFileSync('web/html/inbounds.html', 'utf8');
+    const highRiskNames = [
+        'to_inbound',
+        'clients',
+        'clientStats',
+        'now',
+        'dbInbound',
+        'clientId',
+        'newDbInbound',
+        'rootInbound',
+        'newInbound',
+        'inbound',
+        'remainedSeconds',
+        'resetSeconds',
+    ];
+
+    for (const name of highRiskNames) {
+        const bareAssignment = new RegExp(`(^|[^\\w.$:-])${name}\\s*=(?!>)`, 'm');
+        const offenders = page
+            .split(/\r?\n/)
+            .map((line, index) => ({ line, index: index + 1 }))
+            .filter(({ line }) => bareAssignment.test(line))
+            .filter(({ line }) => !new RegExp(`\\b(?:const|let|var)\\s+[^;]*\\b${name}\\b`).test(line));
+
+        assert.deepEqual(offenders, [], `${name} should be declared before assignment`);
+    }
 });

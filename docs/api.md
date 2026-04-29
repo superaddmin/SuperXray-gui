@@ -1,6 +1,7 @@
 # API 接口说明
 
 > **目标读者**：集成开发者  
+> **适用版本**：`v2.9.8`
 > **相关文档**：[核心模块解析](modules.md) | [系统架构设计](architecture.md) | [部署指南](deployment.md)
 
 ---
@@ -21,7 +22,7 @@ SuperXray 使用 **Cookie-based Session** 认证。所有需要认证的 API 端
 
 - **请求格式**：`application/json` 或 `application/x-www-form-urlencoded`
 - **响应格式**：`application/json`
-- **基础路径**：所有 API 路径基于配置的 `webBasePath`（默认 `/`）
+- **基础路径**：所有 API 路径基于配置的 `webBasePath`（源码默认 `/`；一键安装通常会随机生成）
 
 ### 1.3 通用响应结构
 

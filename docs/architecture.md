@@ -1,6 +1,7 @@
 # 系统架构设计
 
 > **目标读者**：开发者 / 架构师  
+> **适用版本**：`v2.9.8`
 > **相关文档**：[核心模块解析](modules.md) | [API 接口说明](api.md) | [部署指南](deployment.md)
 
 ---
@@ -14,7 +15,7 @@
 | 属性 | 值 |
 |------|-----|
 | 项目名称 | `x-ui` |
-| 当前版本 | `2.9.7` |
+| 当前版本 | `2.9.8` |
 | 模块路径 | `github.com/superaddmin/SuperXray-gui/v2` |
 | 许可证 | GPL V3 |
 | Go 版本 | `1.26.2` |
@@ -38,7 +39,7 @@
 | **Web 框架** | Gin | v1.12.0 | HTTP 路由与中间件 |
 | **ORM** | GORM | v1.31.1 | 数据库操作 |
 | **数据库** | SQLite | - | 嵌入式数据存储 |
-| **代理核心** | Xray-core | v1.260327.0 | 代理协议实现 |
+| **代理核心** | Xray-core | v26.4.25 | 代理协议实现 |
 | **定时任务** | robfig/cron | v3.0.1 | 后台任务调度 |
 | **WebSocket** | gorilla/websocket | - | 实时通信 |
 | **Telegram** | telego | - | Bot API |

@@ -1,6 +1,7 @@
 # 核心模块解析
 
 > **目标读者**：开发者  
+> **适用版本**：`v2.9.8`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md)
 
 ---
@@ -79,7 +80,7 @@ var name string
 
 ### 2.3 版本管理
 
-- [`config/version`](../config/version)：存储版本号 `2.9.7`
+- [`config/version`](../config/version)：存储版本号 `2.9.8`
 - [`config/name`](../config/name)：存储应用名 `x-ui`
 
 ---

@@ -109,12 +109,13 @@
 bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh)
 ```
 
-安装完成后访问 `http://<服务器IP>:2053`，使用默认账号登录：
+如需固定安装当前版本：
 
-- **用户名**：`admin`
-- **密码**：`admin`
+```bash
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v2.9.8
+```
 
-> ⚠️ 请在首次登录后立即修改默认密码！
+一键脚本会自动安装基础依赖，下载匹配架构的 GitHub Release 包，并在安装结束时输出随机生成的用户名、密码、面板端口和 `webBasePath`。这段输出只出现一次，请保存到密码管理器。当前官方 Release 二进制包覆盖 Linux `amd64` 与 `arm64`。
 
 ---
 
@@ -127,6 +128,10 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 ```
 
 **支持的操作系统**：Ubuntu 16.04+、Debian 9+、CentOS 7+、Arch Linux、Alpine
+
+**脚本会安装的基础依赖**：`cron` / `cronie` / `dcron`、`curl`、`tar`、`tzdata`、`socat`、`ca-certificates`、`openssl`。不同发行版的包名略有差异，详见 [部署指南](docs/deployment.md)。
+
+**安装后的安全信息**：脚本检测到默认账号、默认路径或未配置证书时，会引导生成随机用户名、强密码、随机端口、随机 `webBasePath` 并配置 SSL。请以终端最终输出的访问地址为准，不要假设固定端口或固定账号。
 
 **安装后管理命令**：
 
@@ -142,6 +147,19 @@ x-ui update-all-geofiles  # 更新 GeoIP/GeoSite 数据
 ```
 
 ### 方式二：Docker 安装
+
+使用已发布的 GHCR 镜像：
+
+```bash
+docker run -d --name superxray-gui --network host --restart unless-stopped \
+  -v $PWD/db:/etc/x-ui \
+  -v $PWD/cert:/root/cert \
+  -e XRAY_VMESS_AEAD_FORCED=false \
+  -e XUI_ENABLE_FAIL2BAN=true \
+  ghcr.io/superaddmin/superxray-gui:2.9.8
+```
+
+如果需要基于本地源码构建：
 
 ```bash
 # 克隆仓库
@@ -172,6 +190,8 @@ services:
     restart: unless-stopped
 ```
 
+> Docker 入口不会执行一键脚本的随机化安全初始化。首次启动后请立即使用 `/app/x-ui setting ...` 修改默认用户名、密码、端口和 `webBasePath`，并配置证书；`docker run` 示例容器名是 `superxray-gui`，Compose 示例容器名是 `3xui_app`。
+
 ### 方式三：手动构建
 
 ```bash
@@ -186,15 +206,17 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 ./x-ui run
 ```
 
+源码构建还需要系统提供 C 编译工具链（如 `gcc` / `build-essential` / `pkg-config`）。如需部署完整运行目录，请运行 `DockerInit.sh <amd64|arm64>` 下载 Xray-core 与 GeoIP/GeoSite 数据文件，或直接使用 GitHub Release 中的 `x-ui-linux-amd64.tar.gz` / `x-ui-linux-arm64.tar.gz`。
+
 ---
 
 ## 📖 基本使用
 
 ### 登录面板
 
-1. 浏览器访问 `http://<服务器IP>:2053`
-2. 输入用户名和密码登录
-3. 建议在 **设置 → 面板设置** 中修改默认用户名和密码
+1. 一键脚本部署时，浏览器访问安装结束输出的 `https://<域名或IP>:<端口>/<webBasePath>`。
+2. Docker 或源码调试启动时，若尚未手动修改配置，默认端口通常为 `2053`，默认路径为 `/`。
+3. 输入用户名和密码登录，并在 **设置 → 面板设置** 中确认端口、证书、根路径和安全选项。
 
 ### 添加入站（Inbound）
 
@@ -234,7 +256,7 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 | Gin | v1.12.0 | HTTP Web 框架 |
 | GORM | v1.31.1 | ORM 框架 |
 | SQLite | - | 嵌入式数据库 |
-| Xray-core | v1.260327.0 | 代理核心引擎 |
+| Xray-core | v26.4.25 | 代理核心引擎 |
 | robfig/cron | v3.0.1 | 定时任务调度 |
 | gorilla/websocket | - | WebSocket 通信 |
 | telego | - | Telegram Bot API |
@@ -269,7 +291,7 @@ SuperXray-gui/
 ├── main.go                    # 程序入口，CLI 命令解析
 ├── config/                    # 配置管理
 │   ├── config.go              # 配置加载与环境变量
-│   ├── version                # 版本号 (2.9.7)
+│   ├── version                # 版本号 (2.9.8)
 │   └── name                   # 应用名 (x-ui)
 ├── database/                  # 数据库层
 │   ├── db.go                  # SQLite 初始化与迁移
@@ -364,6 +386,7 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 # Docker 构建
 docker build -t superxray-gui .
+docker build -t ghcr.io/superaddmin/superxray-gui:dev .
 ```
 
 ### 运行测试

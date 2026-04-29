@@ -1188,14 +1188,14 @@
         this.clientCount.splice(0);
         for (const inbound of dbInbounds) {
           const dbInbound = new DBInbound(inbound);
-          to_inbound = dbInbound.toInbound()
-          this.inbounds.push(to_inbound);
+          const toInbound = dbInbound.toInbound();
+          this.inbounds.push(toInbound);
           this.dbInbounds.push(dbInbound);
           if ([Protocols.VMESS, Protocols.VLESS, Protocols.TROJAN, Protocols.SHADOWSOCKS].includes(inbound.protocol)) {
-            if (dbInbound.isSS && (!to_inbound.isSSMultiUser)) {
+            if (dbInbound.isSS && (!toInbound.isSSMultiUser)) {
               continue;
             }
-            this.clientCount[inbound.id] = this.getClientCounts(inbound, to_inbound);
+            this.clientCount[inbound.id] = this.getClientCounts(inbound, toInbound);
           }
         }
         if (!this.loadingStates.fetched) {
@@ -1209,9 +1209,9 @@
       },
       getClientCounts(dbInbound, inbound) {
         let clientCount = 0, active = [], deactive = [], depleted = [], expiring = [], online = [], comments = new Map();
-        clients = inbound.clients;
-        clientStats = dbInbound.clientStats
-        now = new Date().getTime()
+        const clients = inbound.clients;
+        const clientStats = dbInbound.clientStats;
+        const now = new Date().getTime();
         if (clients) {
           clientCount = clients.length;
           if (dbInbound.enable) {
@@ -1426,7 +1426,8 @@
         });
       },
       openEditInbound(dbInboundId) {
-        dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        const dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        if (!dbInbound) return;
         const inbound = dbInbound.toInbound();
         inModal.show({
           title: '{{ i18n "pages.inbounds.modifyInbound"}}',
@@ -1494,7 +1495,8 @@
         await this.submit(`/panel/api/inbounds/update/${dbInbound.id}`, formData, inModal);
       },
       openAddClient(dbInboundId) {
-        dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        const dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        if (!dbInbound) return;
         clientModal.show({
           title: '{{ i18n "pages.client.add"}}',
           okText: '{{ i18n "pages.client.submitAdd"}}',
@@ -1506,7 +1508,8 @@
         });
       },
       openAddBulkClient(dbInboundId) {
-        dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        const dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        if (!dbInbound) return;
         clientsBulkModal.show({
           title: '{{ i18n "pages.client.bulk"}} ' + dbInbound.remark,
           okText: '{{ i18n "pages.client.bulk"}}',
@@ -1517,11 +1520,11 @@
         });
       },
       openEditClient(dbInboundId, client) {
-        dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        const dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
         if (!dbInbound) return;
-        clients = this.getInboundClients(dbInbound);
+        const clients = this.getInboundClients(dbInbound);
         if (!clients || !Array.isArray(clients)) return;
-        index = this.findIndexOfClient(dbInbound.protocol, clients, client);
+        const index = this.findIndexOfClient(dbInbound.protocol, clients, client);
         if (index < 0) return;
         clientModal.show({
           title: '{{ i18n "pages.client.edit"}}',
@@ -1547,22 +1550,29 @@
           default: return clients.findIndex(item => item && item.id === client.id && item.email === client.email);
         }
       },
+      serializeClientsPayload(clients) {
+        const list = Array.isArray(clients) ? clients : [clients];
+        return JSON.stringify({
+          clients: list.map(client => client && typeof client.toJson === 'function' ? client.toJson() : client)
+        });
+      },
       async addClient(clients, dbInboundId, modal) {
         const data = {
           id: dbInboundId,
-          settings: '{"clients": [' + clients.toString() + ']}',
+          settings: this.serializeClientsPayload(clients),
         };
         await this.submit(`/panel/api/inbounds/addClient`, data, modal);
       },
       async updateClient(client, dbInboundId, clientId) {
         const data = {
           id: dbInboundId,
-          settings: '{"clients": [' + client.toString() + ']}',
+          settings: this.serializeClientsPayload(client),
         };
-        await this.submit(`/panel/api/inbounds/updateClient/${clientId}`, data, clientModal);
+        await this.submit(`/panel/api/inbounds/updateClient/${encodeURIComponent(clientId)}`, data, clientModal);
       },
       resetTraffic(dbInboundId) {
-        dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        const dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        if (!dbInbound) return;
         this.$confirm({
           title: '{{ i18n "pages.inbounds.resetTraffic"}}' + ' #' + dbInboundId,
           content: '{{ i18n "pages.inbounds.resetTrafficContent"}}',
@@ -1588,8 +1598,9 @@
         });
       },
       delClient(dbInboundId, client, confirmation = true) {
-        dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
-        clientId = this.getClientId(dbInbound.protocol, client);
+        const dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        if (!dbInbound) return;
+        const clientId = this.getClientId(dbInbound.protocol, client);
         if (confirmation) {
           this.$confirm({
             title: '{{ i18n "pages.inbounds.deleteClient"}}' + ' ' + client.email,
@@ -1597,10 +1608,10 @@
             class: themeSwitcher.currentTheme,
             okText: '{{ i18n "delete"}}',
             cancelText: '{{ i18n "cancel"}}',
-            onOk: () => this.submit(`/panel/api/inbounds/${dbInboundId}/delClient/${clientId}`),
+            onOk: () => this.submit(`/panel/api/inbounds/${dbInboundId}/delClient/${encodeURIComponent(clientId)}`),
           });
         } else {
-          this.submit(`/panel/api/inbounds/${dbInboundId}/delClient/${clientId}`);
+          this.submit(`/panel/api/inbounds/${dbInboundId}/delClient/${encodeURIComponent(clientId)}`);
         }
       },
       getSubGroupClients(dbInbounds, currentClient) {
@@ -1642,9 +1653,9 @@
         }
       },
       checkFallback(dbInbound) {
-        newDbInbound = new DBInbound(dbInbound);
+        const newDbInbound = new DBInbound(dbInbound);
         if (dbInbound.listen.startsWith("@")) {
-          rootInbound = this.inbounds.find((i) =>
+          const rootInbound = this.inbounds.find((i) =>
             i.isTcp &&
             ['trojan', 'vless'].includes(i.protocol) &&
             i.settings.fallbacks.find(f => f.dest === dbInbound.listen)
@@ -1652,7 +1663,7 @@
           if (rootInbound) {
             newDbInbound.listen = rootInbound.listen;
             newDbInbound.port = rootInbound.port;
-            newInbound = newDbInbound.toInbound();
+            const newInbound = newDbInbound.toInbound();
             newInbound.stream.security = rootInbound.stream.security;
             newInbound.stream.tls = rootInbound.stream.tls;
             newInbound.stream.externalProxy = rootInbound.stream.externalProxy;
@@ -1662,23 +1673,24 @@
         return newDbInbound;
       },
       showQrcode(dbInboundId, client) {
-        dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
-        newDbInbound = this.checkFallback(dbInbound);
+        const dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        if (!dbInbound) return;
+        const newDbInbound = this.checkFallback(dbInbound);
         qrModal.show('{{ i18n "qrCode"}}', newDbInbound, client);
       },
       showInfo(dbInboundId, client) {
-        dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        const dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
         if (!dbInbound) return;
-        index = 0;
+        let index = 0;
         if (dbInbound.isMultiUser()) {
-          inbound = dbInbound.toInbound();
-          clients = inbound && inbound.clients ? inbound.clients : null;
+          const inbound = dbInbound.toInbound();
+          const clients = inbound && inbound.clients ? inbound.clients : null;
           if (clients && Array.isArray(clients)) {
             index = this.findIndexOfClient(dbInbound.protocol, clients, client);
             if (index < 0) index = 0;
           }
         }
-        newDbInbound = this.checkFallback(dbInbound);
+        const newDbInbound = this.checkFallback(dbInbound);
         infoModal.show(newDbInbound, index);
       },
       switchEnable(dbInboundId, state) {
@@ -1716,18 +1728,18 @@
       async switchEnableClient(dbInboundId, client, state) {
         this.loading();
         try {
-          dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+          const dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
           if (!dbInbound) return;
 
-          inbound = dbInbound.toInbound();
-          clients = inbound && inbound.clients ? inbound.clients : null;
+          const inbound = dbInbound.toInbound();
+          const clients = inbound && inbound.clients ? inbound.clients : null;
           if (!clients || !Array.isArray(clients)) return;
 
-          index = this.findIndexOfClient(dbInbound.protocol, clients, client);
+          const index = this.findIndexOfClient(dbInbound.protocol, clients, client);
           if (index < 0 || !clients[index]) return;
 
           clients[index].enable = typeof state === 'boolean' ? state : !!client.enable;
-          clientId = this.getClientId(dbInbound.protocol, clients[index]);
+          const clientId = this.getClientId(dbInbound.protocol, clients[index]);
           await this.updateClient(clients[index], dbInboundId, clientId);
         } finally {
           this.loading(false);
@@ -1752,10 +1764,10 @@
             class: themeSwitcher.currentTheme,
             okText: '{{ i18n "reset"}}',
             cancelText: '{{ i18n "cancel"}}',
-            onOk: () => this.submit('/panel/api/inbounds/' + dbInboundId + '/resetClientTraffic/' + client.email),
+            onOk: () => this.submit('/panel/api/inbounds/' + dbInboundId + '/resetClientTraffic/' + encodeURIComponent(client.email)),
           })
         } else {
-          this.submit('/panel/api/inbounds/' + dbInboundId + '/resetClientTraffic/' + client.email);
+          this.submit('/panel/api/inbounds/' + dbInboundId + '/resetClientTraffic/' + encodeURIComponent(client.email));
         }
       },
       resetAllTraffic() {
@@ -1844,9 +1856,9 @@
         return 100 * (clientStats.down + clientStats.up) / clientStats.total;
       },
       expireProgress(expTime, reset) {
-        now = new Date().getTime();
-        remainedSeconds = expTime < 0 ? -expTime / 1000 : (expTime - now) / 1000;
-        resetSeconds = reset * 86400;
+        const now = new Date().getTime();
+        const remainedSeconds = expTime < 0 ? -expTime / 1000 : (expTime - now) / 1000;
+        const resetSeconds = reset * 86400;
         if (remainedSeconds >= resetSeconds) return 0;
         return 100 * (1 - (remainedSeconds / resetSeconds));
       },
@@ -1905,8 +1917,9 @@
         return this.getInboundClients(this.dbInbounds.find(row => row.id === dbInboundId)).length > 1;
       },
       inboundLinks(dbInboundId) {
-        dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
-        newDbInbound = this.checkFallback(dbInbound);
+        const dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        if (!dbInbound) return;
+        const newDbInbound = this.checkFallback(dbInbound);
         txtModal.show('{{ i18n "pages.inbounds.export"}}', newDbInbound.genInboundLinks(this.remarkModel), newDbInbound.remark);
       },
       exportSubs(dbInboundId) {
@@ -1961,7 +1974,8 @@
         txtModal.show('{{ i18n "pages.inbounds.export"}}', copyText.join('\r\n'), 'All-Inbounds');
       },
       copy(dbInboundId) {
-        dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        const dbInbound = this.dbInbounds.find(row => row.id === dbInboundId);
+        if (!dbInbound) return;
         txtModal.show('{{ i18n "pages.inbounds.inboundData" }}', JSON.stringify(dbInbound, null, 2));
       },
       async startDataRefreshLoop() {

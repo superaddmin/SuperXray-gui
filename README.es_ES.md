@@ -28,6 +28,14 @@ Como una versión mejorada del proyecto X-UI original, SuperXray proporciona may
 bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh)
 ```
 
+Para fijar la versión actual:
+
+```bash
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v2.9.8
+```
+
+La instalación oficial publica binarios Linux `amd64` y `arm64`. El instalador imprime al final el usuario, la contraseña, el puerto del panel y el `webBasePath` generados; guarda esos datos. La imagen Docker está disponible en `ghcr.io/superaddmin/superxray-gui:2.9.8`. Consulta [docs/deployment.md](docs/deployment.md) para Docker, despliegue binario y dependencias.
+
 Para documentación completa, visita la [Wiki del proyecto](https://github.com/superaddmin/SuperXray-gui/wiki).
 
 ## Un Agradecimiento Especial a

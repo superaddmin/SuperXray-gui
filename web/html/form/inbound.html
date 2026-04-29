@@ -100,6 +100,15 @@
     </a-form-item>
 </a-form>
 
+<!-- connection settings -->
+<template v-if="inbound.canEnableStream()">
+    {{template "form/streamNetwork"}}
+</template>
+
+<template v-if="inbound.canEnableTls()">
+    {{template "form/tlsSecurity"}}
+</template>
+
 <!-- vmess settings -->
 <template v-if="inbound.protocol === Protocols.VMESS">
     {{template "form/vmess"}}
