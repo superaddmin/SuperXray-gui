@@ -197,7 +197,7 @@ jobs:
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
           awk -v version="$version" '
-            $0 == "## [" version "]" { capture=1; print; next }
+            $0 ~ "^## \\[" version "\\]([[:space:]]|$)" { capture=1; print; next }
             /^## \[/ && capture { exit }
             capture { print }
           ' CHANGELOG.md > release-notes.md

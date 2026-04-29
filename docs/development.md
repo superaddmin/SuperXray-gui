@@ -143,7 +143,7 @@ SuperXray-gui/
 │
 ├── config/                    # 配置管理
 │   ├── config.go              # 配置加载（版本/日志/路径）
-│   ├── version                # 版本号：2.9.5
+│   ├── version                # 版本号：2.9.6
 │   └── name                   # 应用名：x-ui
 │
 ├── database/                  # 数据库层
@@ -485,7 +485,7 @@ docs(api): update API documentation for inbound endpoints
 
 ```
 主版本号.次版本号.修订号
-2.9.5
+2.9.6
 ```
 
 版本号存储在 [`config/version`](../config/version) 文件中。

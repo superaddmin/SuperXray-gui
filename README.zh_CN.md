@@ -269,7 +269,7 @@ SuperXray-gui/
 ├── main.go                    # 程序入口，CLI 命令解析
 ├── config/                    # 配置管理
 │   ├── config.go              # 配置加载与环境变量
-│   ├── version                # 版本号 (2.9.5)
+│   ├── version                # 版本号 (2.9.6)
 │   └── name                   # 应用名 (x-ui)
 ├── database/                  # 数据库层
 │   ├── db.go                  # SQLite 初始化与迁移

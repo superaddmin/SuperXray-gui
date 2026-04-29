@@ -2,6 +2,17 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [2.9.6] - 2026-04-29
+
+### Fixed
+
+- 修复 GitHub Release tag 构建时 release notes 无法匹配带日期 CHANGELOG 标题的问题。
+- 修复 Docker tag 构建中 `DockerInit.sh` 未设置执行权限导致 buildx 退出 126 的问题。
+
+### Changed
+
+- 将项目版本号更新为 `2.9.6`，并同步文档中的版本引用。
+
 ## [2.9.5] - 2026-04-29
 
 ### Fixed

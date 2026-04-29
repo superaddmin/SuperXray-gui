@@ -186,6 +186,7 @@ class Gate:
             "v*.*.*",
             "Validate release metadata",
             "Generate release notes",
+            '$0 ~ "^## \\\\[" version "\\\\]([[:space:]]|$)"',
             "body_path: release-notes.md",
             "actions/setup-go",
             "gcc-aarch64-linux-gnu",
@@ -215,6 +216,9 @@ class Gate:
                 raise RuntimeError(f"docker.yml missing platform: {token}")
         if "ghcr.io/superaddmin/superxray-gui" not in docker:
             raise RuntimeError("docker.yml must publish the lower-case GHCR image name")
+        dockerfile = self._read("Dockerfile")
+        if 'chmod +x DockerInit.sh && ./DockerInit.sh "$TARGETARCH"' not in dockerfile:
+            raise RuntimeError("Dockerfile must chmod DockerInit.sh before executing it in buildx")
         forbidden_docker_tokens = [
             "DOCKER_HUB_TOKEN",
             "hsanaeii/" + "3x" + "-ui",
