@@ -209,8 +209,13 @@ class Gate:
                 raise RuntimeError(f"docker.yml missing platform: {token}")
         if "ghcr.io/superaddmin/superxray-gui" not in docker:
             raise RuntimeError("docker.yml must publish the lower-case GHCR image name")
-        if "DOCKER_HUB_TOKEN" in docker or "hsanaeii/3x-ui" in docker:
-            raise RuntimeError("docker.yml must not require Docker Hub credentials for releases")
+        forbidden_docker_tokens = [
+            "DOCKER_HUB_TOKEN",
+            "hsanaeii/" + "3x" + "-ui",
+        ]
+        for token in forbidden_docker_tokens:
+            if token in docker:
+                raise RuntimeError("docker.yml must not require Docker Hub credentials for releases")
         if "platform linux/arm64" not in arm64:
             raise RuntimeError("test-arm64.yml must verify arm64 under QEMU")
         if "gcc-aarch64-linux-gnu" not in arm64:

@@ -1,4 +1,4 @@
-// Package service provides business logic services for the 3x-ui web panel,
+// Package service provides business logic services for the SuperXray web panel,
 // including inbound/outbound management, user administration, settings, and Xray integration.
 package service
 

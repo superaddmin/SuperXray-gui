@@ -15,7 +15,7 @@ import (
 	xuilogger "github.com/superaddmin/SuperXray-gui/v2/logger"
 )
 
-// 3x-ui logger must be initialised once before any code path that can
+// SuperXray logger must be initialised once before any code path that can
 // log a warning. otherwise log.Warningf panics on a nil logger.
 var loggerInitOnce sync.Once
 
@@ -45,7 +45,7 @@ func setupIntegrationDB(t *testing.T) {
 		log.SetFlags(origLogFlags)
 	})
 
-	if err := database.InitDB(filepath.Join(dbDir, "3x-ui.db")); err != nil {
+	if err := database.InitDB(filepath.Join(dbDir, "SuperXray.db")); err != nil {
 		t.Fatalf("database.InitDB failed: %v", err)
 	}
 	// LIFO cleanup order: this runs before t.TempDir's own cleanup.

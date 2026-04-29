@@ -20,7 +20,7 @@
 > [!IMPORTANT]
 > 本项目仅用于个人使用和通信，请勿将其用于非法目的，请勿在生产环境中使用。
 
-作为原始 X-UI 项目的增强版本，3X-UI 提供了更好的稳定性、更广泛的协议支持和额外的功能。
+作为原始 X-UI 项目的增强版本，SuperXray 提供了更好的稳定性、更广泛的协议支持和额外的功能。
 
 ---
 
@@ -146,7 +146,7 @@ x-ui update-all-geofiles  # 更新 GeoIP/GeoSite 数据
 ```bash
 # 克隆仓库
 git clone https://github.com/superaddmin/SuperXray-gui.git
-cd 3x-ui
+cd SuperXray-gui
 
 # 启动服务
 docker compose up -d
@@ -177,7 +177,7 @@ services:
 ```bash
 # 克隆仓库
 git clone https://github.com/superaddmin/SuperXray-gui.git
-cd 3x-ui
+cd SuperXray-gui
 
 # 编译（需要 Go 1.26+ 和 CGO）
 CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
@@ -265,7 +265,7 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 ## 📁 项目结构
 
 ```
-3x-ui/
+SuperXray-gui/
 ├── main.go                    # 程序入口，CLI 命令解析
 ├── config/                    # 配置管理
 │   ├── config.go              # 配置加载与环境变量
@@ -340,7 +340,7 @@ go version
 
 # 克隆仓库
 git clone https://github.com/superaddmin/SuperXray-gui.git
-cd 3x-ui
+cd SuperXray-gui
 ```
 
 ### 运行调试
@@ -363,7 +363,7 @@ XUI_DEBUG=true go run main.go
 CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 # Docker 构建
-docker build -t 3x-ui .
+docker build -t superxray-gui .
 ```
 
 ### 运行测试

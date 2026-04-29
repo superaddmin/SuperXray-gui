@@ -20,7 +20,7 @@
 > [!IMPORTANT]
 > This project is only for personal usage, please do not use it for illegal purposes, and please do not use it in a production environment.
 
-As an enhanced fork of the original X-UI project, 3X-UI provides improved stability, broader protocol support, and additional features.
+As an enhanced fork of the original X-UI project, SuperXray provides improved stability, broader protocol support, and additional features.
 
 ## Quick Start
 

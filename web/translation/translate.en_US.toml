@@ -735,7 +735,7 @@
 "report" = "🕰 Scheduled Reports: {{ .RunTime }}\r\n"
 "datetime" = "⏰ Date&Time: {{ .DateTime }}\r\n"
 "hostname" = "💻 Host: {{ .Hostname }}\r\n"
-"version" = "🚀 3X-UI Version: {{ .Version }}\r\n"
+"version" = "🚀 SuperXray Version: {{ .Version }}\r\n"
 "xrayVersion" = "📡 Xray Version: {{ .XrayVersion }}\r\n"
 "ipv6" = "🌐 IPv6: {{ .IPv6 }}\r\n"
 "ipv4" = "🌐 IPv4: {{ .IPv4 }}\r\n"

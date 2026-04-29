@@ -13,8 +13,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Development Commands
 
 ```bash
-# Build (output: bin/3x-ui.exe)
-go build -o bin/3x-ui.exe ./main.go
+# Build (output: bin/SuperXray.exe)
+go build -o bin/SuperXray.exe ./main.go
 
 # Run with debug logging
 XUI_DEBUG=true go run ./main.go

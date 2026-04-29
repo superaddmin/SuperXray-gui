@@ -1,9 +1,9 @@
-# 3X-UI 技术文档体系规划方案
+# SuperXray 技术文档体系规划方案
 
 ## 1. 文档目录结构
 
 ```
-f:/3x-ui/
+f:/SuperXray-gui/
 ├── docs/
 │   ├── architecture.md        # 系统架构设计文档
 │   ├── deployment.md          # 环境搭建与部署指南
@@ -336,7 +336,7 @@ f:/3x-ui/
 **预计篇幅**：约 400-500 行
 
 ```
-# 3X-UI 中文 README
+# SuperXray 中文 README
 
 ## 项目 Logo + 徽章
 ## 项目简介

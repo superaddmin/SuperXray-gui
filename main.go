@@ -1,4 +1,4 @@
-// Package main is the entry point for the 3x-ui web panel application.
+// Package main is the entry point for the SuperXray web panel application.
 // It initializes the database, web server, and handles command-line operations for managing the panel.
 package main
 
@@ -25,7 +25,7 @@ import (
 	"github.com/op/go-logging"
 )
 
-// runWebServer initializes and starts the web server for the 3x-ui panel.
+// runWebServer initializes and starts the web server for the SuperXray panel.
 func runWebServer() {
 	log.Printf("Starting %v %v", config.GetName(), config.GetVersion())
 
@@ -401,7 +401,7 @@ func GetListenIP(getListen bool) {
 	}
 }
 
-// migrateDb performs database migration operations for the 3x-ui panel.
+// migrateDb performs database migration operations for the SuperXray panel.
 func migrateDb() {
 	inboundService := service.InboundService{}
 
@@ -414,7 +414,7 @@ func migrateDb() {
 	fmt.Println("Migration done!")
 }
 
-// main is the entry point of the 3x-ui application.
+// main is the entry point of the SuperXray application.
 // It parses command-line arguments to run the web server, migrate database, or update settings.
 func main() {
 	if len(os.Args) < 2 {

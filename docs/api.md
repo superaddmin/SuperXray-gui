@@ -9,7 +9,7 @@
 
 ### 1.1 认证方式
 
-3X-UI 使用 **Cookie-based Session** 认证。所有需要认证的 API 端点通过 Session Cookie 验证身份。
+SuperXray 使用 **Cookie-based Session** 认证。所有需要认证的 API 端点通过 Session Cookie 验证身份。
 
 **认证流程**：
 

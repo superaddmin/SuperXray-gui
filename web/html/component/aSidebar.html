@@ -4,8 +4,8 @@
         <a-layout-sider :theme="themeSwitcher.currentTheme" collapsible :collapsed="collapsed"
             @collapse="(isCollapsed, type) => collapseHandle(isCollapsed, type)" breakpoint="md">
             <div class="sidebar-logo" @click="goHome">
-                <img v-if="!collapsed" :src="logoSrc" alt="3X-UI" class="logo-img" />
-                <img v-else :src="logoIconSrc" alt="3X-UI" class="logo-icon" />
+                <img v-if="!collapsed" :src="logoSrc" alt="SuperXray" class="logo-img" />
+                <img v-else :src="logoIconSrc" alt="SuperXray" class="logo-icon" />
             </div>
             <a-theme-switch></a-theme-switch>
             <a-menu :theme="themeSwitcher.currentTheme" mode="inline" :selected-keys="activeTab"
@@ -22,7 +22,7 @@
                 <a-icon :type="visible ? 'close' : 'menu-fold'"></a-icon>
             </div>
             <div class="sidebar-logo" @click="goHome">
-                <img :src="logoSrc" alt="3X-UI" class="logo-img" />
+                <img :src="logoSrc" alt="SuperXray" class="logo-img" />
             </div>
             <a-theme-switch></a-theme-switch>
             <a-menu :theme="themeSwitcher.currentTheme" mode="inline" :selected-keys="activeTab"
@@ -80,22 +80,23 @@
                 activeTab: [
                     '{{ .request_uri }}'
                 ],
+                themeSwitcher,
                 visible: false,
                 collapsed: JSON.parse(localStorage.getItem(SIDEBAR_COLLAPSED_KEY)),
             }
         },
         computed: {
             logoSrc() {
-                var bp = (window.basePath || '/');
-                return bp + 'assets/img/logo-' + (this.themeSwitcher.isDarkTheme ? 'dark' : 'light') + '.png';
+                var bp = (basePath || '/');
+                return bp + 'assets/img/logo-' + (themeSwitcher.isDarkTheme ? 'dark' : 'light') + '.png';
             },
             logoIconSrc() {
-                return (window.basePath || '/') + 'assets/img/logo-icon.png';
+                return this.logoSrc;
             }
         },
         methods: {
             goHome() {
-                openLink((window.basePath || '/') + 'panel/');
+                openLink((basePath || '/') + 'panel/');
             },
             openLink(key) {
                 return key.startsWith('http') ? 

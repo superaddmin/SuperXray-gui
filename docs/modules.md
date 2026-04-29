@@ -214,7 +214,7 @@ func (s *Server) initRouter() (*gin.Engine, error) {
     // 中间件注册顺序
     engine.Use(middleware.DomainValidatorMiddleware(webDomain))  // 域名验证
     engine.Use(gzip.Gzip(gzip.DefaultCompression))              // Gzip 压缩
-    engine.Use(sessions.Sessions("3x-ui", store))               // Session 管理
+    engine.Use(sessions.Sessions("SuperXray", store))               // Session 管理
     engine.Use(locale.LocalizerMiddleware())                     // 国际化
     
     // 控制器注册

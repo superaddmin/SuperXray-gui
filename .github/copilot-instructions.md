@@ -1,7 +1,7 @@
-# 3X-UI Development Guide
+# SuperXray Development Guide
 
 ## Project Overview
-3X-UI is a web-based control panel for managing Xray-core servers. It's a Go application using Gin web framework with embedded static assets and SQLite database. The panel manages VPN/proxy inbounds, monitors traffic, and provides Telegram bot integration.
+SuperXray is a web-based control panel for managing Xray-core servers. It's a Go application using Gin web framework with embedded static assets and SQLite database. The panel manages VPN/proxy inbounds, monitors traffic, and provides Telegram bot integration.
 
 ## Architecture
 
@@ -33,7 +33,7 @@
 
 ### Building & Running
 ```bash
-# Build (creates bin/3x-ui.exe)
+# Build (creates bin/SuperXray.exe)
 go run tasks.json → "go: build" task
 
 # Run with debug logging

@@ -20,7 +20,7 @@
 > [!IMPORTANT]
 > Este proyecto es solo para uso personal y comunicación, por favor no lo use para fines ilegales, por favor no lo use en un entorno de producción.
 
-Como una versión mejorada del proyecto X-UI original, 3X-UI proporciona mayor estabilidad, soporte más amplio de protocolos y características adicionales.
+Como una versión mejorada del proyecto X-UI original, SuperXray proporciona mayor estabilidad, soporte más amplio de protocolos y características adicionales.
 
 ## Inicio Rápido
 

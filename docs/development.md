@@ -132,7 +132,7 @@ XUI_BIN_FOLDER=x-ui      # 本地 Xray 二进制目录；生产环境建议 bin
 ### 3.1 目录结构总览
 
 ```
-3x-ui/
+SuperXray-gui/
 ├── main.go                    # 程序入口，CLI 命令解析
 ├── go.mod / go.sum            # Go 模块定义与依赖锁定
 ├── Dockerfile                 # 多阶段 Docker 构建
@@ -519,8 +519,8 @@ FROM alpine
 
 ```bash
 # 本地构建 Docker 镜像
-docker build -t 3x-ui .
+docker build -t superxray-gui .
 
 # 多架构构建
-docker buildx build --platform linux/amd64,linux/arm64 -t 3x-ui .
+docker buildx build --platform linux/amd64,linux/arm64 -t superxray-gui .
 ```

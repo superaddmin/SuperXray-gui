@@ -1,13 +1,13 @@
 # 服务器环境部署教程
 
-> **目标读者**：准备在 VPS、云服务器或自建 Linux 主机上部署 3X-UI 的运维人员 / 开发者
+> **目标读者**：准备在 VPS、云服务器或自建 Linux 主机上部署 SuperXray 的运维人员 / 开发者
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md)
 
 ---
 
 ## 1. 部署前必须了解
 
-3X-UI 是一个基于 Web 的 Xray-core 管理面板，后端使用 Go 编写，默认使用 SQLite 保存面板配置和入站数据。服务器部署时通常包含三部分：
+SuperXray 是一个基于 Web 的 Xray-core 管理面板，后端使用 Go 编写，默认使用 SQLite 保存面板配置和入站数据。服务器部署时通常包含三部分：
 
 | 组件 | 默认位置 / 端口 | 说明 |
 |------|----------------|------|
@@ -308,7 +308,7 @@ x-ui
 推荐让 Nginx 或 Caddy 监听公网 `443`，面板仅监听本机：
 
 ```text
-Internet -> Nginx/Caddy :443 -> 127.0.0.1:<面板端口> -> 3X-UI
+Internet -> Nginx/Caddy :443 -> 127.0.0.1:<面板端口> -> SuperXray
 Internet -> Nginx/Caddy :443/sub/ -> 127.0.0.1:2096/sub/ -> 订阅服务
 Internet -> <Xray端口> -> Xray 入站
 ```
@@ -786,23 +786,23 @@ systemctl daemon-reload
 最重要的文件是 `/etc/x-ui/x-ui.db`。建议在停止服务后复制，避免 SQLite 写入中途备份不一致：
 
 ```bash
-sudo install -d -m 0700 /backup/3x-ui
+sudo install -d -m 0700 /backup/SuperXray
 sudo systemctl stop x-ui
-sudo cp -a /etc/x-ui/x-ui.db "/backup/3x-ui/x-ui-$(date +%F-%H%M%S).db"
+sudo cp -a /etc/x-ui/x-ui.db "/backup/SuperXray/x-ui-$(date +%F-%H%M%S).db"
 sudo systemctl start x-ui
 ```
 
 如果使用了面板证书，也备份证书目录：
 
 ```bash
-sudo cp -a /root/cert "/backup/3x-ui/cert-$(date +%F-%H%M%S)"
+sudo cp -a /root/cert "/backup/SuperXray/cert-$(date +%F-%H%M%S)"
 ```
 
 ### 10.2 systemd 部署恢复
 
 ```bash
 sudo systemctl stop x-ui
-sudo cp -a /backup/3x-ui/x-ui-YYYY-MM-DD-HHMMSS.db /etc/x-ui/x-ui.db
+sudo cp -a /backup/SuperXray/x-ui-YYYY-MM-DD-HHMMSS.db /etc/x-ui/x-ui.db
 sudo chown root:root /etc/x-ui/x-ui.db
 sudo chmod 0600 /etc/x-ui/x-ui.db
 sudo /usr/local/x-ui/x-ui migrate
