@@ -33,6 +33,7 @@ The gate checks Git status, semantic versioning, `CHANGELOG.md`, workflow trigge
 - `CHANGELOG.md` must contain `## [X.Y.Z]` for the version being released.
 - Release notes must be generated from that CHANGELOG section or by GitHub release-note generation. Do not publish blank releases.
 - Linux `amd64` and `arm64` artifacts are mandatory and are the only default binary release targets.
+- Binary release builds must use Ubuntu runners with CGO enabled: native `gcc` for amd64 and `gcc-aarch64-linux-gnu` for arm64.
 - Do not publish Windows or legacy Linux architecture artifacts unless the release policy is explicitly changed.
 - Docker images may be pushed to GHCR on release tags after the binary release gate succeeds.
 

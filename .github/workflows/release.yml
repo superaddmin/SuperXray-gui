@@ -99,17 +99,27 @@ jobs:
         platform:
           - amd64
           - arm64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+      - name: Install Linux build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y build-essential file
+          if [ "${{ matrix.platform }}" = "arm64" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu
+          fi
 
       - name: Build SuperXray for Linux
         shell: bash
@@ -117,11 +127,13 @@ jobs:
           set -euo pipefail
           case "${{ matrix.platform }}" in
             amd64)
-              docker_platform="linux/amd64"
+              goarch="amd64"
+              cc="gcc"
               xray_zip="Xray-linux-64.zip"
               ;;
             arm64)
-              docker_platform="linux/arm64/v8"
+              goarch="arm64"
+              cc="aarch64-linux-gnu-gcc"
               xray_zip="Xray-linux-arm64-v8a.zip"
               ;;
             *)
@@ -130,28 +142,19 @@ jobs:
               ;;
           esac
           echo "XRAY_ZIP=$xray_zip" >> "$GITHUB_ENV"
-          echo "Building ${{ matrix.platform }} inside $docker_platform container"
+          echo "Building ${{ matrix.platform }} with GOARCH=$goarch CC=$cc"
           rm -rf x-ui xui-release
-          docker run --rm --platform "$docker_platform" \
-            -v "$PWD:/workspace" \
-            -w /workspace \
-            golang:1.26-alpine \
-            sh -s <<'EOF'
-          set -eu
-          apk add --no-cache build-base file ca-certificates tzdata
-          CGO_ENABLED=1 CGO_CFLAGS="-D_LARGEFILE64_SOURCE" \
-            go build -trimpath -ldflags "-w -s -linkmode external -extldflags '-static'" -o xui-release -v main.go
+          CGO_ENABLED=1 GOOS=linux GOARCH="$goarch" CC="$cc" \
+            go build -trimpath -ldflags "-w -s" -o xui-release -v main.go
           file xui-release
-          expected="$(tr -d '[:space:]' < config/version)"
-          actual="$(./xui-release -v)"
-          if [ "$actual" != "$expected" ]; then
-            echo "binary version mismatch: got $actual, expected $expected" >&2
-            exit 1
+          if [ "${{ matrix.platform }}" = "amd64" ]; then
+            expected="$(tr -d '[:space:]' < config/version)"
+            actual="$(./xui-release -v)"
+            if [ "$actual" != "$expected" ]; then
+              echo "binary version mismatch: got $actual, expected $expected" >&2
+              exit 1
+            fi
           fi
-          EOF
-          sudo chown "$(id -u):$(id -g)" xui-release
-          file xui-release
-          ldd xui-release || echo "Static binary confirmed"
 
       - name: Assemble package
         shell: bash

@@ -26,7 +26,8 @@ Every releasable commit must satisfy:
 - Generate release notes from `CHANGELOG.md`.
 - Linux `amd64` and `arm64` artifacts are mandatory for Ubuntu server deployments.
 - Do not build Windows or legacy Linux release artifacts unless the project release policy changes.
-- Build Linux release binaries in Docker/QEMU containers with CGO enabled, matching the ARM64 confidence workflow.
+- Build Linux release binaries on Ubuntu runners with CGO enabled; use `gcc` for amd64 and `gcc-aarch64-linux-gnu` for arm64.
+- Keep ARM64 execution checks in `test-arm64.yml`, where QEMU runs the built ARM64 binary.
 
 `docker.yml` is the container release workflow:
 
