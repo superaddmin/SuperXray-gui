@@ -2,6 +2,16 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [2.9.7] - 2026-04-29
+
+### Fixed
+
+- 修复前端入站添加客户端时空 Telegram Chat ID 被序列化为字符串，导致后端解析 `Client.tgId` 的 `int64` 字段失败的问题。
+
+### Changed
+
+- 将项目版本号更新为 `2.9.7`，并同步文档中的版本引用。
+
 ## [2.9.6] - 2026-04-29
 
 ### Fixed

@@ -79,7 +79,7 @@ var name string
 
 ### 2.3 版本管理
 
-- [`config/version`](../config/version)：存储版本号 `2.9.6`
+- [`config/version`](../config/version)：存储版本号 `2.9.7`
 - [`config/name`](../config/name)：存储应用名 `x-ui`
 
 ---

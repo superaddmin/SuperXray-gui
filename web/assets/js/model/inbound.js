@@ -2390,7 +2390,7 @@ Inbound.ClientBase = class extends XrayCommonClass {
         totalGB = 0,
         expiryTime = 0,
         enable = true,
-        tgId = '',
+        tgId = 0,
         subId = RandomUtil.randomLowerAndNum(16),
         comment = '',
         reset = 0,
@@ -2409,6 +2409,17 @@ Inbound.ClientBase = class extends XrayCommonClass {
         this.reset = reset;
         this.created_at = created_at;
         this.updated_at = updated_at;
+    }
+
+    static normalizeInteger(value, fallback = 0) {
+        if (value == null || value === '') {
+            return fallback;
+        }
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return fallback;
+        }
+        return Math.trunc(numericValue);
     }
 
     static commonArgsFromJson(json = {}) {
@@ -2434,7 +2445,7 @@ Inbound.ClientBase = class extends XrayCommonClass {
             totalGB: this.totalGB,
             expiryTime: this.expiryTime,
             enable: this.enable,
-            tgId: this.tgId,
+            tgId: Inbound.ClientBase.normalizeInteger(this.tgId),
             subId: this.subId,
             comment: this.comment,
             reset: this.reset,
