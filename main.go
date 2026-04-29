@@ -276,27 +276,27 @@ func updateSetting(port int, username string, password string, webBasePath strin
 	if port > 0 {
 		err := settingService.SetPort(port)
 		if err != nil {
-			fmt.Println("Failed to set port:", err)
+			fmt.Println("端口设置失败:", err)
 		} else {
-			fmt.Printf("Port set successfully: %v\n", port)
+			fmt.Printf("端口设置成功: %v\n", port)
 		}
 	}
 
 	if username != "" || password != "" {
 		err := userService.UpdateFirstUser(username, password)
 		if err != nil {
-			fmt.Println("Failed to update username and password:", err)
+			fmt.Println("用户名和密码更新失败:", err)
 		} else {
-			fmt.Println("Username and password updated successfully")
+			fmt.Println("用户名和密码更新成功")
 		}
 	}
 
 	if webBasePath != "" {
 		err := settingService.SetBasePath(webBasePath)
 		if err != nil {
-			fmt.Println("Failed to set base URI path:", err)
+			fmt.Println("Web 基础路径设置失败:", err)
 		} else {
-			fmt.Println("Base URI path set successfully")
+			fmt.Println("Web 基础路径设置成功")
 		}
 	}
 
@@ -304,22 +304,22 @@ func updateSetting(port int, username string, password string, webBasePath strin
 		err := settingService.SetTwoFactorEnable(false)
 
 		if err != nil {
-			fmt.Println("Failed to reset two-factor authentication:", err)
+			fmt.Println("双因素认证重置失败:", err)
 		} else {
 			if err := settingService.SetTwoFactorToken(""); err != nil {
-				fmt.Println("Failed to reset two-factor token:", err)
+				fmt.Println("双因素认证令牌重置失败:", err)
 				return err
 			}
-			fmt.Println("Two-factor authentication reset successfully")
+			fmt.Println("双因素认证重置成功")
 		}
 	}
 
 	if listenIP != "" {
 		err := settingService.SetListen(listenIP)
 		if err != nil {
-			fmt.Println("Failed to set listen IP:", err)
+			fmt.Println("监听 IP 设置失败:", err)
 		} else {
-			fmt.Printf("listen %v set successfully", listenIP)
+			fmt.Printf("监听地址 %v 设置成功", listenIP)
 		}
 	}
 
