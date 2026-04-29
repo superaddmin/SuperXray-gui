@@ -37,7 +37,8 @@ Every releasable commit must satisfy:
 
 `test-arm64.yml` is the ARM64 confidence workflow:
 
-- Build and execute the ARM64 binary under QEMU.
+- Cross-compile the ARM64 binary with `gcc-aarch64-linux-gnu`.
+- Execute the ARM64 binary under an Ubuntu ARM64 container via QEMU.
 - Keep this workflow green before release.
 
 `codeql.yml` is the security analysis workflow:

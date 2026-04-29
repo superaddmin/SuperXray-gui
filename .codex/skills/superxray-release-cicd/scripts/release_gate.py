@@ -213,6 +213,10 @@ class Gate:
             raise RuntimeError("docker.yml must not require Docker Hub credentials for releases")
         if "platform linux/arm64" not in arm64:
             raise RuntimeError("test-arm64.yml must verify arm64 under QEMU")
+        if "gcc-aarch64-linux-gnu" not in arm64:
+            raise RuntimeError("test-arm64.yml must cross-compile arm64 with gcc-aarch64-linux-gnu")
+        if "golang:1.26-alpine" in arm64:
+            raise RuntimeError("test-arm64.yml must not compile Go inside the emulated arm64 container")
         if "github/codeql-action/analyze" not in codeql:
             raise RuntimeError("codeql.yml must run CodeQL analysis")
 

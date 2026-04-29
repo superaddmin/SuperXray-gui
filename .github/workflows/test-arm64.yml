@@ -41,6 +41,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install ARM64 cross compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu file
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
@@ -49,21 +60,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Build inside an ARM64 Docker container to satisfy CGO requirements
-      # (gorm.io/driver/sqlite wraps go-sqlite3 which needs C compilation)
-      - name: Build ARM64 binary in Docker
+      # Cross-compile with CGO for Ubuntu arm64; execution is verified below under QEMU.
+      - name: Build ARM64 binary
         run: |
-          docker run --rm --platform linux/arm64/v8 \
-            -v "$PWD:/workspace" \
-            -w /workspace \
-            golang:1.26-alpine \
-            sh -c "
-              apk add --no-cache build-base gcc && \
-              CGO_ENABLED=1 \
-              CGO_CFLAGS='-D_LARGEFILE64_SOURCE' \
-              go build -ldflags='-s -w' -o SuperXray-gui-arm64 main.go && \
-              echo 'ARM64 build completed successfully'
-            "
+          CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc \
+            go build -trimpath -ldflags='-s -w' -o SuperXray-gui-arm64 main.go
+          file SuperXray-gui-arm64
+          echo 'ARM64 build completed successfully'
 
       # Verify the binary is a valid ARM64 executable and can run under QEMU
       - name: Verify ARM64 binary in QEMU
@@ -72,9 +75,10 @@ jobs:
           docker run --rm --platform linux/arm64/v8 \
             -v "$PWD:/workspace" \
             -w /workspace \
-            arm64v8/alpine:latest \
-            sh -c "
-              apk add --no-cache file ca-certificates tzdata && \
+            ubuntu:22.04 \
+            bash -c "
+              apt-get update && \
+              DEBIAN_FRONTEND=noninteractive apt-get install -y file ca-certificates tzdata && \
               echo '--- File type verification ---' && \
               file ./SuperXray-gui-arm64 && \
               echo '--- Version check ---' && \
