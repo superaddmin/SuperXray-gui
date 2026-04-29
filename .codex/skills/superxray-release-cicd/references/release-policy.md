@@ -9,6 +9,7 @@ Every releasable commit must satisfy:
 - Tag releases use `v` prefix and match `config/version`.
 - `CHANGELOG.md` contains a section exactly named `## [X.Y.Z]`.
 - `go.mod` and `go.sum` are tidy.
+- GitHub Actions workflows pass `actionlint`.
 - Go formatting, `go vet`, `staticcheck`, unit tests, and race tests pass.
 - `govulncheck` reports no reachable vulnerabilities.
 - `gosec` reports no unsuppressed findings. Suppressions must include a reason.
@@ -24,11 +25,14 @@ Every releasable commit must satisfy:
 - Publish GitHub Release assets only for pushed semantic tags.
 - Generate release notes from `CHANGELOG.md`.
 - Linux `amd64` and `arm64` artifacts are mandatory for Ubuntu server deployments.
+- Do not build Windows or legacy Linux release artifacts unless the project release policy changes.
+- Build Linux release binaries in Docker/QEMU containers with CGO enabled, matching the ARM64 confidence workflow.
 
 `docker.yml` is the container release workflow:
 
 - Trigger only on semantic tags or manual dispatch.
-- Publish multi-arch images only after binary release gates are green.
+- Publish `linux/amd64` and `linux/arm64` images to `ghcr.io/superaddmin/superxray-gui`.
+- Do not require Docker Hub credentials for the default release path.
 
 `test-arm64.yml` is the ARM64 confidence workflow:
 

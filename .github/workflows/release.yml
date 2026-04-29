@@ -1,4 +1,4 @@
-name: Release 3X-UI
+name: Release SuperXray
 
 on:
   workflow_dispatch:
@@ -18,6 +18,11 @@ on:
       - "x-ui.service.debian"
       - "x-ui.service.arch"
       - "x-ui.service.rhel"
+      - ".github/workflows/release.yml"
+      - "CHANGELOG.md"
+      - "config/version"
+      - "README*.md"
+      - "docs/**"
   pull_request:
 
 jobs:
@@ -84,115 +89,97 @@ jobs:
           fi
 
   build:
+    name: Build Linux (${{ matrix.platform }})
     needs: analyze
     permissions:
       contents: write
     strategy:
+      fail-fast: true
       matrix:
         platform:
           - amd64
           - arm64
-          - armv7
-          - armv6
-          - 386
-          - armv5
-          - s390x
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
 
-      - name: Build 3X-UI
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build SuperXray for Linux
+        shell: bash
         run: |
-          export CGO_ENABLED=1
-          export GOOS=linux
-          export GOARCH=${{ matrix.platform }}
-          # Use Bootlin prebuilt cross-toolchains (musl 1.2.5 in stable series)
+          set -euo pipefail
           case "${{ matrix.platform }}" in
-            amd64) BOOTLIN_ARCH="x86-64" ;;
-            arm64) BOOTLIN_ARCH="aarch64" ;;
-            armv7) BOOTLIN_ARCH="armv7-eabihf"; export GOARCH=arm GOARM=7 ;;
-            armv6) BOOTLIN_ARCH="armv6-eabihf"; export GOARCH=arm GOARM=6 ;;
-            armv5) BOOTLIN_ARCH="armv5-eabi"; export GOARCH=arm GOARM=5 ;;
-            386) BOOTLIN_ARCH="x86-i686" ;;
-            s390x) BOOTLIN_ARCH="s390x-z13" ;;
+            amd64)
+              docker_platform="linux/amd64"
+              xray_zip="Xray-linux-64.zip"
+              ;;
+            arm64)
+              docker_platform="linux/arm64/v8"
+              xray_zip="Xray-linux-arm64-v8a.zip"
+              ;;
+            *)
+              echo "Unsupported release platform: ${{ matrix.platform }}" >&2
+              exit 1
+              ;;
           esac
-          echo "Resolving Bootlin musl toolchain for arch=$BOOTLIN_ARCH (platform=${{ matrix.platform }})"
-          TARBALL_BASE="https://toolchains.bootlin.com/downloads/releases/toolchains/$BOOTLIN_ARCH/tarballs/"
-          TARBALL_URL=$(curl -fsSL "$TARBALL_BASE" | grep -oE "${BOOTLIN_ARCH}--musl--stable-[^\"]+\\.tar\\.xz" | sort -r | head -n1)
-          [ -z "$TARBALL_URL" ] && { echo "Failed to locate Bootlin musl toolchain for arch=$BOOTLIN_ARCH" >&2; exit 1; }
-          echo "Downloading: $TARBALL_URL"
-          cd /tmp
-          curl -fL -sS -o "$(basename "$TARBALL_URL")" "$TARBALL_BASE/$TARBALL_URL"
-          tar -xf "$(basename "$TARBALL_URL")"
-          TOOLCHAIN_DIR=$(find . -maxdepth 1 -type d -name "${BOOTLIN_ARCH}--musl--stable-*" | head -n1)
-          export PATH="$(realpath "$TOOLCHAIN_DIR")/bin:$PATH"
-          export CC=$(realpath "$(find "$TOOLCHAIN_DIR/bin" -name '*-gcc.br_real' -type f -executable | head -n1)")
-          [ -z "$CC" ] && { echo "No gcc.br_real found in $TOOLCHAIN_DIR/bin" >&2; exit 1; }
-          cd -
-          go build -ldflags "-w -s -linkmode external -extldflags '-static'" -o xui-release -v main.go
+          echo "XRAY_ZIP=$xray_zip" >> "$GITHUB_ENV"
+          echo "Building ${{ matrix.platform }} inside $docker_platform container"
+          rm -rf x-ui xui-release
+          docker run --rm --platform "$docker_platform" \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            golang:1.26-alpine \
+            sh -s <<'EOF'
+          set -eu
+          apk add --no-cache build-base file ca-certificates tzdata
+          CGO_ENABLED=1 CGO_CFLAGS="-D_LARGEFILE64_SOURCE" \
+            go build -trimpath -ldflags "-w -s -linkmode external -extldflags '-static'" -o xui-release -v main.go
+          file xui-release
+          expected="$(tr -d '[:space:]' < config/version)"
+          actual="$(./xui-release -v)"
+          if [ "$actual" != "$expected" ]; then
+            echo "binary version mismatch: got $actual, expected $expected" >&2
+            exit 1
+          fi
+          EOF
+          sudo chown "$(id -u):$(id -g)" xui-release
           file xui-release
           ldd xui-release || echo "Static binary confirmed"
 
-          mkdir x-ui
-          cp xui-release x-ui/
+      - name: Assemble package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p x-ui/bin
+          cp xui-release x-ui/x-ui
           cp x-ui.service.debian x-ui/
           cp x-ui.service.arch x-ui/
           cp x-ui.service.rhel x-ui/
           cp x-ui.sh x-ui/
-          mv x-ui/xui-release x-ui/x-ui
-          mkdir x-ui/bin
-          cd x-ui/bin
 
-          # Download dependencies
-          Xray_URL="https://github.com/XTLS/Xray-core/releases/download/v26.4.25/"
-          if [ "${{ matrix.platform }}" == "amd64" ]; then
-            wget -q ${Xray_URL}Xray-linux-64.zip
-            unzip Xray-linux-64.zip
-            rm -f Xray-linux-64.zip
-          elif [ "${{ matrix.platform }}" == "arm64" ]; then
-            wget -q ${Xray_URL}Xray-linux-arm64-v8a.zip
-            unzip Xray-linux-arm64-v8a.zip
-            rm -f Xray-linux-arm64-v8a.zip
-          elif [ "${{ matrix.platform }}" == "armv7" ]; then
-            wget -q ${Xray_URL}Xray-linux-arm32-v7a.zip
-            unzip Xray-linux-arm32-v7a.zip
-            rm -f Xray-linux-arm32-v7a.zip
-          elif [ "${{ matrix.platform }}" == "armv6" ]; then
-            wget -q ${Xray_URL}Xray-linux-arm32-v6.zip
-            unzip Xray-linux-arm32-v6.zip
-            rm -f Xray-linux-arm32-v6.zip
-          elif [ "${{ matrix.platform }}" == "386" ]; then
-            wget -q ${Xray_URL}Xray-linux-32.zip
-            unzip Xray-linux-32.zip
-            rm -f Xray-linux-32.zip
-          elif [ "${{ matrix.platform }}" == "armv5" ]; then
-            wget -q ${Xray_URL}Xray-linux-arm32-v5.zip
-            unzip Xray-linux-arm32-v5.zip
-            rm -f Xray-linux-arm32-v5.zip
-          elif [ "${{ matrix.platform }}" == "s390x" ]; then
-            wget -q ${Xray_URL}Xray-linux-s390x.zip
-            unzip Xray-linux-s390x.zip
-            rm -f Xray-linux-s390x.zip
-          fi
-          rm -f geoip.dat geosite.dat
+          cd x-ui/bin
+          xray_url="https://github.com/XTLS/Xray-core/releases/download/v26.4.25/"
+          wget -q "${xray_url}${XRAY_ZIP}"
+          unzip -q "$XRAY_ZIP"
+          rm -f "$XRAY_ZIP" geoip.dat geosite.dat
           wget -q https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
           wget -q https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
           wget -q -O geoip_IR.dat https://github.com/chocolate4u/Iran-v2ray-rules/releases/latest/download/geoip.dat
           wget -q -O geosite_IR.dat https://github.com/chocolate4u/Iran-v2ray-rules/releases/latest/download/geosite.dat
           wget -q -O geoip_RU.dat https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geoip.dat
           wget -q -O geosite_RU.dat https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geosite.dat
-          mv xray xray-linux-${{ matrix.platform }}
-          cd ../..
+          mv xray "xray-linux-${{ matrix.platform }}"
 
       - name: Package
-        run: tar -zcvf x-ui-linux-${{ matrix.platform }}.tar.gz x-ui
+        shell: bash
+        run: tar -zcvf "x-ui-linux-${{ matrix.platform }}.tar.gz" x-ui
 
       - name: Upload files to Artifacts
         uses: actions/upload-artifact@v7
@@ -224,130 +211,6 @@ jobs:
           tag: ${{ github.ref_name }}
           file: x-ui-linux-${{ matrix.platform }}.tar.gz
           asset_name: x-ui-linux-${{ matrix.platform }}.tar.gz
-          overwrite: true
-          release_name: ${{ github.ref_name }}
-          body_path: release-notes.md
-          prerelease: ${{ contains(github.ref_name, '-') }}
-
-  # =================================
-  #  Windows Build
-  # =================================
-  build-windows:
-    name: Build for Windows
-    needs: analyze
-    permissions:
-      contents: write
-    strategy:
-      matrix:
-        platform:
-          - amd64
-    runs-on: windows-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
-
-      - name: Install MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          update: true
-          install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-sqlite3
-            mingw-w64-x86_64-pkg-config
-
-      - name: Build 3X-UI for Windows (CGO)
-        shell: msys2 {0}
-        run: |
-          export PATH="/c/hostedtoolcache/windows/go/$(ls /c/hostedtoolcache/windows/go | sort -V | tail -n1)/x64/bin:$PATH"
-
-          export CGO_ENABLED=1
-          export GOOS=windows
-          export GOARCH=amd64
-          export CC=x86_64-w64-mingw32-gcc
-
-          which go
-          go version
-          gcc --version
-
-          go build -ldflags "-w -s" -o xui-release.exe -v main.go
-
-      - name: Copy and download resources
-        shell: pwsh
-        run: |
-          mkdir x-ui
-          Copy-Item xui-release.exe x-ui\x-ui.exe
-          mkdir x-ui\bin
-          cd x-ui\bin
-
-          # Download Xray for Windows
-          $Xray_URL = "https://github.com/XTLS/Xray-core/releases/download/v26.4.25/"
-          Invoke-WebRequest -Uri "${Xray_URL}Xray-windows-64.zip" -OutFile "Xray-windows-64.zip"
-          Expand-Archive -Path "Xray-windows-64.zip" -DestinationPath .
-          Remove-Item "Xray-windows-64.zip"
-          Remove-Item geoip.dat, geosite.dat -ErrorAction SilentlyContinue
-          Invoke-WebRequest -Uri "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" -OutFile "geoip.dat"
-          Invoke-WebRequest -Uri "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" -OutFile "geosite.dat"
-          Invoke-WebRequest -Uri "https://github.com/chocolate4u/Iran-v2ray-rules/releases/latest/download/geoip.dat" -OutFile "geoip_IR.dat"
-          Invoke-WebRequest -Uri "https://github.com/chocolate4u/Iran-v2ray-rules/releases/latest/download/geosite.dat" -OutFile "geosite_IR.dat"
-          Invoke-WebRequest -Uri "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geoip.dat" -OutFile "geoip_RU.dat"
-          Invoke-WebRequest -Uri "https://github.com/runetfreedom/russia-v2ray-rules-dat/releases/latest/download/geosite.dat" -OutFile "geosite_RU.dat"
-          Rename-Item xray.exe xray-windows-amd64.exe
-          cd ..
-          Copy-Item -Path ..\windows_files\* -Destination . -Recurse
-          cd ..
-
-      - name: Package to Zip
-        shell: pwsh
-        run: |
-          Compress-Archive -Path .\x-ui -DestinationPath "x-ui-windows-amd64.zip"
-
-      - name: Upload files to Artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: x-ui-windows-amd64
-          path: ./x-ui-windows-amd64.zip
-
-      - name: Generate release notes
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-        shell: pwsh
-        run: |
-          $version = "${{ github.ref_name }}".TrimStart("v")
-          $lines = Get-Content -Encoding UTF8 CHANGELOG.md
-          $capture = $false
-          $notes = New-Object System.Collections.Generic.List[string]
-          foreach ($line in $lines) {
-            if ($line -eq "## [$version]") {
-              $capture = $true
-              $notes.Add($line)
-              continue
-            }
-            if ($capture -and $line.StartsWith("## [")) {
-              break
-            }
-            if ($capture) {
-              $notes.Add($line)
-            }
-          }
-          if ($notes.Count -eq 0) {
-            throw "Failed to generate release notes for ${{ github.ref_name }}"
-          }
-          [System.IO.File]::WriteAllLines("release-notes.md", $notes, [System.Text.UTF8Encoding]::new($false))
-
-      - name: Upload files to GH release
-        uses: svenstaro/upload-release-action@v2
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: ${{ github.ref_name }}
-          file: x-ui-windows-amd64.zip
-          asset_name: x-ui-windows-amd64.zip
           overwrite: true
           release_name: ${{ github.ref_name }}
           body_path: release-notes.md

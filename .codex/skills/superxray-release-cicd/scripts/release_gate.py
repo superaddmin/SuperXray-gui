@@ -57,6 +57,7 @@ class Gate:
             self.check_clean_worktree,
             self.check_release_metadata,
             self.check_workflows,
+            self.check_actionlint,
             self.check_go_mod_tidy,
             self.check_go_format,
             self.check_shell_syntax,
@@ -180,6 +181,8 @@ class Gate:
             "Validate release metadata",
             "Generate release notes",
             "body_path: release-notes.md",
+            "docker/setup-qemu-action",
+            "docker run --rm --platform",
             "x-ui-linux-${{ matrix.platform }}.tar.gz",
             "- amd64",
             "- arm64",
@@ -187,9 +190,26 @@ class Gate:
         for token in required_release_tokens:
             if token not in release:
                 raise RuntimeError(f"release.yml missing required token: {token}")
+        forbidden_release_tokens = [
+            "build-windows",
+            "windows-latest",
+            "BOOTLIN_ARCH",
+            "- armv7",
+            "- armv6",
+            "- armv5",
+            "- 386",
+            "- s390x",
+        ]
+        for token in forbidden_release_tokens:
+            if token in release:
+                raise RuntimeError(f"release.yml contains unsupported release target/toolchain: {token}")
         for token in ["linux/amd64", "linux/arm64"]:
             if token not in docker:
                 raise RuntimeError(f"docker.yml missing platform: {token}")
+        if "ghcr.io/superaddmin/superxray-gui" not in docker:
+            raise RuntimeError("docker.yml must publish the lower-case GHCR image name")
+        if "DOCKER_HUB_TOKEN" in docker or "hsanaeii/3x-ui" in docker:
+            raise RuntimeError("docker.yml must not require Docker Hub credentials for releases")
         if "platform linux/arm64" not in arm64:
             raise RuntimeError("test-arm64.yml must verify arm64 under QEMU")
         if "github/codeql-action/analyze" not in codeql:
@@ -203,6 +223,13 @@ class Gate:
 
     def check_go_mod_tidy(self) -> None:
         self.command(["go", "mod", "tidy", "-diff"])
+
+    def check_actionlint(self) -> None:
+        self.ensure_tool(
+            "actionlint",
+            ["go", "install", "github.com/rhysd/actionlint/cmd/actionlint@latest"],
+        )
+        self.command(["actionlint"])
 
     def check_go_format(self) -> None:
         output = self.command(["gofmt", "-l", "."], capture=True)

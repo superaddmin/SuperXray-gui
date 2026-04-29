@@ -23,7 +23,7 @@ In GitHub Actions or Linux shells:
 python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --install-tools
 ```
 
-The gate checks Git status, semantic versioning, `CHANGELOG.md`, workflow trigger policy, Go formatting, `go vet`, `staticcheck`, tests, race tests, `govulncheck`, `gosec`, shell syntax, TOML translations, and a local binary version check.
+The gate checks Git status, semantic versioning, `CHANGELOG.md`, workflow trigger policy, GitHub Actions linting, Go formatting, `go vet`, `staticcheck`, tests, race tests, `govulncheck`, `gosec`, shell syntax, TOML translations, and a local binary version check.
 
 ## Trigger Policy
 
@@ -32,8 +32,9 @@ The gate checks Git status, semantic versioning, `CHANGELOG.md`, workflow trigge
 - A release tag must match `config/version` without the leading `v`.
 - `CHANGELOG.md` must contain `## [X.Y.Z]` for the version being released.
 - Release notes must be generated from that CHANGELOG section or by GitHub release-note generation. Do not publish blank releases.
-- Linux `amd64` and `arm64` artifacts are mandatory. Additional architectures may be published only after the mandatory artifacts pass.
-- Docker images may be pushed on release tags after the binary release gate succeeds.
+- Linux `amd64` and `arm64` artifacts are mandatory and are the only default binary release targets.
+- Do not publish Windows or legacy Linux architecture artifacts unless the release policy is explicitly changed.
+- Docker images may be pushed to GHCR on release tags after the binary release gate succeeds.
 
 ## Deployment Steps
 
@@ -56,6 +57,7 @@ x-ui-linux-amd64.tar.gz
 x-ui-linux-arm64.tar.gz
 release notes for vX.Y.Z
 ```
+8. Verify GHCR contains the optional multi-arch image `ghcr.io/superaddmin/superxray-gui` for `linux/amd64` and `linux/arm64` when `docker.yml` runs.
 
 ## Rollback
 
