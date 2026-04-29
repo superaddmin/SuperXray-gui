@@ -2,6 +2,17 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [2.9.5] - 2026-04-29
+
+### Fixed
+
+- 修复 Docker tag 构建失败：移除默认发布路径对 Docker Hub 凭据的依赖，仅发布小写 GHCR 镜像。
+- 修复面板侧栏在非根路径部署时因 `themeSwitcher` 与 logo 路径导致的渲染中断。
+
+### Changed
+
+- 将项目版本号更新为 `2.9.5`，并同步文档中的版本引用。
+
 ## [2.9.4] - 2026-04-29
 
 ### Added

@@ -135,7 +135,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 如 GitHub latest 正式版接口暂时不可用，或当前仓库只有预发布版本，也可以显式指定版本号安装：
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v2.9.4
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v2.9.5
 ```
 
 安装脚本会自动把 `x86_64` / `amd64` 映射为 `amd64`，把 `aarch64` / `arm64` 映射为 `arm64`，并下载对应的 `x-ui-linux-<arch>.tar.gz`。
@@ -969,7 +969,7 @@ x-ui restart-xray
 一键脚本和构建流程都需要访问 GitHub Release。可选处理：
 
 - 如果提示 `获取 SuperXray Release 版本失败`，先打开 `https://github.com/superaddmin/SuperXray-gui/releases` 确认是否存在可下载的 Release。
-- 如果仓库只有预发布版本，使用显式版本安装命令，例如：`bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v2.9.4`。
+- 如果仓库只有预发布版本，使用显式版本安装命令，例如：`bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v2.9.5`。
 - 换用可访问 GitHub 的网络环境。
 - 手动下载 Release 包后上传到服务器。
 - 使用企业内网制品库缓存 Release 包。

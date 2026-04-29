@@ -152,18 +152,24 @@ class Gate:
         changelog_text = changelog.read_text(encoding="utf-8")
         if f"## [{version}]" not in changelog_text:
             raise RuntimeError(f"CHANGELOG.md missing section ## [{version}]")
-        stale_result = subprocess.run(
-            ["git", "grep", "-n", r"2\.9\.3\|v2\.9\.3", "--", "README*.md", "docs", ".github", "config"],
-            cwd=self.root,
-            text=True,
-            capture_output=True,
-            env=self.env,
-        )
-        if stale_result.returncode not in (0, 1):
-            raise RuntimeError(stale_result.stderr or stale_result.stdout)
-        stale = stale_result.stdout
-        if stale.strip():
-            raise RuntimeError(f"stale version references found:\n{stale}")
+        changelog_versions = re.findall(r"^## \[([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)\]", changelog_text, re.M)
+        stale_versions = [entry for entry in changelog_versions if entry != version]
+        if stale_versions:
+            stale_pattern = "|".join(
+                f"{re.escape(entry)}|v{re.escape(entry)}" for entry in stale_versions
+            )
+            stale_result = subprocess.run(
+                ["git", "grep", "-n", "-E", stale_pattern, "--", "README*.md", "docs", ".github", "config"],
+                cwd=self.root,
+                text=True,
+                capture_output=True,
+                env=self.env,
+            )
+            if stale_result.returncode not in (0, 1):
+                raise RuntimeError(stale_result.stderr or stale_result.stdout)
+            stale = stale_result.stdout
+            if stale.strip():
+                raise RuntimeError(f"stale version references found:\n{stale}")
         tag = self.release_tag()
         if tag:
             if not TAG_SEMVER.match(tag):
