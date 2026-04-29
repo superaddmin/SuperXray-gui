@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/op/go-logging"
 	"github.com/superaddmin/SuperXray-gui/v2/database"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	xuilogger "github.com/superaddmin/SuperXray-gui/v2/logger"
-	"github.com/op/go-logging"
 )
 
 // 3x-ui logger must be initialised once before any code path that can

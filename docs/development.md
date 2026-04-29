@@ -76,7 +76,7 @@ go version
 ```bash
 # 克隆仓库
 git clone https://github.com/superaddmin/SuperXray-gui.git
-cd 3x-ui
+cd SuperXray-gui
 
 # 安装依赖
 go mod download
@@ -91,8 +91,15 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 # 1. 创建 x-ui 目录（存放数据库和日志）
 mkdir -p x-ui
 
-# 2. 复制环境变量文件
+# 2. 复制环境变量文件，并按本地开发覆盖路径
 cp .env.example .env
+cat >.env <<'EOF'
+XUI_DEBUG=true
+XUI_LOG_LEVEL=debug
+XUI_DB_FOLDER=x-ui
+XUI_LOG_FOLDER=x-ui
+XUI_BIN_FOLDER=x-ui
+EOF
 
 # 3. 以调试模式运行
 XUI_DEBUG=true go run main.go
@@ -109,10 +116,11 @@ XUI_DEBUG=true go run main.go
 
 ```bash
 # .env
-XUI_DEBUG=true           # 启用调试模式
-XUI_DB_FOLDER=x-ui       # 数据库目录
-XUI_LOG_FOLDER=x-ui      # 日志目录
-XUI_BIN_FOLDER=x-ui      # 二进制目录
+XUI_DEBUG=true           # 本地开发启用调试模式；生产环境应为 false
+XUI_LOG_LEVEL=debug      # 本地调试日志级别；生产环境建议 info
+XUI_DB_FOLDER=x-ui       # 本地数据库目录；生产环境建议 /etc/x-ui
+XUI_LOG_FOLDER=x-ui      # 本地日志目录；生产环境建议 /var/log/x-ui
+XUI_BIN_FOLDER=x-ui      # 本地 Xray 二进制目录；生产环境建议 bin
 ```
 
 **默认账号**：首次运行时自动创建 `admin` / `admin`。

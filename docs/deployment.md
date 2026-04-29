@@ -29,7 +29,7 @@
 |------|----------|------|----------|
 | 一键脚本安装 | 大多数 Linux 服务器 | 自动安装依赖、下载 Release、配置服务、生成安全初始信息 | 需要服务器能访问 GitHub；安装过程会交互式询问端口和证书 |
 | Docker Compose | 已有容器化运维体系 | 依赖隔离，便于迁移 | 使用 `network_mode: host`，仍需开放宿主机端口 |
-| 手动构建部署 | 二次开发、内网构建、审计后上线 | 可完全控制构建产物 | 需要 Go、CGO、Xray 二进制和 systemd 配置 |
+| 手动构建 / 二进制部署 | 二次开发、内网构建、审计后上线 | 可完全控制 amd64 / arm64 构建产物 | 需要匹配服务器架构的 Go、CGO、Xray 二进制和 systemd 配置 |
 
 建议优先选择 **一键脚本安装**。如果服务器不能访问 GitHub，可以在可访问网络的机器上下载 Release 包和脚本后再离线分发。
 
@@ -102,6 +102,20 @@ rc-update add crond
 rc-service crond start
 ```
 
+### 3.4 确认服务器 CPU 架构
+
+本项目的 Linux Release 包和 Xray 二进制需要与服务器 CPU 架构一致。Ubuntu 服务器部署前先确认架构：
+
+```bash
+uname -m
+dpkg --print-architecture 2>/dev/null || true
+```
+
+| `uname -m` 输出 | Debian / Ubuntu 架构名 | 本项目 Release / 二进制后缀 |
+|-----------------|-------------------------|------------------------------|
+| `x86_64` | `amd64` | `linux-amd64` |
+| `aarch64` / `arm64` | `arm64` | `linux-arm64` |
+
 ---
 
 ## 4. 一键脚本安装（推荐）
@@ -112,10 +126,13 @@ rc-service crond start
 
 ```bash
 sudo -i
+apt-get update
+apt-get install -y curl tar tzdata socat ca-certificates openssl
 bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh)
 ```
 
 如需指定二进制 Release 下载源，可在命令前设置 `XUI_RELEASE_REPO=仓库所有者/仓库名`。默认保持使用已有 Release 的上游仓库，以避免新仓库尚未发布 Release 时安装失败。
+安装脚本会自动把 `x86_64` / `amd64` 映射为 `amd64`，把 `aarch64` / `arm64` 映射为 `arm64`，并下载对应的 `x-ui-linux-<arch>.tar.gz`。
 
 脚本会执行以下操作：
 
@@ -417,7 +434,7 @@ systemctl reload caddy
 
 ```bash
 git clone https://github.com/superaddmin/SuperXray-gui.git
-cd 3x-ui
+cd SuperXray-gui
 docker compose up -d --build
 ```
 
@@ -481,84 +498,248 @@ docker compose up -d --build
 
 ---
 
-## 8. 手动构建与部署
+## 8. Ubuntu 手动安装与部署（amd64 / arm64）
 
-手动构建适合需要审计源码、修改代码或在内网部署的场景。下面的安装路径以 Debian / Ubuntu 的 systemd service 为例；RHEL 系可以改用 `x-ui.service.rhel`，Arch 的 `x-ui.service.arch` 默认指向 `/usr/lib/x-ui/`，如果继续使用 `/usr/local/x-ui/`，需要同步调整 `WorkingDirectory` 和 `ExecStart`。
+手动部署适合服务器无法直接运行一键脚本、需要审计 Release 包、需要上传内网构建产物，或需要在目标 Ubuntu 服务器上自行编译的场景。下面命令默认以 Ubuntu 20.04+ / 22.04+ / 24.04+、systemd、安装目录 `/usr/local/x-ui` 为准，并只覆盖 Linux `amd64` 与 `arm64` 两种服务器架构。
 
-### 8.1 安装构建依赖
+### 8.1 进入 root shell 并准备基础环境
 
-Debian / Ubuntu：
+后续命令建议在同一个 root shell 中执行，避免环境变量丢失：
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y git curl unzip build-essential ca-certificates
+sudo -i
+apt-get update
+apt-get install -y curl tar unzip ca-certificates openssl git build-essential pkg-config
+timedatectl set-ntp true
 ```
 
-RHEL 系：
+设置本次部署使用的架构变量：
 
 ```bash
-sudo dnf groupinstall -y "Development Tools"
-sudo dnf install -y git curl unzip ca-certificates
+case "$(uname -m)" in
+  x86_64|amd64)
+    XUI_ARCH="amd64"
+    GO_ARCH="amd64"
+    ;;
+  aarch64|arm64)
+    XUI_ARCH="arm64"
+    GO_ARCH="arm64"
+    ;;
+  *)
+    echo "Unsupported architecture: $(uname -m)" >&2
+    exit 1
+    ;;
+esac
+
+echo "Deploy architecture: ${XUI_ARCH}"
 ```
 
-Alpine：
+### 8.2 方案 A：手动下载 GitHub Release 包安装
+
+如果只需要部署官方构建产物，优先使用 Release 包。Release 包已经包含 `x-ui`、`x-ui.sh`、systemd unit、Xray 二进制和规则数据文件。
 
 ```bash
-apk add git curl unzip build-base ca-certificates
+TAG="$(curl -fsSL https://api.github.com/repos/superaddmin/SuperXray-gui/releases/latest \
+  | grep '"tag_name":' \
+  | sed -E 's/.*"([^"]+)".*/\1/')"
+
+if [ -z "${TAG}" ]; then
+  echo "Failed to resolve latest release tag. Set TAG manually, for example: TAG=v2.x.x" >&2
+  exit 1
+fi
+
+curl -fL -o "/tmp/x-ui-linux-${XUI_ARCH}.tar.gz" \
+  "https://github.com/superaddmin/SuperXray-gui/releases/download/${TAG}/x-ui-linux-${XUI_ARCH}.tar.gz"
+
+rm -rf /tmp/x-ui
+tar -xzf "/tmp/x-ui-linux-${XUI_ARCH}.tar.gz" -C /tmp
 ```
 
-项目 `go.mod` 声明 Go `1.26.2`，请安装匹配版本或兼容版本：
+安装到系统目录：
 
 ```bash
-go version
+systemctl stop x-ui 2>/dev/null || true
+
+install -d -m 0755 /usr/local/x-ui
+install -d -m 0700 /etc/x-ui
+install -d -m 0750 /var/log/x-ui
+
+rm -rf /usr/local/x-ui/*
+cp -a /tmp/x-ui/. /usr/local/x-ui/
+
+chmod 0755 /usr/local/x-ui/x-ui
+chmod 0755 "/usr/local/x-ui/bin/xray-linux-${XUI_ARCH}"
+install -m 0755 /usr/local/x-ui/x-ui.sh /usr/bin/x-ui
+install -m 0644 /usr/local/x-ui/x-ui.service.debian /etc/systemd/system/x-ui.service
 ```
 
-### 8.2 编译程序并下载 Xray
+完成复制后跳到 [8.5 写入环境配置并启动服务](#85-写入环境配置并启动服务)。
+
+### 8.3 方案 B：在 Ubuntu 目标服务器上源码构建
+
+源码构建适合你已经修改代码、需要在目标架构上原生编译，或不想直接使用 Release 包的场景。由于项目使用 CGO 和 SQLite，建议在目标服务器本机编译；跨架构构建需要额外交叉编译工具链。
 
 ```bash
+cd /opt
 git clone https://github.com/superaddmin/SuperXray-gui.git
-cd 3x-ui
+cd SuperXray-gui
+
+GO_VERSION="$(awk '/^go / {print $2}' go.mod)"
+
+if ! command -v go >/dev/null 2>&1 || ! go version | grep -q "go${GO_VERSION}"; then
+  curl -fL -o "/tmp/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" \
+    "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
+  rm -rf /usr/local/go
+  tar -C /usr/local -xzf "/tmp/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
+fi
+
+export PATH="/usr/local/go/bin:${PATH}"
+go version
 go mod download
-CGO_ENABLED=1 go build -ldflags "-w -s" -o build/x-ui main.go
-sh ./DockerInit.sh amd64
+CGO_ENABLED=1 GOOS=linux GOARCH="${GO_ARCH}" go build -ldflags "-w -s" -o build/x-ui main.go
+sh ./DockerInit.sh "${XUI_ARCH}"
 ```
 
-`DockerInit.sh` 会下载 Xray-core 和 GeoIP/GeoSite 数据到 `build/bin/`。如果服务器是 ARM，请把参数改成 `arm64`、`armv7` 等对应架构。
+`DockerInit.sh` 会下载对应架构的 Xray-core，并把 `geoip.dat`、`geosite.dat`、`geoip_IR.dat`、`geosite_IR.dat`、`geoip_RU.dat`、`geosite_RU.dat` 放入 `build/bin/`。
 
-### 8.3 安装到系统目录
+安装源码构建产物：
 
 ```bash
-sudo install -d -m 0755 /usr/local/x-ui
-sudo install -d -m 0755 /etc/x-ui
-sudo install -d -m 0750 /var/log/x-ui
-sudo install -m 0755 build/x-ui /usr/local/x-ui/x-ui
-sudo cp -a build/bin /usr/local/x-ui/
-sudo install -m 0755 x-ui.sh /usr/bin/x-ui
-sudo install -m 0644 x-ui.service.debian /etc/systemd/system/x-ui.service
+systemctl stop x-ui 2>/dev/null || true
+
+install -d -m 0755 /usr/local/x-ui
+install -d -m 0755 /usr/local/x-ui/bin
+install -d -m 0700 /etc/x-ui
+install -d -m 0750 /var/log/x-ui
+
+rm -rf /usr/local/x-ui/*
+install -m 0755 build/x-ui /usr/local/x-ui/x-ui
+cp -a build/bin /usr/local/x-ui/
+chmod 0755 "/usr/local/x-ui/bin/xray-linux-${XUI_ARCH}"
+install -m 0755 x-ui.sh /usr/bin/x-ui
+install -m 0644 x-ui.service.debian /etc/systemd/system/x-ui.service
 ```
 
-如需自定义环境变量，可创建 `/etc/default/x-ui`：
+### 8.4 方案 C：上传本地或 CI 构建产物
+
+如果已经在本地或 CI 中得到 `x-ui-linux-amd64.tar.gz` / `x-ui-linux-arm64.tar.gz`，直接上传对应架构的包到服务器，然后复用 8.2 的解压和安装步骤：
 
 ```bash
-sudo tee /etc/default/x-ui >/dev/null <<'EOF'
+# amd64 服务器
+scp x-ui-linux-amd64.tar.gz root@<server>:/tmp/
+
+# arm64 服务器
+scp x-ui-linux-arm64.tar.gz root@<server>:/tmp/
+```
+
+如果只有面板主程序二进制，例如 `dist/SuperXray-gui-linux-amd64` 或 `dist/SuperXray-gui-linux-arm64`，还需要同时上传服务脚本和 Xray 下载脚本：
+
+```bash
+# amd64 服务器
+scp dist/SuperXray-gui-linux-amd64 root@<server>:/tmp/SuperXray-gui-linux-amd64
+
+# arm64 服务器
+scp dist/SuperXray-gui-linux-arm64 root@<server>:/tmp/SuperXray-gui-linux-arm64
+
+# 两种架构都需要上传这些部署脚本
+scp x-ui.sh x-ui.service.debian DockerInit.sh root@<server>:/tmp/
+```
+
+在服务器 root shell 中安装上传的主程序：
+
+```bash
+case "${XUI_ARCH}" in
+  amd64)
+    PANEL_BIN="/tmp/SuperXray-gui-linux-amd64"
+    ;;
+  arm64)
+    PANEL_BIN="/tmp/SuperXray-gui-linux-arm64"
+    ;;
+esac
+
+systemctl stop x-ui 2>/dev/null || true
+
+install -d -m 0755 /usr/local/x-ui
+install -d -m 0755 /usr/local/x-ui/bin
+install -d -m 0700 /etc/x-ui
+install -d -m 0750 /var/log/x-ui
+
+rm -rf /usr/local/x-ui/*
+install -m 0755 "${PANEL_BIN}" /usr/local/x-ui/x-ui
+install -d -m 0755 /usr/local/x-ui/bin
+install -m 0755 /tmp/x-ui.sh /usr/bin/x-ui
+install -m 0644 /tmp/x-ui.service.debian /etc/systemd/system/x-ui.service
+
+cd /tmp
+rm -rf /tmp/build
+sh /tmp/DockerInit.sh "${XUI_ARCH}"
+cp -a /tmp/build/bin/. /usr/local/x-ui/bin/
+chmod 0755 "/usr/local/x-ui/bin/xray-linux-${XUI_ARCH}"
+```
+
+### 8.5 写入环境配置并启动服务
+
+三种手动部署方式都建议显式写入 `/etc/default/x-ui`，与 `x-ui.service.debian` 中的 `EnvironmentFile=-/etc/default/x-ui` 对齐：
+
+```bash
+cat >/etc/default/x-ui <<'EOF'
 XRAY_VMESS_AEAD_FORCED=false
 XUI_LOG_LEVEL=info
+XUI_DB_FOLDER=/etc/x-ui
+XUI_LOG_FOLDER=/var/log/x-ui
+XUI_BIN_FOLDER=bin
 EOF
+chmod 0644 /etc/default/x-ui
 ```
 
-启动服务：
+初始化数据库和面板安全信息。请替换成自己的用户名、强密码和随机 Web 路径：
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now x-ui
-sudo systemctl status x-ui --no-pager
+/usr/local/x-ui/x-ui migrate
+/usr/local/x-ui/x-ui setting \
+  -username '<新用户名>' \
+  -password '<强密码>' \
+  -port 2053 \
+  -webBasePath '/panel-secret/'
+
+systemctl daemon-reload
+systemctl enable --now x-ui
+systemctl status x-ui --no-pager
 ```
 
-初始化安全设置：
+如果要让面板只通过 Nginx / Caddy 反向代理访问，可以在启动前增加：
 
 ```bash
-sudo /usr/local/x-ui/x-ui setting -username '<新用户名>' -password '<强密码>' -port 2053 -webBasePath '/panel-secret/'
-sudo systemctl restart x-ui
+/usr/local/x-ui/x-ui setting -listenIP 127.0.0.1
+systemctl restart x-ui
+```
+
+### 8.6 验证与卸载
+
+验证服务状态、版本、配置和日志：
+
+```bash
+x-ui status
+x-ui settings
+/usr/local/x-ui/x-ui -v
+/usr/local/x-ui/x-ui setting -show true
+systemctl is-active x-ui
+journalctl -u x-ui -n 100 --no-pager
+tail -n 100 /var/log/x-ui/3xui.log
+ss -tulpen | grep -E 'x-ui|xray|:2053|:2096' || true
+```
+
+卸载 systemd 部署时，先备份数据库和证书，再停止并删除服务文件：
+
+```bash
+BACKUP_DIR="/root/x-ui-backup-$(date +%F-%H%M%S)"
+mkdir -p "${BACKUP_DIR}"
+cp -a /etc/x-ui "${BACKUP_DIR}/" 2>/dev/null || true
+
+systemctl disable --now x-ui 2>/dev/null || true
+rm -f /etc/systemd/system/x-ui.service /usr/bin/x-ui
+rm -rf /usr/local/x-ui
+systemctl daemon-reload
 ```
 
 ---

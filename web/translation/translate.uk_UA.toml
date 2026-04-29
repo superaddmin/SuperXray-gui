@@ -819,7 +819,7 @@
 "ipLimit" = "🔢 IP Ліміт"
 "setTGUser" = "👤 Встановити користувача Telegram"
 "toggle" = "🔘 Увімкнути / Вимкнути"
-"custom" = "🔢 Custom"
+"custom" = "🔢 Власний"
 "confirmNumber" = "✅ Підтвердити: {{ .Num }}"
 "confirmNumberAdd" = "✅ Підтвердити додавання: {{ .Num }}"
 "limitTraffic" = "🚧 Ліміт трафіку"

@@ -477,7 +477,7 @@
 "direct" = "Direct Connection"
 "directDesc" = "Directly establishes connections with domains or IP ranges of a specific country."
 "notifications" = "Notifications"
-"certs" = "Certificaties"
+"certs" = "Certificates"
 "externalTraffic" = "External Traffic"
 "dateAndTime" = "Date and Time"
 "proxyAndServer" = "Proxy and Server"

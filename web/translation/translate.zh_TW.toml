@@ -210,7 +210,7 @@
 
 [pages.inbounds]
 "allTimeTraffic" = "累計總流量"
-"allTimeTrafficUsage" = "所有时间总使用量"
+"allTimeTrafficUsage" = "所有時間總使用量"
 "title" = "入站列表"
 "totalDownUp" = "總上傳 / 下載"
 "totalUsage" = "總用量"
@@ -462,7 +462,7 @@
 "subShowInfoDesc" = "客戶端應用中將顯示剩餘流量和日期資訊"
 "subURI" = "反向代理 URI"
 "subURIDesc" = "用於代理後面的訂閱 URL 的 URI 路徑"
-"externalTrafficInformEnable" = "外部交通通知"
+"externalTrafficInformEnable" = "外部流量通知"
 "externalTrafficInformEnableDesc" = "每次流量更新時通知外部 API"
 "externalTrafficInformURI" = "外部流量通知 URI"
 "externalTrafficInformURIDesc" = "流量更新將會傳送到此 URI"
@@ -819,7 +819,7 @@
 "ipLimit" = "🔢 IP 限制"
 "setTGUser" = "👤 設定 Telegram 使用者"
 "toggle" = "🔘 啟用/禁用"
-"custom" = "🔢 風俗"
+"custom" = "🔢 自訂"
 "confirmNumber" = "✅ 確認: {{ .Num }}"
 "confirmNumberAdd" = "✅ 確認新增：{{ .Num }}"
 "limitTraffic" = "🚧 流量限制"

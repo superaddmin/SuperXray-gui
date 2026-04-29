@@ -24,7 +24,7 @@
 
 ## البدء السريع
 
-```
+```bash
 bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh)
 ```
 

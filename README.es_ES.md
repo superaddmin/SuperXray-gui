@@ -24,7 +24,7 @@ Como una versión mejorada del proyecto X-UI original, 3X-UI proporciona mayor e
 
 ## Inicio Rápido
 
-```
+```bash
 bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh)
 ```
 
