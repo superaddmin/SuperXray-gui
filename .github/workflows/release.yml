@@ -192,6 +192,7 @@ jobs:
 
       - name: Generate release notes
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        id: release_notes
         shell: bash
         run: |
           set -euo pipefail
@@ -205,6 +206,11 @@ jobs:
             echo "Failed to generate release notes for $GITHUB_REF_NAME" >&2
             exit 1
           fi
+          {
+            echo "body<<RELEASE_NOTES_EOF"
+            cat release-notes.md
+            echo "RELEASE_NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Upload files to GH release
         uses: svenstaro/upload-release-action@v2
@@ -216,5 +222,5 @@ jobs:
           asset_name: x-ui-linux-${{ matrix.platform }}.tar.gz
           overwrite: true
           release_name: ${{ github.ref_name }}
-          body_path: release-notes.md
+          body: ${{ steps.release_notes.outputs.body }}
           prerelease: ${{ contains(github.ref_name, '-') }}
