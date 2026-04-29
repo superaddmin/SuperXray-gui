@@ -15,6 +15,8 @@ release_repo="${XUI_RELEASE_REPO:=superaddmin/SuperXray-gui}"
 raw_base="https://raw.githubusercontent.com/${script_repo}/main"
 release_base="https://github.com/${release_repo}"
 release_api="https://api.github.com/repos/${release_repo}"
+RELEASE_TAG=""
+RELEASE_TAG_SOURCE=""
 
 # check root
 [[ $EUID -ne 0 ]] && echo -e "${red}致命错误：${plain}请使用 root 权限运行此脚本 \n " && exit 1
@@ -59,6 +61,60 @@ is_ip() {
 }
 is_domain() {
     [[ "$1" =~ ^([A-Za-z0-9](-*[A-Za-z0-9])*\.)+(xn--[a-z0-9]{2,}|[A-Za-z]{2,})$ ]] && return 0 || return 1
+}
+
+extract_release_tag() {
+    grep -m1 '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'
+}
+
+fetch_latest_release_tag() {
+    local ip_opt="$1"
+    local curl_args=(-fsSLH "Accept: application/vnd.github+json")
+    [[ -n "${ip_opt}" ]] && curl_args=("${ip_opt}" "${curl_args[@]}")
+    curl "${curl_args[@]}" "${release_api}/releases/latest" 2>/dev/null | extract_release_tag
+}
+
+fetch_first_release_tag() {
+    local ip_opt="$1"
+    local curl_args=(-fsSLH "Accept: application/vnd.github+json")
+    [[ -n "${ip_opt}" ]] && curl_args=("${ip_opt}" "${curl_args[@]}")
+    curl "${curl_args[@]}" "${release_api}/releases?per_page=10" 2>/dev/null | extract_release_tag
+}
+
+resolve_release_tag() {
+    local tag=""
+
+    tag=$(fetch_latest_release_tag "")
+    if [[ -n "${tag}" ]]; then
+        RELEASE_TAG="${tag}"
+        RELEASE_TAG_SOURCE="latest"
+        return 0
+    fi
+
+    echo -e "${yellow}未找到 GitHub latest 正式版，正在尝试获取最新公开 Release...${plain}" >&2
+    tag=$(fetch_first_release_tag "")
+    if [[ -n "${tag}" ]]; then
+        RELEASE_TAG="${tag}"
+        RELEASE_TAG_SOURCE="release-list"
+        return 0
+    fi
+
+    echo -e "${yellow}正在尝试通过 IPv4 获取版本信息...${plain}" >&2
+    tag=$(fetch_latest_release_tag "-4")
+    if [[ -n "${tag}" ]]; then
+        RELEASE_TAG="${tag}"
+        RELEASE_TAG_SOURCE="latest-ipv4"
+        return 0
+    fi
+
+    tag=$(fetch_first_release_tag "-4")
+    if [[ -n "${tag}" ]]; then
+        RELEASE_TAG="${tag}"
+        RELEASE_TAG_SOURCE="release-list-ipv4"
+        return 0
+    fi
+
+    return 1
 }
 
 # Port helpers
@@ -792,16 +848,16 @@ install_x-ui() {
     
     # Download resources
     if [ $# == 0 ]; then
-        tag_version=$(curl -Ls "${release_api}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-        if [[ ! -n "$tag_version" ]]; then
-            echo -e "${yellow}正在尝试通过 IPv4 获取版本信息...${plain}"
-            tag_version=$(curl -4 -Ls "${release_api}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-            if [[ ! -n "$tag_version" ]]; then
-                echo -e "${red}获取 x-ui 版本失败，可能是 GitHub API 限制导致，请稍后重试${plain}"
-                exit 1
-            fi
+        if ! resolve_release_tag || [[ ! -n "${RELEASE_TAG}" ]]; then
+            echo -e "${red}获取 SuperXray Release 版本失败，GitHub 未返回可用版本。${plain}"
+            echo -e "${yellow}请检查 ${release_base}/releases，或手动指定版本，例如：bash install.sh v2.9.4${plain}"
+            exit 1
         fi
-        echo -e "已获取 x-ui 最新版本：${tag_version}，开始安装..."
+        tag_version="${RELEASE_TAG}"
+        if [[ "${RELEASE_TAG_SOURCE}" == release-list* ]]; then
+            echo -e "${yellow}已回退到最新公开 Release：${tag_version}。建议将稳定版本标记为正式 Release。${plain}"
+        fi
+        echo -e "已获取 SuperXray 版本：${tag_version}，开始安装..."
         curl -4fLRo ${xui_folder}-linux-$(arch).tar.gz "${release_base}/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz"
         if [[ $? -ne 0 ]]; then
             echo -e "${red}下载 x-ui 失败，请确认服务器可以访问 GitHub ${plain}"
