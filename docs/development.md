@@ -9,7 +9,7 @@
 
 ### 1.1 项目背景
 
-**3X-UI** 是 [X-UI](https://github.com/vaxilu/x-ui) 项目的增强分支，是一个基于 Web 的 Xray-core 代理服务器管理面板。项目使用 Go 语言开发，采用 Gin Web 框架，前端使用 Vue.js + Ant Design Vue。
+**SuperXray** 是 [X-UI](https://github.com/vaxilu/x-ui) 项目的增强分支，是一个基于 Web 的 Xray-core 代理服务器管理面板。项目使用 Go 语言开发，采用 Gin Web 框架，前端使用 Vue.js + Ant Design Vue。
 
 ### 1.2 贡献方式
 

@@ -9,7 +9,7 @@
 
 ### 1.1 项目定位与背景
 
-**3X-UI** 是一个基于 Web 的高级开源控制面板，专为管理 [Xray-core](https://github.com/XTLS/Xray-core) 代理服务器而设计。作为原始 X-UI 项目的增强分支，3X-UI 提供了更好的稳定性、更广泛的协议支持和丰富的附加功能。
+**SuperXray** 是一个基于 Web 的高级开源控制面板，专为管理 [Xray-core](https://github.com/XTLS/Xray-core) 代理服务器而设计。作为原始 X-UI 项目的增强分支，3X-UI 提供了更好的稳定性、更广泛的协议支持和丰富的附加功能。
 
 | 属性 | 值 |
 |------|-----|

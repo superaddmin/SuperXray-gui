@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**3X-UI** (SuperXray-gui) — web-based control panel for managing Xray-core proxy/VPN servers. Go backend with Gin framework, embedded frontend (Vue.js + Ant Design Vue), SQLite database, and Telegram bot integration.
+**SuperXray** (SuperXray-gui) — web-based control panel for managing Xray-core proxy/VPN servers. Go backend with Gin framework, embedded frontend (Vue.js + Ant Design Vue), SQLite database, and Telegram bot integration.
 
 - **Module**: `github.com/superaddmin/SuperXray-gui/v2`
 - **Go version**: 1.26.2

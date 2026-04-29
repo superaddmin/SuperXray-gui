@@ -3,7 +3,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./media/SuperXray.png">
-    <img alt="3x-ui" src="./media/SuperXray.png">
+    <img alt="SuperXray" src="./media/SuperXray.png">
   </picture>
 </p>
 
@@ -15,7 +15,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/superaddmin/SuperXray-gui/v2.svg)](https://pkg.go.dev/github.com/superaddmin/SuperXray-gui/v2)
 [![Go Report Card](https://goreportcard.com/badge/github.com/superaddmin/SuperXray-gui/v2)](https://goreportcard.com/report/github.com/superaddmin/SuperXray-gui/v2)
 
-**3X-UI** — 一个基于网页的高级开源控制面板，专为管理 Xray-core 服务器而设计。它提供了用户友好的界面，用于配置和监控各种 VPN 和代理协议。
+**SuperXray** — 一个基于网页的高级开源控制面板，专为管理 Xray-core 服务器而设计。它提供了用户友好的界面，用于配置和监控各种 VPN 和代理协议。
 
 > [!IMPORTANT]
 > 本项目仅用于个人使用和通信，请勿将其用于非法目的，请勿在生产环境中使用。
