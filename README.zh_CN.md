@@ -112,7 +112,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 如需固定安装当前版本：
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v2.9.8
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v2.9.9
 ```
 
 一键脚本会自动安装基础依赖，下载匹配架构的 GitHub Release 包，并在安装结束时输出随机生成的用户名、密码、面板端口和 `webBasePath`。这段输出只出现一次，请保存到密码管理器。当前官方 Release 二进制包覆盖 Linux `amd64` 与 `arm64`。
@@ -156,7 +156,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
   -v $PWD/cert:/root/cert \
   -e XRAY_VMESS_AEAD_FORCED=false \
   -e XUI_ENABLE_FAIL2BAN=true \
-  ghcr.io/superaddmin/superxray-gui:2.9.8
+  ghcr.io/superaddmin/superxray-gui:2.9.9
 ```
 
 如果需要基于本地源码构建：
@@ -291,7 +291,7 @@ SuperXray-gui/
 ├── main.go                    # 程序入口，CLI 命令解析
 ├── config/                    # 配置管理
 │   ├── config.go              # 配置加载与环境变量
-│   ├── version                # 版本号 (2.9.8)
+│   ├── version                # 版本号 (2.9.9)
 │   └── name                   # 应用名 (x-ui)
 ├── database/                  # 数据库层
 │   ├── db.go                  # SQLite 初始化与迁移
