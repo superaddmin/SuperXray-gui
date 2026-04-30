@@ -2790,9 +2790,12 @@ Inbound.TrojanSettings.Fallback = class extends XrayCommonClass {
 Inbound.ShadowsocksSettings = class extends Inbound.Settings {
     constructor(protocol,
         method = SSMethods.BLAKE3_AES_256_GCM,
-        password = RandomUtil.randomShadowsocksPassword(),
+        password = RandomUtil.randomShadowsocksPassword(method),
         network = 'tcp,udp',
-        shadowsockses = [new Inbound.ShadowsocksSettings.Shadowsocks()],
+        shadowsockses = [new Inbound.ShadowsocksSettings.Shadowsocks(
+            String(method || '').startsWith('2022-') ? '' : method,
+            RandomUtil.randomShadowsocksPassword(method),
+        )],
         ivCheck = false,
     ) {
         super(protocol);
@@ -2828,7 +2831,7 @@ Inbound.ShadowsocksSettings = class extends Inbound.Settings {
 Inbound.ShadowsocksSettings.Shadowsocks = class extends Inbound.ClientBase {
     constructor(
         method = '',
-        password = RandomUtil.randomShadowsocksPassword(),
+        password = RandomUtil.randomShadowsocksPassword(method),
         email, limitIp, totalGB, expiryTime, enable, tgId, subId, comment, reset, created_at, updated_at,
     ) {
         super(email, limitIp, totalGB, expiryTime, enable, tgId, subId, comment, reset, created_at, updated_at);
@@ -3085,7 +3088,16 @@ Inbound.WireguardSettings = class extends XrayCommonClass {
 };
 
 Inbound.WireguardSettings.Peer = class extends XrayCommonClass {
-    constructor(privateKey, publicKey, psk = '', allowedIPs = ['10.0.0.2/32'], keepAlive = 0) {
+    constructor(
+        privateKey,
+        publicKey,
+        psk = '',
+        allowedIPs = ['10.0.0.2/32'],
+        keepAlive = 0,
+        email = RandomUtil.randomLowerAndNum(8),
+        enable = true,
+        subId = RandomUtil.randomLowerAndNum(16)
+    ) {
         super();
         this.privateKey = privateKey
         this.publicKey = publicKey;
@@ -3098,6 +3110,9 @@ Inbound.WireguardSettings.Peer = class extends XrayCommonClass {
         })
         this.allowedIPs = allowedIPs;
         this.keepAlive = keepAlive;
+        this.email = email;
+        this.enable = enable === undefined ? true : enable;
+        this.subId = subId;
     }
 
     static fromJson(json = {}) {
@@ -3106,7 +3121,10 @@ Inbound.WireguardSettings.Peer = class extends XrayCommonClass {
             json.publicKey,
             json.preSharedKey,
             json.allowedIPs,
-            json.keepAlive
+            json.keepAlive,
+            json.email,
+            json.enable,
+            json.subId
         );
     }
 
@@ -3120,6 +3138,9 @@ Inbound.WireguardSettings.Peer = class extends XrayCommonClass {
             preSharedKey: this.psk.length > 0 ? this.psk : undefined,
             allowedIPs: this.allowedIPs,
             keepAlive: this.keepAlive ?? undefined,
+            email: this.email,
+            enable: this.enable,
+            subId: this.subId,
         };
     }
 };

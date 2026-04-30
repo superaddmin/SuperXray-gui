@@ -21,6 +21,7 @@ const (
 	Shadowsocks Protocol = "shadowsocks"
 	Mixed       Protocol = "mixed"
 	WireGuard   Protocol = "wireguard"
+	Tun         Protocol = "tun"
 	// UI stores Hysteria v1 and v2 both as "hysteria" and uses
 	// settings.version to discriminate. Imports from outside the panel
 	// can carry the literal "hysteria2" string, so IsHysteria below
@@ -132,6 +133,7 @@ type CustomGeoResource struct {
 // Client represents a client configuration for Xray inbounds with traffic limits and settings.
 type Client struct {
 	ID         string `json:"id,omitempty"`                 // Unique client identifier
+	Method     string `json:"method,omitempty"`             // Shadowsocks client cipher
 	Security   string `json:"security"`                     // Security method (e.g., "auto", "aes-128-gcm")
 	Password   string `json:"password,omitempty"`           // Client password
 	Flow       string `json:"flow,omitempty"`               // Flow control (XTLS)

@@ -2,6 +2,25 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [2.9.10] - 2026-05-01
+
+### Added
+
+- 增加主力入站协议服务端校验，覆盖 VMess/VLESS UUID、VLESS Flow 使用组合、Trojan/Shadowsocks/Hysteria 必填凭据与 Shadowsocks 2022 key 长度。
+- 增加 WireGuard Peer 订阅元数据，并补齐普通订阅、JSON 订阅和 Clash/Mihomo 订阅导出。
+- 增加协议能力矩阵、WireGuard 订阅和协议校验回归测试。
+
+### Changed
+
+- 将项目版本号更新为 `2.9.10`，并同步 README 与技术文档中的版本引用。
+- 补充入站创建教程中 Shadowsocks 2022、VLESS Flow 与 WireGuard 订阅填写说明。
+
+### Fixed
+
+- 修复 Shadowsocks 非 2022 AEAD 方法误用 2022 key 生成规则导致的密码无效问题。
+- 修复 WireGuard 入站只能页面复制配置、无法被订阅服务发现和导出的问题。
+- 修复 Go 侧协议常量缺少 `tun` 导致协议覆盖矩阵不完整的问题。
+
 ## [2.9.9] - 2026-04-30
 
 ### Added

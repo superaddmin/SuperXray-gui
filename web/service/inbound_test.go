@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/base64"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -73,6 +74,64 @@ func TestInboundSettingsEntryReturnsRawClients(t *testing.T) {
 	}
 	if settings["decryption"] != "none" {
 		t.Fatalf("settings decryption = %v, want none", settings["decryption"])
+	}
+}
+
+func TestBuildTargetClientFromSourceShadowsocksLegacyUsesInboundMethod(t *testing.T) {
+	targetInbound := &model.Inbound{
+		Protocol: model.Shadowsocks,
+		Settings: `{"method":"chacha20-ietf-poly1305","password":"server-pass","clients":[]}`,
+	}
+
+	client, err := (&InboundService{}).buildTargetClientFromSource(
+		model.Client{ID: "source-id", Password: "source-pass", Auth: "source-auth", Email: "source@example"},
+		targetInbound,
+		"copied@example",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("buildTargetClientFromSource returned error: %v", err)
+	}
+
+	if client.Method != "chacha20-ietf-poly1305" {
+		t.Fatalf("client method = %q, want inbound method", client.Method)
+	}
+	if len(client.Password) != 16 {
+		t.Fatalf("legacy Shadowsocks password length = %d, want 16", len(client.Password))
+	}
+	if client.ID != "" || client.Auth != "" {
+		t.Fatalf("client kept source credentials: id=%q auth=%q", client.ID, client.Auth)
+	}
+}
+
+func TestBuildTargetClientFromSourceShadowsocks2022UsesClientKey(t *testing.T) {
+	targetInbound := &model.Inbound{
+		Protocol: model.Shadowsocks,
+		Settings: `{"method":"2022-blake3-aes-128-gcm","password":"server-key","clients":[]}`,
+	}
+
+	client, err := (&InboundService{}).buildTargetClientFromSource(
+		model.Client{ID: "source-id", Password: "source-pass", Auth: "source-auth", Email: "source@example"},
+		targetInbound,
+		"copied@example",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("buildTargetClientFromSource returned error: %v", err)
+	}
+
+	if client.Method != "" {
+		t.Fatalf("2022 client method = %q, want empty", client.Method)
+	}
+	decoded, err := base64.StdEncoding.DecodeString(client.Password)
+	if err != nil {
+		t.Fatalf("2022 Shadowsocks password is not base64: %v", err)
+	}
+	if len(decoded) != 16 {
+		t.Fatalf("2022 aes-128 client key length = %d, want 16", len(decoded))
+	}
+	if client.ID != "" || client.Auth != "" {
+		t.Fatalf("client kept source credentials: id=%q auth=%q", client.ID, client.Auth)
 	}
 }
 

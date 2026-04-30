@@ -850,7 +850,7 @@ install_x-ui() {
     if [ $# == 0 ]; then
         if ! resolve_release_tag || [[ ! -n "${RELEASE_TAG}" ]]; then
             echo -e "${red}获取 SuperXray Release 版本失败，GitHub 未返回可用版本。${plain}"
-            echo -e "${yellow}请检查 ${release_base}/releases，或手动指定版本，例如：bash install.sh v2.9.9${plain}"
+            echo -e "${yellow}请检查 ${release_base}/releases，或手动指定版本，例如：bash install.sh v2.9.10${plain}"
             exit 1
         fi
         tag_version="${RELEASE_TAG}"

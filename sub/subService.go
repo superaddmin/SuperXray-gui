@@ -61,6 +61,28 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.C
 		s.datepicker = "gregorian"
 	}
 	for _, inbound := range inbounds {
+		if inbound.Protocol == model.WireGuard {
+			if len(inbound.Listen) > 0 && inbound.Listen[0] == '@' {
+				listen, port, streamSettings, err := s.getFallbackMaster(inbound.Listen, inbound.StreamSettings)
+				if err == nil {
+					inbound.Listen = listen
+					inbound.Port = port
+					inbound.StreamSettings = streamSettings
+				}
+			}
+			peers, err := wireguardPeersBySubID(inbound, subId)
+			if err != nil {
+				logger.Error("SubService - WireGuard peers: Unable to get peers from inbound")
+				continue
+			}
+			for _, peer := range peers {
+				if link := s.genWireguardConfig(inbound, peer); link != "" {
+					result = append(result, link)
+				}
+			}
+			continue
+		}
+
 		clients, err := s.inboundService.GetClients(inbound)
 		if err != nil {
 			logger.Error("SubService - GetClients: Unable to get clients from inbound")
@@ -118,15 +140,25 @@ func (s *SubService) getInboundsBySubId(subId string) ([]*model.Inbound, error) 
 	db := database.GetDB()
 	var inbounds []*model.Inbound
 	// allow "hysteria2" so imports stored with the literal v2 protocol
-	// string still surface here (#4081)
-	err := db.Model(model.Inbound{}).Preload("ClientStats").Where(`id in (
-		SELECT DISTINCT inbounds.id
-		FROM inbounds,
-			JSON_EACH(JSON_EXTRACT(inbounds.settings, '$.clients')) AS client
-		WHERE
-			protocol in ('vmess','vless','trojan','shadowsocks','hysteria','hysteria2')
-			AND JSON_EXTRACT(client.value, '$.subId') = ? AND enable = ?
-	)`, subId, true).Find(&inbounds).Error
+	// string still surface here (#4081). WireGuard stores subscription
+	// metadata on settings.peers instead of settings.clients.
+	err := db.Model(model.Inbound{}).Preload("ClientStats").Where(`
+		enable = ? AND (
+			(
+				protocol IN ?
+				AND EXISTS (
+					SELECT 1 FROM JSON_EACH(JSON_EXTRACT(inbounds.settings, '$.clients')) AS client
+					WHERE JSON_EXTRACT(client.value, '$.subId') = ?
+				)
+			)
+			OR (
+				protocol IN ?
+				AND EXISTS (
+					SELECT 1 FROM JSON_EACH(JSON_EXTRACT(inbounds.settings, '$.peers')) AS peer
+					WHERE JSON_EXTRACT(peer.value, '$.subId') = ?
+				)
+			)
+		)`, true, subscriptionClientProtocols(), subId, subscriptionPeerProtocols(), subId).Find(&inbounds).Error
 	if err != nil {
 		return nil, err
 	}

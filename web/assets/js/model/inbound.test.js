@@ -36,8 +36,8 @@ function loadInboundModel() {
             randomShortIds() {
                 return ['0123456789abcdef'];
             },
-            randomShadowsocksPassword() {
-                return 'password';
+            randomShadowsocksPassword(method) {
+                return `password:${method || 'default'}`;
             },
             randomUUID() {
                 return '00000000-0000-4000-8000-000000000000';
@@ -56,10 +56,11 @@ function loadInboundModel() {
         URLSearchParams,
     };
 
-    vm.runInNewContext(`${source}\nglobalThis.Inbound = Inbound; globalThis.Protocols = Protocols;`, sandbox);
+    vm.runInNewContext(`${source}\nglobalThis.Inbound = Inbound; globalThis.Protocols = Protocols; globalThis.SSMethods = SSMethods;`, sandbox);
     return {
         Inbound: sandbox.Inbound,
         Protocols: sandbox.Protocols,
+        SSMethods: sandbox.SSMethods,
     };
 }
 
@@ -91,6 +92,58 @@ test('default inbound settings serialize clients as an array', () => {
     assert.ok(Array.isArray(settings.clients));
     assert.equal(typeof settings.clients, 'object');
     assert.notEqual(typeof settings.clients, 'string');
+});
+
+test('new Shadowsocks clients generate passwords for the selected method', () => {
+    const { Inbound, SSMethods } = loadInboundModel();
+
+    const client = new Inbound.ShadowsocksSettings.Shadowsocks(SSMethods.CHACHA20_IETF_POLY1305);
+
+    assert.equal(client.password, `password:${SSMethods.CHACHA20_IETF_POLY1305}`);
+});
+
+test('default Shadowsocks 2022 settings generate server and client keys for the selected method', () => {
+    const { Inbound, Protocols, SSMethods } = loadInboundModel();
+
+    const settings = Inbound.Settings.getSettings(Protocols.SHADOWSOCKS);
+
+    assert.equal(settings.method, SSMethods.BLAKE3_AES_256_GCM);
+    assert.equal(settings.password, `password:${SSMethods.BLAKE3_AES_256_GCM}`);
+    assert.equal(settings.shadowsockses[0].password, `password:${SSMethods.BLAKE3_AES_256_GCM}`);
+});
+
+test('bulk Shadowsocks client creation uses the inbound method for generated passwords', () => {
+    const modal = fs.readFileSync('web/html/modals/client_bulk_modal.html', 'utf8');
+
+    assert.match(
+        modal,
+        /RandomUtil\.randomShadowsocksPassword\(clientsBulkModal\.inbound\.settings\.method\)/
+    );
+});
+
+test('WireGuard peers preserve subscription metadata', () => {
+    const { Inbound } = loadInboundModel();
+
+    const peer = new Inbound.WireguardSettings.Peer(
+        'peer-private',
+        'peer-public',
+        'peer-psk',
+        ['10.0.0.2'],
+        25,
+        'wg@example',
+        false,
+        'sub-123'
+    );
+    const json = peer.toJson();
+
+    assert.equal(json.email, 'wg@example');
+    assert.equal(json.enable, false);
+    assert.equal(json.subId, 'sub-123');
+
+    const restored = Inbound.WireguardSettings.Peer.fromJson(json);
+    assert.equal(restored.email, 'wg@example');
+    assert.equal(restored.enable, false);
+    assert.equal(restored.subId, 'sub-123');
 });
 
 test('add inbound form shows connection choices before protocol client fields', () => {

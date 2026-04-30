@@ -907,6 +907,27 @@ func (t *Tgbot) sendResponse(chatId int64, msg string, onlyMessage, isAdmin bool
 	}
 }
 
+func (t *Tgbot) applyShadowsocksClientMethod(inbound *model.Inbound) string {
+	if inbound == nil || inbound.Protocol != model.Shadowsocks {
+		return ""
+	}
+	method := shadowsocksMethodFromSettings(inbound.Settings)
+	if isShadowsocks2022Method(method) {
+		client_Method = ""
+	} else {
+		client_Method = method
+	}
+	return method
+}
+
+func (t *Tgbot) prepareShadowsocksClientDefaults(inbound *model.Inbound) {
+	method := t.applyShadowsocksClientMethod(inbound)
+	if inbound == nil || inbound.Protocol != model.Shadowsocks {
+		return
+	}
+	client_ShPassword = t.randomShadowSocksPassword(method)
+}
+
 // randomLowerAndNum generates a random string of lowercase letters and numbers.
 func (t *Tgbot) randomLowerAndNum(length int) string {
 	charset := "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -919,13 +940,8 @@ func (t *Tgbot) randomLowerAndNum(length int) string {
 }
 
 // randomShadowSocksPassword generates a random password for Shadowsocks.
-func (t *Tgbot) randomShadowSocksPassword() string {
-	array := make([]byte, 32)
-	_, err := rand.Read(array)
-	if err != nil {
-		return t.randomLowerAndNum(32)
-	}
-	return base64.StdEncoding.EncodeToString(array)
+func (t *Tgbot) randomShadowSocksPassword(method string) string {
+	return randomShadowsocksCredential(method)
 }
 
 // answerCallback processes callback queries from inline keyboards.
@@ -1737,7 +1753,7 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 				client_Comment = ""
 				client_Reset = 0
 				client_Security = "auto"
-				client_ShPassword = t.randomShadowSocksPassword()
+				client_ShPassword = t.randomShadowSocksPassword("")
 				client_TrPassword = t.randomLowerAndNum(10)
 				client_Method = ""
 
@@ -1753,6 +1769,7 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 					t.sendCallbackAnswerTgBot(callbackQuery.ID, err.Error())
 					return
 				}
+				t.prepareShadowsocksClientDefaults(inbound)
 
 				message_text, err := t.BuildInboundClientDataMessage(inbound.Remark, inbound.Protocol)
 				if err != nil {
@@ -1916,7 +1933,7 @@ func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool
 		client_Comment = ""
 		client_Reset = 0
 		client_Security = "auto"
-		client_ShPassword = t.randomShadowSocksPassword()
+		client_ShPassword = t.randomShadowSocksPassword("")
 		client_TrPassword = t.randomLowerAndNum(10)
 		client_Method = ""
 
@@ -2319,6 +2336,7 @@ func (t *Tgbot) SubmitAddClient() (bool, error) {
 		logger.Warning("getIboundClients run failed:", err)
 		return false, errors.New(t.I18nBot("tgbot.answers.getInboundsFailed"))
 	}
+	t.applyShadowsocksClientMethod(inbound)
 
 	jsonString, err := t.BuildJSONForProtocol(inbound.Protocol)
 	if err != nil {

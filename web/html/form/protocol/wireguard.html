@@ -31,6 +31,15 @@
         type="delete" @click="() => inbound.settings.delPeer(index)"
         :style="{ color: 'rgb(255, 77, 79)', cursor: 'pointer' }"></a-icon>
     </a-divider>
+    <a-form-item label='{{ i18n "pages.inbounds.email" }}'>
+      <a-input v-model.trim="peer.email"></a-input>
+    </a-form-item>
+    <a-form-item label='{{ i18n "enable" }}'>
+      <a-switch v-model="peer.enable"></a-switch>
+    </a-form-item>
+    <a-form-item label='{{ i18n "subscription.subId" }}'>
+      <a-input v-model.trim="peer.subId"></a-input>
+    </a-form-item>
     <a-form-item>
       <template slot="label">
         <a-tooltip>

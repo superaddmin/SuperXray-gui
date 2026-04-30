@@ -38,6 +38,28 @@ func (s *SubClashService) GetClash(subId string, host string) (string, string, e
 	var proxies []map[string]any
 
 	for _, inbound := range inbounds {
+		if inbound.Protocol == model.WireGuard {
+			if len(inbound.Listen) > 0 && inbound.Listen[0] == '@' {
+				listen, port, streamSettings, err := s.SubService.getFallbackMaster(inbound.Listen, inbound.StreamSettings)
+				if err == nil {
+					inbound.Listen = listen
+					inbound.Port = port
+					inbound.StreamSettings = streamSettings
+				}
+			}
+			peers, err := wireguardPeersBySubID(inbound, subId)
+			if err != nil {
+				logger.Error("SubClashService - WireGuard peers: Unable to get peers from inbound")
+				continue
+			}
+			for _, peer := range peers {
+				if proxy := s.buildWireguardProxy(inbound, peer, host, ""); len(proxy) > 0 {
+					proxies = append(proxies, proxy)
+				}
+			}
+			continue
+		}
+
 		clients, err := s.inboundService.GetClients(inbound)
 		if err != nil {
 			logger.Error("SubClashService - GetClients: Unable to get clients from inbound")

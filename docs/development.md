@@ -1,7 +1,7 @@
 # 开发者贡献指南
 
 > **目标读者**：贡献者
-> **适用版本**：`v2.9.9`
+> **适用版本**：`v2.9.10`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [部署指南](deployment.md)
 
 ---
@@ -144,7 +144,7 @@ SuperXray-gui/
 │
 ├── config/                    # 配置管理
 │   ├── config.go              # 配置加载（版本/日志/路径）
-│   ├── version                # 版本号：2.9.9
+│   ├── version                # 版本号：2.9.10
 │   └── name                   # 应用名：x-ui
 │
 ├── database/                  # 数据库层
@@ -486,7 +486,7 @@ docs(api): update API documentation for inbound endpoints
 
 ```
 主版本号.次版本号.修订号
-2.9.9
+2.9.10
 ```
 
 版本号存储在 [`config/version`](../config/version) 文件中。

@@ -8,6 +8,11 @@ function loadHtmlUtil() {
     const sandbox = {
         Blob,
         Intl,
+        SSMethods: {
+            CHACHA20_IETF_POLY1305: 'chacha20-ietf-poly1305',
+            BLAKE3_AES_128_GCM: '2022-blake3-aes-128-gcm',
+            BLAKE3_AES_256_GCM: '2022-blake3-aes-256-gcm',
+        },
         URL,
         Vue: { prototype: { $message: { error() {}, success() {} } } },
         console,
@@ -42,15 +47,27 @@ function loadHtmlUtil() {
         },
     };
 
-    vm.runInNewContext(`${source}\nglobalThis.HtmlUtil = HtmlUtil;`, sandbox);
-    return sandbox.HtmlUtil;
+    vm.runInNewContext(`${source}\nglobalThis.HtmlUtil = HtmlUtil; globalThis.RandomUtil = RandomUtil;`, sandbox);
+    return {
+        HtmlUtil: sandbox.HtmlUtil,
+        RandomUtil: sandbox.RandomUtil,
+        SSMethods: sandbox.SSMethods,
+    };
 }
 
 test('HtmlUtil.escape encodes markup before log HTML rendering', () => {
-    const HtmlUtil = loadHtmlUtil();
+    const { HtmlUtil } = loadHtmlUtil();
 
     assert.equal(
         HtmlUtil.escape('<img src=x onerror=alert("x")>&\''),
         '&lt;img src=x onerror=alert(&quot;x&quot;)&gt;&amp;&#39;'
     );
+});
+
+test('legacy Shadowsocks AEAD methods generate plain client passwords', () => {
+    const { RandomUtil, SSMethods } = loadHtmlUtil();
+
+    const password = RandomUtil.randomShadowsocksPassword(SSMethods.CHACHA20_IETF_POLY1305);
+
+    assert.equal(password, '1111111111111111');
 });

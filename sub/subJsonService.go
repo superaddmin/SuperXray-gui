@@ -103,6 +103,33 @@ func (s *SubJsonService) GetJson(subId string, host string) (string, string, err
 
 	// Prepare Inbounds
 	for _, inbound := range inbounds {
+		if inbound.Protocol == model.WireGuard {
+			if len(inbound.Listen) > 0 && inbound.Listen[0] == '@' {
+				listen, port, streamSettings, err := s.SubService.getFallbackMaster(inbound.Listen, inbound.StreamSettings)
+				if err == nil {
+					inbound.Listen = listen
+					inbound.Port = port
+					inbound.StreamSettings = streamSettings
+				}
+			}
+			peers, err := wireguardPeersBySubID(inbound, subId)
+			if err != nil {
+				logger.Error("SubJsonService - WireGuard peers: Unable to get peers from inbound")
+				continue
+			}
+			for _, peer := range peers {
+				if config := s.genWireguard(inbound, peer, host); config != nil {
+					newConfigJson := make(map[string]any)
+					maps.Copy(newConfigJson, s.configJson)
+					newConfigJson["outbounds"] = append([]json_util.RawMessage{config}, s.defaultOutbounds...)
+					newConfigJson["remarks"] = s.SubService.genRemark(inbound, peer.Email, "")
+					newConfig, _ := json.MarshalIndent(newConfigJson, "", "  ")
+					configArray = append(configArray, newConfig)
+				}
+			}
+			continue
+		}
+
 		clients, err := s.inboundService.GetClients(inbound)
 		if err != nil {
 			logger.Error("SubJsonService - GetClients: Unable to get clients from inbound")

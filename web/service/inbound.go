@@ -280,6 +280,9 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, boo
 	if err != nil {
 		return inbound, false, err
 	}
+	if err := validateInboundProtocolConfig(inbound); err != nil {
+		return inbound, false, err
+	}
 
 	// Ensure created_at and updated_at on clients in settings
 	if len(clients) > 0 {
@@ -454,6 +457,9 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 
 	oldInbound, err := s.GetInbound(inbound.Id)
 	if err != nil {
+		return inbound, false, err
+	}
+	if err := validateInboundProtocolConfig(inbound); err != nil {
 		return inbound, false, err
 	}
 
@@ -729,6 +735,9 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if err := validateInboundProtocolClients(oldInbound.Protocol, oldInbound.Settings, oldInbound.StreamSettings, clients); err != nil {
+		return false, err
+	}
 
 	// Secure client ID
 	for _, client := range clients {
@@ -873,7 +882,11 @@ func (s *InboundService) generateRandomCredential(targetProtocol model.Protocol)
 	}
 }
 
-func (s *InboundService) buildTargetClientFromSource(source model.Client, targetProtocol model.Protocol, email string, flow string) (model.Client, error) {
+func (s *InboundService) buildTargetClientFromSource(source model.Client, targetInbound *model.Inbound, email string, flow string) (model.Client, error) {
+	if targetInbound == nil {
+		return model.Client{}, common.NewError("target inbound is required")
+	}
+
 	nowTs := time.Now().UnixMilli()
 	target := source
 	target.Email = email
@@ -881,10 +894,12 @@ func (s *InboundService) buildTargetClientFromSource(source model.Client, target
 	target.UpdatedAt = nowTs
 
 	target.ID = ""
+	target.Method = ""
 	target.Password = ""
 	target.Auth = ""
 	target.Flow = ""
 
+	targetProtocol := targetInbound.Protocol
 	switch targetProtocol {
 	case model.VMESS:
 		target.ID = s.generateRandomCredential(targetProtocol)
@@ -893,8 +908,14 @@ func (s *InboundService) buildTargetClientFromSource(source model.Client, target
 		if flow == "xtls-rprx-vision" || flow == "xtls-rprx-vision-udp443" {
 			target.Flow = flow
 		}
-	case model.Trojan, model.Shadowsocks:
+	case model.Trojan:
 		target.Password = s.generateRandomCredential(targetProtocol)
+	case model.Shadowsocks:
+		method := shadowsocksMethodFromSettings(targetInbound.Settings)
+		target.Password = randomShadowsocksCredential(method)
+		if !isShadowsocks2022Method(method) {
+			target.Method = method
+		}
 	case model.Hysteria:
 		target.Auth = s.generateRandomCredential(targetProtocol)
 	default:
@@ -991,7 +1012,7 @@ func (s *InboundService) CopyInboundClients(targetInboundID int, sourceInboundID
 		}
 
 		targetEmail := s.nextAvailableCopiedEmail(originalEmail, targetInboundID, occupiedEmails)
-		targetClient, buildErr := s.buildTargetClientFromSource(sourceClient, targetInbound.Protocol, targetEmail, flow)
+		targetClient, buildErr := s.buildTargetClientFromSource(sourceClient, targetInbound, targetEmail, flow)
 		if buildErr != nil {
 			result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", originalEmail, buildErr))
 			continue
@@ -1141,6 +1162,12 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 
 	oldInbound, err := s.GetInbound(data.Id)
 	if err != nil {
+		return false, err
+	}
+	if len(clients) == 0 {
+		return false, common.NewError("empty client ID")
+	}
+	if err := validateInboundProtocolClients(oldInbound.Protocol, oldInbound.Settings, oldInbound.StreamSettings, clients); err != nil {
 		return false, err
 	}
 

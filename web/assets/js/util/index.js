@@ -139,6 +139,10 @@ class RandomUtil {
     }
 
     static randomShadowsocksPassword(method = SSMethods.BLAKE3_AES_256_GCM) {
+        if (!String(method || '').startsWith('2022-')) {
+            return this.randomSeq(16);
+        }
+
         let length = 32;
 
         if ([SSMethods.BLAKE3_AES_128_GCM].includes(method)) {
