@@ -1,6 +1,6 @@
 {{define "form/trojan"}}
-<a-collapse activeKey="0" v-for="(client, index) in inbound.settings.trojans.slice(0,1)" v-if="!isEdit">
-  <a-collapse-panel header='{{ i18n "pages.inbounds.client" }}'>
+<a-collapse :default-active-key="['client']" v-for="(client, index) in inbound.settings.trojans.slice(0,1)" v-if="!isEdit">
+  <a-collapse-panel key="client" header='{{ i18n "pages.inbounds.client" }}'>
     {{template "form/client"}}
   </a-collapse-panel>
 </a-collapse>

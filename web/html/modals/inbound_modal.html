@@ -1,6 +1,105 @@
 {{define "modals/inboundModal"}}
-<a-modal id="inbound-modal" v-model="inModal.visible" :title="inModal.title" :width="760" :dialog-style="{ top: '20px' }"
+<style>
+    .inbound-modal-wrap .ant-modal {
+        max-width: calc(100vw - 24px);
+    }
+
+    #inbound-modal .ant-form-item {
+        margin-bottom: 13px;
+    }
+
+    #inbound-modal .ant-form-item-label > label {
+        display: inline-flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 2px;
+        line-height: 1.35;
+        white-space: normal;
+    }
+
+    #inbound-modal .inbound-label-translation,
+    #inbound-modal .inbound-collapse-translation {
+        color: rgba(255, 255, 255, 0.56);
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    #inbound-modal .inbound-enhanced-control {
+        position: relative;
+        padding-right: 34px;
+    }
+
+    #inbound-modal .inbound-field-help-button {
+        align-items: center;
+        background: rgba(255, 191, 0, 0.14);
+        border: 1px solid rgba(255, 191, 0, 0.58);
+        border-radius: 50%;
+        color: #ffd666;
+        cursor: pointer;
+        display: inline-flex;
+        font-size: 13px;
+        font-weight: 700;
+        height: 24px;
+        justify-content: center;
+        line-height: 1;
+        padding: 0;
+        position: absolute;
+        right: 0;
+        top: 8px;
+        transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        width: 24px;
+        z-index: 2;
+    }
+
+    #inbound-modal .inbound-field-help-button:hover,
+    #inbound-modal .inbound-field-help-button:focus {
+        background: rgba(255, 191, 0, 0.24);
+        border-color: #ffd666;
+        outline: none;
+        transform: translateY(-1px);
+    }
+
+    .inbound-help-dialog-body p {
+        margin-bottom: 8px;
+    }
+
+    .inbound-help-dialog-body ul {
+        margin: 0 0 8px 18px;
+        padding: 0;
+    }
+
+    .inbound-help-required {
+        background: rgba(255, 77, 79, 0.12);
+        border: 1px solid rgba(255, 77, 79, 0.48);
+        border-radius: 6px;
+        color: #ff7875;
+        display: inline-block;
+        font-weight: 700;
+        margin-bottom: 10px;
+        padding: 3px 8px;
+    }
+
+    .inbound-help-example code {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 4px;
+        padding: 2px 6px;
+    }
+
+    @media (max-width: 768px) {
+        #inbound-modal .inbound-enhanced-control {
+            padding-right: 30px;
+        }
+
+        #inbound-modal .inbound-field-help-button {
+            height: 22px;
+            top: 7px;
+            width: 22px;
+        }
+    }
+</style>
+<a-modal id="inbound-modal" v-model="inModal.visible" :title="inModal.title" :width="920" :dialog-style="{ top: '16px' }"
     @ok="inModal.ok" :confirm-loading="inModal.confirmLoading" :closable="true" :mask-closable="false"
+    wrap-class-name="inbound-modal-wrap" :body-style="{ maxHeight: 'calc(100vh - 160px)', overflowY: 'auto', padding: '20px 28px' }"
     :class="themeSwitcher.currentTheme" :ok-text="inModal.okText" cancel-text='{{ i18n "close" }}'>
     {{template "form/inbound"}}
 </a-modal>
@@ -16,6 +115,18 @@
         inbound: new Inbound(),
         dbInbound: new DBInbound(),
         ok() {
+            const validation =
+                typeof InboundFormHelp !== "undefined"
+                    ? InboundFormHelp.validateInbound(inModal.inbound)
+                    : { valid: true };
+            if (!validation.valid) {
+                if (inboundModalVueInstance) {
+                    inboundModalVueInstance.showInboundValidationError(validation);
+                } else if (window.app && app.$message) {
+                    app.$message.error(`${validation.message.zh} / ${validation.message.en}`);
+                }
+                return;
+            }
             ObjectUtil.execute(inModal.confirm, inModal.inbound, inModal.dbInbound);
         },
         show({
@@ -53,6 +164,9 @@
             this.confirm = confirm;
             this.visible = true;
             this.isEdit = isEdit;
+            setTimeout(() => {
+                if (inboundModalVueInstance) inboundModalVueInstance.enhanceInboundForm();
+            }, 0);
         },
         close() {
             inModal.visible = false;
@@ -160,6 +274,12 @@
                 }
             },
         },
+        mounted() {
+            this.enhanceInboundForm();
+        },
+        updated() {
+            this.$nextTick(this.enhanceInboundForm);
+        },
         watch: {
             "inModal.inbound.stream.security"(newVal, oldVal) {
                 // Clear flow when security changes from reality/tls to none
@@ -171,6 +291,7 @@
                         client.flow = "";
                     });
                 }
+                this.$nextTick(this.enhanceInboundForm);
             },
             // Ensure testseed is always initialized when vision flow is enabled
             "inModal.inbound.settings.vlesses": {
@@ -199,6 +320,51 @@
             },
         },
         methods: {
+            enhanceInboundForm() {
+                if (typeof InboundFormHelp === "undefined") return;
+                const root = document.getElementById("inbound-modal");
+                InboundFormHelp.enhance(root, {
+                    onHelp: this.showInboundFieldHelp,
+                });
+            },
+            showInboundFieldHelp(help) {
+                if (!help || typeof InboundFormHelp === "undefined") return;
+                const h = this.$createElement;
+                const content = h("div", {
+                    domProps: {
+                        innerHTML: InboundFormHelp.renderHelpContent(help),
+                    },
+                });
+                const modalOptions = {
+                    title: `${help.label.zh} / ${help.label.en}`,
+                    content,
+                    okText: "知道了 / Got it",
+                    class: themeSwitcher.currentTheme,
+                };
+                if (this.$info) {
+                    this.$info(modalOptions);
+                } else {
+                    this.$message.info(`${help.description.zh} / ${help.description.en}`);
+                }
+            },
+            showInboundValidationError(validation) {
+                const h = this.$createElement;
+                const message = `${validation.message.zh} / ${validation.message.en}`;
+                if (this.$error) {
+                    this.$error({
+                        title: "入站配置不完整 / Inbound configuration is incomplete",
+                        content: h("div", [
+                            h("p", validation.message.zh),
+                            h("p", validation.message.en),
+                        ]),
+                        okText: "返回填写 / Back to form",
+                        class: themeSwitcher.currentTheme,
+                    });
+                } else {
+                    this.$message.error(message);
+                }
+                this.$nextTick(this.enhanceInboundForm);
+            },
             streamNetworkChange() {
                 if (!inModal.inbound.canEnableTls()) {
                     this.inModal.inbound.stream.security = "none";
@@ -217,6 +383,7 @@
                 if (inModal.inbound.stream.network != "kcp") {
                     inModal.inbound.stream.finalmask.udp = [];
                 }
+                this.$nextTick(this.enhanceInboundForm);
             },
             SSMethodChange() {
                 this.inModal.inbound.settings.password =
