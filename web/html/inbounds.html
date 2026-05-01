@@ -128,11 +128,13 @@
                 <template #title>
                   <a-space direction="horizontal">
                     <a-button type="primary" icon="plus"
+                      aria-label='{{ i18n "pages.inbounds.addInbound" }}'
                       @click="openAddInbound">
                       <template v-if="!isMobile">添加入站 / Add Inbound</template>
                     </a-button>
                     <a-dropdown :trigger="['click']">
-                      <a-button type="primary" icon="menu">
+                      <a-button type="primary" icon="menu"
+                        aria-label='{{ i18n "pages.inbounds.generalActions" }}'>
                         <template v-if="!isMobile">通用操作 / General Actions</template>
                       </a-button>
                       <a-menu slot="overlay" @click="a => generalActions(a)"
@@ -169,7 +171,7 @@
                 </template>
                 <template #extra>
                   <a-button-group>
-                    <a-button icon="sync" @click="manualRefresh"
+                    <a-button icon="sync" aria-label="Refresh" @click="manualRefresh"
                       :loading="refreshing"></a-button>
                     <a-popover placement="bottomRight" trigger="click"
                       :overlay-class-name="themeSwitcher.currentTheme">
@@ -194,14 +196,14 @@
                           </a-select>
                         </a-space>
                       </template>
-                      <a-button icon="down"></a-button>
+                      <a-button icon="down" aria-label='{{ i18n "pages.inbounds.autoRefresh" }}'></a-button>
                     </a-popover>
                   </a-button-group>
                 </template>
                 <a-space direction="vertical">
                   <div
                     :style="isMobile ? {} : { display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }">
-                    <a-switch v-model="enableFilter"
+                    <a-switch v-model="enableFilter" aria-label='{{ i18n "filter" }}'
                       :style="isMobile ? { marginBottom: '.5rem', display: 'flex' } : { marginRight: '.5rem' }"
                       @change="toggleFilter">
                       <a-icon slot="checkedChildren" type="search"></a-icon>

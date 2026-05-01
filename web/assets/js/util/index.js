@@ -921,6 +921,17 @@ class A11yUtil {
                 select.setAttribute('aria-expanded', 'false');
             }
         });
+
+        root.querySelectorAll('[role="switch"]').forEach((switchControl) => {
+            switchControl.setAttribute(
+                'aria-checked',
+                switchControl.classList.contains('ant-switch-checked') ? 'true' : 'false'
+            );
+        });
+
+        root.querySelectorAll('.ant-collapse-item[role="tablist"]').forEach((collapseItem) => {
+            collapseItem.removeAttribute('role');
+        });
     }
 
     static scheduleNormalize() {
