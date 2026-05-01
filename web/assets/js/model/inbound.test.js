@@ -187,6 +187,44 @@ test('single Shadowsocks client creation uses the inbound method for generated p
     assert.doesNotMatch(modal, /clients\[0\]\.method/);
 });
 
+test('protocol edit client lists let operators edit client email', () => {
+    const protocolForms = [
+        'web/html/form/protocol/vmess.html',
+        'web/html/form/protocol/vless.html',
+        'web/html/form/protocol/trojan.html',
+        'web/html/form/protocol/shadowsocks.html',
+        'web/html/form/protocol/hysteria.html',
+    ];
+
+    for (const file of protocolForms) {
+        const form = fs.readFileSync(file, 'utf8');
+
+        assert.match(form, /<a-input\s+v-model\.trim="client\.email"/, `${file} should expose an editable client email input`);
+        assert.doesNotMatch(form, /<td>\s*\[\[\s*client\.email\s*\]\]\s*<\/td>/, `${file} should not render client email as read-only text`);
+    }
+});
+
+test('protocol settings include edited client email in save payload', () => {
+    const { Inbound, Protocols } = loadInboundModel();
+    const cases = [
+        { protocol: Protocols.VMESS, collection: 'vmesses' },
+        { protocol: Protocols.VLESS, collection: 'vlesses' },
+        { protocol: Protocols.TROJAN, collection: 'trojans' },
+        { protocol: Protocols.SHADOWSOCKS, collection: 'shadowsockses' },
+        { protocol: Protocols.HYSTERIA, collection: 'hysterias' },
+    ];
+
+    for (const item of cases) {
+        const settings = Inbound.Settings.getSettings(item.protocol);
+
+        settings[item.collection][0].email = 'operator@example.com';
+
+        const payload = JSON.parse(settings.toString());
+
+        assert.equal(payload.clients[0].email, 'operator@example.com', `${item.protocol} should serialize edited client email`);
+    }
+});
+
 test('WireGuard peers preserve subscription metadata', () => {
     const { Inbound } = loadInboundModel();
 

@@ -530,8 +530,57 @@
         return value == null || String(value).trim() === '';
     }
 
+    function validateClientEmail(email, protocolName) {
+        const value = String(email || '').trim();
+        if (value === '') {
+            return {
+                valid: false,
+                fieldKey: 'clientEmail',
+                message: {
+                    zh: `${protocolName} 客户端 Email 不能为空。请填写唯一的客户端标识。`,
+                    en: `${protocolName} client Email is required. Enter a unique client identifier.`,
+                },
+            };
+        }
+        if (value.length > 128 || !/^[A-Za-z0-9._@-]+$/.test(value)) {
+            return {
+                valid: false,
+                fieldKey: 'clientEmail',
+                message: {
+                    zh: `${protocolName} 客户端 Email 只能包含字母、数字、点、下划线、短横线和 @，且长度不能超过 128 个字符。`,
+                    en: `${protocolName} client Email can contain only letters, numbers, dots, underscores, hyphens, and @, and must be 128 characters or fewer.`,
+                },
+            };
+        }
+        return { valid: true };
+    }
+
+    const CLIENT_COLLECTIONS = {
+        vmess: { key: 'vmesses', label: 'VMess' },
+        vless: { key: 'vlesses', label: 'VLESS' },
+        trojan: { key: 'trojans', label: 'Trojan' },
+        shadowsocks: { key: 'shadowsockses', label: 'Shadowsocks' },
+        hysteria: { key: 'hysterias', label: 'Hysteria' },
+    };
+
+    function validateClientEmails(inbound) {
+        const settings = inbound && inbound.settings ? inbound.settings : {};
+        const protocol = inbound && inbound.protocol ? inbound.protocol : '';
+        const collection = CLIENT_COLLECTIONS[protocol];
+        if (!collection) return { valid: true };
+        const clients = Array.isArray(settings[collection.key]) ? settings[collection.key] : [];
+        for (const client of clients) {
+            const result = validateClientEmail(client && client.email, collection.label);
+            if (!result.valid) return result;
+        }
+        return { valid: true };
+    }
+
     function validateInbound(inbound) {
         const stream = inbound && inbound.stream ? inbound.stream : {};
+
+        const clientEmailValidation = validateClientEmails(inbound);
+        if (!clientEmailValidation.valid) return clientEmailValidation;
 
         if (stream.security === 'reality' || stream.isReality === true) {
             const reality = stream.reality || {};

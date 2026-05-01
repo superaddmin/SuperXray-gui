@@ -69,6 +69,66 @@ test('inbound form helper blocks TLS creation when certificate file fields are e
     assert.match(result.message.en, /TLS certificate/);
 });
 
+test('inbound form helper blocks invalid Shadowsocks client email before saving', () => {
+    const missing = InboundFormHelp.validateInbound({
+        protocol: 'shadowsocks',
+        settings: {
+            shadowsockses: [{ email: '   ' }],
+        },
+    });
+
+    assert.equal(missing.valid, false);
+    assert.equal(missing.fieldKey, 'clientEmail');
+    assert.match(missing.message.zh, /Shadowsocks 客户端 Email 不能为空/);
+    assert.match(missing.message.en, /Shadowsocks client Email is required/);
+
+    const unsafe = InboundFormHelp.validateInbound({
+        protocol: 'shadowsocks',
+        settings: {
+            shadowsockses: [{ email: 'bad/user' }],
+        },
+    });
+
+    assert.equal(unsafe.valid, false);
+    assert.equal(unsafe.fieldKey, 'clientEmail');
+    assert.match(unsafe.message.zh, /只能包含字母、数字、点、下划线、短横线和 @/);
+    assert.match(unsafe.message.en, /letters, numbers, dots, underscores, hyphens, and @/);
+});
+
+test('inbound form helper accepts existing identifier-style Shadowsocks email values', () => {
+    const result = InboundFormHelp.validateInbound({
+        protocol: 'shadowsocks',
+        settings: {
+            shadowsockses: [{ email: 'user01' }],
+        },
+    });
+
+    assert.equal(result.valid, true);
+});
+
+test('inbound form helper validates client email for other multi-user protocols', () => {
+    const invalid = InboundFormHelp.validateInbound({
+        protocol: 'vless',
+        settings: {
+            vlesses: [{ email: 'bad user' }],
+        },
+    });
+
+    assert.equal(invalid.valid, false);
+    assert.equal(invalid.fieldKey, 'clientEmail');
+    assert.match(invalid.message.zh, /VLESS 客户端 Email/);
+    assert.match(invalid.message.en, /VLESS client Email/);
+
+    const valid = InboundFormHelp.validateInbound({
+        protocol: 'trojan',
+        settings: {
+            trojans: [{ email: 'client-01@example.com' }],
+        },
+    });
+
+    assert.equal(valid.valid, true);
+});
+
 test('add inbound client panels default to expanded so Flow is discoverable', () => {
     for (const file of [
         'web/html/form/protocol/vmess.html',

@@ -2,6 +2,17 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.1] - 2026-05-01
+
+### Fixed
+
+- 修复 VMess、VLESS、Trojan、Shadowsocks 与 Hysteria 编辑入站时客户端列表缺少可编辑 Email 输入框的问题。
+- 增加客户端 Email 提交前校验，拦截空值、超长值和包含路径不安全字符的标识，避免无效客户端标识进入保存流程。
+
+### Changed
+
+- 将项目版本号提升为 `3.0.1`，并同步 README 与技术文档中的版本引用。
+
 ## [3.0.0] - 2026-05-01
 
 ### Fixed

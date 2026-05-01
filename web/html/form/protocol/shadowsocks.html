@@ -20,7 +20,9 @@
           v-for="(client, index) in inbound.settings.shadowsockses"
           :class="index % 2 == 1 ? ' client-table-odd-row' : ''"
         >
-          <td>[[ client.email ]]</td>
+          <td>
+            <a-input v-model.trim="client.email"></a-input>
+          </td>
           <td>[[ client.password ]]</td>
         </tr>
       </table>
