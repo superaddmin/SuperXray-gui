@@ -129,13 +129,11 @@
                   <a-space direction="horizontal">
                     <a-button type="primary" icon="plus"
                       @click="openAddInbound">
-                      <template v-if="!isMobile">{{ i18n
-                        "pages.inbounds.addInbound" }}</template>
+                      <template v-if="!isMobile">添加入站 / Add Inbound</template>
                     </a-button>
                     <a-dropdown :trigger="['click']">
                       <a-button type="primary" icon="menu">
-                        <template v-if="!isMobile">{{ i18n
-                          "pages.inbounds.generalActions" }}</template>
+                        <template v-if="!isMobile">通用操作 / General Actions</template>
                       </a-button>
                       <a-menu slot="overlay" @click="a => generalActions(a)"
                         :theme="themeSwitcher.currentTheme">
@@ -1418,9 +1416,9 @@
       },
       openAddInbound() {
         inModal.show({
-          title: '{{ i18n "pages.inbounds.addInbound"}}',
-          okText: '{{ i18n "create"}}',
-          cancelText: '{{ i18n "close" }}',
+          title: '添加入站 / Add Inbound',
+          okText: '创建 / Create',
+          cancelText: '关闭 / Close',
           confirm: async (inbound, dbInbound) => {
             await this.addInbound(inbound, dbInbound, inModal);
           },
@@ -1433,8 +1431,8 @@
         const inbound = dbInbound.toInbound();
         inModal.show({
           title: '{{ i18n "pages.inbounds.modifyInbound"}}',
-          okText: '{{ i18n "update"}}',
-          cancelText: '{{ i18n "close" }}',
+          okText: '更新 / Update',
+          cancelText: '关闭 / Close',
           inbound: inbound,
           dbInbound: dbInbound,
           confirm: async (inbound, dbInbound) => {

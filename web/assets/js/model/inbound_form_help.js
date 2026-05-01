@@ -582,6 +582,17 @@
         const clientEmailValidation = validateClientEmails(inbound);
         if (!clientEmailValidation.valid) return clientEmailValidation;
 
+        if (inbound && inbound.protocol === 'hysteria' && stream.security !== 'tls') {
+            return {
+                valid: false,
+                fieldKey: 'tlsSecurity',
+                message: {
+                    zh: 'Hysteria 必须使用 TLS 安全层。请保持 Security 为 TLS，并填写有效证书。',
+                    en: 'Hysteria requires TLS security. Keep Security set to TLS and fill a valid certificate.',
+                },
+            };
+        }
+
         if (stream.security === 'reality' || stream.isReality === true) {
             const reality = stream.reality || {};
             if (isBlank(reality.privateKey)) {

@@ -100,7 +100,7 @@
 <a-modal id="inbound-modal" v-model="inModal.visible" :title="inModal.title" :width="920" :dialog-style="{ top: '16px' }"
     @ok="inModal.ok" :confirm-loading="inModal.confirmLoading" :closable="true" :mask-closable="false"
     wrap-class-name="inbound-modal-wrap" :body-style="{ maxHeight: 'calc(100vh - 160px)', overflowY: 'auto', padding: '20px 28px' }"
-    :class="themeSwitcher.currentTheme" :ok-text="inModal.okText" cancel-text='{{ i18n "close" }}'>
+    :class="themeSwitcher.currentTheme" :ok-text="inModal.okText" :cancel-text="inModal.cancelText">
     {{template "form/inbound"}}
 </a-modal>
 <script>
@@ -109,7 +109,8 @@
         title: "",
         visible: false,
         confirmLoading: false,
-        okText: '{{ i18n "sure" }}',
+        okText: "确定 / OK",
+        cancelText: "关闭 / Close",
         isEdit: false,
         confirm: null,
         inbound: new Inbound(),
@@ -131,7 +132,8 @@
         },
         show({
             title = "",
-            okText = '{{ i18n "sure" }}',
+            okText = "确定 / OK",
+            cancelText = "关闭 / Close",
             inbound = null,
             dbInbound = null,
             confirm = (inbound, dbInbound) => { },
@@ -139,6 +141,7 @@
         }) {
             this.title = title;
             this.okText = okText;
+            this.cancelText = cancelText;
             if (inbound) {
                 this.inbound = Inbound.fromJson(inbound.toJson());
             } else {

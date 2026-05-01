@@ -106,6 +106,28 @@ func TestValidateInboundProtocolConfigRejectsHysteriaEmptyAuth(t *testing.T) {
 	assertValidationErrorContains(t, err, "auth")
 }
 
+func TestValidateInboundProtocolConfigRejectsHysteriaEmptyTLSCertificate(t *testing.T) {
+	inbound := inboundForProtocolValidation(
+		model.Hysteria,
+		`{"version":2,"clients":[{"auth":"hy-auth","email":"hy@example","enable":true}]}`,
+		`{"network":"hysteria","security":"tls","tlsSettings":{"certificates":[{"certificateFile":"","keyFile":"","usage":"encipherment"}]}}`,
+	)
+
+	err := validateInboundProtocolConfig(inbound)
+	assertValidationErrorContains(t, err, "tls certificate")
+}
+
+func TestValidateInboundProtocolConfigRejectsHysteriaWithoutTLS(t *testing.T) {
+	inbound := inboundForProtocolValidation(
+		model.Hysteria2,
+		`{"version":2,"clients":[{"auth":"hy-auth","email":"hy@example","enable":true}]}`,
+		`{"network":"hysteria","security":"none"}`,
+	)
+
+	err := validateInboundProtocolConfig(inbound)
+	assertValidationErrorContains(t, err, "requires tls")
+}
+
 func TestValidateInboundProtocolConfigAcceptsValidMainstreamClients(t *testing.T) {
 	cases := []*model.Inbound{
 		inboundForProtocolValidation(
@@ -126,7 +148,7 @@ func TestValidateInboundProtocolConfigAcceptsValidMainstreamClients(t *testing.T
 		inboundForProtocolValidation(
 			model.Hysteria2,
 			`{"version":2,"clients":[{"auth":"hy-auth","email":"hy@example","enable":true}]}`,
-			`{"network":"hysteria","security":"tls"}`,
+			`{"network":"hysteria","security":"tls","tlsSettings":{"certificates":[{"certificate":["-----BEGIN CERTIFICATE-----","MIIB","-----END CERTIFICATE-----"],"key":["-----BEGIN PRIVATE KEY-----","MIIB","-----END PRIVATE KEY-----"],"usage":"encipherment"}]}}`,
 		),
 	}
 

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -154,12 +155,14 @@ func (j *CheckClientIpJob) hasLimitIp() bool {
 			continue
 		}
 
-		settings := map[string][]model.Client{}
-		if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+		clients, ok, err := parseLimitClientsFromSettings(inbound.Settings)
+		if err != nil {
 			logger.Warning("failed to parse inbound settings while checking IP limits:", err)
 			continue
 		}
-		clients := settings["clients"]
+		if !ok {
+			continue
+		}
 
 		for _, client := range clients {
 			limitIp := client.LimitIP
@@ -170,6 +173,24 @@ func (j *CheckClientIpJob) hasLimitIp() bool {
 	}
 
 	return false
+}
+
+func parseLimitClientsFromSettings(settingsText string) ([]model.Client, bool, error) {
+	var settings map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(settingsText), &settings); err != nil {
+		return nil, false, err
+	}
+
+	rawClients, ok := settings["clients"]
+	if !ok {
+		return nil, false, nil
+	}
+
+	var clients []model.Client
+	if err := json.Unmarshal(rawClients, &clients); err != nil {
+		return nil, true, fmt.Errorf("clients: %w", err)
+	}
+	return clients, true, nil
 }
 
 func (j *CheckClientIpJob) processLogFile() bool {
@@ -398,12 +419,14 @@ func (j *CheckClientIpJob) updateInboundClientIps(inboundClientIps *model.Inboun
 		return false
 	}
 
-	settings := map[string][]model.Client{}
-	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+	clients, ok, err := parseLimitClientsFromSettings(inbound.Settings)
+	if err != nil {
 		logger.Warningf("failed to parse inbound settings for %s: %v", clientEmail, err)
 		return false
 	}
-	clients := settings["clients"]
+	if !ok {
+		return false
+	}
 
 	// Find the client's IP limit
 	var limitIp int

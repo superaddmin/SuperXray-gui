@@ -19,7 +19,11 @@ import (
 
 // GetBinaryName returns the Xray binary filename for the current OS and architecture.
 func GetBinaryName() string {
-	return fmt.Sprintf("xray-%s-%s", runtime.GOOS, runtime.GOARCH)
+	name := fmt.Sprintf("xray-%s-%s", runtime.GOOS, runtime.GOARCH)
+	if runtime.GOOS == "windows" {
+		return name + ".exe"
+	}
+	return name
 }
 
 // GetBinaryPath returns the full path to the Xray binary executable.

@@ -6,6 +6,7 @@
     if (root) {
         root.ProtocolToolGenerator = api.ProtocolToolGenerator;
         root.WarpMatrixBuilder = api.WarpMatrixBuilder;
+        root.XrayOutboundTools = api.XrayOutboundTools;
     }
 })(typeof window !== 'undefined' ? window : globalThis, function () {
     function deepClone(value) {
@@ -31,6 +32,80 @@
     function jsonText(value) {
         return JSON.stringify(value, null, 2);
     }
+
+    function hasValue(value) {
+        return value !== undefined && value !== null && String(value).length > 0;
+    }
+
+    function addressWithPort(address, port) {
+        if (!hasValue(address) && !hasValue(port)) {
+            return null;
+        }
+        if (!hasValue(port)) {
+            return String(address);
+        }
+        if (!hasValue(address)) {
+            return `:${port}`;
+        }
+        return `${address}:${port}`;
+    }
+
+    function addressesFromServers(servers) {
+        if (!Array.isArray(servers)) {
+            return [];
+        }
+        return servers
+            .map(server => addressWithPort(server && server.address, server && server.port))
+            .filter(Boolean);
+    }
+
+    function addressesFromVnext(vnext) {
+        if (!Array.isArray(vnext)) {
+            return [];
+        }
+        return vnext
+            .map(server => addressWithPort(server && server.address, server && server.port))
+            .filter(Boolean);
+    }
+
+    const XrayOutboundTools = {
+        findOutboundAddresses(outbound = {}) {
+            const settings = outbound.settings || {};
+            switch (outbound.protocol) {
+            case 'vmess':
+            case 'vless': {
+                const vnextAddresses = addressesFromVnext(settings.vnext);
+                if (vnextAddresses.length > 0) {
+                    return vnextAddresses;
+                }
+                const directAddress = addressWithPort(settings.address, settings.port);
+                return directAddress ? [directAddress] : [];
+            }
+            case 'http':
+            case 'socks':
+            case 'shadowsocks':
+            case 'trojan': {
+                const serverAddresses = addressesFromServers(settings.servers);
+                if (serverAddresses.length > 0) {
+                    return serverAddresses;
+                }
+                const directAddress = addressWithPort(settings.address, settings.port);
+                return directAddress ? [directAddress] : [];
+            }
+            case 'dns':
+            case 'hysteria': {
+                const directAddress = addressWithPort(settings.address, settings.port);
+                return directAddress ? [directAddress] : [];
+            }
+            case 'wireguard':
+                return Array.isArray(settings.peers)
+                    ? settings.peers.map(peer => peer && peer.endpoint).filter(Boolean)
+                    : [];
+            default:
+                return [];
+            }
+        },
+    };
 
     function makeURLParams(params) {
         const query = new URLSearchParams();
@@ -482,5 +557,6 @@
     return {
         ProtocolToolGenerator,
         WarpMatrixBuilder,
+        XrayOutboundTools,
     };
 });

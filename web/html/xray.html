@@ -330,6 +330,7 @@
         path: '/xhttp',
         generated: '',
         lastResult: null,
+        lastSignature: '',
         comboPresets: ProtocolToolGenerator.comboPresets,
         supportRows: ProtocolToolGenerator.comboPresets,
         supportColumns: [
@@ -599,27 +600,7 @@
         return `${SizeFormatter.sizeFormat(0)} / ${SizeFormatter.sizeFormat(0)}`
       },
       findOutboundAddress(o) {
-        serverObj = null;
-        switch (o.protocol) {
-          case Protocols.VMess:
-            serverObj = o.settings.vnext;
-            break;
-          case Protocols.VLESS:
-            return [o.settings?.address + ':' + o.settings?.port];
-          case Protocols.HTTP:
-          case Protocols.Socks:
-          case Protocols.Shadowsocks:
-          case Protocols.Trojan:
-            serverObj = o.settings.servers;
-            break;
-          case Protocols.DNS:
-            return [o.settings?.address + ':' + o.settings?.port];
-          case Protocols.Wireguard:
-            return o.settings.peers.map(peer => peer.endpoint);
-          default:
-            return null;
-        }
-        return serverObj ? serverObj.map(obj => obj.address + ':' + obj.port) : null;
+        return XrayOutboundTools.findOutboundAddresses(o);
       },
       addOutbound() {
         outModal.show({
@@ -1097,22 +1078,64 @@
         rules.splice(index, 1);
         this.routingRuleSettings = JSON.stringify(rules);
       },
-      generateProtocolToolOutput() {
-        const result = this.protocolTool.mode === 'argo'
-          ? ProtocolToolGenerator.generateArgo({
+      getProtocolToolInput() {
+        if (this.protocolTool.mode === 'argo') {
+          return {
+            toolMode: 'argo',
             mode: this.protocolTool.argoMode,
             originUrl: this.protocolTool.originUrl,
             token: this.protocolTool.tunnelToken,
             tunnelName: this.protocolTool.tunnelName,
-          })
-          : ProtocolToolGenerator.generateCombo(this.protocolTool);
+          };
+        }
+        return {
+          toolMode: 'combo',
+          combo: this.protocolTool.combo,
+          server: this.protocolTool.server,
+          port: this.protocolTool.port,
+          uuid: this.protocolTool.uuid,
+          password: this.protocolTool.password,
+          sni: this.protocolTool.sni,
+          publicKey: this.protocolTool.publicKey,
+          shortId: this.protocolTool.shortId,
+          path: this.protocolTool.path,
+        };
+      },
+      getProtocolToolSignature() {
+        return JSON.stringify(this.getProtocolToolInput());
+      },
+      isProtocolToolOutputCurrent() {
+        return Boolean(
+          this.protocolTool.generated &&
+          this.protocolTool.lastResult &&
+          this.protocolTool.lastSignature === this.getProtocolToolSignature()
+        );
+      },
+      canApplyProtocolToolOutbound() {
+        return Boolean(
+          this.protocolTool.mode === 'combo' &&
+          this.isProtocolToolOutputCurrent() &&
+          this.protocolTool.lastResult.saveToXray &&
+          this.protocolTool.lastResult.combo === this.protocolTool.combo
+        );
+      },
+      generateProtocolToolOutput() {
+        const input = this.getProtocolToolInput();
+        const result = input.toolMode === 'argo'
+          ? ProtocolToolGenerator.generateArgo(input)
+          : ProtocolToolGenerator.generateCombo(input);
 
         this.protocolTool.lastResult = result;
+        this.protocolTool.lastSignature = JSON.stringify(input);
         this.protocolTool.generated = JSON.stringify(result, null, 2);
       },
       copyProtocolToolOutput() {
         if (!this.protocolTool.generated) {
           this.$message.warning('Generate output first');
+          return;
+        }
+        if (!this.isProtocolToolOutputCurrent()) {
+          this.$message.warning('Generate output again after changing inputs');
           return;
         }
         ClipboardManager.copyText(this.protocolTool.generated).then(ok => {
@@ -1124,8 +1147,8 @@
         });
       },
       applyProtocolToolOutbound() {
-        if (!this.protocolTool.lastResult || !this.protocolTool.lastResult.saveToXray) {
-          this.$message.warning('This combo is external-only');
+        if (!this.canApplyProtocolToolOutbound()) {
+          this.$message.warning('Generate a current Xray combo first');
           return;
         }
         let outbound;

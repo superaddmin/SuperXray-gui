@@ -31,10 +31,10 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 Para fijar la versión actual:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.1
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.2
 ```
 
-La instalación oficial publica binarios Linux `amd64` y `arm64`. El instalador imprime al final el usuario, la contraseña, el puerto del panel y el `webBasePath` generados; guarda esos datos. La imagen Docker está disponible en `ghcr.io/superaddmin/superxray-gui:3.0.1`. Consulta [docs/deployment.md](docs/deployment.md) para Docker, despliegue binario y dependencias.
+La instalación oficial publica binarios Linux `amd64` y `arm64`. El instalador imprime al final el usuario, la contraseña, el puerto del panel y el `webBasePath` generados; guarda esos datos. La imagen Docker está disponible en `ghcr.io/superaddmin/superxray-gui:3.0.2`. Consulta [docs/deployment.md](docs/deployment.md) para Docker, despliegue binario y dependencias.
 
 Para documentación completa, visita la [Wiki del proyecto](https://github.com/superaddmin/SuperXray-gui/wiki).
 

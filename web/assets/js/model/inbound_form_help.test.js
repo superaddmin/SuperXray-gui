@@ -69,6 +69,20 @@ test('inbound form helper blocks TLS creation when certificate file fields are e
     assert.match(result.message.en, /TLS certificate/);
 });
 
+test('inbound form helper blocks Hysteria when TLS security is disabled', () => {
+    const result = InboundFormHelp.validateInbound({
+        protocol: 'hysteria',
+        stream: {
+            network: 'hysteria',
+            security: 'none',
+        },
+    });
+
+    assert.equal(result.valid, false);
+    assert.equal(result.fieldKey, 'tlsSecurity');
+    assert.match(result.message.en, /Hysteria requires TLS/);
+});
+
 test('inbound form helper blocks invalid Shadowsocks client email before saving', () => {
     const missing = InboundFormHelp.validateInbound({
         protocol: 'shadowsocks',

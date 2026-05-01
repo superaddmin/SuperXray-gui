@@ -1,7 +1,7 @@
 # 核心模块解析
 
 > **目标读者**：开发者  
-> **适用版本**：`v3.0.1`
+> **适用版本**：`v3.0.2`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md)
 
 ---
@@ -80,7 +80,7 @@ var name string
 
 ### 2.3 版本管理
 
-- [`config/version`](../config/version)：存储版本号 `3.0.1`
+- [`config/version`](../config/version)：存储版本号 `3.0.2`
 - [`config/name`](../config/name)：存储应用名 `x-ui`
 
 ---

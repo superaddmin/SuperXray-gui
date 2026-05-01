@@ -43,7 +43,6 @@ func validateInboundProtocolClients(protocol model.Protocol, settingsText string
 			return fmt.Errorf("%s settings: %w", protocol, err)
 		}
 	}
-
 	for _, client := range clients {
 		if err := validateProtocolClient(protocol, settings, streamSettings, client); err != nil {
 			if client.Email != "" {
@@ -52,7 +51,68 @@ func validateInboundProtocolClients(protocol model.Protocol, settingsText string
 			return fmt.Errorf("%s client: %w", protocol, err)
 		}
 	}
+	if err := validateInboundProtocolStream(protocol, streamSettings); err != nil {
+		return fmt.Errorf("%s stream settings: %w", protocol, err)
+	}
 	return nil
+}
+
+func validateInboundProtocolStream(protocol model.Protocol, streamSettings map[string]any) error {
+	security, _ := streamSettings["security"].(string)
+	if protocol == model.Hysteria || protocol == model.Hysteria2 {
+		if security != "tls" {
+			return fmt.Errorf("hysteria requires tls security")
+		}
+	}
+	if security != "tls" {
+		return nil
+	}
+	return validateTLSCertificates(streamSettings)
+}
+
+func validateTLSCertificates(streamSettings map[string]any) error {
+	tlsSettings, _ := streamSettings["tlsSettings"].(map[string]any)
+	certificates, _ := tlsSettings["certificates"].([]any)
+	if len(certificates) == 0 {
+		return fmt.Errorf("tls certificate is required")
+	}
+
+	for _, entry := range certificates {
+		cert, ok := entry.(map[string]any)
+		if !ok {
+			return fmt.Errorf("tls certificate entry is invalid")
+		}
+		if _, hasCertFile := cert["certificateFile"]; hasCertFile {
+			if isBlankString(cert["certificateFile"]) || isBlankString(cert["keyFile"]) {
+				return fmt.Errorf("tls certificate file paths are incomplete")
+			}
+			continue
+		}
+		if hasNonBlankStringValue(cert["certificate"]) && hasNonBlankStringValue(cert["key"]) {
+			continue
+		}
+		return fmt.Errorf("tls certificate content is incomplete")
+	}
+	return nil
+}
+
+func isBlankString(value any) bool {
+	text, _ := value.(string)
+	return strings.TrimSpace(text) == ""
+}
+
+func hasNonBlankStringValue(value any) bool {
+	switch v := value.(type) {
+	case string:
+		return strings.TrimSpace(v) != ""
+	case []any:
+		for _, item := range v {
+			if text, ok := item.(string); ok && strings.TrimSpace(text) != "" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func validateProtocolClient(protocol model.Protocol, settings map[string]any, streamSettings map[string]any, client model.Client) error {

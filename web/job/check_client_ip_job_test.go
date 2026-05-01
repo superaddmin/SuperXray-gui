@@ -2,6 +2,7 @@ package job
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -82,6 +83,50 @@ func collectIps(entries []IPWithTimestamp) []string {
 		out = append(out, e.IP)
 	}
 	return out
+}
+
+func TestParseLimitClientsFromSettingsSkipsProtocolsWithoutClients(t *testing.T) {
+	clients, ok, err := parseLimitClientsFromSettings(`{
+		"method": "2022-blake3-aes-128-gcm",
+		"password": "server-key"
+	}`)
+	if err != nil {
+		t.Fatalf("parseLimitClientsFromSettings returned error: %v", err)
+	}
+	if ok {
+		t.Fatalf("settings without clients should be skipped, got ok=true and clients=%v", clients)
+	}
+	if len(clients) != 0 {
+		t.Fatalf("settings without clients returned %d clients, want 0", len(clients))
+	}
+}
+
+func TestParseLimitClientsFromSettingsReturnsClients(t *testing.T) {
+	clients, ok, err := parseLimitClientsFromSettings(`{
+		"clients": [
+			{"email": "limited@example", "limitIp": 2, "enable": true}
+		],
+		"decryption": "none"
+	}`)
+	if err != nil {
+		t.Fatalf("parseLimitClientsFromSettings returned error: %v", err)
+	}
+	if !ok {
+		t.Fatal("settings with clients should be reported as ok")
+	}
+	if len(clients) != 1 || clients[0].Email != "limited@example" || clients[0].LimitIP != 2 {
+		t.Fatalf("unexpected clients: %#v", clients)
+	}
+}
+
+func TestParseLimitClientsFromSettingsRejectsMalformedClients(t *testing.T) {
+	_, _, err := parseLimitClientsFromSettings(`{"clients":"not-an-array"}`)
+	if err == nil {
+		t.Fatal("parseLimitClientsFromSettings returned nil error")
+	}
+	if !strings.Contains(err.Error(), "clients") {
+		t.Fatalf("error = %q, want mention clients", err.Error())
+	}
 }
 
 func TestPartitionLiveIps_SingleLiveNotStarvedByStillFreshHistoricals(t *testing.T) {

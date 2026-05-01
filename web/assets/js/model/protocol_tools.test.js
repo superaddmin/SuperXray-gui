@@ -4,6 +4,7 @@ const test = require('node:test');
 const {
     ProtocolToolGenerator,
     WarpMatrixBuilder,
+    XrayOutboundTools,
 } = require('./protocol_tools.js');
 
 test('generates quick tunnel command', () => {
@@ -68,6 +69,37 @@ test('generates xray vless reality vision combo', () => {
     assert.equal(outbound.streamSettings.security, 'reality');
     assert.equal(outbound.settings.vnext[0].users[0].flow, 'xtls-rprx-vision');
     assert.match(result.shareLink, /^vless:\/\/11111111-1111-4111-8111-111111111111@example\.com:443\?/);
+});
+
+test('extracts display addresses from xray outbounds', () => {
+    assert.deepEqual(
+        XrayOutboundTools.findOutboundAddresses({
+            protocol: 'vless',
+            settings: { vnext: [{ address: 'example.com', port: 443 }] },
+        }),
+        ['example.com:443'],
+    );
+    assert.deepEqual(
+        XrayOutboundTools.findOutboundAddresses({
+            protocol: 'vless',
+            settings: { address: 'legacy.example', port: 8443 },
+        }),
+        ['legacy.example:8443'],
+    );
+    assert.deepEqual(
+        XrayOutboundTools.findOutboundAddresses({
+            protocol: 'hysteria',
+            settings: { address: 'hy.example', port: 443 },
+        }),
+        ['hy.example:443'],
+    );
+    assert.deepEqual(
+        XrayOutboundTools.findOutboundAddresses({
+            protocol: 'wireguard',
+            settings: { peers: [{ endpoint: '162.159.192.1:2408' }] },
+        }),
+        ['162.159.192.1:2408'],
+    );
 });
 
 test('generates xray vless xhttp reality combo', () => {

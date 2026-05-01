@@ -79,9 +79,10 @@
                             <a-button type="primary" icon="code"
                                 @click="generateProtocolToolOutput">Generate</a-button>
                             <a-button icon="copy"
+                                :disabled="!isProtocolToolOutputCurrent()"
                                 @click="copyProtocolToolOutput">Copy</a-button>
                             <a-button icon="plus"
-                                :disabled="!protocolTool.lastResult || !protocolTool.lastResult.saveToXray"
+                                :disabled="!canApplyProtocolToolOutbound()"
                                 @click="applyProtocolToolOutbound">Add Outbound</a-button>
                         </a-space>
                     </a-form-item>

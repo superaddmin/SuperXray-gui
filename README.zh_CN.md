@@ -112,7 +112,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 如需固定安装当前版本：
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.1
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.2
 ```
 
 一键脚本会自动安装基础依赖，下载匹配架构的 GitHub Release 包，并在安装结束时输出随机生成的用户名、密码、面板端口和 `webBasePath`。这段输出只出现一次，请保存到密码管理器。当前官方 Release 二进制包覆盖 Linux `amd64` 与 `arm64`。
@@ -156,7 +156,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
   -v $PWD/cert:/root/cert \
   -e XRAY_VMESS_AEAD_FORCED=false \
   -e XUI_ENABLE_FAIL2BAN=true \
-  ghcr.io/superaddmin/superxray-gui:3.0.1
+  ghcr.io/superaddmin/superxray-gui:3.0.2
 ```
 
 如果需要基于本地源码构建：
@@ -257,7 +257,7 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 | GORM | v1.31.1 | ORM 框架 |
 | SQLite | - | 嵌入式数据库 |
 | Xray-core | v26.4.25 | 代理核心引擎 |
-| robfig/cron | v3.0.1 | 定时任务调度 |
+| robfig/cron | v3.0.x | 定时任务调度 |
 | gorilla/websocket | - | WebSocket 通信 |
 | telego | - | Telegram Bot API |
 | gopsutil | v4 | 系统信息采集 |
@@ -291,7 +291,7 @@ SuperXray-gui/
 ├── main.go                    # 程序入口，CLI 命令解析
 ├── config/                    # 配置管理
 │   ├── config.go              # 配置加载与环境变量
-│   ├── version                # 版本号 (3.0.1)
+│   ├── version                # 版本号 (3.0.2)
 │   └── name                   # 应用名 (x-ui)
 ├── database/                  # 数据库层
 │   ├── db.go                  # SQLite 初始化与迁移

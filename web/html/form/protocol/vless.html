@@ -42,9 +42,8 @@
       </a-form-item>
       <a-form-item label=" ">
         <a-space>
-          <a-button type="primary" icon="import" @click="getNewVlessEnc">Get New
-            keys</a-button>
-          <a-button danger @click="clearVlessEnc">Clear</a-button>
+          <a-button type="primary" icon="import" @click="getNewVlessEnc">获取新密钥 / Get New Keys</a-button>
+          <a-button danger @click="clearVlessEnc">清空 / Clear</a-button>
         </a-space>
       </a-form-item>
     </a-form>
@@ -113,10 +112,10 @@
           </a-row>
           <a-space :size="8" :style="{ marginTop: '8px' }">
             <a-button type="primary" @click="setRandomTestseed">
-              Rand
+              随机 / Random
             </a-button>
             <a-button @click="resetTestseed">
-              Reset
+              重置 / Reset
             </a-button>
           </a-space>
         </a-form-item>
