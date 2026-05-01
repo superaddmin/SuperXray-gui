@@ -87,6 +87,19 @@
                     <a-tag color="orange" :style="{ lineHeight: '31px' }">{{ i18n "disabled" }}</a-tag>
                     <a-button @click="addOutbound" :loading="warpModal.confirmLoading" type="primary">{{ i18n "pages.xray.outbound.addOutbound" }}</a-button>
                 </template>
+            </a-form>
+            <a-divider :style="{ margin: '10px 0' }">WARP Matrix</a-divider>
+            <a-form :label-col="{ md: {span:8} }" :wrapper-col="{ md: {span:14} }">
+                <a-form-item label="Options">
+                    <a-checkbox-group v-model="warpMatrix.selected"
+                        :options="warpMatrix.options"></a-checkbox-group>
+                </a-form-item>
+                <a-form-item :wrapper-col="{ md: {span:14, offset:8} }">
+                    <a-button @click="applyMatrix"
+                        :disabled="!warpModal.warpOutbound || warpMatrix.selected.length === 0"
+                        :loading="warpModal.confirmLoading" type="primary">
+                        Apply Matrix
+                    </a-button>
                 </a-form-item>
             </a-form>
         </template>
@@ -128,6 +141,13 @@
         data: {
             warpModal: warpModal,
             warpPlus: '',
+            warpMatrix: {
+                selected: ['warp'],
+                options: WarpMatrixBuilder.matrixOptions.map(option => ({
+                    label: option.label,
+                    value: option.tag,
+                })),
+            },
         },
         methods: {
             collectConfig() {
@@ -223,6 +243,21 @@
             resetOutbound() {
                 app.templateSettings.outbounds[this.warpOutboundIndex] = warpModal.warpOutbound.toJson();
                 app.outboundSettings = JSON.stringify(app.templateSettings.outbounds);
+                warpModal.close();
+            },
+            applyMatrix() {
+                if (!warpModal.warpOutbound || !warpModal.warpOutbound.settings) {
+                    return;
+                }
+                const baseSettings = typeof warpModal.warpOutbound.settings.toJson === 'function'
+                    ? warpModal.warpOutbound.settings.toJson()
+                    : warpModal.warpOutbound.settings;
+                const nextTemplateSettings = WarpMatrixBuilder.applyMatrix(
+                    app.templateSettings,
+                    baseSettings,
+                    this.warpMatrix.selected
+                );
+                app.templateSettings = nextTemplateSettings;
                 warpModal.close();
             },
             delOutbound() {

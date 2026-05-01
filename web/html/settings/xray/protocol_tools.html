@@ -1,0 +1,109 @@
+{{define "settings/xray/protocol_tools"}}
+<a-row :gutter="[16,16]">
+    <a-col :xs="24" :lg="10">
+        <a-collapse default-active-key="generator">
+            <a-collapse-panel key="generator" header="Protocol Generator">
+                <a-form :colon="false" :label-col="{ md: {span:7} }"
+                    :wrapper-col="{ md: {span:15} }">
+                    <a-form-item label="Mode">
+                        <a-radio-group v-model="protocolTool.mode"
+                            button-style="solid">
+                            <a-radio-button value="combo">Combo</a-radio-button>
+                            <a-radio-button value="argo">Argo</a-radio-button>
+                        </a-radio-group>
+                    </a-form-item>
+
+                    <template v-if="protocolTool.mode === 'argo'">
+                        <a-form-item label="Tunnel">
+                            <a-select v-model="protocolTool.argoMode"
+                                :dropdown-class-name="themeSwitcher.currentTheme">
+                                <a-select-option value="quick">Quick</a-select-option>
+                                <a-select-option value="fixed">Fixed</a-select-option>
+                            </a-select>
+                        </a-form-item>
+                        <a-form-item label="Origin URL">
+                            <a-input v-model.trim="protocolTool.originUrl"></a-input>
+                        </a-form-item>
+                        <template v-if="protocolTool.argoMode === 'fixed'">
+                            <a-form-item label="Tunnel Token">
+                                <a-input-password
+                                    v-model.trim="protocolTool.tunnelToken"></a-input-password>
+                            </a-form-item>
+                            <a-form-item label="Tunnel Name">
+                                <a-input v-model.trim="protocolTool.tunnelName"></a-input>
+                            </a-form-item>
+                        </template>
+                    </template>
+
+                    <template v-else>
+                        <a-form-item label="Combo">
+                            <a-select v-model="protocolTool.combo"
+                                :dropdown-class-name="themeSwitcher.currentTheme">
+                                <a-select-option
+                                    v-for="preset in protocolTool.comboPresets"
+                                    :key="preset.value" :value="preset.value">
+                                    [[ preset.label ]]
+                                </a-select-option>
+                            </a-select>
+                        </a-form-item>
+                        <a-form-item label="Server">
+                            <a-input v-model.trim="protocolTool.server"></a-input>
+                        </a-form-item>
+                        <a-form-item label="Port">
+                            <a-input-number v-model="protocolTool.port" :min="1"
+                                :max="65535" :style="{ width: '100%' }"></a-input-number>
+                        </a-form-item>
+                        <a-form-item label="UUID">
+                            <a-input v-model.trim="protocolTool.uuid"></a-input>
+                        </a-form-item>
+                        <a-form-item label="Password">
+                            <a-input-password
+                                v-model.trim="protocolTool.password"></a-input-password>
+                        </a-form-item>
+                        <a-form-item label="SNI">
+                            <a-input v-model.trim="protocolTool.sni"></a-input>
+                        </a-form-item>
+                        <a-form-item label="Public Key">
+                            <a-input v-model.trim="protocolTool.publicKey"></a-input>
+                        </a-form-item>
+                        <a-form-item label="Short ID">
+                            <a-input v-model.trim="protocolTool.shortId"></a-input>
+                        </a-form-item>
+                        <a-form-item label="Path">
+                            <a-input v-model.trim="protocolTool.path"></a-input>
+                        </a-form-item>
+                    </template>
+
+                    <a-form-item :wrapper-col="{ md: {span:15, offset:7} }">
+                        <a-space>
+                            <a-button type="primary" icon="code"
+                                @click="generateProtocolToolOutput">Generate</a-button>
+                            <a-button icon="copy"
+                                @click="copyProtocolToolOutput">Copy</a-button>
+                            <a-button icon="plus"
+                                :disabled="!protocolTool.lastResult || !protocolTool.lastResult.saveToXray"
+                                @click="applyProtocolToolOutbound">Add Outbound</a-button>
+                        </a-space>
+                    </a-form-item>
+                </a-form>
+            </a-collapse-panel>
+            <a-collapse-panel key="matrix" header="Support Matrix">
+                <a-table :columns="protocolTool.supportColumns"
+                    :data-source="protocolTool.supportRows"
+                    :row-key="row => row.value" size="small"
+                    :pagination="false" bordered>
+                    <template slot="saveToXray" slot-scope="text, row">
+                        <a-tag :color="row.saveToXray ? 'green' : 'orange'">
+                            [[ row.saveToXray ? 'Xray' : 'External' ]]
+                        </a-tag>
+                    </template>
+                </a-table>
+            </a-collapse-panel>
+        </a-collapse>
+    </a-col>
+    <a-col :xs="24" :lg="14">
+        <a-textarea v-model="protocolTool.generated" readonly
+            :auto-size="{ minRows: 24, maxRows: 36 }"></a-textarea>
+    </a-col>
+</a-row>
+{{end}}

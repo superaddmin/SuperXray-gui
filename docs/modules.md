@@ -430,7 +430,13 @@ func (a *APIController) initRouter(g *gin.RouterGroup, customGeo *service.Custom
 - [`warp.go`](../web/service/warp.go)：Cloudflare WARP 集成（注册、配置、密钥管理）
 - [`nord.go`](../web/service/nord.go)：NordVPN 集成（国家/服务器查询、注册、密钥管理）
 
-### 6.9 CustomGeoService
+Xray 设置页的 WARP 模态框支持将同一份 WARP WireGuard 配置展开为 `warp`、`warp-ipv4`、`warp-ipv6`、`warp-openai` 等可选出站矩阵，并同步生成对应路由规则。
+
+### 6.9 Protocol Tools
+
+Xray 设置页提供 `Protocol Tools` 标签页，用于生成 Argo Tunnel 命令、Xray 兼容协议组合配置和 sing-box 外部协议配置。TUIC 与 AnyTLS 标记为 external-only，不会写入 Xray 入站协议或 Xray 模板，避免生成当前 Xray-core 无法启动的配置。
+
+### 6.10 CustomGeoService
 
 [`custom_geo.go`](../web/service/custom_geo.go) 管理自定义 GeoIP/GeoSite 资源：
 

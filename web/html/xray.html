@@ -120,6 +120,13 @@
                   </template>
                   {{ template "settings/xray/dns" . }}
                 </a-tab-pane>
+                <a-tab-pane key="tpl-protocol-tools" force-render="true">
+                  <template #tab>
+                    <a-icon type="tool"></a-icon>
+                    <span>Protocol Tools</span>
+                  </template>
+                  {{ template "settings/xray/protocol_tools" . }}
+                </a-tab-pane>
                 <a-tab-pane key="tpl-advanced" force-render="true">
                   <template #tab>
                     <a-icon type="code"></a-icon>
@@ -138,6 +145,8 @@
 {{template "page/body_scripts" .}}
 <script
   src="{{ .base_path }}assets/js/model/outbound.js?{{ .cur_ver }}"></script>
+<script
+  src="{{ .base_path }}assets/js/model/protocol_tools.js?{{ .cur_ver }}"></script>
 <script
   src="{{ .base_path }}assets/codemirror/codemirror.min.js?{{ .cur_ver }}"></script>
 <script src="{{ .base_path }}assets/codemirror/javascript.js"></script>
@@ -303,6 +312,31 @@
         error: ["none", "./error.log"],
         dnsLog: false,
         maskAddress: ["quarter", "half", "full"],
+      },
+      protocolTool: {
+        mode: 'combo',
+        argoMode: 'quick',
+        originUrl: 'http://localhost:2053',
+        tunnelToken: '',
+        tunnelName: 'superxray',
+        combo: 'vless-reality-vision',
+        server: 'example.com',
+        port: 443,
+        uuid: '11111111-1111-4111-8111-111111111111',
+        password: 'change-me',
+        sni: 'www.microsoft.com',
+        publicKey: '',
+        shortId: '',
+        path: '/xhttp',
+        generated: '',
+        lastResult: null,
+        comboPresets: ProtocolToolGenerator.comboPresets,
+        supportRows: ProtocolToolGenerator.comboPresets,
+        supportColumns: [
+          { title: 'Combo', dataIndex: 'label', align: 'center' },
+          { title: 'Runtime', dataIndex: 'runtime', align: 'center' },
+          { title: 'Scope', align: 'center', scopedSlots: { customRender: 'saveToXray' } },
+        ],
       },
       settingsData: {
         protocols: {
@@ -1062,6 +1096,57 @@
         rules = this.templateSettings.routing.rules;
         rules.splice(index, 1);
         this.routingRuleSettings = JSON.stringify(rules);
+      },
+      generateProtocolToolOutput() {
+        const result = this.protocolTool.mode === 'argo'
+          ? ProtocolToolGenerator.generateArgo({
+            mode: this.protocolTool.argoMode,
+            originUrl: this.protocolTool.originUrl,
+            token: this.protocolTool.tunnelToken,
+            tunnelName: this.protocolTool.tunnelName,
+          })
+          : ProtocolToolGenerator.generateCombo(this.protocolTool);
+
+        this.protocolTool.lastResult = result;
+        this.protocolTool.generated = JSON.stringify(result, null, 2);
+      },
+      copyProtocolToolOutput() {
+        if (!this.protocolTool.generated) {
+          this.$message.warning('Generate output first');
+          return;
+        }
+        ClipboardManager.copyText(this.protocolTool.generated).then(ok => {
+          if (ok) {
+            this.$message.success('Copied');
+          } else {
+            this.$message.error('Copy failed');
+          }
+        });
+      },
+      applyProtocolToolOutbound() {
+        if (!this.protocolTool.lastResult || !this.protocolTool.lastResult.saveToXray) {
+          this.$message.warning('This combo is external-only');
+          return;
+        }
+        let outbound;
+        try {
+          outbound = JSON.parse(this.protocolTool.lastResult.clientOutbound);
+        } catch (e) {
+          this.$message.error('Generated outbound JSON is invalid');
+          return;
+        }
+
+        const nextTemplateSettings = this.templateSettings;
+        if (!nextTemplateSettings || !Array.isArray(nextTemplateSettings.outbounds)) {
+          this.$message.error('Xray outbound template is not ready');
+          return;
+        }
+        if (nextTemplateSettings.outbounds.some(o => o.tag === outbound.tag)) {
+          outbound.tag = outbound.tag + '-' + Date.now().toString(36);
+        }
+        nextTemplateSettings.outbounds.push(outbound);
+        this.outboundSettings = JSON.stringify(nextTemplateSettings.outbounds);
+        this.$message.success('Outbound added');
       },
       showWarp() {
         warpModal.show();
