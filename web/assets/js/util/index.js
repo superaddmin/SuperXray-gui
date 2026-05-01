@@ -872,13 +872,27 @@ class LanguageManager {
 
 const MediaQueryMixin = {
     data() {
+        const width = window.innerWidth;
         return {
-            isMobile: window.innerWidth <= 768,
+            viewportWidth: width,
+            breakpoint: this.getBreakpoint(width),
+            isMobile: width <= 768,
+            isTablet: width > 768 && width < 1200,
         };
     },
     methods: {
+        getBreakpoint(width) {
+            if (width < 576) return 'xs';
+            if (width < 768) return 'sm';
+            if (width < 1200) return 'md';
+            return 'lg';
+        },
         updateDeviceType() {
-            this.isMobile = window.innerWidth <= 768;
+            const width = window.innerWidth;
+            this.viewportWidth = width;
+            this.breakpoint = this.getBreakpoint(width);
+            this.isMobile = width <= 768;
+            this.isTablet = width > 768 && width < 1200;
         },
     },
     mounted() {
@@ -887,6 +901,48 @@ const MediaQueryMixin = {
     beforeDestroy() {
         window.removeEventListener('resize', this.updateDeviceType);
     },
+}
+
+class A11yUtil {
+    static normalize(root = document) {
+        root.querySelectorAll('.anticon[aria-label^="icon:"]').forEach((icon) => {
+            icon.setAttribute('aria-hidden', 'true');
+            icon.removeAttribute('aria-label');
+        });
+
+        root.querySelectorAll('.ant-alert-close-icon').forEach((button) => {
+            if (!button.getAttribute('aria-label')) {
+                button.setAttribute('aria-label', 'Close');
+            }
+        });
+
+        root.querySelectorAll('.ant-select-selection[role="combobox"]').forEach((select) => {
+            if (!select.hasAttribute('aria-expanded')) {
+                select.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
+    static scheduleNormalize() {
+        if (this._frame) {
+            cancelAnimationFrame(this._frame);
+        }
+        this._frame = requestAnimationFrame(() => {
+            this._frame = null;
+            this.normalize();
+        });
+    }
+}
+
+if (window.Vue) {
+    Vue.mixin({
+        mounted() {
+            A11yUtil.scheduleNormalize();
+        },
+        updated() {
+            A11yUtil.scheduleNormalize();
+        },
+    });
 }
 
 class FileManager {

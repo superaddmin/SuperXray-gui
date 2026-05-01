@@ -235,6 +235,116 @@
                     :row-class-name="dbInbound => (dbInbound.isMultiUser() ? '' : 'hideExpandIcon')"
                     :style="{ marginTop: '10px' }"
                     :locale='{ filterConfirm: `{{ i18n "confirm" }}`, filterReset: `{{ i18n "reset" }}`, emptyText: `{{ i18n "noData" }}` }'>
+                    <template slot="mobileCard" slot-scope="text, dbInbound">
+                      <div class="inbound-mobile-card">
+                        <div class="inbound-mobile-card__header">
+                          <div class="inbound-mobile-card__main">
+                            <div class="inbound-mobile-card__title">[[ dbInbound.remark ]]</div>
+                            <div class="inbound-mobile-card__meta">
+                              <a-tag color="purple">[[ dbInbound.protocol ]]</a-tag>
+                              <a-tag>:[[ dbInbound.port ]]</a-tag>
+                              <a-tag v-if="dbInbound.enable" color="green">{{ i18n "enabled" }}</a-tag>
+                              <a-tag v-else color="red">{{ i18n "disabled" }}</a-tag>
+                            </div>
+                          </div>
+                          <div class="inbound-mobile-card__actions">
+                            <a-switch size="small" v-model="dbInbound.enable"
+                              :aria-label="dbInbound.remark"
+                              @change="switchEnable(dbInbound.id,dbInbound.enable)"></a-switch>
+                            <a-dropdown :trigger="['click']">
+                              <a-button shape="circle" icon="more" aria-label='{{ i18n "pages.inbounds.operate" }}'></a-button>
+                              <a-menu slot="overlay"
+                                @click="a => clickAction(a, dbInbound)"
+                                :theme="themeSwitcher.currentTheme">
+                                <a-menu-item key="edit">
+                                  <a-icon type="edit"></a-icon>
+                                  {{ i18n "edit" }}
+                                </a-menu-item>
+                                <a-menu-item key="showInfo">
+                                  <a-icon type="info-circle"></a-icon>
+                                  {{ i18n "info"}}
+                                </a-menu-item>
+                                <a-menu-item key="qrcode"
+                                  v-if="(dbInbound.isSS && !dbInbound.toInbound().isSSMultiUser) || dbInbound.isWireguard">
+                                  <a-icon type="qrcode"></a-icon>
+                                  {{ i18n "qrCode" }}
+                                </a-menu-item>
+                                <template v-if="dbInbound.isMultiUser()">
+                                  <a-menu-item key="addClient">
+                                    <a-icon type="user-add"></a-icon>
+                                    {{ i18n "pages.client.add"}}
+                                  </a-menu-item>
+                                  <a-menu-item key="addBulkClient">
+                                    <a-icon type="usergroup-add"></a-icon>
+                                    {{ i18n "pages.client.bulk"}}
+                                  </a-menu-item>
+                                  <a-menu-item key="copyClients">
+                                    <a-icon type="copy"></a-icon>
+                                    {{ i18n "pages.client.copyFromInbound"}}
+                                  </a-menu-item>
+                                  <a-menu-item key="resetClients">
+                                    <a-icon type="file-done"></a-icon>
+                                    {{ i18n "pages.inbounds.resetInboundClientTraffics"}}
+                                  </a-menu-item>
+                                  <a-menu-item key="export">
+                                    <a-icon type="export"></a-icon>
+                                    {{ i18n "pages.inbounds.export"}}
+                                  </a-menu-item>
+                                  <a-menu-item key="subs" v-if="subSettings.enable">
+                                    <a-icon type="export"></a-icon>
+                                    {{ i18n "pages.inbounds.export"}} - {{ i18n "pages.settings.subSettings" }}
+                                  </a-menu-item>
+                                  <a-menu-item key="delDepletedClients" :style="{ color: '#FF4D4F' }">
+                                    <a-icon type="rest"></a-icon>
+                                    {{ i18n "pages.inbounds.delDepletedClients" }}
+                                  </a-menu-item>
+                                </template>
+                                <a-menu-item key="clipboard">
+                                  <a-icon type="copy"></a-icon>
+                                  {{ i18n "pages.inbounds.exportInbound" }}
+                                </a-menu-item>
+                                <a-menu-item key="resetTraffic">
+                                  <a-icon type="retweet"></a-icon>
+                                  {{ i18n "pages.inbounds.resetTraffic" }}
+                                </a-menu-item>
+                                <a-menu-item key="clone">
+                                  <a-icon type="block"></a-icon>
+                                  {{ i18n "pages.inbounds.clone"}}
+                                </a-menu-item>
+                                <a-menu-item key="delete">
+                                  <span :style="{ color: '#FF4D4F' }">
+                                    <a-icon type="delete"></a-icon>
+                                    {{ i18n "delete"}}
+                                  </span>
+                                </a-menu-item>
+                              </a-menu>
+                            </a-dropdown>
+                          </div>
+                        </div>
+                        <div class="inbound-mobile-card__metrics">
+                          <div>
+                            <span>{{ i18n "pages.inbounds.traffic" }}</span>
+                            <a-tag :color="ColorUtils.usageColor(dbInbound.up + dbInbound.down, app.trafficDiff, dbInbound.total)">
+                              [[ SizeFormatter.sizeFormat(dbInbound.up + dbInbound.down) ]]
+                            </a-tag>
+                          </div>
+                          <div>
+                            <span>{{ i18n "pages.inbounds.expireDate" }}</span>
+                            <a-tag v-if="dbInbound.expiryTime > 0"
+                              :color="ColorUtils.usageColor(new Date().getTime(), app.expireDiff, dbInbound._expiryTime)">
+                              [[ IntlUtil.formatRelativeTime(dbInbound.expiryTime) ]]
+                            </a-tag>
+                            <a-tag v-else color="purple" class="infinite-tag">
+                              <span aria-hidden="true">∞</span>
+                            </a-tag>
+                          </div>
+                          <div v-if="clientCount[dbInbound.id]">
+                            <span>{{ i18n "clients" }}</span>
+                            <a-tag color="blue">[[ clientCount[dbInbound.id].clients ]]</a-tag>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
                     <template slot="action" slot-scope="text, dbInbound">
                       <a-dropdown :trigger="['click']">
                         <a-icon @click="e => e.preventDefault()" type="more"
@@ -1048,26 +1158,10 @@
   }];
 
   const mobileColumns = [{
-    title: "ID",
-    align: 'right',
-    dataIndex: "id",
-    width: 10,
-    responsive: ["s"],
-  }, {
-    title: '{{ i18n "pages.inbounds.operate" }}',
-    align: 'center',
-    width: 25,
-    scopedSlots: { customRender: 'action' },
-  }, {
-    title: '{{ i18n "pages.inbounds.remark" }}',
+    title: '{{ i18n "pages.inbounds.title" }}',
     align: 'left',
-    width: 70,
-    dataIndex: "remark",
-  }, {
-    title: '{{ i18n "pages.inbounds.info" }}',
-    align: 'center',
-    width: 10,
-    scopedSlots: { customRender: 'info' },
+    width: 100,
+    scopedSlots: { customRender: 'mobileCard' },
   }];
 
   const innerColumns = [

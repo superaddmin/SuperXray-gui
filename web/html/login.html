@@ -36,6 +36,7 @@
                     <a-theme-switch-login></a-theme-switch-login>
                     <span>{{ i18n "pages.settings.language" }}</span>
                     <a-select ref="selectLang" class="w-100" v-model="lang" @change="LanguageManager.setLanguage(lang)"
+                      aria-label='{{ i18n "pages.settings.language" }}'
                       :dropdown-class-name="themeSwitcher.currentTheme">
                       <a-select-option :value="l.value" label="English" v-for="l in LanguageManager.supportedLanguages">
                         <span role="img" aria-label="l.name" v-text="l.icon"></span>
@@ -44,7 +45,7 @@
                     </a-select>
                   </a-space>
                 </template>
-                <a-button shape="circle" icon="setting"></a-button>
+                <a-button shape="circle" icon="setting" aria-label='{{ i18n "menu.settings" }}'></a-button>
               </a-popover>
             </div>
             <a-row type="flex" justify="center">
@@ -62,19 +63,19 @@
                 <a-form @submit.prevent="login">
                   <a-space direction="vertical" size="middle">
                     <a-form-item>
-                      <a-input autocomplete="username" name="username" v-model.trim="user.username"
+                      <a-input autocomplete="username" name="username" aria-label='{{ i18n "username" }}' v-model.trim="user.username"
                         placeholder='{{ i18n "username" }}' autofocus required>
                         <a-icon slot="prefix" type="user" class="fs-1rem"></a-icon>
                       </a-input>
                     </a-form-item>
                     <a-form-item>
-                      <a-input-password autocomplete="current-password" name="password" v-model.trim="user.password"
+                      <a-input-password autocomplete="current-password" name="password" aria-label='{{ i18n "password" }}' v-model.trim="user.password"
                         placeholder='{{ i18n "password" }}' required>
                         <a-icon slot="prefix" type="lock" class="fs-1rem"></a-icon>
                       </a-input-password>
                     </a-form-item>
                     <a-form-item v-if="twoFactorEnable">
-                      <a-input autocomplete="one-time-code" name="twoFactorCode" v-model.trim="user.twoFactorCode"
+                      <a-input autocomplete="one-time-code" name="twoFactorCode" aria-label='{{ i18n "twoFactorCode" }}' v-model.trim="user.twoFactorCode"
                         placeholder='{{ i18n "twoFactorCode" }}' required>
                         <a-icon slot="prefix" type="key" class="fs-1rem"></a-icon>
                       </a-input>

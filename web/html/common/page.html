@@ -1,10 +1,11 @@
 {{ define "page/head_start" }}
 <!DOCTYPE html>
-<html>
+<html lang="{{ .lang }}">
 <head>
   <meta charset="UTF-8">
   <meta name="renderer" content="webkit">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="{{ .host }} - {{ i18n .title }}">
   <meta name="robots" content="noindex,nofollow">
   <link rel="stylesheet" href="{{ .base_path }}assets/ant-design-vue/antd.min.css">
   <link rel="stylesheet" href="{{ .base_path }}assets/css/custom.min.css?{{ .cur_ver }}">
@@ -34,7 +35,7 @@
         overscroll-behavior-x: contain;
         white-space: nowrap;
         max-width: 100%;
-        padding: 0 !important; /* Remove padding for arrows */
+        padding: 0 28px !important;
       }
       .ant-tabs-nav-wrap {
         overflow: visible !important;
@@ -52,10 +53,13 @@
       }
       .ant-tabs-tab-prev,
       .ant-tabs-tab-next {
-        display: none !important; /* Hide arrows */
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
       }
       .ant-tabs-nav-container::-webkit-scrollbar {
-        display: none;
+        height: 4px;
       }
     }
   </style>

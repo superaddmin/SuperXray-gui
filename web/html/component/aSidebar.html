@@ -3,10 +3,10 @@
     <div class="ant-sidebar">
         <a-layout-sider :theme="themeSwitcher.currentTheme" collapsible :collapsed="collapsed"
             @collapse="(isCollapsed, type) => collapseHandle(isCollapsed, type)" breakpoint="md">
-            <div class="sidebar-logo" @click="goHome">
+            <button type="button" class="sidebar-logo" @click="goHome" aria-label="SuperXray">
                 <img v-if="!collapsed" :src="logoSrc" alt="SuperXray" class="logo-img" />
                 <img v-else :src="logoIconSrc" alt="SuperXray" class="logo-icon" />
-            </div>
+            </button>
             <a-theme-switch></a-theme-switch>
             <a-menu :theme="themeSwitcher.currentTheme" mode="inline" :selected-keys="activeTab"
                 @click="({key}) => openLink(key)">
@@ -18,12 +18,13 @@
         </a-layout-sider>
         <a-drawer placement="left" :closable="false" @close="closeDrawer" :visible="visible"
             :wrap-class-name="themeSwitcher.currentTheme" :wrap-style="{ padding: 0 }" :style="{ height: '100%' }">
-            <div class="drawer-handle" @click="toggleDrawer" slot="handle">
+            <button type="button" class="drawer-handle" @click="toggleDrawer" slot="handle"
+                :aria-label="visible ? '{{ i18n "close" }}' : 'Menu'">
                 <a-icon :type="visible ? 'close' : 'menu-fold'"></a-icon>
-            </div>
-            <div class="sidebar-logo" @click="goHome">
+            </button>
+            <button type="button" class="sidebar-logo" @click="goHome" aria-label="SuperXray">
                 <img :src="logoSrc" alt="SuperXray" class="logo-img" />
-            </div>
+            </button>
             <a-theme-switch></a-theme-switch>
             <a-menu :theme="themeSwitcher.currentTheme" mode="inline" :selected-keys="activeTab"
                 @click="({key}) => openLink(key)">

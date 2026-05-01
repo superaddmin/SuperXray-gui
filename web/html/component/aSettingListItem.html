@@ -1,21 +1,21 @@
 {{define "component/settingListItem"}}
-<a-list-item :style="{ padding: padding }">
-    <a-row :gutter="[8,16]">
+<div class="setting-list-item" :style="{ padding: padding }" role="group" :aria-labelledby="titleId">
+    <a-row class="setting-list-item__row" :gutter="[8,16]">
         <a-col :lg="24" :xl="12">
-            <a-list-item-meta>
-                <template #title>
+            <div class="setting-list-item__meta">
+                <div class="setting-list-item__title" :id="titleId">
                     <slot name="title"></slot>
-                </template>
-                <template #description>
+                </div>
+                <div class="setting-list-item__description">
                     <slot name="description"></slot>
-                </template>
-            </a-list-item-meta>
+                </div>
+            </div>
         </a-col>
-        <a-col :lg="24" :xl="12">
+        <a-col class="setting-list-item__control" :lg="24" :xl="12">
             <slot name="control"></slot>
         </a-col>
     </a-row>
-</a-list-item>
+</div>
 {{end}}
 
 {{define "component/aSettingListItem"}}
@@ -25,7 +25,7 @@
             'paddings': {
                 type: String,
                 required: false,
-                defaultValue: "default",
+                default: "default",
                 validator: function (value) {
                     return ['small', 'default'].includes(value)
                 }
@@ -33,16 +33,45 @@
         },
         template: `{{ template "component/settingListItem" }}`,
         computed: {
+            titleId() {
+                return `setting-list-item-${this._uid}-title`;
+            },
             padding() {
                 switch (this.paddings) {
                     case "small":
                         return "10px 20px !important"
-                        break;
                     case "default":
                         return "20px !important"
-                        break;
+                    default:
+                        return "20px !important"
                 }
             }
+        },
+        methods: {
+            applyControlLabels() {
+                const selectors = [
+                    '.ant-select-selection',
+                    '.ant-input-number-input',
+                    'input',
+                    'textarea',
+                    'button',
+                    '[role="switch"]'
+                ];
+                this.$el.querySelectorAll(selectors.join(',')).forEach((control) => {
+                    if (!control.getAttribute('aria-label') && !control.getAttribute('aria-labelledby')) {
+                        control.setAttribute('aria-labelledby', this.titleId);
+                    }
+                    if (control.getAttribute('role') === 'combobox' && !control.hasAttribute('aria-expanded')) {
+                        control.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            }
+        },
+        mounted() {
+            this.$nextTick(this.applyControlLabels);
+        },
+        updated() {
+            this.$nextTick(this.applyControlLabels);
         }
     })
 </script>

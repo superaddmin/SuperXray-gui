@@ -28,9 +28,8 @@
           </a-row>
           <a-row :gutter="[isMobile ? 8 : 16, isMobile ? 0 : 12]" v-else>
             <a-col>
-              <a-card hoverable>
-                <a-row
-                  :style="{ display: 'flex', flexWrap: 'wrap', alignItems: 'center' }">
+              <a-card class="page-action-card" hoverable>
+                <a-row class="page-action-row">
                   <a-col :xs="24" :sm="10" :style="{ padding: '4px' }">
                     <a-space direction="horizontal">
                       <a-button type="primary" :disabled="saveBtnDisable"
@@ -72,7 +71,7 @@
               </a-card>
             </a-col>
             <a-col>
-              <a-tabs default-active-key="tpl-basic"
+              <a-tabs class="page-tabs" default-active-key="tpl-basic"
                 @change="(activeKey) => { this.changePage(activeKey); }"
                 :class="themeSwitcher.currentTheme">
                 <a-tab-pane key="tpl-basic" :style="{ paddingTop: '20px' }">

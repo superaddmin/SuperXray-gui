@@ -93,7 +93,28 @@ func html(c *gin.Context, name string, title string, data gin.H) {
 	data["host"] = host
 	data["request_uri"] = c.Request.RequestURI
 	data["base_path"] = c.GetString("base_path")
+	data["lang"] = getHTMLLang(c)
 	c.HTML(http.StatusOK, name, getContext(data))
+}
+
+// getHTMLLang returns a safe language tag for the root html element.
+func getHTMLLang(c *gin.Context) string {
+	lang := ""
+	if cookie, err := c.Request.Cookie("lang"); err == nil {
+		lang = cookie.Value
+	}
+	if lang == "" {
+		lang = c.GetHeader("Accept-Language")
+	}
+	if lang == "" {
+		return "en-US"
+	}
+	lang = strings.TrimSpace(strings.Split(lang, ",")[0])
+	lang = strings.TrimSpace(strings.Split(lang, ";")[0])
+	if lang == "" {
+		return "en-US"
+	}
+	return lang
 }
 
 // getContext adds version and other context data to the provided gin.H.

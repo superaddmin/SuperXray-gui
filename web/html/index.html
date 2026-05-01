@@ -127,43 +127,43 @@
                     </template>
                   </template>
                   <template #actions>
-                    <a-space v-if="ipLimitEnable" direction="horizontal" @click="openXrayLogs()" class="jc-center">
+                    <button v-if="ipLimitEnable" type="button" class="card-action-button" @click="openXrayLogs()">
                       <a-icon type="bars"></a-icon>
-                      <span v-if="!isMobile">{{ i18n "pages.index.logs" }}</span>
-                    </a-space>
-                    <a-space direction="horizontal" @click="stopXrayService" class="jc-center">
+                      <span>{{ i18n "pages.index.logs" }}</span>
+                    </button>
+                    <button type="button" class="card-action-button" @click="stopXrayService">
                       <a-icon type="poweroff"></a-icon>
-                      <span v-if="!isMobile">{{ i18n "pages.index.stopXray" }}</span>
-                    </a-space>
-                    <a-space direction="horizontal" @click="restartXrayService" class="jc-center">
+                      <span>{{ i18n "pages.index.stopXray" }}</span>
+                    </button>
+                    <button type="button" class="card-action-button" @click="restartXrayService">
                       <a-icon type="reload"></a-icon>
-                      <span v-if="!isMobile">{{ i18n "pages.index.restartXray" }}</span>
-                    </a-space>
-                    <a-space direction="horizontal" @click="openSelectV2rayVersion" class="jc-center">
+                      <span>{{ i18n "pages.index.restartXray" }}</span>
+                    </button>
+                    <button type="button" class="card-action-button" @click="openSelectV2rayVersion">
                       <a-icon type="tool"></a-icon>
-                      <span v-if="!isMobile">
+                      <span>
                         [[ status.xray.version != 'Unknown' ? `v${status.xray.version}` : '{{ i18n
                         "pages.index.xraySwitch" }}' ]]
                       </span>
-                    </a-space>
+                    </button>
                   </template>
                 </a-card>
               </a-col>
               <a-col :sm="24" :lg="12">
                 <a-card title='{{ i18n "menu.link" }}' hoverable>
                   <template #actions>
-                    <a-space direction="horizontal" @click="openLogs()" class="jc-center">
+                    <button type="button" class="card-action-button" @click="openLogs()">
                       <a-icon type="bars"></a-icon>
-                      <span v-if="!isMobile">{{ i18n "pages.index.logs" }}</span>
-                    </a-space>
-                    <a-space direction="horizontal" @click="openConfig" class="jc-center">
+                      <span>{{ i18n "pages.index.logs" }}</span>
+                    </button>
+                    <button type="button" class="card-action-button" @click="openConfig">
                       <a-icon type="control"></a-icon>
-                      <span v-if="!isMobile">{{ i18n "pages.index.config" }}</span>
-                    </a-space>
-                    <a-space direction="horizontal" @click="openBackup" class="jc-center">
+                      <span>{{ i18n "pages.index.config" }}</span>
+                    </button>
+                    <button type="button" class="card-action-button" @click="openBackup">
                       <a-icon type="cloud-server"></a-icon>
-                      <span v-if="!isMobile">{{ i18n "pages.index.backup" }}</span>
-                    </a-space>
+                      <span>{{ i18n "pages.index.backup" }}</span>
+                    </button>
                   </template>
                 </a-card>
               </a-col>
