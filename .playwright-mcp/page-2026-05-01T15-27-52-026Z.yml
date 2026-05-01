@@ -1,0 +1,189 @@
+- generic [active] [ref=e1]:
+  - main [ref=e41]:
+    - generic [ref=e43]:
+      - generic [ref=e80]:
+        - 'generic "icon: close-circle" [ref=e81]':
+          - img [ref=e82]
+        - generic [ref=e85]: 安全警报
+        - generic [ref=e86]: 此连接不安全。在激活 TLS 进行数据保护之前，请勿输入敏感信息。
+        - 'button "icon: close" [ref=e87] [cursor=pointer]':
+          - 'generic "icon: close" [ref=e88]':
+            - img [ref=e89]
+      - generic [ref=e44]:
+        - generic [ref=e94]:
+          - generic [ref=e96]:
+            - generic [ref=e97]:
+              - generic [ref=e99]:
+                - img [ref=e100]
+                - generic "14.29%" [ref=e354]
+              - generic [ref=e104]:
+                - text: "CPU: 6 Cores"
+                - 'generic "icon: area-chart" [ref=e105]':
+                  - img [ref=e106]
+                - 'button "icon: history" [ref=e108] [cursor=pointer]':
+                  - 'generic "icon: history"':
+                    - img
+            - generic [ref=e109]:
+              - generic [ref=e111]:
+                - img [ref=e112]
+                - generic "82.19%" [ref=e355]
+              - generic [ref=e116]: "内存: 26.16 GB / 31.83 GB"
+          - generic [ref=e118]:
+            - generic [ref=e119]:
+              - generic [ref=e121]:
+                - img [ref=e122]
+                - generic "0.69%" [ref=e125]
+              - generic [ref=e126]: "交换分区: 191.34 MB / 27.00 GB"
+            - generic [ref=e127]:
+              - generic [ref=e129]:
+                - img [ref=e130]
+                - generic "22.81%" [ref=e133]
+              - generic [ref=e134]: "存储: 33.53 GB / 146.94 GB"
+        - generic [ref=e136]:
+          - generic [ref=e138]:
+            - generic [ref=e141]: Xray
+            - generic [ref=e143]: 错误
+          - list [ref=e145]:
+            - listitem [ref=e146]:
+              - 'generic "icon: poweroff" [ref=e150] [cursor=pointer]':
+                - img [ref=e151]
+            - listitem [ref=e154]:
+              - 'generic "icon: reload" [ref=e158] [cursor=pointer]':
+                - img [ref=e159]
+            - listitem [ref=e162]:
+              - 'generic "icon: tool" [ref=e166] [cursor=pointer]':
+                - img [ref=e167]
+        - generic [ref=e171]:
+          - generic [ref=e174]: 管理
+          - list [ref=e175]:
+            - listitem [ref=e176]:
+              - 'generic "icon: bars" [ref=e180] [cursor=pointer]':
+                - img [ref=e181]
+            - listitem [ref=e184]:
+              - 'generic "icon: control" [ref=e188] [cursor=pointer]':
+                - img [ref=e189]
+            - listitem [ref=e192]:
+              - 'generic "icon: cloud-server" [ref=e196] [cursor=pointer]':
+                - img [ref=e197]
+        - generic [ref=e203]:
+          - generic [ref=e206]: SuperXray
+          - generic [ref=e207]:
+            - link "v3.0.2" [ref=e208] [cursor=pointer]:
+              - /url: https://github.com/superaddmin/SuperXray-gui/releases
+              - generic [ref=e210]: v3.0.2
+            - link "@XrayUI" [ref=e211] [cursor=pointer]:
+              - /url: https://t.me/XrayUI
+              - generic [ref=e213]: "@XrayUI"
+            - link "文档" [ref=e214] [cursor=pointer]:
+              - /url: https://github.com/superaddmin/SuperXray-gui/wiki
+              - generic [ref=e216]: 文档
+        - generic [ref=e218]:
+          - generic [ref=e221]: 系统正常运行时间
+          - generic [ref=e222]:
+            - generic [ref=e223]: "Xray: 0s"
+            - generic [ref=e224]: "OS: 3h"
+        - generic [ref=e226]:
+          - generic [ref=e229]: 系统负载
+          - generic [ref=e232]: 0.34 | 0.09 | 0.03
+        - generic [ref=e234]:
+          - generic [ref=e237]: 使用情况
+          - generic [ref=e238]:
+            - generic [ref=e239]: "内存: 52.36 MB"
+            - generic [ref=e240]: "线程: 14"
+        - generic [ref=e242]:
+          - generic [ref=e245]: 整体速度
+          - generic [ref=e247]:
+            - generic [ref=e249]:
+              - generic [ref=e250]: 上传
+              - generic [ref=e251]:
+                - 'generic "icon: arrow-up" [ref=e253]':
+                  - img [ref=e254]
+                - text: 9.16 KB
+                - generic [ref=e256]: /s
+            - generic [ref=e258]:
+              - generic [ref=e259]: 下载
+              - generic [ref=e260]:
+                - 'generic "icon: arrow-down" [ref=e262]':
+                  - img [ref=e263]
+                - text: 167.19 KB
+                - generic [ref=e265]: /s
+        - generic [ref=e267]:
+          - generic [ref=e270]: 总数据
+          - generic [ref=e272]:
+            - generic [ref=e274]:
+              - generic [ref=e275]: 已发送
+              - generic [ref=e276]:
+                - 'generic "icon: cloud-upload" [ref=e278]':
+                  - img [ref=e279]
+                - text: 1.68 GB
+            - generic [ref=e283]:
+              - generic [ref=e284]: 已接收
+              - generic [ref=e285]:
+                - 'generic "icon: cloud-download" [ref=e287]':
+                  - img [ref=e288]
+                - text: 778.84 MB
+        - generic [ref=e292]:
+          - generic [ref=e294]:
+            - generic [ref=e295]: IP地址
+            - 'generic "icon: eye-invisible" [ref=e297] [cursor=pointer]':
+              - img [ref=e298]
+          - generic [ref=e302]:
+            - generic [ref=e304]:
+              - generic [ref=e305]: IPv4
+              - generic [ref=e306]:
+                - 'generic "icon: global" [ref=e308]':
+                  - img [ref=e309]
+                - text: 54.175.230.232
+            - generic [ref=e312]:
+              - generic [ref=e313]: IPv6
+              - generic [ref=e314]:
+                - 'generic "icon: global" [ref=e316]':
+                  - img [ref=e317]
+                - text: N/A
+        - generic [ref=e320]:
+          - generic [ref=e323]: 连接数
+          - generic [ref=e325]:
+            - generic [ref=e327]:
+              - generic [ref=e328]: TCP
+              - generic [ref=e329]:
+                - 'generic "icon: swap" [ref=e331]':
+                  - img [ref=e332]
+                - generic [ref=e334]: "429"
+            - generic [ref=e336]:
+              - generic [ref=e337]: UDP
+              - generic [ref=e338]:
+                - 'generic "icon: swap" [ref=e340]':
+                  - img [ref=e341]
+                - generic [ref=e343]: "74"
+  - generic [ref=e46]:
+    - generic [ref=e49]:
+      - img "SuperXray" [ref=e51] [cursor=pointer]
+      - menu [ref=e52]:
+        - 'menuitem "icon: bulb 主题" [ref=e53]':
+          - generic [ref=e55] [cursor=pointer]:
+            - 'generic "icon: bulb" [ref=e56]':
+              - img [ref=e57]
+            - text: 主题
+      - menu [ref=e59]:
+        - 'menuitem "icon: dashboard 系统状态" [ref=e60] [cursor=pointer]':
+          - 'generic "icon: dashboard" [ref=e61]':
+            - img [ref=e62]
+          - text: 系统状态
+        - 'menuitem "icon: user 入站列表" [ref=e64] [cursor=pointer]':
+          - 'generic "icon: user" [ref=e65]':
+            - img [ref=e66]
+          - text: 入站列表
+        - 'menuitem "icon: setting 面板设置" [ref=e68] [cursor=pointer]':
+          - 'generic "icon: setting" [ref=e69]':
+            - img [ref=e70]
+          - text: 面板设置
+        - 'menuitem "icon: tool Xray 设置" [ref=e72] [cursor=pointer]':
+          - 'generic "icon: tool" [ref=e73]':
+            - img [ref=e74]
+          - text: Xray 设置
+        - 'menuitem "icon: logout 退出登录" [ref=e76] [cursor=pointer]':
+          - 'generic "icon: logout" [ref=e77]':
+            - img [ref=e78]
+          - text: 退出登录
+    - 'generic "icon: menu-fold" [ref=e351] [cursor=pointer]':
+      - img [ref=e352]

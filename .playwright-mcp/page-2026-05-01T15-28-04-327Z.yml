@@ -1,0 +1,111 @@
+- generic [ref=e1]:
+  - main [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - 'generic "icon: close-circle" [ref=e8]':
+          - img [ref=e9]
+        - generic [ref=e12]: 安全警报
+        - generic [ref=e13]: 此连接不安全。在激活 TLS 进行数据保护之前，请勿输入敏感信息。
+        - 'button "icon: close" [ref=e14] [cursor=pointer]':
+          - 'generic "icon: close" [ref=e15]':
+            - img [ref=e16]
+      - generic [ref=e18]:
+        - generic [ref=e22]:
+          - generic [ref=e24]:
+            - generic [ref=e25]: 总上传 / 下载
+            - generic [ref=e26]:
+              - 'generic "icon: swap" [ref=e28]':
+                - img [ref=e29]
+              - text: 0 B / 0 B
+          - generic [ref=e32]:
+            - generic [ref=e33]: 总用量
+            - generic [ref=e34]:
+              - 'generic "icon: pie-chart" [ref=e36]':
+                - img [ref=e37]
+              - text: 0 B
+          - generic [ref=e40]:
+            - generic [ref=e41]: 所有时间总使用量
+            - generic [ref=e42]:
+              - 'generic "icon: history" [ref=e44]':
+                - img [ref=e45]
+              - text: 0 B
+          - generic [ref=e48]:
+            - generic [ref=e49]: 入站数量
+            - generic [ref=e50]:
+              - 'generic "icon: bars" [ref=e52]':
+                - img [ref=e53]
+              - generic [ref=e55]: "0"
+          - generic [ref=e57]:
+            - generic [ref=e58]: 客户端
+            - generic [ref=e61]:
+              - 'generic "icon: team" [ref=e63]':
+                - img [ref=e64]
+              - generic [ref=e68]: "0"
+        - generic [ref=e70]:
+          - generic [ref=e72]:
+            - generic [ref=e74]:
+              - 'button "icon: plus" [ref=e76] [cursor=pointer]':
+                - 'generic "icon: plus"':
+                  - img
+              - 'button "icon: menu" [ref=e78] [cursor=pointer]':
+                - 'generic "icon: menu"':
+                  - img
+            - generic [ref=e80]:
+              - 'button "icon: sync" [ref=e158] [cursor=pointer]':
+                - 'generic "icon: sync"':
+                  - img
+              - 'button "icon: down" [ref=e81] [cursor=pointer]':
+                - 'generic "icon: down"':
+                  - img
+          - generic [ref=e83]:
+            - generic [ref=e85]:
+              - 'switch "icon: filter" [ref=e86] [cursor=pointer]':
+                - 'generic "icon: filter" [ref=e88]':
+                  - img [ref=e89]
+              - textbox "搜索" [active] [ref=e91]
+            - generic [ref=e97]:
+              - table [ref=e99]:
+                - rowgroup [ref=e105]:
+                  - row "ID 菜单 备注 信息" [ref=e106]:
+                    - columnheader "ID" [ref=e107]:
+                      - generic [ref=e109]: ID
+                    - columnheader "菜单" [ref=e110]:
+                      - generic [ref=e112]: 菜单
+                    - columnheader "备注" [ref=e113]:
+                      - generic [ref=e115]: 备注
+                    - columnheader "信息" [ref=e116]:
+                      - generic [ref=e118]: 信息
+                - rowgroup
+              - generic [ref=e119]: 无数据。
+  - generic [ref=e120]:
+    - generic [ref=e123]:
+      - img "SuperXray" [ref=e125] [cursor=pointer]
+      - menu [ref=e126]:
+        - 'menuitem "icon: bulb 主题" [ref=e127]':
+          - generic [ref=e129] [cursor=pointer]:
+            - 'generic "icon: bulb" [ref=e130]':
+              - img [ref=e131]
+            - text: 主题
+      - menu [ref=e133]:
+        - 'menuitem "icon: dashboard 系统状态" [ref=e134] [cursor=pointer]':
+          - 'generic "icon: dashboard" [ref=e135]':
+            - img [ref=e136]
+          - text: 系统状态
+        - 'menuitem "icon: user 入站列表" [ref=e138] [cursor=pointer]':
+          - 'generic "icon: user" [ref=e139]':
+            - img [ref=e140]
+          - text: 入站列表
+        - 'menuitem "icon: setting 面板设置" [ref=e142] [cursor=pointer]':
+          - 'generic "icon: setting" [ref=e143]':
+            - img [ref=e144]
+          - text: 面板设置
+        - 'menuitem "icon: tool Xray 设置" [ref=e146] [cursor=pointer]':
+          - 'generic "icon: tool" [ref=e147]':
+            - img [ref=e148]
+          - text: Xray 设置
+        - 'menuitem "icon: logout 退出登录" [ref=e150] [cursor=pointer]':
+          - 'generic "icon: logout" [ref=e151]':
+            - img [ref=e152]
+          - text: 退出登录
+    - 'generic "icon: menu-fold" [ref=e155] [cursor=pointer]':
+      - img [ref=e156]
