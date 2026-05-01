@@ -4,8 +4,8 @@
         <a-layout-sider :theme="themeSwitcher.currentTheme" collapsible :collapsed="collapsed"
             @collapse="(isCollapsed, type) => collapseHandle(isCollapsed, type)" breakpoint="md">
             <button type="button" class="sidebar-logo" @click="goHome" aria-label="SuperXray">
-                <img v-if="!collapsed" :src="logoSrc" alt="SuperXray" class="logo-img" />
-                <img v-else :src="logoIconSrc" alt="SuperXray" class="logo-icon" />
+                <img v-if="!collapsed" :src="logoSrc" alt="SuperXray" class="logo-img" loading="lazy" />
+                <img v-else :src="logoIconSrc" alt="SuperXray" class="logo-icon" loading="lazy" />
             </button>
             <a-theme-switch></a-theme-switch>
             <a-menu :theme="themeSwitcher.currentTheme" mode="inline" :selected-keys="activeTab"
@@ -23,7 +23,7 @@
                 <a-icon :type="visible ? 'close' : 'menu-fold'"></a-icon>
             </button>
             <button type="button" class="sidebar-logo" @click="goHome" aria-label="SuperXray">
-                <img :src="logoSrc" alt="SuperXray" class="logo-img" />
+                <img :src="logoSrc" alt="SuperXray" class="logo-img" loading="lazy" />
             </button>
             <a-theme-switch></a-theme-switch>
             <a-menu :theme="themeSwitcher.currentTheme" mode="inline" :selected-keys="activeTab"

@@ -869,6 +869,13 @@
       </a-spin>
     </a-layout-content>
   </a-layout>
+  <!-- Mobile FAB: quick add inbound -->
+  <a-button type="primary" shape="circle" icon="plus"
+    class="mobile-fab"
+    v-show="isMobile"
+    @click="openAddInbound"
+    aria-label='{{ i18n "pages.inbounds.addInbound" }}'>
+  </a-button>
 </a-layout>
 {{template "page/body_scripts" .}}
 <script

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 )
 
@@ -14,9 +13,17 @@ const (
 	shadowsocks2022Prefix                 = "2022-"
 	shadowsocks2022AES128GCM              = "2022-blake3-aes-128-gcm"
 	shadowsocks2022Blake3Chacha20Poly1305 = "2022-blake3-chacha20-poly1305"
-	shadowsocksLegacyPassLen              = 16
+	generatedCredentialBytes              = 32
 	shadowsocksDefaultKeyBytes            = 32
 )
+
+func randomURLSafeCredential(keyBytes int) string {
+	array := make([]byte, keyBytes)
+	if _, err := rand.Read(array); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
+	return base64.RawURLEncoding.EncodeToString(array)
+}
 
 func isShadowsocks2022Method(method string) bool {
 	return strings.HasPrefix(method, shadowsocks2022Prefix)
@@ -116,14 +123,13 @@ func normalizeShadowsocksClientEntries(method string, clients []any) {
 
 func randomShadowsocksCredential(method string) string {
 	if !isShadowsocks2022Method(method) {
-		return strings.ReplaceAll(uuid.NewString(), "-", "")[:shadowsocksLegacyPassLen]
+		return randomURLSafeCredential(generatedCredentialBytes)
 	}
 
 	keyBytes := shadowsocksKeyBytes(method)
 	array := make([]byte, keyBytes)
 	if _, err := rand.Read(array); err != nil {
-		fallback := strings.ReplaceAll(uuid.NewString(), "-", "")
-		return base64.StdEncoding.EncodeToString([]byte(fallback[:keyBytes]))
+		panic("crypto/rand failed: " + err.Error())
 	}
 	return base64.StdEncoding.EncodeToString(array)
 }

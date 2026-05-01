@@ -64,10 +64,22 @@ test('HtmlUtil.escape encodes markup before log HTML rendering', () => {
     );
 });
 
-test('legacy Shadowsocks AEAD methods generate plain client passwords', () => {
+test('randomSecret generates a 32-byte URL-safe credential by default', () => {
+    const { RandomUtil } = loadHtmlUtil();
+
+    const password = RandomUtil.randomSecret();
+
+    assert.equal(password, 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE');
+    assert.equal(password.length, 43);
+    assert.doesNotMatch(password, /[+/=]/);
+});
+
+test('legacy Shadowsocks AEAD methods generate 32-byte URL-safe client passwords', () => {
     const { RandomUtil, SSMethods } = loadHtmlUtil();
 
     const password = RandomUtil.randomShadowsocksPassword(SSMethods.CHACHA20_IETF_POLY1305);
 
-    assert.equal(password, '1111111111111111');
+    assert.equal(password, 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE');
+    assert.equal(password.length, 43);
+    assert.doesNotMatch(password, /[+/=]/);
 });

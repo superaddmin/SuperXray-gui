@@ -97,8 +97,12 @@ func TestBuildTargetClientFromSourceShadowsocksLegacyUsesInboundMethod(t *testin
 	if client.Method != "chacha20-ietf-poly1305" {
 		t.Fatalf("client method = %q, want inbound method", client.Method)
 	}
-	if len(client.Password) != 16 {
-		t.Fatalf("legacy Shadowsocks password length = %d, want 16", len(client.Password))
+	decodedPassword, err := base64.RawURLEncoding.DecodeString(client.Password)
+	if err != nil {
+		t.Fatalf("legacy Shadowsocks password is not URL-safe base64: %v", err)
+	}
+	if len(decodedPassword) != generatedCredentialBytes {
+		t.Fatalf("legacy Shadowsocks password decoded length = %d, want %d", len(decodedPassword), generatedCredentialBytes)
 	}
 	if client.ID != "" || client.Auth != "" {
 		t.Fatalf("client kept source credentials: id=%q auth=%q", client.ID, client.Auth)

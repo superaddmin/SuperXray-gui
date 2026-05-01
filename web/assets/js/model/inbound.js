@@ -2726,7 +2726,7 @@ Inbound.TrojanSettings = class extends Inbound.Settings {
 
 Inbound.TrojanSettings.Trojan = class extends Inbound.ClientBase {
     constructor(
-        password = RandomUtil.randomSeq(10),
+        password = RandomUtil.randomSecret(32),
         email, limitIp, totalGB, expiryTime, enable, tgId, subId, comment, reset, created_at, updated_at,
     ) {
         super(email, limitIp, totalGB, expiryTime, enable, tgId, subId, comment, reset, created_at, updated_at);
@@ -2895,7 +2895,7 @@ Inbound.HysteriaSettings = class extends Inbound.Settings {
 
 Inbound.HysteriaSettings.Hysteria = class extends Inbound.ClientBase {
     constructor(
-        auth = RandomUtil.randomSeq(10),
+        auth = RandomUtil.randomSecret(32),
         email, limitIp, totalGB, expiryTime, enable, tgId, subId, comment, reset, created_at, updated_at,
     ) {
         super(email, limitIp, totalGB, expiryTime, enable, tgId, subId, comment, reset, created_at, updated_at);

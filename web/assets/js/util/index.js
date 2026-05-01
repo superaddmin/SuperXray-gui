@@ -138,9 +138,22 @@ class RandomUtil {
         }
     }
 
+    static randomBytes(length = 32) {
+        const array = new Uint8Array(length);
+        window.crypto.getRandomValues(array);
+        return array;
+    }
+
+    static randomSecret(byteLength = 32) {
+        return Base64.alternativeEncode(String.fromCharCode(...this.randomBytes(byteLength)))
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/g, '');
+    }
+
     static randomShadowsocksPassword(method = SSMethods.BLAKE3_AES_256_GCM) {
         if (!String(method || '').startsWith('2022-')) {
-            return this.randomSeq(16);
+            return this.randomSecret(32);
         }
 
         let length = 32;
@@ -954,6 +967,49 @@ if (window.Vue) {
             A11yUtil.scheduleNormalize();
         },
     });
+}
+
+/**
+ * Unified UI helpers for confirm dialogs and notifications.
+ * Usage: UiUtil.showConfirm(title, content, onOk, options)
+ */
+class UiUtil {
+  /**
+   * Show a confirmation dialog with consistent styling.
+   * @param {string} title - Dialog title
+   * @param {string} content - Dialog body text
+   * @param {Function} onOk - Callback when confirmed
+   * @param {Object} [options] - Optional settings
+   * @param {string} [options.okText] - Confirm button label
+   * @param {string} [options.cancelText] - Cancel button label
+   * @param {boolean} [options.danger] - Use danger OK button
+   */
+  static showConfirm(title, content, onOk, options = {}) {
+    Vue.prototype.$confirm({
+      title: title || '确认',
+      content: content || '',
+      class: typeof themeSwitcher !== 'undefined' ? themeSwitcher.currentTheme : '',
+      okText: options.okText || '确认',
+      cancelText: options.cancelText || '取消',
+      okType: options.danger ? 'danger' : 'primary',
+      onOk() { if (typeof onOk === 'function') onOk(); },
+    });
+  }
+
+  /**
+   * Show a persistent notification (replaces $message for important ops).
+   * @param {'success'|'error'|'info'|'warning'} type
+   * @param {string} message - Notification title
+   * @param {string} [description] - Optional longer description
+   * @param {number} [duration=5] - Auto-close seconds (0 = sticky)
+   */
+  static showNotification(type, message, description, duration = 5) {
+    Vue.prototype.$notification[type]({
+      message: message || '',
+      description: description || '',
+      duration: duration,
+    });
+  }
 }
 
 class FileManager {

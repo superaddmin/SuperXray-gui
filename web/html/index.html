@@ -15,6 +15,36 @@
     background: var(--dark-color-surface-700, #111929);
     border-color: var(--dark-color-stroke, #2c3950);
   }
+  /* Dashboard F-Pattern: primary cards */
+  .dashboard-primary-card .ant-card-body { padding: 16px; }
+  .dashboard-primary-card .ant-card-head { min-height: 40px; }
+  .dashboard-primary-card + .dashboard-primary-card { margin-top: 0; }
+  .dashboard-gauge-label { font-size: 12px; margin-top: 4px; opacity: 0.75; }
+  .dashboard-gauge-label-sm { font-size: 11px; margin-top: 2px; opacity: 0.65; }
+  .dashboard-speed-row { display: flex; gap: 16px; justify-content: space-around; }
+  .dashboard-speed-sub { display: flex; gap: 12px; justify-content: space-around; margin-top: 8px; font-size: 12px; opacity: 0.65; }
+  .dashboard-secondary-card .ant-card-body { padding: 12px 16px; }
+  .dashboard-secondary-card + .dashboard-secondary-card { margin-top: 0; }
+  .dashboard-secondary-card .ant-card-head { min-height: 36px; padding: 0 16px; }
+  .mb-8 { margin-bottom: 8px; }
+  .xray-version-info { padding: 0 16px 8px; text-align: center; }
+  /* Card action button hierarchy */
+  .card-action-primary { background: var(--color-primary-100); color: #fff; border-radius: 8px; }
+  .card-action-primary:hover { background: #006650; color: #fff; }
+  .card-action-primary[disabled] { opacity: .5; cursor: not-allowed; }
+  /* Equal-height columns: all cards in a row stretch to match the tallest */
+  .dashboard-row-equal { display: flex; flex-wrap: wrap; }
+  .dashboard-row-equal > .ant-col { display: flex; flex-direction: column; }
+  .dashboard-row-equal > .ant-col > .ant-card { flex: 1; display: flex; flex-direction: column; height: auto; }
+  .dashboard-row-equal > .ant-col > .ant-card > .ant-card-body { flex: 1; display: flex; flex-direction: column; }
+  .dashboard-row-equal > .ant-col > .ant-card > .ant-card-actions { margin-top: auto; }
+  .dashboard-row-equal .xray-version-info { flex: 1; display: flex; align-items: center; justify-content: center; }
+  .xray-status-card .ant-card-body { justify-content: center; }
+  @media (max-width: 768px) {
+    .dashboard-primary-card .ant-card-body { padding: 12px; }
+    .dashboard-speed-row { flex-direction: column; gap: 8px; }
+    .dashboard-speed-sub { flex-direction: column; align-items: center; }
+  }
 </style>
 <a-layout id="app" v-cloak :class="themeSwitcher.currentTheme + ' index-page'">
   <a-sidebar></a-sidebar>
@@ -31,68 +61,65 @@
             <a-row v-if="!loadingStates.fetched">
               <div :style="{ minHeight: 'calc(100vh - 120px)' }"></div>
             </a-row>
-            <a-row :gutter="[isMobile ? 8 : 16, isMobile ? 0 : 12]" v-else>
-              <a-col>
-                <a-card hoverable>
-                  <a-row :gutter="[0, isMobile ? 16 : 0]">
-                    <a-col :sm="24" :md="12">
-                      <a-row>
-                        <a-col :span="12" class="text-center">
-                          <a-progress type="dashboard" status="normal" :stroke-color="status.cpu.color"
-                            :percent="status.cpu.percent"></a-progress>
-                          <div>
-                            <b>{{ i18n "pages.index.cpu" }}:</b> [[ CPUFormatter.cpuCoreFormat(status.cpuCores) ]]
-                            <a-tooltip>
-                              <a-icon type="area-chart"></a-icon>
-                              <template slot="title">
-                                <div><b>{{ i18n "pages.index.logicalProcessors" }}:</b> [[ (status.logicalPro) ]]</div>
-                                <div><b>{{ i18n "pages.index.frequency" }}:</b> [[
-                                  CPUFormatter.cpuSpeedFormat(status.cpuSpeedMhz) ]]</div>
-                              </template>
-                            </a-tooltip>
-                            <a-tooltip :overlay-class-name="themeSwitcher.currentTheme">
-                              <a-button size="small" shape="circle" class="ml-8" aria-label="CPU History"
-                                @click="openCpuHistory()">
-                                <a-icon type="history" />
-                              </a-button>
-                            </a-tooltip>
-                          </div>
-                        </a-col>
-                        <a-col :span="12" class="text-center">
-                          <a-progress type="dashboard" status="normal" :stroke-color="status.mem.color"
-                            :percent="status.mem.percent"></a-progress>
-                          <div>
-                            <b>{{ i18n "pages.index.memory"}}:</b> [[ SizeFormatter.sizeFormat(status.mem.current) ]] /
-                            [[ SizeFormatter.sizeFormat(status.mem.total) ]]
-                          </div>
-                        </a-col>
-                      </a-row>
+            <a-row :gutter="[isMobile ? 8 : 16, 12]" class="dashboard-row-equal" v-else>
+              <!-- F-Pattern Tier 1: Core System + Xray Status + Network -->
+              <a-col :sm="24" :md="8">
+                <a-card class="dashboard-primary-card" hoverable>
+                  <a-row :gutter="[8, 8]">
+                    <a-col :span="12" class="text-center">
+                      <a-progress type="dashboard" :width="110" status="normal" :stroke-color="status.cpu.color"
+                        :percent="status.cpu.percent"></a-progress>
+                      <div class="dashboard-gauge-label">
+                        <b>{{ i18n "pages.index.cpu" }}:</b> [[ CPUFormatter.cpuCoreFormat(status.cpuCores) ]]
+                        <a-tooltip :overlay-class-name="themeSwitcher.currentTheme">
+                          <a-button size="small" shape="circle" class="ml-8" aria-label="CPU History"
+                            @click="openCpuHistory()">
+                            <a-icon type="history" />
+                          </a-button>
+                        </a-tooltip>
+                        <a-tooltip>
+                          <a-icon type="area-chart"></a-icon>
+                          <template slot="title">
+                            <div><b>{{ i18n "pages.index.logicalProcessors" }}:</b> [[ (status.logicalPro) ]]</div>
+                            <div><b>{{ i18n "pages.index.frequency" }}:</b> [[
+                              CPUFormatter.cpuSpeedFormat(status.cpuSpeedMhz) ]]</div>
+                          </template>
+                        </a-tooltip>
+                      </div>
                     </a-col>
-                    <a-col :sm="24" :md="12">
-                      <a-row>
-                        <a-col :span="12" class="text-center">
-                          <a-progress type="dashboard" status="normal" :stroke-color="status.swap.color"
-                            :percent="status.swap.percent"></a-progress>
-                          <div>
-                            <b>{{ i18n "pages.index.swap" }}:</b> [[ SizeFormatter.sizeFormat(status.swap.current) ]] /
-                            [[ SizeFormatter.sizeFormat(status.swap.total) ]]
-                          </div>
-                        </a-col>
-                        <a-col :span="12" class="text-center">
-                          <a-progress type="dashboard" status="normal" :stroke-color="status.disk.color"
-                            :percent="status.disk.percent"></a-progress>
-                          <div>
-                            <b>{{ i18n "pages.index.storage"}}:</b> [[ SizeFormatter.sizeFormat(status.disk.current) ]]
-                            / [[ SizeFormatter.sizeFormat(status.disk.total) ]]
-                          </div>
-                        </a-col>
-                      </a-row>
+                    <a-col :span="12" class="text-center">
+                      <a-progress type="dashboard" :width="110" status="normal" :stroke-color="status.mem.color"
+                        :percent="status.mem.percent"></a-progress>
+                      <div class="dashboard-gauge-label">
+                        <b>{{ i18n "pages.index.memory"}}:</b> [[ SizeFormatter.sizeFormat(status.mem.current) ]] /
+                        [[ SizeFormatter.sizeFormat(status.mem.total) ]]
+                      </div>
                     </a-col>
                   </a-row>
                 </a-card>
               </a-col>
-              <a-col :sm="24" :lg="12">
-                <a-card hoverable>
+              <a-col :sm="24" :md="8">
+                <a-card class="dashboard-primary-card" hoverable>
+                  <div class="dashboard-speed-row">
+                    <a-custom-statistic title='{{ i18n "pages.index.upload" }}'
+                      :value="SizeFormatter.sizeFormat(status.netIO.up)">
+                      <template #prefix><a-icon type="arrow-up" /></template>
+                      <template #suffix>/s</template>
+                    </a-custom-statistic>
+                    <a-custom-statistic title='{{ i18n "pages.index.download" }}'
+                      :value="SizeFormatter.sizeFormat(status.netIO.down)">
+                      <template #prefix><a-icon type="arrow-down" /></template>
+                      <template #suffix>/s</template>
+                    </a-custom-statistic>
+                  </div>
+                  <div class="dashboard-speed-sub">
+                    <span><b>{{ i18n "pages.index.sent" }}:</b> [[ SizeFormatter.sizeFormat(status.netTraffic.sent) ]]</span>
+                    <span><b>{{ i18n "pages.index.received" }}:</b> [[ SizeFormatter.sizeFormat(status.netTraffic.recv) ]]</span>
+                  </div>
+                </a-card>
+              </a-col>
+              <a-col :sm="24" :md="8">
+                <a-card class="dashboard-primary-card xray-status-card" hoverable>
                   <template #title>
                     <a-space direction="horizontal">
                       <span>{{ i18n "pages.index.xrayStatus" }}</span>
@@ -103,7 +130,7 @@
                   </template>
                   <template #extra>
                     <template v-if="status.xray.state != 'error'">
-                      <a-badge status="processing"
+                      <a-badge status="processing" role="status" aria-live="polite"
                         :class="({ green: 'xray-running-animation', orange: 'xray-stop-animation' }[status.xray.color]) || 'xray-processing-animation'"
                         :text="status.xray.stateMsg" :color="status.xray.color" />
                     </template>
@@ -111,206 +138,147 @@
                       <a-popover :overlay-class-name="themeSwitcher.currentTheme">
                         <span slot="title">
                           <a-row type="flex" align="middle" justify="space-between">
-                            <a-col>
-                              <span>{{ i18n "pages.index.xrayErrorPopoverTitle" }}</span>
-                            </a-col>
-                            <a-col>
-                              <a-icon type="bars" class="cursor-pointer float-right" @click="openLogs()"></a-icon>
-                            </a-col>
+                            <a-col><span>{{ i18n "pages.index.xrayErrorPopoverTitle" }}</span></a-col>
+                            <a-col><a-icon type="bars" class="cursor-pointer float-right" @click="openLogs()"></a-icon></a-col>
                           </a-row>
                         </span>
                         <template slot="content">
                           <span class="max-w-400" v-for="line in (status.xray.errorMsg || '').split('\n')">[[ line ]]</span>
                         </template>
-                        <a-badge :text="status.xray.stateMsg" :color="status.xray.color"
+                        <a-badge :text="status.xray.stateMsg" :color="status.xray.color" role="status" aria-live="assertive"
                           :class="status.xray.color === 'red' ? 'xray-error-animation' : ''" />
                       </a-popover>
                     </template>
                   </template>
+                  <div class="xray-version-info">
+                    <a-tag color="green">[[ status.xray.version != 'Unknown' ? `v${status.xray.version}` : 'Unknown' ]]</a-tag>
+                  </div>
                   <template #actions>
-                    <button v-if="ipLimitEnable" type="button" class="card-action-button" @click="openXrayLogs()">
-                      <a-icon type="bars"></a-icon>
-                      <span>{{ i18n "pages.index.logs" }}</span>
+                    <button type="button" class="card-action-button card-action-primary" @click="restartXrayService" :disabled="restartingXray">
+                      <a-icon type="reload" :spin="restartingXray"></a-icon>
+                      <span>{{ i18n "pages.index.restartXray" }}</span>
                     </button>
-                    <button type="button" class="card-action-button" @click="stopXrayService">
+                    <button type="button" class="card-action-button card-action-secondary" @click="stopXrayService" :disabled="stoppingXray">
                       <a-icon type="poweroff"></a-icon>
                       <span>{{ i18n "pages.index.stopXray" }}</span>
                     </button>
-                    <button type="button" class="card-action-button" @click="restartXrayService">
-                      <a-icon type="reload"></a-icon>
-                      <span>{{ i18n "pages.index.restartXray" }}</span>
+                    <button type="button" class="card-action-button card-action-secondary" @click="openXrayLogs()">
+                      <a-icon type="bars"></a-icon>
+                      <span>{{ i18n "pages.index.logs" }}</span>
                     </button>
-                    <button type="button" class="card-action-button" @click="openSelectV2rayVersion">
+                    <button type="button" class="card-action-button card-action-secondary" @click="openSelectV2rayVersion">
                       <a-icon type="tool"></a-icon>
-                      <span>
-                        [[ status.xray.version != 'Unknown' ? `v${status.xray.version}` : '{{ i18n
-                        "pages.index.xraySwitch" }}' ]]
-                      </span>
+                      <span>{{ i18n "pages.index.xraySwitch" }}</span>
                     </button>
                   </template>
                 </a-card>
               </a-col>
-              <a-col :sm="24" :lg="12">
-                <a-card title='{{ i18n "menu.link" }}' hoverable>
+              <!-- F-Pattern Tier 2: Secondary Metrics -->
+              <a-col :sm="12" :md="6">
+                <a-card class="dashboard-secondary-card" hoverable>
+                  <a-row :gutter="[8, 8]">
+                    <a-col :span="12" class="text-center">
+                      <a-progress type="dashboard" :width="80" status="normal" :stroke-color="status.swap.color"
+                        :percent="status.swap.percent"></a-progress>
+                      <div class="dashboard-gauge-label-sm">{{ i18n "pages.index.swap" }}</div>
+                    </a-col>
+                    <a-col :span="12" class="text-center">
+                      <a-progress type="dashboard" :width="80" status="normal" :stroke-color="status.disk.color"
+                        :percent="status.disk.percent"></a-progress>
+                      <div class="dashboard-gauge-label-sm">{{ i18n "pages.index.storage" }}</div>
+                    </a-col>
+                  </a-row>
+                </a-card>
+              </a-col>
+              <a-col :sm="12" :md="6">
+                <a-card class="dashboard-secondary-card" hoverable>
+                  <template #title>
+                    <a-space>
+                      <span style="font-size:13px">{{ i18n "pages.index.ipAddresses" }}</span>
+                      <a-tooltip>
+                        <template slot="title">{{ i18n "pages.index.toggleIpVisibility" }}</template>
+                        <a-button size="small" type="link" @click="showIp = !showIp" aria-label="Toggle IP visibility">
+                          <a-icon :type="showIp ? 'eye' : 'eye-invisible'" />
+                        </a-button>
+                      </a-tooltip>
+                    </a-space>
+                  </template>
+                  <a-custom-statistic :class="{ 'ip-hidden': !showIp }" title='{{ i18n "pages.index.ipAddresses" }}' :value="status.publicIP.ipv4" class="mb-8">
+                    <template #prefix><a-icon type="global" /></template>
+                  </a-custom-statistic>
+                  <a-custom-statistic :class="{ 'ip-hidden': !showIp }" title="IPv6" :value="status.publicIP.ipv6 || '—'" class="mb-8">
+                    <template #prefix><a-icon type="global" /></template>
+                  </a-custom-statistic>
+                </a-card>
+              </a-col>
+              <a-col :sm="12" :md="6">
+                <a-card class="dashboard-secondary-card" hoverable>
+                  <a-custom-statistic title="TCP" :value="status.tcpCount" class="mb-8">
+                    <template #prefix><a-icon type="swap" /></template>
+                  </a-custom-statistic>
+                  <a-custom-statistic title="UDP" :value="status.udpCount" class="mb-8">
+                    <template #prefix><a-icon type="swap" /></template>
+                  </a-custom-statistic>
+                </a-card>
+              </a-col>
+              <a-col :sm="12" :md="6">
+                <a-card class="dashboard-secondary-card" hoverable>
+                  <template #title><span style="font-size:13px">{{ i18n "menu.link" }}</span></template>
                   <template #actions>
-                    <button type="button" class="card-action-button" @click="openLogs()">
-                      <a-icon type="bars"></a-icon>
-                      <span>{{ i18n "pages.index.logs" }}</span>
-                    </button>
-                    <button type="button" class="card-action-button" @click="openConfig">
+                    <button type="button" class="card-action-button card-action-secondary" @click="openConfig">
                       <a-icon type="control"></a-icon>
                       <span>{{ i18n "pages.index.config" }}</span>
                     </button>
-                    <button type="button" class="card-action-button" @click="openBackup">
+                    <button type="button" class="card-action-button card-action-secondary" @click="openBackup">
                       <a-icon type="cloud-server"></a-icon>
                       <span>{{ i18n "pages.index.backup" }}</span>
                     </button>
                   </template>
                 </a-card>
               </a-col>
-              <a-col :sm="24" :lg="12">
-                <a-card title='SuperXray' hoverable>
-                  <a rel="noopener" href="https://github.com/superaddmin/SuperXray-gui/releases" target="_blank">
-                    <a-tag color="green">
-                      <span>v{{ .cur_ver }}</span>
-                    </a-tag>
-                  </a>
-                  <a rel="noopener" href="https://t.me/XrayUI" target="_blank">
-                    <a-tag color="green">
-                      <span>@XrayUI</span>
-                    </a-tag>
-                  </a>
-                  <a rel="noopener" href="https://github.com/superaddmin/SuperXray-gui/wiki" target="_blank">
-                    <a-tag color="purple">
-                      <span>{{ i18n "pages.index.documentation" }}</span>
-                    </a-tag>
-                  </a>
-                </a-card>
-              </a-col>
-              <a-col :sm="24" :lg="12">
-                <a-card title='{{ i18n "pages.index.operationHours" }}' hoverable>
-                  <a-tag :color="status.xray.color">Xray: [[ TimeFormatter.formatSecond(status.appStats.uptime)
-                    ]]</a-tag>
-                  <a-tag color="green">OS: [[ TimeFormatter.formatSecond(status.uptime) ]]</a-tag>
-                </a-card>
-              </a-col>
-              <a-col :sm="24" :lg="12">
-                <a-card title='{{ i18n "pages.index.systemLoad" }}' hoverable>
-                  <a-tag color="green">
-                    <a-tooltip>
-                      [[ status.loads[0] ]] | [[ status.loads[1] ]] | [[ status.loads[2] ]]
-                      <template slot="title">
-                        {{ i18n "pages.index.systemLoadDesc" }}
-                      </template>
-                    </a-tooltip>
-                  </a-tag>
-                </a-card>
-              </a-col>
-              <a-col :sm="24" :lg="12">
-                <a-card title='{{ i18n "usage"}}' hoverable>
-                  <a-tag color="green"> {{ i18n "pages.index.memory" }}: [[
-                    SizeFormatter.sizeFormat(status.appStats.mem) ]] </a-tag>
-                  <a-tag color="green"> {{ i18n "pages.index.threads" }}: [[ status.appStats.threads ]] </a-tag>
-                </a-card>
-              </a-col>
-              <a-col :sm="24" :lg="12">
-                <a-card title='{{ i18n "pages.index.overallSpeed" }}' hoverable>
-                  <a-row :gutter="isMobile ? [8,8] : 0">
-                    <a-col :span="12">
-                      <a-custom-statistic title='{{ i18n "pages.index.upload" }}'
-                        :value="SizeFormatter.sizeFormat(status.netIO.up)">
-                        <template #prefix>
-                          <a-icon type="arrow-up" />
-                        </template>
-                        <template #suffix>
-                          /s
-                        </template>
-                      </a-custom-statistic>
-                    </a-col>
-                    <a-col :span="12">
-                      <a-custom-statistic title='{{ i18n "pages.index.download" }}'
-                        :value="SizeFormatter.sizeFormat(status.netIO.down)">
-                        <template #prefix>
-                          <a-icon type="arrow-down" />
-                        </template>
-                        <template #suffix>
-                          /s
-                        </template>
-                      </a-custom-statistic>
-                    </a-col>
-                  </a-row>
-                </a-card>
-              </a-col>
-              <a-col :sm="24" :lg="12">
-                <a-card title='{{ i18n "pages.index.totalData" }}' hoverable>
-                  <a-row :gutter="isMobile ? [8,8] : 0">
-                    <a-col :span="12">
-                      <a-custom-statistic title='{{ i18n "pages.index.sent" }}'
-                        :value="SizeFormatter.sizeFormat(status.netTraffic.sent)">
-                        <template #prefix>
-                          <a-icon type="cloud-upload" />
-                        </template>
-                      </a-custom-statistic>
-                    </a-col>
-                    <a-col :span="12">
-                      <a-custom-statistic title='{{ i18n "pages.index.received" }}'
-                        :value="SizeFormatter.sizeFormat(status.netTraffic.recv)">
-                        <template #prefix>
-                          <a-icon type="cloud-download" />
-                        </template>
-                      </a-custom-statistic>
-                    </a-col>
-                  </a-row>
-                </a-card>
-              </a-col>
-              <a-col :sm="24" :lg="12">
-                <a-card title='{{ i18n "pages.index.ipAddresses" }}' hoverable>
-                  <template #extra>
-                    <a-tooltip :placement="isMobile ? 'topRight' : 'top'">
-                      <template #title>
-                        {{ i18n "pages.index.toggleIpVisibility" }}
-                      </template>
-                      <a-icon :type="showIp ? 'eye' : 'eye-invisible'" class="fs-1rem"
-                        @click="showIp = !showIp"></a-icon>
-                    </a-tooltip>
-                  </template>
-                  <a-row :class="showIp ? 'ip-visible' : 'ip-hidden'" :gutter="isMobile ? [8,8] : 0">
-                    <a-col :span="isMobile ? 24 : 12">
-                      <a-custom-statistic title="IPv4" :value="status.publicIP.ipv4">
-                        <template #prefix>
-                          <a-icon type="global" />
-                        </template>
-                      </a-custom-statistic>
-                    </a-col>
-                    <a-col :span="isMobile ? 24 : 12">
-                      <a-custom-statistic title="IPv6" :value="status.publicIP.ipv6">
-                        <template #prefix>
-                          <a-icon type="global" />
-                        </template>
-                      </a-custom-statistic>
-                    </a-col>
-                  </a-row>
-                </a-card>
-              </a-col>
-              <a-col :sm="24" :lg="12">
-                <a-card title='{{ i18n "pages.index.connectionCount" }}' hoverable>
-                  <a-row :gutter="isMobile ? [8,8] : 0">
-                    <a-col :span="12">
-                      <a-custom-statistic title="TCP" :value="status.tcpCount">
-                        <template #prefix>
-                          <a-icon type="swap" />
-                        </template>
-                      </a-custom-statistic>
-                    </a-col>
-                    <a-col :span="12">
-                      <a-custom-statistic title="UDP" :value="status.udpCount">
-                        <template #prefix>
-                          <a-icon type="swap" />
-                        </template>
-                      </a-custom-statistic>
-                    </a-col>
-                  </a-row>
-                </a-card>
+              <!-- F-Pattern Tier 3: Tertiary info in collapsed accordion -->
+              <a-col :span="24">
+                <a-collapse ghost :style="{ marginTop: '0' }">
+                  <a-collapse-panel key="tertiary" :style="{ border: 'none' }">
+                    <template #header>
+                      <a-icon type="down-circle" style="font-size:13px;opacity:.5"></a-icon>
+                      <span style="font-size:12px;opacity:.5">{{ i18n "pages.index.systemLoad" }} &amp; {{ i18n "pages.index.operationHours" }}</span>
+                    </template>
+                    <a-row :gutter="[8, 8]">
+                      <a-col :sm="24" :lg="12">
+                        <a-card size="small" hoverable>
+                          <template #title><span style="font-size:13px">{{ i18n "pages.index.systemLoad" }}</span></template>
+                          <a-tag color="green">
+                            [[ status.loads[0] ]] | [[ status.loads[1] ]] | [[ status.loads[2] ]]
+                            <a-tooltip><template slot="title">{{ i18n "pages.index.systemLoadDesc" }}</template></a-tooltip>
+                          </a-tag>
+                        </a-card>
+                      </a-col>
+                      <a-col :sm="24" :lg="12">
+                        <a-card size="small" hoverable>
+                          <template #title><span style="font-size:13px">{{ i18n "pages.index.operationHours" }}</span></template>
+                          <a-tag :color="status.xray.color">Xray: [[ TimeFormatter.formatSecond(status.appStats.uptime) ]]</a-tag>
+                          <a-tag color="green">OS: [[ TimeFormatter.formatSecond(status.uptime) ]]</a-tag>
+                        </a-card>
+                      </a-col>
+                      <a-col :sm="24" :lg="12">
+                        <a-card size="small" hoverable>
+                          <template #title><span style="font-size:13px">SuperXray</span></template>
+                          <a rel="noopener" href="https://github.com/superaddmin/SuperXray-gui/releases" target="_blank"><a-tag color="green">v{{ .cur_ver }}</a-tag></a>
+                          <a rel="noopener" href="https://t.me/XrayUI" target="_blank"><a-tag color="green">@XrayUI</a-tag></a>
+                          <a rel="noopener" href="https://github.com/superaddmin/SuperXray-gui/wiki" target="_blank"><a-tag color="purple">{{ i18n "pages.index.documentation" }}</a-tag></a>
+                        </a-card>
+                      </a-col>
+                      <a-col :sm="24" :lg="12">
+                        <a-card size="small" hoverable>
+                          <template #title><span style="font-size:13px">{{ i18n "usage" }}</span></template>
+                          <a-tag color="green">{{ i18n "pages.index.memory" }}: [[ SizeFormatter.sizeFormat(status.appStats.mem) ]]</a-tag>
+                          <a-tag color="green">{{ i18n "pages.index.threads" }}: [[ status.appStats.threads ]]</a-tag>
+                        </a-card>
+                      </a-col>
+                    </a-row>
+                  </a-collapse-panel>
+                </a-collapse>
               </a-col>
             </a-row>
           </template>
@@ -968,6 +936,8 @@
       xraylogModal,
       backupModal,
       loadingTip: '{{ i18n "loading"}}',
+      restartingXray: false,
+      stoppingXray: false,
       showAlert: false,
       showIp: false,
       ipLimitEnable: false,
@@ -1145,19 +1115,17 @@
         }
       },
       confirmDeleteCustomGeo(record) {
-        this.$confirm({
-          title: '{{ i18n "pages.index.customGeoDelete" }}',
-          content: '{{ i18n "pages.index.customGeoDeleteConfirm" }}',
-          okText: '{{ i18n "confirm"}}',
-          cancelText: '{{ i18n "cancel"}}',
-          class: themeSwitcher.currentTheme,
-          onOk: async () => {
+        UiUtil.showConfirm(
+          '{{ i18n "pages.index.customGeoDelete" }}',
+          '{{ i18n "pages.index.customGeoDeleteConfirm" }}',
+          async () => {
             const msg = await HttpUtil.post(`/panel/api/custom-geo/delete/${record.id}`);
             if (msg.success) {
               await this.loadCustomGeo();
             }
           },
-        });
+          { okText: '{{ i18n "confirm"}}', cancelText: '{{ i18n "cancel"}}', danger: true }
+        );
       },
       async downloadCustomGeo(id) {
         this.customGeoActionId = id;
@@ -1182,31 +1150,26 @@
         }
       },
       switchV2rayVersion(version) {
-        this.$confirm({
-          title: '{{ i18n "pages.index.xraySwitchVersionDialog"}}',
-          content: '{{ i18n "pages.index.xraySwitchVersionDialogDesc"}}'.replace('#version#', version),
-          okText: '{{ i18n "confirm"}}',
-          class: themeSwitcher.currentTheme,
-          cancelText: '{{ i18n "cancel"}}',
-          onOk: async () => {
+        UiUtil.showConfirm(
+          '{{ i18n "pages.index.xraySwitchVersionDialog"}}',
+          '{{ i18n "pages.index.xraySwitchVersionDialogDesc"}}'.replace('#version#', version),
+          async () => {
             versionModal.hide();
             this.loading(true, '{{ i18n "pages.index.dontRefresh"}}');
             await HttpUtil.post(`/panel/api/server/installXray/${version}`);
             this.loading(false);
           },
-        });
+          { okText: '{{ i18n "confirm"}}', cancelText: '{{ i18n "cancel"}}' }
+        );
       },
       updateGeofile(fileName) {
         const isSingleFile = !!fileName;
-        this.$confirm({
-          title: '{{ i18n "pages.index.geofileUpdateDialog" }}',
-          content: isSingleFile
+        UiUtil.showConfirm(
+          '{{ i18n "pages.index.geofileUpdateDialog" }}',
+          isSingleFile
             ? '{{ i18n "pages.index.geofileUpdateDialogDesc" }}'.replace("#filename#", fileName)
             : '{{ i18n "pages.index.geofilesUpdateDialogDesc" }}',
-          okText: '{{ i18n "confirm"}}',
-          class: themeSwitcher.currentTheme,
-          cancelText: '{{ i18n "cancel"}}',
-          onOk: async () => {
+          async () => {
             versionModal.hide();
             this.loading(true, '{{ i18n "pages.index.dontRefresh"}}');
             const url = isSingleFile
@@ -1215,22 +1178,33 @@
             await HttpUtil.post(url);
             this.loading(false);
           },
-        });
+          { okText: '{{ i18n "confirm"}}', cancelText: '{{ i18n "cancel"}}' }
+        );
       },
       async stopXrayService() {
-        this.loading(true);
-        const msg = await HttpUtil.post('/panel/api/server/stopXrayService');
-        this.loading(false);
-        if (!msg.success) {
-          return;
+        this.stoppingXray = true;
+        try {
+          const msg = await HttpUtil.post('/panel/api/server/stopXrayService');
+          if (msg.success) {
+            UiUtil.showNotification('success', 'Xray 已停止');
+          } else {
+            UiUtil.showNotification('error', '停止失败', msg.msg, 0);
+          }
+        } finally {
+          this.stoppingXray = false;
         }
       },
       async restartXrayService() {
-        this.loading(true);
-        const msg = await HttpUtil.post('/panel/api/server/restartXrayService');
-        this.loading(false);
-        if (!msg.success) {
-          return;
+        this.restartingXray = true;
+        try {
+          const msg = await HttpUtil.post('/panel/api/server/restartXrayService');
+          if (msg.success) {
+            UiUtil.showNotification('info', 'Xray 重启中', '服务状态将在数秒后更新', 4);
+          } else {
+            UiUtil.showNotification('error', '重启失败', msg.msg, 0);
+          }
+        } finally {
+          this.restartingXray = false;
         }
       },
       async openLogs() {

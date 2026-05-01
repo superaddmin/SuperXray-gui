@@ -897,7 +897,7 @@ func (s *InboundService) generateRandomCredential(targetProtocol model.Protocol)
 	case model.VMESS, model.VLESS:
 		return uuid.NewString()
 	default:
-		return strings.ReplaceAll(uuid.NewString(), "-", "")
+		return randomURLSafeCredential(generatedCredentialBytes)
 	}
 }
 

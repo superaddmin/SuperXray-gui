@@ -25,7 +25,14 @@
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Vazirmatn', 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     }
-    
+    /* Responsive font system */
+    :root { --font-xs: 0.75rem; --font-sm: 0.8125rem; --font-base: 0.875rem; --font-lg: 1rem; --font-xl: 1.25rem; --font-2xl: 1.5rem; }
+    @media (max-width: 768px) { :root { --font-base: 0.9375rem; } }
+    /* Color semantic map */
+    :root { --color-status-ok: #11b99d; --color-status-info: #3c89e8; --color-status-warning: #e89a3c; --color-status-error: #e84749; --color-status-disabled: #8c8c8c; }
+    /* Screen reader only utility */
+    .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
     /* mobile touch scrolling for tabs */
     @media (max-width: 576px) {
       .ant-tabs-nav-container {
@@ -47,7 +54,7 @@
       }
       .ant-tabs-nav {
          display: flex !important;
-         transform: none !important; /* Disable JS transform */
+         transform: none !important;
          width: auto !important;
          margin: 0 !important;
       }
@@ -62,6 +69,36 @@
         height: 4px;
       }
     }
+    /* Responsive modals - prevent overflow on mobile */
+    @media (max-width: 768px) {
+      .ant-modal { max-width: 96vw; margin: 12px auto; }
+      .ant-modal-wrap { overflow-x: hidden; }
+    }
+    /* Touch target minimum 44px (WCAG 2.5.5) */
+    @media (max-width: 576px) {
+      .card-action-button,
+      .ant-btn:not(.ant-btn-sm),
+      .ant-menu-item,
+      .ant-tabs-tab,
+      .ant-switch,
+      .ant-select-selection,
+      .ant-dropdown-menu-item,
+      .ant-list-item {
+        min-height: 44px;
+      }
+      .ant-btn:not(.ant-btn-sm) {
+        min-width: 44px;
+      }
+      .ant-tabs-tab {
+        padding: 12px 16px !important;
+      }
+    }
+    /* Image lazy loading */
+    img[loading] { transition: opacity .3s ease; }
+    img[loading=lazy] { opacity: 0; }
+    img[loading=lazy].loaded, img[loading=lazy][complete] { opacity: 1; }
+    /* Mobile Floating Action Button */
+    .mobile-fab { position: fixed; bottom: 24px; right: 24px; z-index: 1000; width: 56px; height: 56px; font-size: 24px; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
   </style>
   <title>{{ .host }} – {{ i18n .title}}</title>
 {{ end }}
@@ -88,6 +125,9 @@
   axios.defaults.baseURL = basePath;
 </script>
 <script src="{{ .base_path }}assets/js/websocket.js?{{ .cur_ver }}"></script>
+<script>
+(function(){var a=document.documentElement.getAttribute('lang');if(a){var b=new MutationObserver(function(){var c=document.getElementById('app');if(c&&!c.hasAttribute('lang'))c.setAttribute('lang',a)});b.observe(document.body||document.documentElement,{childList:true,subtree:true});setTimeout(function(){b.disconnect()},5000)}})();
+</script>
 {{ end }}
   
 {{ define "page/body_end" }}

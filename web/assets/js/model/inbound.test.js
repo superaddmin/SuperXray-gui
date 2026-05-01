@@ -33,6 +33,9 @@ function loadInboundModel() {
             randomSeq(length) {
                 return 'b'.repeat(length);
             },
+            randomSecret(length) {
+                return `secret:${length}`;
+            },
             randomShortIds() {
                 return ['0123456789abcdef'];
             },
@@ -110,6 +113,16 @@ test('default Shadowsocks 2022 settings generate server and client keys for the 
     assert.equal(settings.method, SSMethods.BLAKE3_AES_256_GCM);
     assert.equal(settings.password, `password:${SSMethods.BLAKE3_AES_256_GCM}`);
     assert.equal(settings.shadowsockses[0].password, `password:${SSMethods.BLAKE3_AES_256_GCM}`);
+});
+
+test('Trojan and Hysteria default credentials use the unified strong secret generator', () => {
+    const { Inbound } = loadInboundModel();
+
+    const trojan = new Inbound.TrojanSettings.Trojan();
+    const hysteria = new Inbound.HysteriaSettings.Hysteria();
+
+    assert.equal(trojan.password, 'secret:32');
+    assert.equal(hysteria.auth, 'secret:32');
 });
 
 test('legacy Shadowsocks settings serialize clients with the inbound method', () => {
@@ -201,6 +214,21 @@ test('protocol edit client lists let operators edit client email', () => {
 
         assert.match(form, /<a-input\s+v-model\.trim="client\.email"/, `${file} should expose an editable client email input`);
         assert.doesNotMatch(form, /<td>\s*\[\[\s*client\.email\s*\]\]\s*<\/td>/, `${file} should not render client email as read-only text`);
+    }
+});
+
+test('protocol edit client lists let operators edit password credentials', () => {
+    const cases = [
+        { file: 'web/html/form/protocol/trojan.html', field: 'password' },
+        { file: 'web/html/form/protocol/shadowsocks.html', field: 'password' },
+        { file: 'web/html/form/protocol/hysteria.html', field: 'auth' },
+    ];
+
+    for (const item of cases) {
+        const form = fs.readFileSync(item.file, 'utf8');
+
+        assert.match(form, new RegExp(`<a-input\\s+v-model\\.trim="client\\.${item.field}"`), `${item.file} should expose editable client ${item.field}`);
+        assert.doesNotMatch(form, new RegExp(`<td>\\s*\\[\\[\\s*client\\.${item.field}\\s*\\]\\]\\s*<\\/td>`), `${item.file} should not render client ${item.field} as read-only text`);
     }
 });
 

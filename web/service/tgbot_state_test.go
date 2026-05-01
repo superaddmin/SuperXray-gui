@@ -89,8 +89,12 @@ func TestTgbotPrepareShadowsocksClientDefaultsUsesLegacyInboundMethod(t *testing
 	if client_Method != "chacha20-ietf-poly1305" {
 		t.Fatalf("client method = %q, want inbound method", client_Method)
 	}
-	if len(client_ShPassword) != 16 {
-		t.Fatalf("legacy client password length = %d, want 16", len(client_ShPassword))
+	decodedPassword, err := base64.RawURLEncoding.DecodeString(client_ShPassword)
+	if err != nil {
+		t.Fatalf("legacy client password is not URL-safe base64: %v", err)
+	}
+	if len(decodedPassword) != generatedCredentialBytes {
+		t.Fatalf("legacy client password decoded length = %d, want %d", len(decodedPassword), generatedCredentialBytes)
 	}
 
 	client_Email = "ss-legacy@example.test"

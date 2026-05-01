@@ -40,7 +40,7 @@
         ></a-icon>
         <a-icon
           v-if="inbound.protocol === Protocols.TROJAN"
-          @click="client.password = RandomUtil.randomSeq(10)"
+          @click="client.password = RandomUtil.randomSecret(32)"
           type="sync"
         >
         </a-icon>
@@ -56,7 +56,7 @@
         </template>
         Auth Password
         <a-icon
-          @click="client.auth = RandomUtil.randomSeq(10)"
+          @click="client.auth = RandomUtil.randomSecret(32)"
           type="sync"
         ></a-icon>
       </a-tooltip>

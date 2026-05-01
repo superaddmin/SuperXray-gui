@@ -10,12 +10,18 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/util/pathutil"
 )
 
 //go:embed version
 var version string
+
+// buildHash holds a unique token for cache-busting asset URLs.
+// Prefer: go build -ldflags="-X github.com/superaddmin/SuperXray-gui/v2/config.buildHash=$(git rev-parse --short HEAD)"
+// Falls back to init-time timestamp when ldflags are omitted.
+var buildHash string
 
 //go:embed name
 var name string
@@ -33,8 +39,13 @@ const (
 )
 
 // GetVersion returns the version string of the SuperXray application.
+// When a buildHash is injected via -ldflags, it is appended for cache-busting.
 func GetVersion() string {
-	return strings.TrimSpace(version)
+	v := strings.TrimSpace(version)
+	if buildHash != "" {
+		v += "." + strings.TrimSpace(buildHash)
+	}
+	return v
 }
 
 // GetName returns the name of the SuperXray application.
@@ -136,6 +147,11 @@ func copyFile(src, dst string) error {
 }
 
 func init() {
+	// Auto-generate build hash for cache-busting when ldflags are omitted
+	if buildHash == "" {
+		buildHash = fmt.Sprintf("%x", uint64(time.Now().UnixNano()))
+	}
+
 	if runtime.GOOS != "windows" {
 		return
 	}
