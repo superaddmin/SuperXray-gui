@@ -69,7 +69,7 @@
                 case Protocols.VMESS: return clients.push(new Inbound.VmessSettings.VMESS());
                 case Protocols.VLESS: return clients.push(new Inbound.VLESSSettings.VLESS());
                 case Protocols.TROJAN: return clients.push(new Inbound.TrojanSettings.Trojan());
-                case Protocols.SHADOWSOCKS: return clients.push(new Inbound.ShadowsocksSettings.Shadowsocks(clients[0].method, RandomUtil.randomShadowsocksPassword(inbound.settings.method)));
+                case Protocols.SHADOWSOCKS: return clients.push(new Inbound.ShadowsocksSettings.Shadowsocks(inbound.isSS2022 ? '' : inbound.settings.method, RandomUtil.randomShadowsocksPassword(inbound.settings.method)));
                 case Protocols.HYSTERIA: return clients.push(new Inbound.HysteriaSettings.Hysteria());
                 default: return null;
             }

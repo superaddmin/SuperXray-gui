@@ -267,6 +267,9 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, boo
 	if exist {
 		return inbound, false, common.NewError("Port already exists:", inbound.Port)
 	}
+	if err := normalizeShadowsocksInboundSettings(inbound); err != nil {
+		return inbound, false, err
+	}
 
 	existEmail, err := s.checkEmailExistForInbound(inbound)
 	if err != nil {
@@ -457,6 +460,9 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 
 	oldInbound, err := s.GetInbound(inbound.Id)
 	if err != nil {
+		return inbound, false, err
+	}
+	if err := normalizeShadowsocksInboundSettings(inbound); err != nil {
 		return inbound, false, err
 	}
 	if err := validateInboundProtocolConfig(inbound); err != nil {
@@ -701,13 +707,27 @@ func (s *InboundService) updateClientTraffics(tx *gorm.DB, oldInbound *model.Inb
 }
 
 func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
-	clients, err := s.GetClients(data)
+	var interfaceClients []any
+	var err error
+	_, interfaceClients, err = parseInboundSettingsEntry(data.Settings)
 	if err != nil {
 		return false, err
 	}
 
-	var interfaceClients []any
-	_, interfaceClients, err = parseInboundSettingsEntry(data.Settings)
+	oldInbound, err := s.GetInbound(data.Id)
+	if err != nil {
+		return false, err
+	}
+	if oldInbound.Protocol == model.Shadowsocks {
+		normalizeShadowsocksClientEntries(shadowsocksMethodFromSettings(oldInbound.Settings), interfaceClients)
+		normalizedPayload, err := json.Marshal(map[string][]any{"clients": interfaceClients})
+		if err != nil {
+			return false, err
+		}
+		data.Settings = string(normalizedPayload)
+	}
+
+	clients, err := s.GetClients(data)
 	if err != nil {
 		return false, err
 	}
@@ -731,10 +751,6 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 		return false, common.NewError("Duplicate email:", existEmail)
 	}
 
-	oldInbound, err := s.GetInbound(data.Id)
-	if err != nil {
-		return false, err
-	}
 	if err := validateInboundProtocolClients(oldInbound.Protocol, oldInbound.Settings, oldInbound.StreamSettings, clients); err != nil {
 		return false, err
 	}
@@ -771,6 +787,9 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 	oldClients = append(oldClients, interfaceClients...)
 
 	oldSettings["clients"] = oldClients
+	if oldInbound.Protocol == model.Shadowsocks {
+		normalizeShadowsocksSettingsMap(oldSettings)
+	}
 
 	newSettings, err := json.MarshalIndent(oldSettings, "", "  ")
 	if err != nil {
@@ -1149,18 +1168,27 @@ func (s *InboundService) DelInboundClient(inboundId int, clientId string) (bool,
 
 func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId string) (bool, error) {
 	// TODO: check if TrafficReset field is updating
-	clients, err := s.GetClients(data)
-	if err != nil {
-		return false, err
-	}
-
 	var interfaceClients []any
+	var err error
 	_, interfaceClients, err = parseInboundSettingsEntry(data.Settings)
 	if err != nil {
 		return false, err
 	}
 
 	oldInbound, err := s.GetInbound(data.Id)
+	if err != nil {
+		return false, err
+	}
+	if oldInbound.Protocol == model.Shadowsocks {
+		normalizeShadowsocksClientEntries(shadowsocksMethodFromSettings(oldInbound.Settings), interfaceClients)
+		normalizedPayload, err := json.Marshal(map[string][]any{"clients": interfaceClients})
+		if err != nil {
+			return false, err
+		}
+		data.Settings = string(normalizedPayload)
+	}
+
+	clients, err := s.GetClients(data)
 	if err != nil {
 		return false, err
 	}
@@ -1244,6 +1272,9 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 	}
 	settingsClients[clientIndex] = interfaceClients[0]
 	oldSettings["clients"] = settingsClients
+	if oldInbound.Protocol == model.Shadowsocks {
+		normalizeShadowsocksSettingsMap(oldSettings)
+	}
 
 	newSettings, err := json.MarshalIndent(oldSettings, "", "  ")
 	if err != nil {

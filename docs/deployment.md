@@ -1,7 +1,7 @@
 # 服务器环境部署教程
 
 > **目标读者**：准备在 VPS、云服务器或自建 Linux 主机上部署 SuperXray 的运维人员 / 开发者
-> **适用版本**：`v2.9.10`
+> **适用版本**：`v3.0.0`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md)
 
 ---
@@ -146,7 +146,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 如 GitHub latest 正式版接口暂时不可用，也可以显式指定版本号安装：
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v2.9.10
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.0
 ```
 
 安装脚本会自动把 `x86_64` / `amd64` 映射为 `amd64`，把 `aarch64` / `arm64` 映射为 `arm64`，并下载对应的 `x-ui-linux-<arch>.tar.gz`。
@@ -450,7 +450,7 @@ systemctl reload caddy
 适合只想运行官方容器镜像的服务器。当前镜像发布到 GitHub Container Registry：
 
 ```text
-ghcr.io/superaddmin/superxray-gui:2.9.10
+ghcr.io/superaddmin/superxray-gui:3.0.0
 ghcr.io/superaddmin/superxray-gui:latest
 ```
 
@@ -463,7 +463,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
   -v $PWD/cert:/root/cert \
   -e XRAY_VMESS_AEAD_FORCED=false \
   -e XUI_ENABLE_FAIL2BAN=true \
-  ghcr.io/superaddmin/superxray-gui:2.9.10
+  ghcr.io/superaddmin/superxray-gui:3.0.0
 ```
 
 使用 Compose 时建议写成：
@@ -471,7 +471,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
 ```yaml
 services:
   3xui:
-    image: ghcr.io/superaddmin/superxray-gui:2.9.10
+    image: ghcr.io/superaddmin/superxray-gui:3.0.0
     container_name: 3xui_app
     volumes:
       - $PWD/db/:/etc/x-ui/
@@ -505,7 +505,7 @@ docker compose up -d --build
 如果想复用官方 GHCR 镜像，把 Compose 中的 `build:` 段替换为：
 
 ```yaml
-image: ghcr.io/superaddmin/superxray-gui:2.9.10
+image: ghcr.io/superaddmin/superxray-gui:3.0.0
 ```
 
 ### 7.3 数据目录
@@ -1046,7 +1046,7 @@ x-ui restart-xray
 一键脚本和构建流程都需要访问 GitHub Release。可选处理：
 
 - 如果提示 `获取 SuperXray Release 版本失败`，先打开 `https://github.com/superaddmin/SuperXray-gui/releases` 确认是否存在可下载的 Release。
-- 如果仓库只有预发布版本，使用显式版本安装命令，例如：`bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v2.9.10`。
+- 如果仓库只有预发布版本，使用显式版本安装命令，例如：`bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.0`。
 - 换用可访问 GitHub 的网络环境。
 - 手动下载 Release 包后上传到服务器。
 - 使用企业内网制品库缓存 Release 包。

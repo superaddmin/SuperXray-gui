@@ -51,6 +51,50 @@ func TestValidateInboundProtocolConfigRejectsShadowsocks2022InvalidClientKey(t *
 	assertValidationErrorContains(t, err, "shadowsocks")
 }
 
+func TestValidateInboundProtocolConfigRejectsShadowsocks2022InvalidServerKeyWithoutClients(t *testing.T) {
+	inbound := inboundForProtocolValidation(
+		model.Shadowsocks,
+		`{"method":"2022-blake3-chacha20-poly1305","password":"short","clients":[]}`,
+		`{"network":"tcp","security":"none"}`,
+	)
+
+	err := validateInboundProtocolConfig(inbound)
+	assertValidationErrorContains(t, err, "server key")
+}
+
+func TestValidateInboundProtocolConfigRejectsShadowsocks2022ClientMethod(t *testing.T) {
+	inbound := inboundForProtocolValidation(
+		model.Shadowsocks,
+		`{"method":"2022-blake3-aes-128-gcm","password":"MDEyMzQ1Njc4OWFiY2RlZg==","clients":[{"method":"chacha20-ietf-poly1305","email":"ss@example","password":"MDEyMzQ1Njc4OWFiY2RlZg==","enable":true}]}`,
+		`{"network":"tcp","security":"none"}`,
+	)
+
+	err := validateInboundProtocolConfig(inbound)
+	assertValidationErrorContains(t, err, "method")
+}
+
+func TestValidateInboundProtocolConfigRejectsShadowsocks2022ChachaMultiUser(t *testing.T) {
+	inbound := inboundForProtocolValidation(
+		model.Shadowsocks,
+		`{"method":"2022-blake3-chacha20-poly1305","password":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=","clients":[{"email":"ss@example","password":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=","enable":true}]}`,
+		`{"network":"tcp","security":"none"}`,
+	)
+
+	err := validateInboundProtocolConfig(inbound)
+	assertValidationErrorContains(t, err, "multi-user")
+}
+
+func TestValidateInboundProtocolConfigRejectsShadowsocksLegacyClientMissingMethod(t *testing.T) {
+	inbound := inboundForProtocolValidation(
+		model.Shadowsocks,
+		`{"method":"chacha20-ietf-poly1305","clients":[{"email":"ss@example","password":"legacy-password","enable":true}]}`,
+		`{"network":"tcp","security":"none"}`,
+	)
+
+	err := validateInboundProtocolConfig(inbound)
+	assertValidationErrorContains(t, err, "method")
+}
+
 func TestValidateInboundProtocolConfigRejectsHysteriaEmptyAuth(t *testing.T) {
 	inbound := inboundForProtocolValidation(
 		model.Hysteria,
@@ -71,7 +115,12 @@ func TestValidateInboundProtocolConfigAcceptsValidMainstreamClients(t *testing.T
 		),
 		inboundForProtocolValidation(
 			model.Shadowsocks,
-			`{"method":"chacha20-ietf-poly1305","clients":[{"email":"ss@example","password":"legacy-password","enable":true}]}`,
+			`{"method":"chacha20-ietf-poly1305","clients":[{"method":"chacha20-ietf-poly1305","email":"ss@example","password":"legacy-password","enable":true}]}`,
+			`{"network":"tcp","security":"none"}`,
+		),
+		inboundForProtocolValidation(
+			model.Shadowsocks,
+			`{"method":"2022-blake3-chacha20-poly1305","password":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=","clients":[]}`,
 			`{"network":"tcp","security":"none"}`,
 		),
 		inboundForProtocolValidation(

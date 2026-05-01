@@ -1698,7 +1698,7 @@ class Inbound extends XrayCommonClass {
         return this.method != SSMethods.BLAKE3_CHACHA20_POLY1305;
     }
     get isSS2022() {
-        return this.method.substring(0, 4) === "2022";
+        return String(this.method || '').startsWith("2022-");
     }
 
     get serverName() {
@@ -2809,7 +2809,7 @@ Inbound.ShadowsocksSettings = class extends Inbound.Settings {
     static fromJson(json = {}) {
         return new Inbound.ShadowsocksSettings(
             Protocols.SHADOWSOCKS,
-            json.method,
+            json.method ?? '',
             json.password,
             json.network,
             (json.clients || []).map(client => Inbound.ShadowsocksSettings.Shadowsocks.fromJson(client)),
@@ -2818,13 +2818,27 @@ Inbound.ShadowsocksSettings = class extends Inbound.Settings {
     }
 
     toJson() {
-        return {
+        const method = this.method;
+        const is2022 = String(method || '').startsWith('2022-');
+        const isSingleUser2022 = method === SSMethods.BLAKE3_CHACHA20_POLY1305;
+        const clients = isSingleUser2022 ? [] : Inbound.ShadowsocksSettings.toJsonArray(this.shadowsockses).map(client => {
+            if (is2022) {
+                delete client.method;
+            } else {
+                client.method = method;
+            }
+            return client;
+        });
+        const result = {
             method: this.method,
-            password: this.password,
             network: this.network,
-            clients: Inbound.ShadowsocksSettings.toJsonArray(this.shadowsockses),
+            clients: clients,
             ivCheck: this.ivCheck,
         };
+        if (is2022) {
+            result.password = this.password;
+        }
+        return result;
     }
 };
 

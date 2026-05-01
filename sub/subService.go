@@ -383,9 +383,15 @@ func (s *SubService) genShadowsocksLink(inbound *model.Inbound, email string) st
 	if !decodeJSONString(inbound.Settings, &settings, "shadowsocks inbound settings") {
 		return ""
 	}
-	inboundPassword := settings["password"].(string)
-	method := settings["method"].(string)
+	inboundPassword, _ := settings["password"].(string)
+	method, _ := settings["method"].(string)
+	if method == "" {
+		return ""
+	}
 	clientIndex := findClientIndex(clients, email)
+	if clientIndex < 0 || clientIndex >= len(clients) {
+		return ""
+	}
 	streamNetwork := stream["network"].(string)
 	params := make(map[string]string)
 	params["type"] = streamNetwork
@@ -401,7 +407,10 @@ func (s *SubService) genShadowsocksLink(inbound *model.Inbound, email string) st
 	}
 
 	encPart := fmt.Sprintf("%s:%s", method, clients[clientIndex].Password)
-	if method[0] == '2' {
+	if strings.HasPrefix(method, "2022-") {
+		if inboundPassword == "" {
+			return ""
+		}
 		encPart = fmt.Sprintf("%s:%s:%s", method, inboundPassword, clients[clientIndex].Password)
 	}
 

@@ -112,6 +112,62 @@ test('default Shadowsocks 2022 settings generate server and client keys for the 
     assert.equal(settings.shadowsockses[0].password, `password:${SSMethods.BLAKE3_AES_256_GCM}`);
 });
 
+test('legacy Shadowsocks settings serialize clients with the inbound method', () => {
+    const { Inbound, SSMethods } = loadInboundModel();
+
+    const settings = Inbound.ShadowsocksSettings.fromJson({
+        method: SSMethods.CHACHA20_IETF_POLY1305,
+        password: 'stale-server-password',
+        network: 'tcp,udp',
+        clients: [
+            {
+                email: 'legacy@example',
+                password: 'client-password',
+                enable: true,
+            },
+        ],
+    });
+
+    const json = settings.toJson();
+
+    assert.equal(json.password, undefined);
+    assert.equal(json.clients[0].method, SSMethods.CHACHA20_IETF_POLY1305);
+    assert.equal(json.clients[0].password, 'client-password');
+});
+
+test('single-user Shadowsocks 2022 chacha settings drop stale clients when serialized', () => {
+    const { Inbound, SSMethods } = loadInboundModel();
+
+    const settings = Inbound.ShadowsocksSettings.fromJson({
+        method: SSMethods.BLAKE3_CHACHA20_POLY1305,
+        password: 'server-key',
+        network: 'tcp,udp',
+        clients: [
+            {
+                method: SSMethods.CHACHA20_IETF_POLY1305,
+                email: 'stale@example',
+                password: 'stale-client-key',
+                enable: true,
+            },
+        ],
+    });
+
+    const json = settings.toJson();
+
+    assert.equal(json.password, 'server-key');
+    assert.equal(json.clients.length, 0);
+});
+
+test('Shadowsocks helpers tolerate missing method in stored settings', () => {
+    const { Inbound, Protocols } = loadInboundModel();
+
+    const settings = Inbound.ShadowsocksSettings.fromJson({ clients: [] });
+    const inbound = new Inbound(12345, '', Protocols.SHADOWSOCKS, settings);
+
+    assert.equal(inbound.isSS2022, false);
+    assert.equal(inbound.isSSMultiUser, true);
+});
+
 test('bulk Shadowsocks client creation uses the inbound method for generated passwords', () => {
     const modal = fs.readFileSync('web/html/modals/client_bulk_modal.html', 'utf8');
 
@@ -119,6 +175,16 @@ test('bulk Shadowsocks client creation uses the inbound method for generated pas
         modal,
         /RandomUtil\.randomShadowsocksPassword\(clientsBulkModal\.inbound\.settings\.method\)/
     );
+    assert.match(modal, /clientsBulkModal\.inbound\.isSS2022\s+\?\s+''\s+:\s+clientsBulkModal\.inbound\.settings\.method/);
+    assert.doesNotMatch(modal, /shadowsockses\[0\]\.method/);
+});
+
+test('single Shadowsocks client creation uses the inbound method for generated passwords', () => {
+    const modal = fs.readFileSync('web/html/modals/client_modal.html', 'utf8');
+
+    assert.match(modal, /RandomUtil\.randomShadowsocksPassword\(inbound\.settings\.method\)/);
+    assert.match(modal, /inbound\.isSS2022\s+\?\s+''\s+:\s+inbound\.settings\.method/);
+    assert.doesNotMatch(modal, /clients\[0\]\.method/);
 });
 
 test('WireGuard peers preserve subscription metadata', () => {

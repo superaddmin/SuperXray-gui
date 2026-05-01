@@ -38,6 +38,12 @@ func validateInboundProtocolClients(protocol model.Protocol, settingsText string
 		}
 	}
 
+	if protocol == model.Shadowsocks {
+		if err := validateShadowsocksSettings(settings, clients); err != nil {
+			return fmt.Errorf("%s settings: %w", protocol, err)
+		}
+	}
+
 	for _, client := range clients {
 		if err := validateProtocolClient(protocol, settings, streamSettings, client); err != nil {
 			if client.Email != "" {
@@ -68,6 +74,27 @@ func validateProtocolClient(protocol model.Protocol, settings map[string]any, st
 		if strings.TrimSpace(client.Auth) == "" {
 			return fmt.Errorf("auth is required")
 		}
+	}
+	return nil
+}
+
+func validateShadowsocksSettings(settings map[string]any, clients []model.Client) error {
+	method, _ := settings["method"].(string)
+	method = strings.TrimSpace(method)
+	if method == "" {
+		return fmt.Errorf("shadowsocks method is required")
+	}
+
+	if !isShadowsocks2022Method(method) {
+		return nil
+	}
+
+	serverPassword, _ := settings["password"].(string)
+	if err := validateShadowsocks2022Key(method, serverPassword); err != nil {
+		return fmt.Errorf("shadowsocks server key: %w", err)
+	}
+	if method == shadowsocks2022Blake3Chacha20Poly1305 && len(clients) > 0 {
+		return fmt.Errorf("shadowsocks 2022 chacha20-poly1305 does not support multi-user clients")
 	}
 	return nil
 }
@@ -103,15 +130,21 @@ func validateShadowsocksClient(settings map[string]any, client model.Client) err
 	}
 
 	if !isShadowsocks2022Method(method) {
+		clientMethod := strings.TrimSpace(client.Method)
+		if clientMethod == "" {
+			return fmt.Errorf("shadowsocks client method is required")
+		}
+		if clientMethod != method {
+			return fmt.Errorf("shadowsocks client method %q does not match inbound method %q", clientMethod, method)
+		}
 		if strings.TrimSpace(client.Password) == "" {
 			return fmt.Errorf("shadowsocks password is required")
 		}
 		return nil
 	}
 
-	serverPassword, _ := settings["password"].(string)
-	if err := validateShadowsocks2022Key(method, serverPassword); err != nil {
-		return fmt.Errorf("shadowsocks server key: %w", err)
+	if strings.TrimSpace(client.Method) != "" {
+		return fmt.Errorf("shadowsocks 2022 client method must be empty")
 	}
 	if err := validateShadowsocks2022Key(method, client.Password); err != nil {
 		return fmt.Errorf("shadowsocks client key: %w", err)

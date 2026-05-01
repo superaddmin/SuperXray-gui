@@ -2,6 +2,20 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.0] - 2026-05-01
+
+### Fixed
+
+- 修复 Shadowsocks 修改入站时 legacy AEAD 方法残留顶层 server password、客户端缺少 method 导致密码保存后仍无效的问题。
+- 修复 Shadowsocks 新增/批量新增客户端时复用首个客户端 method，导致旧数据下新客户端 method 不稳定的问题。
+- 修复 Shadowsocks legacy 订阅生成依赖顶层 password 可能 panic 或生成空链接的问题。
+- 修复 Xray 动态 API 添加 Shadowsocks legacy AES 用户时 cipher 映射缺失，导致运行态用户添加不生效的问题。
+
+### Changed
+
+- 将项目版本号提升为 `3.0.0`，并同步 README 与技术文档中的版本引用。
+- 增强 Shadowsocks 保存前归一化与协议校验，覆盖 legacy、2022 AES 多用户和 2022 chacha 单用户边界。
+
 ## [2.9.10] - 2026-05-01
 
 ### Added

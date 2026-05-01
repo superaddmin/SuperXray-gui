@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -132,6 +133,30 @@ func TestBuildTargetClientFromSourceShadowsocks2022UsesClientKey(t *testing.T) {
 	}
 	if client.ID != "" || client.Auth != "" {
 		t.Fatalf("client kept source credentials: id=%q auth=%q", client.ID, client.Auth)
+	}
+}
+
+func TestNormalizeShadowsocksSettingsFillsLegacyClientMethod(t *testing.T) {
+	settings, err := normalizeShadowsocksSettingsText(`{
+		"method":"chacha20-ietf-poly1305",
+		"password":"stale-server-password",
+		"clients":[{"email":"ss@example","password":"client-password","enable":true}]
+	}`)
+	if err != nil {
+		t.Fatalf("normalizeShadowsocksSettingsText returned error: %v", err)
+	}
+	var parsed struct {
+		Password string         `json:"password"`
+		Clients  []model.Client `json:"clients"`
+	}
+	if err := json.Unmarshal([]byte(settings), &parsed); err != nil {
+		t.Fatalf("normalized settings are invalid JSON: %v", err)
+	}
+	if parsed.Password != "" {
+		t.Fatalf("normalized legacy settings kept server password: %q", parsed.Password)
+	}
+	if len(parsed.Clients) != 1 || parsed.Clients[0].Method != "chacha20-ietf-poly1305" {
+		t.Fatalf("normalized legacy client method = %#v, want chacha20-ietf-poly1305", parsed.Clients)
 	}
 }
 
