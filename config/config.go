@@ -38,12 +38,17 @@ const (
 	Error   LogLevel = "error"
 )
 
-// GetVersion returns the version string of the SuperXray application.
-// When a buildHash is injected via -ldflags, it is appended for cache-busting.
+// GetVersion returns the semantic version string of the SuperXray application.
 func GetVersion() string {
-	v := strings.TrimSpace(version)
-	if buildHash != "" {
-		v += "." + strings.TrimSpace(buildHash)
+	return strings.TrimSpace(version)
+}
+
+// GetAssetVersion returns a cache-busting version token for static assets.
+func GetAssetVersion() string {
+	v := GetVersion()
+	hash := strings.TrimSpace(buildHash)
+	if hash != "" {
+		v += "." + hash
 	}
 	return v
 }

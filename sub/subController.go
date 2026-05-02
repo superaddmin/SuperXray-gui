@@ -134,7 +134,7 @@ func (a *SUBController) subs(c *gin.Context) {
 			page := a.subService.BuildPageData(subId, hostHeader, traffic, lastOnline, subs, subURL, subJsonURL, subClashURL, basePathStr)
 			c.HTML(200, "subpage.html", gin.H{
 				"title":        "subscription.title",
-				"cur_ver":      config.GetVersion(),
+				"cur_ver":      config.GetAssetVersion(),
 				"host":         page.Host,
 				"base_path":    page.BasePath,
 				"sId":          page.SId,

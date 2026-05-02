@@ -152,11 +152,8 @@ jobs:
           if [ "${{ matrix.platform }}" = "amd64" ]; then
             expected="$(tr -d '[:space:]' < config/version)"
             actual="$(./xui-release -v)"
-            actual_version="${actual%.*}"
-            actual_version="${actual_version%.*}"
-            actual_version="${actual_version%.*}"
-            if [ "$actual_version" != "$expected" ]; then
-              echo "binary version mismatch: got $actual (stripped: $actual_version), expected $expected" >&2
+            if [ "$actual" != "$expected" ]; then
+              echo "binary version mismatch: got $actual, expected $expected" >&2
               exit 1
             fi
           fi

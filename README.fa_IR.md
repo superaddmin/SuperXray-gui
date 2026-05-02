@@ -31,10 +31,10 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 برای نصب صریح نسخه فعلی:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.2
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.3
 ```
 
-بسته‌های رسمی فعلاً برای Linux `amd64` و `arm64` منتشر می‌شوند. اسکریپت نصب در پایان نام کاربری، گذرواژه، پورت پنل و `webBasePath` تولیدشده را نمایش می‌دهد؛ این اطلاعات را ذخیره کنید. تصویر Docker با نام `ghcr.io/superaddmin/superxray-gui:3.0.2` در دسترس است. جزئیات Docker، نصب باینری و وابستگی‌ها را در [docs/deployment.md](docs/deployment.md) ببینید.
+بسته‌های رسمی فعلاً برای Linux `amd64` و `arm64` منتشر می‌شوند. اسکریپت نصب در پایان نام کاربری، گذرواژه، پورت پنل و `webBasePath` تولیدشده را نمایش می‌دهد؛ این اطلاعات را ذخیره کنید. تصویر Docker با نام `ghcr.io/superaddmin/superxray-gui:3.0.3` در دسترس است. جزئیات Docker، نصب باینری و وابستگی‌ها را در [docs/deployment.md](docs/deployment.md) ببینید.
 
 برای مستندات کامل، لطفاً به [ویکی پروژه](https://github.com/superaddmin/SuperXray-gui/wiki) مراجعه کنید.
 
