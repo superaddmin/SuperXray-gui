@@ -145,13 +145,18 @@ jobs:
           echo "Building ${{ matrix.platform }} with GOARCH=$goarch CC=$cc"
           rm -rf x-ui xui-release
           CGO_ENABLED=1 GOOS=linux GOARCH="$goarch" CC="$cc" \
-            go build -trimpath -ldflags "-w -s" -o xui-release -v main.go
+            go build -trimpath \
+            -ldflags "-w -s -X github.com/superaddmin/SuperXray-gui/v2/config.buildHash=$(git rev-parse --short HEAD)" \
+            -o xui-release -v main.go
           file xui-release
           if [ "${{ matrix.platform }}" = "amd64" ]; then
             expected="$(tr -d '[:space:]' < config/version)"
             actual="$(./xui-release -v)"
-            if [ "$actual" != "$expected" ]; then
-              echo "binary version mismatch: got $actual, expected $expected" >&2
+            actual_version="${actual%.*}"
+            actual_version="${actual_version%.*}"
+            actual_version="${actual_version%.*}"
+            if [ "$actual_version" != "$expected" ]; then
+              echo "binary version mismatch: got $actual (stripped: $actual_version), expected $expected" >&2
               exit 1
             fi
           fi
