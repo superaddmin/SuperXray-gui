@@ -142,6 +142,11 @@ func TestValidateInboundProtocolConfigAcceptsValidMainstreamClients(t *testing.T
 		),
 		inboundForProtocolValidation(
 			model.Shadowsocks,
+			`{"method":"CHACHA20_POLY1305","clients":[{"method":"CHACHA20_POLY1305","email":"ss-upper@example","password":"legacy-password","enable":true}]}`,
+			`{"network":"tcp","security":"none"}`,
+		),
+		inboundForProtocolValidation(
+			model.Shadowsocks,
 			`{"method":"2022-blake3-chacha20-poly1305","password":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=","clients":[]}`,
 			`{"network":"tcp","security":"none"}`,
 		),

@@ -151,8 +151,13 @@ class RandomUtil {
             .replace(/=+$/g, '');
     }
 
+    static normalizeShadowsocksMethod(method = '') {
+        return String(method || '').trim().toLowerCase().replace(/_/g, '-');
+    }
+
     static randomShadowsocksPassword(method = SSMethods.BLAKE3_AES_256_GCM) {
-        if (!String(method || '').startsWith('2022-')) {
+        method = this.normalizeShadowsocksMethod(method);
+        if (!method.startsWith('2022-')) {
             return this.randomSecret(32);
         }
 

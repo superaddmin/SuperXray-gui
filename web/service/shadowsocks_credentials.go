@@ -25,11 +25,16 @@ func randomURLSafeCredential(keyBytes int) string {
 	return base64.RawURLEncoding.EncodeToString(array)
 }
 
+func normalizeShadowsocksMethodName(method string) string {
+	return strings.ToLower(strings.ReplaceAll(strings.TrimSpace(method), "_", "-"))
+}
+
 func isShadowsocks2022Method(method string) bool {
-	return strings.HasPrefix(method, shadowsocks2022Prefix)
+	return strings.HasPrefix(normalizeShadowsocksMethodName(method), shadowsocks2022Prefix)
 }
 
 func shadowsocksKeyBytes(method string) int {
+	method = normalizeShadowsocksMethodName(method)
 	if method == shadowsocks2022AES128GCM {
 		return 16
 	}
@@ -42,7 +47,7 @@ func shadowsocksMethodFromSettings(settingsText string) string {
 		return ""
 	}
 	method, _ := settings["method"].(string)
-	return method
+	return normalizeShadowsocksMethodName(method)
 }
 
 func normalizeShadowsocksInboundSettings(inbound *model.Inbound) error {
@@ -78,10 +83,11 @@ func normalizeShadowsocksSettingsText(settingsText string) (string, error) {
 
 func normalizeShadowsocksSettingsMap(settings map[string]any) {
 	method, _ := settings["method"].(string)
-	method = strings.TrimSpace(method)
+	method = normalizeShadowsocksMethodName(method)
 	if method == "" {
 		return
 	}
+	settings["method"] = method
 
 	if !isShadowsocks2022Method(method) {
 		delete(settings, "password")
@@ -102,7 +108,7 @@ func normalizeShadowsocksSettingsMap(settings map[string]any) {
 }
 
 func normalizeShadowsocksClientEntries(method string, clients []any) {
-	method = strings.TrimSpace(method)
+	method = normalizeShadowsocksMethodName(method)
 	if method == "" {
 		return
 	}

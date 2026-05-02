@@ -42,6 +42,9 @@ function loadInboundModel() {
             randomShadowsocksPassword(method) {
                 return `password:${method || 'default'}`;
             },
+            normalizeShadowsocksMethod(method = '') {
+                return String(method || '').trim().toLowerCase().replace(/_/g, '-');
+            },
             randomUUID() {
                 return '00000000-0000-4000-8000-000000000000';
             },
@@ -146,6 +149,31 @@ test('legacy Shadowsocks settings serialize clients with the inbound method', ()
     assert.equal(json.password, undefined);
     assert.equal(json.clients[0].method, SSMethods.CHACHA20_IETF_POLY1305);
     assert.equal(json.clients[0].password, 'client-password');
+});
+
+test('legacy Shadowsocks settings canonicalize uppercase cipher aliases before save', () => {
+    const { Inbound, SSMethods } = loadInboundModel();
+
+    const settings = Inbound.ShadowsocksSettings.fromJson({
+        method: 'CHACHA20_POLY1305',
+        password: 'stale-server-password',
+        network: 'tcp,udp',
+        clients: [
+            {
+                method: 'CHACHA20_POLY1305',
+                email: 'legacy@example',
+                password: 'client-password',
+                enable: true,
+            },
+        ],
+    });
+
+    const json = settings.toJson();
+
+    assert.equal(settings.method, SSMethods.CHACHA20_POLY1305);
+    assert.equal(json.method, SSMethods.CHACHA20_POLY1305);
+    assert.equal(json.password, undefined);
+    assert.equal(json.clients[0].method, SSMethods.CHACHA20_POLY1305);
 });
 
 test('single-user Shadowsocks 2022 chacha settings drop stale clients when serialized', () => {

@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
 
@@ -119,6 +120,9 @@ func (s *XrayService) GetXrayConfig() (*xray.Config, error) {
 		settings := map[string]any{}
 		if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
 			return nil, err
+		}
+		if inbound.Protocol == model.Shadowsocks {
+			normalizeShadowsocksSettingsMap(settings)
 		}
 		clients, ok := settings["clients"].([]any)
 		if ok {

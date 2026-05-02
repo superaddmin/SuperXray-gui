@@ -164,6 +164,30 @@ func TestNormalizeShadowsocksSettingsFillsLegacyClientMethod(t *testing.T) {
 	}
 }
 
+func TestNormalizeShadowsocksSettingsCanonicalizesLegacyCipherAliases(t *testing.T) {
+	settings, err := normalizeShadowsocksSettingsText(`{
+		"method":"CHACHA20_POLY1305",
+		"password":"stale-server-password",
+		"clients":[{"method":"CHACHA20_POLY1305","email":"ss@example","password":"client-password","enable":true}]
+	}`)
+	if err != nil {
+		t.Fatalf("normalizeShadowsocksSettingsText returned error: %v", err)
+	}
+	var parsed struct {
+		Method  string         `json:"method"`
+		Clients []model.Client `json:"clients"`
+	}
+	if err := json.Unmarshal([]byte(settings), &parsed); err != nil {
+		t.Fatalf("normalized settings are invalid JSON: %v", err)
+	}
+	if parsed.Method != "chacha20-poly1305" {
+		t.Fatalf("normalized method = %q, want chacha20-poly1305", parsed.Method)
+	}
+	if len(parsed.Clients) != 1 || parsed.Clients[0].Method != "chacha20-poly1305" {
+		t.Fatalf("normalized legacy client method = %#v, want chacha20-poly1305", parsed.Clients)
+	}
+}
+
 func TestXrayAPISyncLockSerializesCalls(t *testing.T) {
 	var wg sync.WaitGroup
 	var running int32

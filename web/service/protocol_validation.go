@@ -140,7 +140,7 @@ func validateProtocolClient(protocol model.Protocol, settings map[string]any, st
 
 func validateShadowsocksSettings(settings map[string]any, clients []model.Client) error {
 	method, _ := settings["method"].(string)
-	method = strings.TrimSpace(method)
+	method = normalizeShadowsocksMethodName(method)
 	if method == "" {
 		return fmt.Errorf("shadowsocks method is required")
 	}
@@ -184,13 +184,13 @@ func validateVLESSFlow(streamSettings map[string]any, flow string) error {
 
 func validateShadowsocksClient(settings map[string]any, client model.Client) error {
 	method, _ := settings["method"].(string)
-	method = strings.TrimSpace(method)
+	method = normalizeShadowsocksMethodName(method)
 	if method == "" {
 		return fmt.Errorf("shadowsocks method is required")
 	}
 
 	if !isShadowsocks2022Method(method) {
-		clientMethod := strings.TrimSpace(client.Method)
+		clientMethod := normalizeShadowsocksMethodName(client.Method)
 		if clientMethod == "" {
 			return fmt.Errorf("shadowsocks client method is required")
 		}

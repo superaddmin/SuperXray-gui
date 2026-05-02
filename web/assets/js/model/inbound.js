@@ -1689,7 +1689,7 @@ class Inbound extends XrayCommonClass {
     get method() {
         switch (this.protocol) {
             case Protocols.SHADOWSOCKS:
-                return this.settings.method;
+                return RandomUtil.normalizeShadowsocksMethod(this.settings.method);
             default:
                 return "";
         }
@@ -1698,7 +1698,7 @@ class Inbound extends XrayCommonClass {
         return this.method != SSMethods.BLAKE3_CHACHA20_POLY1305;
     }
     get isSS2022() {
-        return String(this.method || '').startsWith("2022-");
+        return this.method.startsWith("2022-");
     }
 
     get serverName() {
@@ -2790,15 +2790,22 @@ Inbound.TrojanSettings.Fallback = class extends XrayCommonClass {
 Inbound.ShadowsocksSettings = class extends Inbound.Settings {
     constructor(protocol,
         method = SSMethods.BLAKE3_AES_256_GCM,
-        password = RandomUtil.randomShadowsocksPassword(method),
+        password = undefined,
         network = 'tcp,udp',
-        shadowsockses = [new Inbound.ShadowsocksSettings.Shadowsocks(
-            String(method || '').startsWith('2022-') ? '' : method,
-            RandomUtil.randomShadowsocksPassword(method),
-        )],
+        shadowsockses = undefined,
         ivCheck = false,
     ) {
         super(protocol);
+        method = RandomUtil.normalizeShadowsocksMethod(method);
+        if (password === undefined) {
+            password = RandomUtil.randomShadowsocksPassword(method);
+        }
+        if (shadowsockses === undefined) {
+            shadowsockses = [new Inbound.ShadowsocksSettings.Shadowsocks(
+                method.startsWith('2022-') ? '' : method,
+                RandomUtil.randomShadowsocksPassword(method),
+            )];
+        }
         this.method = method;
         this.password = password;
         this.network = network;
@@ -2818,8 +2825,8 @@ Inbound.ShadowsocksSettings = class extends Inbound.Settings {
     }
 
     toJson() {
-        const method = this.method;
-        const is2022 = String(method || '').startsWith('2022-');
+        const method = RandomUtil.normalizeShadowsocksMethod(this.method);
+        const is2022 = method.startsWith('2022-');
         const isSingleUser2022 = method === SSMethods.BLAKE3_CHACHA20_POLY1305;
         const clients = isSingleUser2022 ? [] : Inbound.ShadowsocksSettings.toJsonArray(this.shadowsockses).map(client => {
             if (is2022) {
@@ -2830,7 +2837,7 @@ Inbound.ShadowsocksSettings = class extends Inbound.Settings {
             return client;
         });
         const result = {
-            method: this.method,
+            method: method,
             network: this.network,
             clients: clients,
             ivCheck: this.ivCheck,
@@ -2845,10 +2852,14 @@ Inbound.ShadowsocksSettings = class extends Inbound.Settings {
 Inbound.ShadowsocksSettings.Shadowsocks = class extends Inbound.ClientBase {
     constructor(
         method = '',
-        password = RandomUtil.randomShadowsocksPassword(method),
+        password = undefined,
         email, limitIp, totalGB, expiryTime, enable, tgId, subId, comment, reset, created_at, updated_at,
     ) {
         super(email, limitIp, totalGB, expiryTime, enable, tgId, subId, comment, reset, created_at, updated_at);
+        method = RandomUtil.normalizeShadowsocksMethod(method);
+        if (password === undefined) {
+            password = RandomUtil.randomShadowsocksPassword(method);
+        }
         this.method = method;
         this.password = password;
     }

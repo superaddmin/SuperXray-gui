@@ -724,12 +724,17 @@ func (s *ServerService) UpdateXray(version string) error {
 
 	// 4. Extract correct binary
 	if runtime.GOOS == "windows" {
-		targetBinary := filepath.Join("bin", "xray-windows-amd64.exe")
-		err = copyZipFile("xray.exe", targetBinary)
+		err = copyZipFile("xray.exe", xray.GetBinaryPath())
 	} else {
 		err = copyZipFile("xray", xray.GetBinaryPath())
 	}
 	if err != nil {
+		return err
+	}
+	if err = copyZipFile("geoip.dat", xray.GetGeoipPath()); err != nil {
+		return err
+	}
+	if err = copyZipFile("geosite.dat", xray.GetGeositePath()); err != nil {
 		return err
 	}
 

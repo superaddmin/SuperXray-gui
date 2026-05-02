@@ -9,6 +9,7 @@ function loadHtmlUtil() {
         Blob,
         Intl,
         SSMethods: {
+            CHACHA20_POLY1305: 'chacha20-poly1305',
             CHACHA20_IETF_POLY1305: 'chacha20-ietf-poly1305',
             BLAKE3_AES_128_GCM: '2022-blake3-aes-128-gcm',
             BLAKE3_AES_256_GCM: '2022-blake3-aes-256-gcm',
@@ -78,6 +79,18 @@ test('legacy Shadowsocks AEAD methods generate 32-byte URL-safe client passwords
     const { RandomUtil, SSMethods } = loadHtmlUtil();
 
     const password = RandomUtil.randomShadowsocksPassword(SSMethods.CHACHA20_IETF_POLY1305);
+
+    assert.equal(password, 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE');
+    assert.equal(password.length, 43);
+    assert.doesNotMatch(password, /[+/=]/);
+});
+
+test('Shadowsocks method aliases are canonicalized before credential rules apply', () => {
+    const { RandomUtil, SSMethods } = loadHtmlUtil();
+
+    assert.equal(RandomUtil.normalizeShadowsocksMethod('CHACHA20_POLY1305'), SSMethods.CHACHA20_POLY1305);
+
+    const password = RandomUtil.randomShadowsocksPassword('CHACHA20_POLY1305');
 
     assert.equal(password, 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE');
     assert.equal(password.length, 43);
