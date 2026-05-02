@@ -2,6 +2,13 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.3] - 2026-05-02
+
+### Fixed
+
+- 修复网页左上角徽标缺失问题，将过大 PNG 图片替换为矢量 SVG 格式，双主题适配。
+- 新增侧边栏收起状态专用图标（logo-icon.svg），优化 CSS 布局与响应式适配。
+
 ## [3.0.2] - 2026-05-01
 
 ### Added
