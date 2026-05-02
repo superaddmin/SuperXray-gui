@@ -195,6 +195,7 @@ class Gate:
             '$0 ~ "^## \\\\[" version "\\\\]([[:space:]]|$)"',
             "id: release_notes",
             "body: ${{ steps.release_notes.outputs.body }}",
+            ".github/agentic-workflows/**",
             "actions/setup-go",
             "gcc-aarch64-linux-gnu",
             "GOARCH=\"$goarch\"",
@@ -241,6 +242,22 @@ class Gate:
             raise RuntimeError("test-arm64.yml must not compile Go inside the emulated arm64 container")
         if "github/codeql-action/analyze" not in codeql:
             raise RuntimeError("codeql.yml must run CodeQL analysis")
+        agentic = self._read(".github/agentic-workflows/release.md")
+        required_agentic_tokens = [
+            "GitHub Agentic Workflow: Release",
+            "release_gate.py",
+            "vX.Y.Z",
+            "x-ui-linux-amd64.tar.gz",
+            "x-ui-linux-arm64.tar.gz",
+            "ghcr.io/superaddmin/superxray-gui",
+            "--force-with-lease",
+        ]
+        for token in required_agentic_tokens:
+            if token not in agentic:
+                raise RuntimeError(f"release agentic workflow missing required token: {token}")
+        copilot = self._read(".github/copilot-instructions.md")
+        if ".github/agentic-workflows/release.md" not in copilot:
+            raise RuntimeError("copilot instructions must link to the release agentic workflow")
 
     def _read(self, relative: str) -> str:
         path = self.root / relative

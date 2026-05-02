@@ -31,6 +31,9 @@ SuperXray is a web-based control panel for managing Xray-core servers. It's a Go
 
 ## Development Workflows
 
+### Agentic Release Workflow
+Release automation tasks must first read `.github/agentic-workflows/release.md`. That file is the shared release playbook for GitHub Copilot, Codex, and other AI agents; it defines the version policy, release gate, tag rules, workflow monitoring, asset verification, and rollback boundaries.
+
 ### Building & Running
 ```bash
 # Build (creates bin/SuperXray.exe)
