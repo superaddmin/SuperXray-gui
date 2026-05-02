@@ -1,7 +1,10 @@
 # Ignore editor and IDE settings
 .idea/
 .vscode/
+.codex/
+.claude/
 .cache/
+.playwright-mcp/
 .sync*
 
 # Ignore log files
