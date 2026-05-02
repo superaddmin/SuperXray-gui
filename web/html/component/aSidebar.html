@@ -89,10 +89,11 @@
         computed: {
             logoSrc() {
                 var bp = (basePath || '/');
-                return bp + 'assets/img/logo-' + (themeSwitcher.isDarkTheme ? 'dark' : 'light') + '.png';
+                return bp + 'assets/img/logo-' + (themeSwitcher.isDarkTheme ? 'dark' : 'light') + '.svg';
             },
             logoIconSrc() {
-                return this.logoSrc;
+                var bp = (basePath || '/');
+                return bp + 'assets/img/logo-icon.svg';
             }
         },
         methods: {

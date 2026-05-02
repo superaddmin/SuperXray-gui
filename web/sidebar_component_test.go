@@ -27,9 +27,9 @@ func TestSidebarDoesNotReferenceMissingLogoIcon(t *testing.T) {
 		t.Fatalf("read sidebar component: %v", err)
 	}
 
-	if strings.Contains(string(sourceBytes), "assets/img/logo-icon.png") {
-		if _, err := os.Stat(filepath.Join("assets", "img", "logo-icon.png")); err != nil {
-			t.Fatalf("a-sidebar references missing logo-icon.png: %v", err)
+	if strings.Contains(string(sourceBytes), "assets/img/logo-icon.svg") {
+		if _, err := os.Stat(filepath.Join("assets", "img", "logo-icon.svg")); err != nil {
+			t.Fatalf("a-sidebar references missing logo-icon.svg: %v", err)
 		}
 	}
 }
