@@ -2,8 +2,8 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./media/SuperXray.png">
-    <img alt="SuperXray" src="./media/SuperXray.png">
+    <source media="(prefers-color-scheme: dark)" srcset="./media/superxray.svg">
+    <img alt="SuperXray" src="./media/superxray.svg">
   </picture>
 </p>
 

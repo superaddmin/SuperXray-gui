@@ -2,8 +2,8 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./media/SuperXray.png">
-    <img alt="SuperXray" src="./media/SuperXray.png">
+    <source media="(prefers-color-scheme: dark)" srcset="./media/superxray.svg">
+    <img alt="SuperXray" src="./media/superxray.svg">
   </picture>
 </p>
 
@@ -17,7 +17,7 @@
 
 **SuperXray** — продвинутая панель управления с открытым исходным кодом на основе веб-интерфейса, разработанная для управления сервером Xray-core. Предоставляет удобный интерфейс для настройки и мониторинга различных VPN и прокси-протоколов.
 
-> [!IMPORTANT]
+> \[!IMPORTANT]
 > Этот проект предназначен только для личного использования, пожалуйста, не используйте его в незаконных целях и в производственной среде.
 
 Как улучшенная версия оригинального проекта X-UI, SuperXray обеспечивает повышенную стабильность, более широкую поддержку протоколов и дополнительные функции.
