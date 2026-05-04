@@ -8,6 +8,8 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/config"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/web/entity"
+	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
+	"github.com/superaddmin/SuperXray-gui/v2/web/session"
 
 	"github.com/gin-gonic/gin"
 )
@@ -93,7 +95,13 @@ func html(c *gin.Context, name string, title string, data gin.H) {
 	data["host"] = host
 	data["request_uri"] = c.Request.RequestURI
 	data["base_path"] = c.GetString("base_path")
+	data["panel_path"] = c.GetString("base_path") + "panel/"
+	if strings.Contains(c.Request.URL.Path, "/panel/legacy") {
+		data["panel_path"] = c.GetString("base_path") + "panel/legacy/"
+	}
 	data["lang"] = getHTMLLang(c)
+	data["csp_nonce"] = middleware.CSPNonce(c)
+	data["csrf_token"] = session.EnsureCSRFToken(c)
 	c.HTML(http.StatusOK, name, getContext(data))
 }
 

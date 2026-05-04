@@ -510,9 +510,8 @@
                       @click="FileManager.downloadTextFile(infoModal.links[index], `peer-${index + 1}.conf`)"></a-button>
                   </a-tooltip>
                 </tr-info-title>
-                <div v-html="infoModal.links[index].replaceAll(`\n`,`<br />`)"
-                  :style="{ borderRadius: '1rem', padding: '0.5rem' }" class="client-table-odd-row">
-                </div>
+                <pre :style="{ borderRadius: '1rem', padding: '0.5rem', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }"
+                  class="client-table-odd-row">[[ infoModal.links[index] ]]</pre>
                 <a-divider orientation="center">Link</a-divider>
                 <tr-info-title class="tr-info-title">
                   <a-tag color="green">Link</a-tag>
@@ -530,7 +529,7 @@
     </template>
     </template>
 </a-modal>
-<script>
+<script nonce="{{ .csp_nonce }}">
   function refreshIPs(email) {
     return HttpUtil.post(`/panel/api/inbounds/clientIps/${email}`).then((msg) => {
       if (!msg.success) {

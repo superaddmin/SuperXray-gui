@@ -2,10 +2,21 @@
 .idea/
 .vscode/
 .codex/
+!.codex/
+.codex/*
+!.codex/agents/
+!.codex/agents/**
+!.codex/skills/
+.codex/skills/*
+!.codex/skills/superxray-ui-first-migration/
+!.codex/skills/superxray-ui-first-migration/**
 .claude/
 .cache/
 .playwright-mcp/
 .sync*
+.reports/
+output/
+superxray-*.png
 
 # Ignore log files
 *.log
@@ -20,6 +31,9 @@ bin/
 dist/
 release/
 node_modules/
+playwright-report/
+test-results/
+tests/e2e/.auth/
 
 # Ignore compiled binaries
 main

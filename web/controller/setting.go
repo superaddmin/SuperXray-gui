@@ -6,6 +6,7 @@ import (
 
 	"github.com/superaddmin/SuperXray-gui/v2/util/crypto"
 	"github.com/superaddmin/SuperXray-gui/v2/web/entity"
+	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
 	"github.com/superaddmin/SuperXray-gui/v2/web/service"
 	"github.com/superaddmin/SuperXray-gui/v2/web/session"
 
@@ -37,6 +38,7 @@ func NewSettingController(g *gin.RouterGroup) *SettingController {
 // initRouter sets up the routes for settings management.
 func (a *SettingController) initRouter(g *gin.RouterGroup) {
 	g = g.Group("/setting")
+	g.Use(middleware.CSRFMiddleware())
 
 	g.POST("/all", a.getAllSetting)
 	g.POST("/defaultSettings", a.getDefaultSettings)

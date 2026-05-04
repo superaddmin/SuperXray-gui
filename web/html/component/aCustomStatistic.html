@@ -12,7 +12,7 @@
 {{end}}
 
 {{define "component/aCustomStatistic"}}
-<style>
+<style nonce="{{ .csp_nonce }}">
   .dark .ant-statistic-content {
     color: var(--dark-color-text-primary)
   }
@@ -24,7 +24,7 @@
   }
 </style>
 
-<script>
+<script nonce="{{ .csp_nonce }}">
   Vue.component('a-custom-statistic', {
     props: {
       'title': {

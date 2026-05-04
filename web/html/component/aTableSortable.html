@@ -4,7 +4,7 @@
 {{end}}
 
 {{define "component/aTableSortable"}}
-<script>
+<script nonce="{{ .csp_nonce }}">
   const DRAGGABLE_ROW_CLASS = 'draggable-row';
   const findParentRowElement = (el) => {
     if (!el || !el.tagName) {
@@ -199,7 +199,7 @@
     }
   })
 </script>
-<style>
+<style nonce="{{ .csp_nonce }}">
   @media only screen and (max-width: 767px) {
     .sortable-icon {
       display: none;

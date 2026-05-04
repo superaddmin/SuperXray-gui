@@ -142,23 +142,23 @@
   </a-layout>
 </a-layout>
 {{template "page/body_scripts" .}}
-<script
+<script nonce="{{ .csp_nonce }}"
   src="{{ .base_path }}assets/js/model/outbound.js?{{ .cur_ver }}"></script>
-<script
+<script nonce="{{ .csp_nonce }}"
   src="{{ .base_path }}assets/js/model/protocol_tools.js?{{ .cur_ver }}"></script>
-<script
+<script nonce="{{ .csp_nonce }}"
   src="{{ .base_path }}assets/codemirror/codemirror.min.js?{{ .cur_ver }}"></script>
-<script src="{{ .base_path }}assets/codemirror/javascript.js"></script>
-<script src="{{ .base_path }}assets/codemirror/jshint.js"></script>
-<script src="{{ .base_path }}assets/codemirror/jsonlint.js"></script>
-<script src="{{ .base_path }}assets/codemirror/lint/lint.js"></script>
-<script
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/codemirror/javascript.js"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/codemirror/jshint.js"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/codemirror/jsonlint.js"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/codemirror/lint/lint.js"></script>
+<script nonce="{{ .csp_nonce }}"
   src="{{ .base_path }}assets/codemirror/lint/javascript-lint.js"></script>
-<script
+<script nonce="{{ .csp_nonce }}"
   src="{{ .base_path }}assets/codemirror/hint/javascript-hint.js"></script>
-<script src="{{ .base_path }}assets/codemirror/fold/foldcode.js"></script>
-<script src="{{ .base_path }}assets/codemirror/fold/foldgutter.js"></script>
-<script src="{{ .base_path }}assets/codemirror/fold/brace-fold.js"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/codemirror/fold/foldcode.js"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/codemirror/fold/foldgutter.js"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/codemirror/fold/brace-fold.js"></script>
 {{template "component/aSidebar" .}}
 {{template "component/aThemeSwitch" .}}
 {{template "component/aTableSortable" .}}
@@ -172,7 +172,7 @@
 {{template "modals/fakednsModal"}}
 {{template "modals/warpModal"}}
 {{template "modals/nordModal"}}
-<script>
+<script nonce="{{ .csp_nonce }}">
   const rulesColumns = [
     { title: "#", align: 'center', width: 15, scopedSlots: { customRender: 'action' } },
     {

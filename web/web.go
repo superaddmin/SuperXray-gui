@@ -295,6 +295,7 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	g := engine.Group(basePath)
 
 	s.index = controller.NewIndexController(g)
+	s.registerNewUIRoutes(g, basePath)
 	s.panel = controller.NewXUIController(g)
 	s.api = controller.NewAPIController(g, s.customGeoService)
 

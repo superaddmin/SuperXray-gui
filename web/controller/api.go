@@ -15,6 +15,7 @@ type APIController struct {
 	BaseController
 	inboundController *InboundController
 	serverController  *ServerController
+	coreController    *CoreController
 	Tgbot             service.Tgbot
 }
 
@@ -49,6 +50,10 @@ func (a *APIController) initRouter(g *gin.RouterGroup, customGeo *service.Custom
 	// Server API
 	server := api.Group("/server")
 	a.serverController = NewServerController(server)
+
+	// Core API
+	cores := api.Group("/cores")
+	a.coreController = NewCoreController(cores)
 
 	NewCustomGeoController(api.Group("/custom-geo"), customGeo)
 

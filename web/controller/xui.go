@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,16 +23,24 @@ func NewXUIController(g *gin.RouterGroup) *XUIController {
 
 // initRouter sets up the main panel routes and initializes sub-controllers.
 func (a *XUIController) initRouter(g *gin.RouterGroup) {
-	g = g.Group("/panel")
-	g.Use(a.checkLogin)
+	panel := g.Group("/panel")
+	panel.Use(a.checkLogin)
 
-	g.GET("/", a.index)
-	g.GET("/inbounds", a.inbounds)
-	g.GET("/settings", a.settings)
-	g.GET("/xray", a.xraySettings)
+	a.settingController = NewSettingController(panel)
+	a.xraySettingController = NewXraySettingController(panel)
 
-	a.settingController = NewSettingController(g)
-	a.xraySettingController = NewXraySettingController(g)
+	// Phase 10 keeps the old HTML UI as an explicit rollback and compatibility boundary.
+	g.GET("/panel/legacy", a.checkLogin, func(c *gin.Context) {
+		c.Redirect(http.StatusTemporaryRedirect, c.GetString("base_path")+"panel/legacy/")
+	})
+
+	legacy := g.Group("/panel/legacy")
+	legacy.Use(a.checkLogin)
+
+	legacy.GET("/", a.index)
+	legacy.GET("/inbounds", a.inbounds)
+	legacy.GET("/settings", a.settings)
+	legacy.GET("/xray", a.xraySettings)
 }
 
 // index renders the main panel index page.

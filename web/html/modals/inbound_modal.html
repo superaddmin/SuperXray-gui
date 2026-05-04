@@ -1,5 +1,5 @@
 {{define "modals/inboundModal"}}
-<style>
+<style nonce="{{ .csp_nonce }}">
     .inbound-modal-wrap .ant-modal {
         max-width: calc(100vw - 24px);
     }
@@ -103,7 +103,7 @@
     :class="themeSwitcher.currentTheme" :ok-text="inModal.okText" :cancel-text="inModal.cancelText">
     {{template "form/inbound"}}
 </a-modal>
-<script>
+<script nonce="{{ .csp_nonce }}">
     // Make inModal globally available to ensure it works with any base path
     const inModal = (window.inModal = {
         title: "",
@@ -333,11 +333,28 @@
             showInboundFieldHelp(help) {
                 if (!help || typeof InboundFormHelp === "undefined") return;
                 const h = this.$createElement;
-                const content = h("div", {
-                    domProps: {
-                        innerHTML: InboundFormHelp.renderHelpContent(help),
-                    },
-                });
+                const zhTips = help.tips && help.tips.zh ? help.tips.zh : [];
+                const enTips = help.tips && help.tips.en ? help.tips.en : [];
+                const children = [];
+                if (help.required) {
+                    children.push(h("div", { class: "inbound-help-required" }, "必填 Required"));
+                }
+                children.push(h("p", [h("strong", "中文:"), ` ${help.description.zh}`]));
+                children.push(h("p", [h("strong", "English:"), ` ${help.description.en}`]));
+                if (zhTips.length > 0) {
+                    children.push(h("ul", zhTips.map(t => h("li", t))));
+                }
+                if (enTips.length > 0) {
+                    children.push(h("ul", enTips.map(t => h("li", t))));
+                }
+                if (help.example) {
+                    children.push(h("div", { class: "inbound-help-example" }, [
+                        h("strong", "示例 Example:"),
+                        " ",
+                        h("code", help.example),
+                    ]));
+                }
+                const content = h("div", { class: "inbound-help-dialog-body" }, children);
                 const modalOptions = {
                     title: `${help.label.zh} / ${help.label.en}`,
                     content,

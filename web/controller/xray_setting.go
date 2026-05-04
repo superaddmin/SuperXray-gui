@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
+	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
 	"github.com/superaddmin/SuperXray-gui/v2/web/service"
 
 	"github.com/gin-gonic/gin"
@@ -30,6 +31,8 @@ func NewXraySettingController(g *gin.RouterGroup) *XraySettingController {
 // initRouter sets up the routes for Xray settings management.
 func (a *XraySettingController) initRouter(g *gin.RouterGroup) {
 	g = g.Group("/xray")
+	g.Use(middleware.CSRFMiddleware())
+
 	g.GET("/getDefaultJsonConfig", a.getDefaultXrayConfig)
 	g.GET("/getOutboundsTraffic", a.getOutboundsTraffic)
 	g.GET("/getXrayResult", a.getXrayResult)

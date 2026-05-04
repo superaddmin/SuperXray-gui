@@ -1,0 +1,4 @@
+interface:
+  display_name: "SuperXray UI First Migration"
+  short_description: "Guide SuperXray-gui through UI-first Xray-stable migration before multi-core work."
+  default_prompt: "Use the SuperXray UI-first migration phase gates to review this task and list allowed changes, forbidden changes, validation, and rollback."

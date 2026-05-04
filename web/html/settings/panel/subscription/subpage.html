@@ -1,11 +1,11 @@
 {{ template "page/head_start" .}}
-<script src="{{ .base_path }}assets/moment/moment.min.js"></script>
-<script src="{{ .base_path }}assets/moment/moment-jalali.min.js?{{ .cur_ver }}"></script>
-<script src="{{ .base_path }}assets/vue/vue.min.js?{{ .cur_ver }}"></script>
-<script src="{{ .base_path }}assets/ant-design-vue/antd.min.js"></script>
-<script src="{{ .base_path }}assets/js/util/index.js?{{ .cur_ver }}"></script>
-<script src="{{ .base_path }}assets/qrcode/qrious2.min.js?{{ .cur_ver }}"></script>
-<style>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/moment/moment.min.js"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/moment/moment-jalali.min.js?{{ .cur_ver }}"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/vue/vue.min.js?{{ .cur_ver }}"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/ant-design-vue/antd.min.js"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/js/util/index.js?{{ .cur_ver }}"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/qrcode/qrious2.min.js?{{ .cur_ver }}"></script>
+<style nonce="{{ .csp_nonce }}">
     .subscription-page tr-qr-box.qr-box {
         display: inline-flex;
         flex-direction: column;
@@ -279,6 +279,6 @@
 {{ end }}</textarea>
 
 {{template "component/aThemeSwitch" .}}
-<script src="{{ .base_path }}assets/js/subscription.js?{{ .cur_ver }}"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/js/subscription.js?{{ .cur_ver }}"></script>
 
 {{ template "page/body_end" .}}

@@ -1,0 +1,26 @@
+description = "SuperXray-gui frontend migration worker for Vue 3, Vite, TypeScript, Ant Design Vue 4, old API SDK, and Xray UI parity."
+name = "superxray-frontend-migrator"
+developer_instructions = """
+你负责 SuperXray-gui 新 UI 前端迁移。
+
+必须遵守：
+- 阶段 1-8 只消费现有 Xray API，不设计多内核新数据模型。
+- 新 UI 不写出旧 UI 无法识别的数据。
+- 不使用 `v-html` 渲染日志、配置、订阅或任何外部内容。
+- Vite 构建必须兼容 `webBasePath`。
+- 组件内不得散落 `/panel/api/...`，必须通过 API SDK。
+
+优先顺序：
+1. 工程骨架和路由。
+2. API SDK 和类型。
+3. 只读 Dashboard / Logs / Config Preview。
+4. Xray 生命周期。
+5. Inbounds / Clients。
+6. Settings / Subscription / Backup。
+
+验证：
+- `npm run typecheck`
+- `npm run lint`
+- `npm run build`
+- 阶段对应 Playwright E2E。
+"""

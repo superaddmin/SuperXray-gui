@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex,nofollow">
   <link rel="stylesheet" href="{{ .base_path }}assets/ant-design-vue/antd.min.css">
   <link rel="stylesheet" href="{{ .base_path }}assets/css/custom.min.css?{{ .cur_ver }}">
-  <style>
+  <style nonce="{{ .csp_nonce }}">
     [v-cloak] {
       display: none;
     }
@@ -113,19 +113,24 @@
 {{ end }}
 
 {{ define "page/body_scripts" }}
-<script src="{{ .base_path }}assets/vue/vue.min.js?{{ .cur_ver }}"></script>
-<script src="{{ .base_path }}assets/moment/moment.min.js"></script>
-<script src="{{ .base_path }}assets/ant-design-vue/antd.min.js"></script>
-<script src="{{ .base_path }}assets/axios/axios.min.js?{{ .cur_ver }}"></script>
-<script src="{{ .base_path }}assets/qs/qs.min.js"></script>
-<script src="{{ .base_path }}assets/js/axios-init.js?{{ .cur_ver }}"></script>
-<script src="{{ .base_path }}assets/js/util/index.js?{{ .cur_ver }}"></script>
-<script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/vue/vue.min.js?{{ .cur_ver }}"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/moment/moment.min.js"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/ant-design-vue/antd.min.js"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/axios/axios.min.js?{{ .cur_ver }}"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/qs/qs.min.js"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/js/axios-init.js?{{ .cur_ver }}"></script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/js/util/index.js?{{ .cur_ver }}"></script>
+<script nonce="{{ .csp_nonce }}">
   const basePath = '{{ .base_path }}';
+  const csrfToken = '{{ .csrf_token }}';
+  window.__SUPERXRAY_CSRF_TOKEN__ = csrfToken;
   axios.defaults.baseURL = basePath;
+  if (csrfToken) {
+    axios.defaults.headers.common['X-CSRF-Token'] = csrfToken;
+  }
 </script>
-<script src="{{ .base_path }}assets/js/websocket.js?{{ .cur_ver }}"></script>
-<script>
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/js/websocket.js?{{ .cur_ver }}"></script>
+<script nonce="{{ .csp_nonce }}">
 (function(){var a=document.documentElement.getAttribute('lang');if(a){var b=new MutationObserver(function(){var c=document.getElementById('app');if(c&&!c.hasAttribute('lang'))c.setAttribute('lang',a)});b.observe(document.body||document.documentElement,{childList:true,subtree:true});setTimeout(function(){b.disconnect()},5000)}})();
 </script>
 {{ end }}

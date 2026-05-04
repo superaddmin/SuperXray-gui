@@ -878,16 +878,16 @@
   </a-button>
 </a-layout>
 {{template "page/body_scripts" .}}
-<script
+<script nonce="{{ .csp_nonce }}"
   src="{{ .base_path }}assets/qrcode/qrious2.min.js?{{ .cur_ver }}"></script>
-<script src="{{ .base_path }}assets/uri/URI.min.js?{{ .cur_ver }}"></script>
-<script
+<script nonce="{{ .csp_nonce }}" src="{{ .base_path }}assets/uri/URI.min.js?{{ .cur_ver }}"></script>
+<script nonce="{{ .csp_nonce }}"
   src="{{ .base_path }}assets/js/model/reality_targets.js?{{ .cur_ver }}"></script>
-<script
+<script nonce="{{ .csp_nonce }}"
   src="{{ .base_path }}assets/js/model/inbound.js?{{ .cur_ver }}"></script>
-<script
+<script nonce="{{ .csp_nonce }}"
   src="{{ .base_path }}assets/js/model/dbinbound.js?{{ .cur_ver }}"></script>
-<script
+<script nonce="{{ .csp_nonce }}"
   src="{{ .base_path }}assets/js/model/inbound_form_help.js?{{ .cur_ver }}"></script>
 {{template "component/aSidebar" .}}
 {{template "component/aThemeSwitch" .}}
@@ -969,7 +969,7 @@
     </div>
   </a-space>
 </a-modal>
-<script>
+<script nonce="{{ .csp_nonce }}">
   const copyClientsColumns = [
     { title: '{{ i18n "pages.inbounds.email" }}', width: 300, scopedSlots: { customRender: 'emailCheckbox' } },
     { title: '{{ i18n "pages.inbounds.traffic" }}', width: 160, dataIndex: 'trafficLabel' },
@@ -1112,7 +1112,7 @@
     },
   });
 </script>
-<script>
+<script nonce="{{ .csp_nonce }}">
   const columns = [{
     title: "ID",
     align: 'right',
@@ -2275,7 +2275,7 @@
     },
   });
 </script>
-<style>
+<style nonce="{{ .csp_nonce }}">
   #content-layout > .ant-layout-content > .ant-spin-nested-loading > div > .ant-spin {
     position: fixed !important;
     top: 50vh !important;

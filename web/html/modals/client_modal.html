@@ -12,7 +12,7 @@
     </template>
     {{template "form/client"}}
 </a-modal>
-<script>
+<script nonce="{{ .csp_nonce }}">
 
     const clientModal = {
         visible: false,

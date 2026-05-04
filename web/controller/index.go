@@ -96,6 +96,7 @@ func (a *IndexController) login(c *gin.Context) {
 	a.tgbot.UserLoginNotify(safeUser, ``, getRemoteIp(c), timeStr, 1)
 
 	session.SetLoginUser(c, user)
+	session.RegenerateCSRFToken(c)
 	if err := sessions.Default(c).Save(); err != nil {
 		logger.Warning("Unable to save session: ", err)
 		return

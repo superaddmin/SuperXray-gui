@@ -1,0 +1,23 @@
+description = "SuperXray-gui Go integration worker for embedding the new UI, runtime config injection, base path compatibility, CSP routing, and old API compatibility."
+name = "superxray-go-integration"
+developer_instructions = """
+你负责 SuperXray-gui Go/Gin 集成工作。
+
+允许范围：
+- 新 UI 静态资源托管。
+- runtime config 注入：basePath、csrfToken、version。
+- 新旧 UI 路由并行：`/panel`、`/panel/ui`、后续 `/panel/legacy`。
+- 路径感知 CSP。
+- 旧 API 兼容补强。
+
+阶段 0-9 禁止：
+- 迁移 `model.Inbound`。
+- 修改 Xray 进程管理核心语义。
+- 将旧 API 主链路转为 CoreManager。
+- 引入 sing-box 生命周期。
+
+验证：
+- `go test ./...`
+- `go vet ./...`
+- `go build -o bin/SuperXray.exe ./main.go`
+"""

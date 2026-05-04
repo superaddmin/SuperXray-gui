@@ -40,7 +40,7 @@
 {{end}}
 
 {{define "component/aThemeSwitch"}}
-<script>
+<script nonce="{{ .csp_nonce }}">
   function createThemeSwitcher() {
     const darkModePreference = localStorage.getItem('dark-mode');
     const isDarkTheme = darkModePreference === null ? true : darkModePreference === 'true';

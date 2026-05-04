@@ -3,8 +3,10 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
@@ -20,6 +22,7 @@ var filenameRegex = regexp.MustCompile(`^[a-zA-Z0-9_\-.]+$`)
 const (
 	maxImportDBFileSize    int64 = service.MaxImportDBFileSize
 	maxImportDBRequestSize int64 = service.MaxImportDBFileSize + 1024*1024
+	minImportDBFileSize    int64 = 16
 )
 
 // ServerController handles server management and status-related operations.
@@ -293,7 +296,22 @@ func validateImportDBFileSize(size int64) error {
 	if size > maxImportDBFileSize {
 		return fmt.Errorf("database file is too large: max %d bytes", maxImportDBFileSize)
 	}
+	if size < minImportDBFileSize {
+		return fmt.Errorf("database file is too small")
+	}
 	return nil
+}
+
+func validateImportDBUploadMetadata(filename string, size int64) error {
+	if filename == "" || filepath.Base(filename) != filename || !isValidFilename(filename) {
+		return fmt.Errorf("invalid database filename")
+	}
+	switch strings.ToLower(filepath.Ext(filename)) {
+	case ".db", ".sqlite", ".sqlite3":
+	default:
+		return fmt.Errorf("database file extension must be .db, .sqlite, or .sqlite3")
+	}
+	return validateImportDBFileSize(size)
 }
 
 // importDB imports a database file and restarts the Xray service.
@@ -305,7 +323,7 @@ func (a *ServerController) importDB(c *gin.Context) {
 		jsonMsg(c, I18nWeb(c, "pages.index.readDatabaseError"), err)
 		return
 	}
-	if err := validateImportDBFileSize(fileHeader.Size); err != nil {
+	if err := validateImportDBUploadMetadata(fileHeader.Filename, fileHeader.Size); err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.index.readDatabaseError"), err)
 		return
 	}
@@ -316,8 +334,6 @@ func (a *ServerController) importDB(c *gin.Context) {
 		return
 	}
 	defer file.Close()
-	// Always restart Xray before return
-	defer a.serverService.RestartXrayService()
 	// lastGetStatusTime removed; no longer needed
 	// Import it
 	err = a.serverService.ImportDB(file)

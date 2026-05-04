@@ -2,7 +2,7 @@
 {{ template "page/head_end" .}}
 
 {{ template "page/body_start" .}}
-<style>
+<style nonce="{{ .csp_nonce }}">
   body.dark .custom-geo-section code.custom-geo-ext-code {
     color: var(--dark-color-text-primary, rgba(255, 255, 255, 0.85));
     background: var(--dark-color-surface-200, #222d42);
@@ -40,6 +40,20 @@
   .dashboard-row-equal > .ant-col > .ant-card > .ant-card-actions { margin-top: auto; }
   .dashboard-row-equal .xray-version-info { flex: 1; display: flex; align-items: center; justify-content: center; }
   .xray-status-card .ant-card-body { justify-content: center; }
+  .log-container { overflow: auto; white-space: normal; }
+  .log-line { overflow-wrap: anywhere; white-space: pre-wrap; }
+  .log-time,
+  .log-level-debug { color: #3c89e8; }
+  .log-level-info,
+  .log-level-notice { color: #008771; }
+  .log-level-warning { color: #f37b24; }
+  .log-level-error,
+  .xray-log-blocked { color: #e04141; }
+  .log-level-default { color: #bcbcbc; }
+  .xray-log-proxy { color: #3c89e8; }
+  .xray-log-table { border-collapse: collapse; width: auto; }
+  .xray-log-table td,
+  .xray-log-table th { padding: 2px 15px; }
   @media (max-width: 768px) {
     .dashboard-primary-card .ant-card-body { padding: 12px; }
     .dashboard-speed-row { flex-direction: column; gap: 8px; }
@@ -406,7 +420,16 @@
         <a-button type="primary" icon="download" @click="FileManager.downloadTextFile(logModal.logs?.join('\n'), 'x-ui.log')"></a-button>
       </a-form-item>
     </a-form>
-    <div class="ant-input log-container" v-html="logModal.formattedLogs"></div>
+    <div class="ant-input log-container">
+      <template v-if="logModal.formattedLogs.length > 0">
+        <div v-for="(log, index) in logModal.formattedLogs" :key="index" class="log-line">
+          <span v-if="log.time" class="log-time">[[ log.time ]]</span>
+          <span :class="['log-level', log.levelClass]">[[ log.level ]]</span>
+          <span v-if="log.message"> - <b>[[ log.source ]] </b>[[ log.message ]]</span>
+        </div>
+      </template>
+      <span v-else>No Record...</span>
+    </div>
   </a-modal>
   <a-modal id="xraylog-modal" v-model="xraylogModal.visible" :closable="true"
     @cancel="() => xraylogModal.visible = false" :class="themeSwitcher.currentTheme" width="80vw" footer="">
@@ -441,7 +464,31 @@
         <a-button type="primary" icon="download" @click="downloadXrayLogs"></a-button>
       </a-form-item>
     </a-form>
-    <div class="ant-input log-container" v-html="xraylogModal.formattedLogs"></div>
+    <div class="ant-input log-container">
+      <table v-if="xraylogModal.formattedLogs.length > 0" class="xray-log-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Inbound</th>
+            <th>Outbound</th>
+            <th>Email</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(log, index) in xraylogModal.formattedLogs" :key="index" :class="log.eventClass">
+            <td><b>[[ log.date ]]</b></td>
+            <td>[[ log.from ]]</td>
+            <td>[[ log.to ]]</td>
+            <td>[[ log.inbound ]]</td>
+            <td>[[ log.outbound ]]</td>
+            <td>[[ log.email ]]</td>
+          </tr>
+        </tbody>
+      </table>
+      <span v-else>No Record...</span>
+    </div>
   </a-modal>
   <a-modal id="backup-modal" v-model="backupModal.visible" title='{{ i18n "pages.index.backupTitle" }}' :closable="true"
     footer="" :class="themeSwitcher.currentTheme">
@@ -490,7 +537,7 @@
 {{template "component/aThemeSwitch" .}}
 {{template "component/aCustomStatistic" .}}
 {{template "modals/textModal"}}
-<script>
+<script nonce="{{ .csp_nonce }}">
   // Tiny Sparkline component using an inline SVG polyline
   Vue.component('sparkline', {
     props: {
@@ -778,53 +825,77 @@
     },
   };
 
+  function toLogText(value) {
+    return value == null ? '' : String(value);
+  }
+
+  function splitLogLine(log) {
+    const text = toLogText(log);
+    const separator = ' - ';
+    const separatorIndex = text.indexOf(separator);
+    if (separatorIndex === -1) {
+      return [text, ''];
+    }
+    return [
+      text.substring(0, separatorIndex),
+      text.substring(separatorIndex + separator.length),
+    ];
+  }
+
+  function logLevelClass(level) {
+    const normalized = toLogText(level).toUpperCase();
+    const levelClasses = {
+      DEBUG: 'log-level-debug',
+      INFO: 'log-level-info',
+      NOTICE: 'log-level-notice',
+      WARNING: 'log-level-warning',
+      ERROR: 'log-level-error',
+    };
+    return levelClasses[normalized] || 'log-level-default';
+  }
+
   const logModal = {
     visible: false,
     logs: [],
+    formattedLogs: [],
     rows: 20,
     level: 'info',
     syslog: false,
     loading: false,
     show(logs) {
       this.visible = true;
-      this.logs = logs;
-      this.formattedLogs = this.logs?.length > 0 ? this.formatLogs(this.logs) : "No Record...";
+      this.logs = Array.isArray(logs) ? logs : [];
+      this.formattedLogs = this.formatLogs(this.logs);
     },
     formatLogs(logs) {
-      let formattedLogs = '';
-      const levels = ["DEBUG", "INFO", "NOTICE", "WARNING", "ERROR"];
-      const levelColors = ["#3c89e8", "#008771", "#008771", "#f37b24", "#e04141", "#bcbcbc"];
-
-      logs.forEach((log, index) => {
-        let [data, message] = log.split(" - ", 2);
-        const parts = data.split(" ")
-        if (index > 0) formattedLogs += '<br>';
+      return (Array.isArray(logs) ? logs : []).map(log => {
+        const [data, rawMessage] = splitLogLine(log);
+        const parts = data.split(' ');
+        const item = {
+          time: '',
+          level: data,
+          levelClass: logLevelClass(data),
+          source: '',
+          message: '',
+        };
 
         if (parts.length === 3) {
-          const d = HtmlUtil.escape(parts[0]);
-          const t = HtmlUtil.escape(parts[1]);
-          const level = HtmlUtil.escape(parts[2]);
-          const levelIndex = levels.indexOf(level, levels) || 5;
-
-          //formattedLogs += `<span style="color: gray;">${index + 1}.</span>`;
-          formattedLogs += `<span style="color: ${levelColors[0]};">${d} ${t}</span> `;
-          formattedLogs += `<span style="color: ${levelColors[levelIndex]}">${level}</span>`;
-        } else {
-          const levelIndex = levels.indexOf(data, levels) || 5;
-          formattedLogs += `<span style="color: ${levelColors[levelIndex]}">${HtmlUtil.escape(data)}</span>`;
+          item.time = `${parts[0]} ${parts[1]}`;
+          item.level = parts[2];
+          item.levelClass = logLevelClass(item.level);
         }
 
-        if (message) {
-          if (message.startsWith("XRAY:"))
-            message = "<b>XRAY: </b>" + HtmlUtil.escape(message.substring(5));
-          else
-            message = "<b>X-UI: </b>" + HtmlUtil.escape(message);
+        if (rawMessage) {
+          if (rawMessage.startsWith("XRAY:")) {
+            item.source = "XRAY:";
+            item.message = rawMessage.substring(5);
+          } else {
+            item.source = "X-UI:";
+            item.message = rawMessage;
+          }
         }
-
-        formattedLogs += message ? ' - ' + message : '';
+        return item;
       });
-
-      return formattedLogs;
     },
     hide() {
       this.visible = false;
@@ -834,6 +905,7 @@
   const xraylogModal = {
       visible: false,
       logs: [],
+      formattedLogs: [],
       rows: 20,
       showDirect: true,
       showBlocked: true,
@@ -841,60 +913,22 @@
       loading: false,
       show(logs) {
         this.visible = true;
-        this.logs = logs;
-        this.formattedLogs = this.logs?.length > 0 ? this.formatLogs(this.logs) : "No Record...";
+        this.logs = Array.isArray(logs) ? logs : [];
+        this.formattedLogs = this.formatLogs(this.logs);
       },
       formatLogs(logs) {
-        let formattedLogs = `
-<style>
-  table {
-    border-collapse: collapse;
-    width: auto;
-  }
-
-  table td, table th {
-    padding: 2px 15px;
-  }
-</style>
-
-<table>
-    <tr>
-        <th>Date</th>
-        <th>From</th>
-        <th>To</th>
-        <th>Inbound</th>
-        <th>Outbound</th>
-        <th>Email</th>
-    </tr>
-`;
-
-        logs.reverse().forEach((log, index) => {
-          let outboundColor = '';
-          if (log.Event === 1) {
-            outboundColor = ' style="color: #e04141;"'; //red for blocked
-          }
-          else if (log.Event === 2) {
-            outboundColor = ' style="color: #3c89e8;"'; //blue for proxies
-          }
-
-          let text = ``;
-          if (log.Email !== "") {
-            text = `<td>${HtmlUtil.escape(log.Email)}</td>`;
-          }
-
-          formattedLogs += `
-<tr ${outboundColor}>
-    <td><b>${HtmlUtil.escape(IntlUtil.formatDate(log.DateTime))}</b></td>
-    <td>${HtmlUtil.escape(log.FromAddress)}</td>
-    <td>${HtmlUtil.escape(log.ToAddress)}</td>
-    <td>${HtmlUtil.escape(log.Inbound)}</td>
-    <td>${HtmlUtil.escape(log.Outbound)}</td>
-    ${text}
-</tr>
-`;
+        return (Array.isArray(logs) ? logs : []).slice().reverse().map(log => {
+          const event = Number(log.Event);
+          return {
+            date: toLogText(IntlUtil.formatDate(log.DateTime)),
+            from: toLogText(log.FromAddress),
+            to: toLogText(log.ToAddress),
+            inbound: toLogText(log.Inbound),
+            outbound: toLogText(log.Outbound),
+            email: toLogText(log.Email),
+            eventClass: event === 1 ? 'xray-log-blocked' : event === 2 ? 'xray-log-proxy' : '',
+          };
         });
-
-        return formattedLogs += "</table>";
       },
       hide() {
         this.visible = false;
@@ -1324,7 +1358,7 @@
       // Setup WebSocket for real-time updates
       if (window.wsClient) {
         window.wsClient.connect();
-        
+
         // Listen for status updates
         window.wsClient.on('status', (payload) => {
           this.setStatus(payload);

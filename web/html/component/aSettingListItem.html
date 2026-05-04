@@ -19,7 +19,7 @@
 {{end}}
 
 {{define "component/aSettingListItem"}}
-<script>
+<script nonce="{{ .csp_nonce }}">
     Vue.component('a-setting-list-item', {
         props: {
             'paddings': {

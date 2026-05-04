@@ -3,6 +3,9 @@
 package session
 
 import (
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/gob"
 	"net/http"
 	"strings"
@@ -15,6 +18,7 @@ import (
 
 const (
 	loginUserKey = "LOGIN_USER"
+	csrfTokenKey = "CSRF_TOKEN"
 )
 
 func init() {
@@ -29,6 +33,39 @@ func SetLoginUser(c *gin.Context, user *model.User) {
 	}
 	s := sessions.Default(c)
 	s.Set(loginUserKey, *user)
+}
+
+// RegenerateCSRFToken creates a fresh per-session token after login.
+func RegenerateCSRFToken(c *gin.Context) string {
+	token, err := newCSRFToken()
+	if err != nil {
+		return ""
+	}
+	s := sessions.Default(c)
+	s.Set(csrfTokenKey, token)
+	return token
+}
+
+// EnsureCSRFToken returns the current session token, creating one for older sessions if needed.
+func EnsureCSRFToken(c *gin.Context) string {
+	s := sessions.Default(c)
+	if token, ok := s.Get(csrfTokenKey).(string); ok && token != "" {
+		return token
+	}
+	token := RegenerateCSRFToken(c)
+	if token != "" {
+		_ = s.Save()
+	}
+	return token
+}
+
+// VerifyCSRFToken compares the submitted token with the value bound to this session.
+func VerifyCSRFToken(c *gin.Context, token string) bool {
+	expected, ok := sessions.Default(c).Get(csrfTokenKey).(string)
+	if !ok || expected == "" || token == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(expected), []byte(token)) == 1
 }
 
 // GetLoginUser retrieves the authenticated user from the session.
@@ -71,4 +108,12 @@ func ClearSession(c *gin.Context) {
 		Secure:   secureCookie,
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+func newCSRFToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(bytes), nil
 }

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/superaddmin/SuperXray-gui/v2/config"
+	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -137,6 +138,7 @@ func (a *SUBController) subs(c *gin.Context) {
 				"cur_ver":      config.GetAssetVersion(),
 				"host":         page.Host,
 				"base_path":    page.BasePath,
+				"csp_nonce":    middleware.CSPNonce(c),
 				"sId":          page.SId,
 				"download":     page.Download,
 				"upload":       page.Upload,

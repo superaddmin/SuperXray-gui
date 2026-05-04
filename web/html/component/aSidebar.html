@@ -39,13 +39,13 @@
 {{end}}
 
 {{define "component/aSidebar"}}
-<style>
+<style nonce="{{ .csp_nonce }}">
     .ant-sidebar>.ant-layout-sider {
         height: 100%;
     }
 </style>
 
-<script>
+<script nonce="{{ .csp_nonce }}">
     const SIDEBAR_COLLAPSED_KEY = "isSidebarCollapsed"
 
     Vue.component('a-sidebar', {
@@ -53,22 +53,22 @@
             return {
                 tabs: [
                     {
-                        key: '{{ .base_path }}panel/',
+                        key: '{{ .panel_path }}',
                         icon: 'dashboard',
                         title: '{{ i18n "menu.dashboard"}}'
                     },
                     {
-                        key: '{{ .base_path }}panel/inbounds',
+                        key: '{{ .panel_path }}inbounds',
                         icon: 'user',
                         title: '{{ i18n "menu.inbounds"}}'
                     },
                     {
-                        key: '{{ .base_path }}panel/settings',
+                        key: '{{ .panel_path }}settings',
                         icon: 'setting',
                         title: '{{ i18n "menu.settings"}}'
                     },
                     {
-                        key: '{{ .base_path }}panel/xray',
+                        key: '{{ .panel_path }}xray',
                         icon: 'tool',
                         title: '{{ i18n "menu.xray"}}'
                     },
@@ -98,7 +98,7 @@
         },
         methods: {
             goHome() {
-                openLink((basePath || '/') + 'panel/');
+                openLink('{{ .panel_path }}');
             },
             openLink(key) {
                 return key.startsWith('http') ? 

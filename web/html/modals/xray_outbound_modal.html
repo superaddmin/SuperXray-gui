@@ -5,7 +5,7 @@
          :ok-text="outModal.okText" cancel-text='{{ i18n "close" }}' :class="themeSwitcher.currentTheme">
          {{template "form/outbound"}}
 </a-modal>
-<script>
+<script nonce="{{ .csp_nonce }}">
 
     const outModal = {
         title: '',
