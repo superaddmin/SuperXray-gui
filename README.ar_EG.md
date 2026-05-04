@@ -31,10 +31,10 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 لتثبيت الإصدار الحالي صراحةً:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.3
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.4
 ```
 
-تُنشر الحزم الرسمية حاليًا لنظام Linux بمعماريتي `amd64` و `arm64`. يعرض المثبّت في النهاية اسم المستخدم وكلمة المرور ومنفذ اللوحة و `webBasePath` التي تم إنشاؤها؛ احفظ هذه القيم. تتوفر صورة Docker على `ghcr.io/superaddmin/superxray-gui:3.0.3`. راجع [docs/deployment.md](docs/deployment.md) لتفاصيل Docker والنشر الثنائي ومتطلبات البيئة.
+تُنشر الحزم الرسمية حاليًا لنظام Linux بمعماريتي `amd64` و `arm64`. يعرض المثبّت في النهاية اسم المستخدم وكلمة المرور ومنفذ اللوحة و `webBasePath` التي تم إنشاؤها؛ احفظ هذه القيم. تتوفر صورة Docker على `ghcr.io/superaddmin/superxray-gui:3.0.4`. راجع [docs/deployment.md](docs/deployment.md) لتفاصيل Docker والنشر الثنائي ومتطلبات البيئة.
 
 للحصول على الوثائق الكاملة، يرجى زيارة [ويكي المشروع](https://github.com/superaddmin/SuperXray-gui/wiki).
 
