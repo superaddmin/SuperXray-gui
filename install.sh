@@ -37,13 +37,8 @@ echo "当前系统发行版：$release"
 arch() {
     case "$(uname -m)" in
         x86_64 | x64 | amd64) echo 'amd64' ;;
-        i*86 | x86) echo '386' ;;
         armv8* | armv8 | arm64 | aarch64) echo 'arm64' ;;
-        armv7* | armv7 | arm) echo 'armv7' ;;
-        armv6* | armv6) echo 'armv6' ;;
-        armv5* | armv5) echo 'armv5' ;;
-        s390x) echo 's390x' ;;
-        *) echo -e "${green}不支持的 CPU 架构！${plain}" && rm -f install.sh && exit 1 ;;
+        *) echo -e "${red}不支持的 CPU 架构：$(uname -m)。SuperXray 服务器安装包仅发布 amd64 和 arm64。${plain}" && rm -f install.sh && exit 1 ;;
     esac
 }
 
@@ -881,6 +876,7 @@ install_x-ui() {
             exit 1
         fi
     fi
+    raw_base="https://raw.githubusercontent.com/${script_repo}/${tag_version}"
     curl -4fLRo /usr/bin/x-ui-temp "${raw_base}/x-ui.sh"
     if [[ $? -ne 0 ]]; then
         echo -e "${red}下载 x-ui.sh 失败${plain}"

@@ -18,7 +18,7 @@ import (
 
 const (
 	loginUserKey = "LOGIN_USER"
-	csrfTokenKey = "CSRF_TOKEN"
+	csrfTokenKey = "CSRF_TOKEN" // #nosec G101 -- Session key name, not a hardcoded credential.
 )
 
 func init() {
