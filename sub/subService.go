@@ -852,7 +852,10 @@ func externalProxyPort(value any) (int, bool) {
 	case uint:
 		return int(port), port > 0 && port <= 65535
 	case uint64:
-		return int(port), port > 0 && port <= 65535
+		if port == 0 || port > 65535 {
+			return 0, false
+		}
+		return int(port), true
 	}
 	return 0, false
 }
@@ -1616,15 +1619,4 @@ func parseSafeRequestHost(rawHost string) (host string, hostWithPort string, ok 
 		return "", "", false
 	}
 	return rawHost, rawHost, true
-}
-
-func getHostFromXFH(s string) (string, error) {
-	if strings.Contains(s, ":") {
-		realHost, _, err := net.SplitHostPort(s)
-		if err != nil {
-			return "", err
-		}
-		return realHost, nil
-	}
-	return s, nil
 }

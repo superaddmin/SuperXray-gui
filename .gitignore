@@ -11,6 +11,7 @@
 !.codex/skills/superxray-ui-first-migration/
 !.codex/skills/superxray-ui-first-migration/**
 .claude/
+.superpowers/
 .cache/
 .playwright-mcp/
 .sync*

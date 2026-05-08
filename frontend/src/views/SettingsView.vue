@@ -27,160 +27,162 @@
       <ATabs v-model:active-key="activeTab">
         <ATabPane key="panel" tab="Panel">
           <AForm layout="vertical">
-            <div class="form-grid">
-              <AFormItem label="Web Listen">
-                <AInput
-                  v-model:value="settings.webListen"
-                  aria-label="Web listen address"
-                  placeholder="0.0.0.0"
-                />
-              </AFormItem>
-              <AFormItem label="Web Domain">
-                <AInput v-model:value="settings.webDomain" aria-label="Web domain" />
-              </AFormItem>
-              <AFormItem label="Web Port">
-                <AInputNumber
-                  v-model:value="settings.webPort"
-                  aria-label="Web port"
-                  class="full-width"
-                  :min="1"
-                  :max="65535"
-                />
-              </AFormItem>
-              <AFormItem label="Base Path">
-                <AInput v-model:value="settings.webBasePath" aria-label="Base path" />
-              </AFormItem>
-              <AFormItem label="Certificate File">
-                <AInput v-model:value="settings.webCertFile" aria-label="Certificate file" />
-              </AFormItem>
-              <AFormItem label="Key File">
-                <AInput v-model:value="settings.webKeyFile" aria-label="Key file" />
-              </AFormItem>
-              <AFormItem label="Session Max Age">
-                <AInputNumber
-                  v-model:value="settings.sessionMaxAge"
-                  aria-label="Session max age"
-                  class="full-width"
-                  :min="1"
-                />
-              </AFormItem>
-              <AFormItem label="Page Size">
-                <AInputNumber
-                  v-model:value="settings.pageSize"
-                  aria-label="Page size"
-                  class="full-width"
-                  :min="1"
-                />
-              </AFormItem>
-              <AFormItem label="Expire Diff">
-                <AInputNumber
-                  v-model:value="settings.expireDiff"
-                  aria-label="Expire diff"
-                  class="full-width"
-                  :min="0"
-                />
-              </AFormItem>
-              <AFormItem label="Traffic Diff">
-                <AInputNumber
-                  v-model:value="settings.trafficDiff"
-                  aria-label="Traffic diff"
-                  class="full-width"
-                  :min="0"
-                />
-              </AFormItem>
-              <AFormItem label="Remark Model">
-                <AInput v-model:value="settings.remarkModel" aria-label="Remark model" />
-              </AFormItem>
-              <AFormItem label="Datepicker">
-                <ASelect
-                  v-model:value="settings.datepicker"
-                  aria-label="Datepicker mode"
-                  :options="datepickerOptions"
-                />
-              </AFormItem>
-              <AFormItem label="Time Location">
-                <AInput v-model:value="settings.timeLocation" aria-label="Time location" />
-              </AFormItem>
-            </div>
+            <FormSection eyebrow="Panel" title="Web Endpoint">
+              <div class="form-grid">
+                <AFormItem label="Web Listen">
+                  <AInput
+                    v-model:value="settings.webListen"
+                    aria-label="Web listen address"
+                    placeholder="0.0.0.0"
+                  />
+                </AFormItem>
+                <AFormItem label="Web Domain">
+                  <AInput v-model:value="settings.webDomain" aria-label="Web domain" />
+                </AFormItem>
+                <AFormItem label="Web Port">
+                  <AInputNumber
+                    v-model:value="settings.webPort"
+                    aria-label="Web port"
+                    class="full-width"
+                    :min="1"
+                    :max="65535"
+                  />
+                </AFormItem>
+                <AFormItem label="Base Path">
+                  <AInput v-model:value="settings.webBasePath" aria-label="Base path" />
+                </AFormItem>
+              </div>
+            </FormSection>
+
+            <FormSection eyebrow="Panel" title="TLS Files">
+              <div class="form-grid">
+                <AFormItem label="Certificate File">
+                  <AInput v-model:value="settings.webCertFile" aria-label="Certificate file" />
+                </AFormItem>
+                <AFormItem label="Key File">
+                  <AInput v-model:value="settings.webKeyFile" aria-label="Key file" />
+                </AFormItem>
+              </div>
+            </FormSection>
+
+            <FormSection eyebrow="Panel" title="Session and Display">
+              <div class="form-grid">
+                <AFormItem label="Session Max Age">
+                  <AInputNumber
+                    v-model:value="settings.sessionMaxAge"
+                    aria-label="Session max age"
+                    class="full-width"
+                    :min="1"
+                  />
+                </AFormItem>
+                <AFormItem label="Page Size">
+                  <AInputNumber
+                    v-model:value="settings.pageSize"
+                    aria-label="Page size"
+                    class="full-width"
+                    :min="1"
+                  />
+                </AFormItem>
+                <AFormItem label="Datepicker">
+                  <ASelect
+                    v-model:value="settings.datepicker"
+                    aria-label="Datepicker mode"
+                    :options="datepickerOptions"
+                  />
+                </AFormItem>
+                <AFormItem label="Time Location">
+                  <AInput v-model:value="settings.timeLocation" aria-label="Time location" />
+                </AFormItem>
+              </div>
+            </FormSection>
+
+            <FormSection eyebrow="Panel" title="Thresholds and Naming">
+              <div class="form-grid">
+                <AFormItem label="Expire Diff">
+                  <AInputNumber
+                    v-model:value="settings.expireDiff"
+                    aria-label="Expire diff"
+                    class="full-width"
+                    :min="0"
+                  />
+                </AFormItem>
+                <AFormItem label="Traffic Diff">
+                  <AInputNumber
+                    v-model:value="settings.trafficDiff"
+                    aria-label="Traffic diff"
+                    class="full-width"
+                    :min="0"
+                  />
+                </AFormItem>
+                <AFormItem label="Remark Model">
+                  <AInput v-model:value="settings.remarkModel" aria-label="Remark model" />
+                </AFormItem>
+              </div>
+            </FormSection>
           </AForm>
         </ATabPane>
 
         <ATabPane key="security" tab="Security">
           <AForm layout="vertical">
-            <div class="form-grid">
-              <AFormItem label="Two Factor">
-                <ASwitch v-model:checked="settings.twoFactorEnable" />
-              </AFormItem>
-            </div>
-          </AForm>
-
-          <div class="settings-feature-panel">
-            <div class="panel-header compact-panel-header">
-              <div>
-                <p class="page-eyebrow">Security</p>
-                <h2>Two Factor Setup</h2>
-              </div>
-              <ASpace wrap>
+            <FormSection
+              eyebrow="Security"
+              title="Two Factor"
+              description="Generate or disable the token here, then save panel settings so the legacy settings page reads the same two-factor fields."
+            >
+              <template #actions>
                 <AButton @click="generateTwoFactorToken">
                   <template #icon><KeyOutlined /></template>
                   Generate Token
                 </AButton>
                 <AButton danger @click="disableTwoFactor">Disable Two Factor</AButton>
-              </ASpace>
-            </div>
-            <div class="settings-token-grid">
-              <AFormItem label="Two Factor Token">
-                <AInput v-model:value="settings.twoFactorToken" type="password" />
-              </AFormItem>
-              <AFormItem label="Setup URI">
-                <textarea
-                  aria-label="Two-factor setup URI"
-                  class="json-editor compact-json-editor"
-                  readonly
-                  :value="twoFactorSetupUri"
-                />
-              </AFormItem>
-            </div>
-            <p class="muted-text">
-              Generate or disable the token here, then save panel settings so the legacy settings
-              page reads the same two-factor fields.
-            </p>
-          </div>
+              </template>
+              <div class="settings-token-grid">
+                <AFormItem label="Two Factor">
+                  <ASwitch v-model:checked="settings.twoFactorEnable" />
+                </AFormItem>
+                <AFormItem label="Two Factor Token">
+                  <AInput v-model:value="settings.twoFactorToken" type="password" />
+                </AFormItem>
+                <AFormItem label="Setup URI">
+                  <textarea
+                    aria-label="Two-factor setup URI"
+                    class="json-editor compact-json-editor"
+                    readonly
+                    :value="twoFactorSetupUri"
+                  />
+                </AFormItem>
+              </div>
+            </FormSection>
 
-          <ADivider />
-
-          <div class="panel-header">
-            <div>
-              <p class="page-eyebrow">Credentials</p>
-              <h2>Update Login</h2>
-            </div>
-            <AButton :loading="updatingCredentials" danger @click="confirmUpdateCredentials">
-              Update
-            </AButton>
-          </div>
-          <AForm layout="vertical">
-            <div class="form-grid">
-              <AFormItem label="Current Username">
-                <AInput v-model:value="credentials.oldUsername" autocomplete="username" />
-              </AFormItem>
-              <AFormItem label="Current Password">
-                <AInput
-                  v-model:value="credentials.oldPassword"
-                  autocomplete="current-password"
-                  type="password"
-                />
-              </AFormItem>
-              <AFormItem label="New Username">
-                <AInput v-model:value="credentials.newUsername" autocomplete="username" />
-              </AFormItem>
-              <AFormItem label="New Password">
-                <AInput
-                  v-model:value="credentials.newPassword"
-                  autocomplete="new-password"
-                  type="password"
-                />
-              </AFormItem>
-            </div>
+            <FormSection eyebrow="Security" title="Credentials">
+              <template #actions>
+                <AButton :loading="updatingCredentials" danger @click="confirmUpdateCredentials">
+                  Update
+                </AButton>
+              </template>
+              <div class="form-grid">
+                <AFormItem label="Current Username">
+                  <AInput v-model:value="credentials.oldUsername" autocomplete="username" />
+                </AFormItem>
+                <AFormItem label="Current Password">
+                  <AInput
+                    v-model:value="credentials.oldPassword"
+                    autocomplete="current-password"
+                    type="password"
+                  />
+                </AFormItem>
+                <AFormItem label="New Username">
+                  <AInput v-model:value="credentials.newUsername" autocomplete="username" />
+                </AFormItem>
+                <AFormItem label="New Password">
+                  <AInput
+                    v-model:value="credentials.newPassword"
+                    autocomplete="new-password"
+                    type="password"
+                  />
+                </AFormItem>
+              </div>
+            </FormSection>
           </AForm>
         </ATabPane>
 
@@ -195,85 +197,100 @@
             </AButton>
           </div>
           <AForm layout="vertical">
-            <div class="settings-switch-row">
-              <ACheckbox v-model:checked="settings.subEnable">URI</ACheckbox>
-              <ACheckbox v-model:checked="settings.subJsonEnable">JSON</ACheckbox>
-              <ACheckbox v-model:checked="settings.subClashEnable">Clash/Mihomo</ACheckbox>
-              <ACheckbox v-model:checked="settings.subEncrypt">Encrypted</ACheckbox>
-              <ACheckbox v-model:checked="settings.subShowInfo">Show Info</ACheckbox>
-              <ACheckbox v-model:checked="settings.subEnableRouting">Routing</ACheckbox>
-            </div>
+            <FormSection eyebrow="Subscription" title="Feature Flags">
+              <div class="settings-switch-row">
+                <ACheckbox v-model:checked="settings.subEnable">URI</ACheckbox>
+                <ACheckbox v-model:checked="settings.subJsonEnable">JSON</ACheckbox>
+                <ACheckbox v-model:checked="settings.subClashEnable">Clash/Mihomo</ACheckbox>
+                <ACheckbox v-model:checked="settings.subEncrypt">Encrypted</ACheckbox>
+                <ACheckbox v-model:checked="settings.subShowInfo">Show Info</ACheckbox>
+                <ACheckbox v-model:checked="settings.subEnableRouting">Routing</ACheckbox>
+              </div>
+            </FormSection>
 
-            <div class="form-grid">
-              <AFormItem label="Title">
-                <AInput v-model:value="settings.subTitle" />
-              </AFormItem>
-              <AFormItem label="Updates">
-                <AInputNumber v-model:value="settings.subUpdates" class="full-width" :min="1" />
-              </AFormItem>
-              <AFormItem label="Listen">
-                <AInput v-model:value="settings.subListen" />
-              </AFormItem>
-              <AFormItem label="Port">
-                <AInputNumber
-                  v-model:value="settings.subPort"
-                  class="full-width"
-                  :min="1"
-                  :max="65535"
-                />
-              </AFormItem>
-              <AFormItem label="Domain">
-                <AInput v-model:value="settings.subDomain" />
-              </AFormItem>
-              <AFormItem label="Path">
-                <AInput v-model:value="settings.subPath" />
-              </AFormItem>
-              <AFormItem label="URI">
-                <AInput v-model:value="settings.subURI" />
-              </AFormItem>
-              <AFormItem label="JSON Path">
-                <AInput v-model:value="settings.subJsonPath" />
-              </AFormItem>
-              <AFormItem label="JSON URI">
-                <AInput v-model:value="settings.subJsonURI" />
-              </AFormItem>
-              <AFormItem label="Clash Path">
-                <AInput v-model:value="settings.subClashPath" />
-              </AFormItem>
-              <AFormItem label="Clash URI">
-                <AInput v-model:value="settings.subClashURI" />
-              </AFormItem>
-              <AFormItem label="Support URL">
-                <AInput v-model:value="settings.subSupportUrl" />
-              </AFormItem>
-              <AFormItem label="Profile URL">
-                <AInput v-model:value="settings.subProfileUrl" />
-              </AFormItem>
-              <AFormItem label="Certificate File">
-                <AInput v-model:value="settings.subCertFile" />
-              </AFormItem>
-              <AFormItem label="Key File">
-                <AInput v-model:value="settings.subKeyFile" />
-              </AFormItem>
-              <AFormItem label="External Traffic Inform">
-                <ASwitch v-model:checked="settings.externalTrafficInformEnable" />
-              </AFormItem>
-              <AFormItem label="External Traffic URI">
-                <AInput v-model:value="settings.externalTrafficInformURI" />
-              </AFormItem>
-            </div>
+            <FormSection eyebrow="Subscription" title="Server Endpoint">
+              <div class="form-grid">
+                <AFormItem label="Title">
+                  <AInput v-model:value="settings.subTitle" />
+                </AFormItem>
+                <AFormItem label="Updates">
+                  <AInputNumber v-model:value="settings.subUpdates" class="full-width" :min="1" />
+                </AFormItem>
+                <AFormItem label="Listen">
+                  <AInput v-model:value="settings.subListen" />
+                </AFormItem>
+                <AFormItem label="Port">
+                  <AInputNumber
+                    v-model:value="settings.subPort"
+                    class="full-width"
+                    :min="1"
+                    :max="65535"
+                  />
+                </AFormItem>
+                <AFormItem label="Domain">
+                  <AInput v-model:value="settings.subDomain" />
+                </AFormItem>
+                <AFormItem label="Path">
+                  <AInput v-model:value="settings.subPath" />
+                </AFormItem>
+              </div>
+            </FormSection>
 
-            <div class="settings-feature-panel">
-              <div class="panel-header compact-panel-header">
-                <div>
-                  <p class="page-eyebrow">Public Access</p>
-                  <h2>Subscription Public Links</h2>
-                </div>
+            <FormSection eyebrow="Subscription" title="Public URIs">
+              <div class="form-grid">
+                <AFormItem label="URI">
+                  <AInput v-model:value="settings.subURI" />
+                </AFormItem>
+                <AFormItem label="JSON Path">
+                  <AInput v-model:value="settings.subJsonPath" />
+                </AFormItem>
+                <AFormItem label="JSON URI">
+                  <AInput v-model:value="settings.subJsonURI" />
+                </AFormItem>
+                <AFormItem label="Clash Path">
+                  <AInput v-model:value="settings.subClashPath" />
+                </AFormItem>
+                <AFormItem label="Clash URI">
+                  <AInput v-model:value="settings.subClashURI" />
+                </AFormItem>
+              </div>
+            </FormSection>
+
+            <FormSection eyebrow="Subscription" title="Metadata and TLS">
+              <div class="form-grid">
+                <AFormItem label="Support URL">
+                  <AInput v-model:value="settings.subSupportUrl" />
+                </AFormItem>
+                <AFormItem label="Profile URL">
+                  <AInput v-model:value="settings.subProfileUrl" />
+                </AFormItem>
+                <AFormItem label="Certificate File">
+                  <AInput v-model:value="settings.subCertFile" />
+                </AFormItem>
+                <AFormItem label="Key File">
+                  <AInput v-model:value="settings.subKeyFile" />
+                </AFormItem>
+              </div>
+            </FormSection>
+
+            <FormSection eyebrow="Subscription" title="External Traffic">
+              <div class="form-grid">
+                <AFormItem label="External Traffic Inform">
+                  <ASwitch v-model:checked="settings.externalTrafficInformEnable" />
+                </AFormItem>
+                <AFormItem label="External Traffic URI">
+                  <AInput v-model:value="settings.externalTrafficInformURI" />
+                </AFormItem>
+              </div>
+            </FormSection>
+
+            <FormSection eyebrow="Subscription" title="Public Links">
+              <template #actions>
                 <AButton @click="copySubscriptionLinks">
                   <template #icon><CopyOutlined /></template>
                   Copy Links
                 </AButton>
-              </div>
+              </template>
               <textarea
                 aria-label="Subscription public links"
                 class="json-editor compact-json-editor"
@@ -297,21 +314,22 @@
                   Open Clash
                 </AButton>
               </ASpace>
+            </FormSection>
 
-              <ADivider />
-
-              <div class="client-recommendation-header">
-                <div>
-                  <h3>Recommended Client Links</h3>
-                  <p class="muted-text">
-                    Generate target-aware links for desktop, mobile, headless and WireGuard clients.
-                  </p>
-                </div>
-                <AButton :disabled="recommendedSubscriptionLinks.length === 0" @click="copyRecommendedLinks">
+            <FormSection
+              eyebrow="Subscription"
+              title="Recommended Client Links"
+              description="Generate target-aware links for desktop, mobile, headless and WireGuard clients."
+            >
+              <template #actions>
+                <AButton
+                  :disabled="recommendedSubscriptionLinks.length === 0"
+                  @click="copyRecommendedLinks"
+                >
                   <template #icon><CopyOutlined /></template>
                   Copy Recommended
                 </AButton>
-              </div>
+              </template>
               <div class="client-link-grid">
                 <div
                   v-for="link in recommendedSubscriptionLinks"
@@ -339,17 +357,21 @@
                 show-icon
                 type="info"
               />
-            </div>
+            </FormSection>
 
-            <AFormItem label="Announce">
-              <textarea v-model="settings.subAnnounce" class="json-editor compact-json-editor" />
-            </AFormItem>
-            <AFormItem label="Routing Rules">
-              <textarea
-                v-model="settings.subRoutingRules"
-                class="json-editor compact-json-editor"
-              />
-            </AFormItem>
+            <FormSection eyebrow="Subscription" title="Announce and Routing">
+              <div class="form-json-stack">
+                <AFormItem label="Announce">
+                  <textarea v-model="settings.subAnnounce" class="json-editor compact-json-editor" />
+                </AFormItem>
+                <AFormItem label="Routing Rules">
+                  <textarea
+                    v-model="settings.subRoutingRules"
+                    class="json-editor compact-json-editor"
+                  />
+                </AFormItem>
+              </div>
+            </FormSection>
           </AForm>
         </ATabPane>
 
@@ -361,137 +383,166 @@
             :message="jsonWarnings.join(' | ')"
           />
           <AForm layout="vertical">
-            <AFormItem label="JSON Fragment">
-              <textarea v-model="settings.subJsonFragment" class="json-editor modal-json-editor" />
-            </AFormItem>
-            <AFormItem label="JSON Noises">
-              <textarea v-model="settings.subJsonNoises" class="json-editor modal-json-editor" />
-            </AFormItem>
-            <AFormItem label="JSON Mux">
-              <textarea v-model="settings.subJsonMux" class="json-editor modal-json-editor" />
-            </AFormItem>
-            <AFormItem label="JSON Rules">
-              <textarea v-model="settings.subJsonRules" class="json-editor modal-json-editor" />
-            </AFormItem>
+            <FormSection eyebrow="Formats" title="JSON Formats">
+              <div class="form-json-stack">
+                <AFormItem label="JSON Fragment">
+                  <textarea v-model="settings.subJsonFragment" class="json-editor modal-json-editor" />
+                </AFormItem>
+                <AFormItem label="JSON Noises">
+                  <textarea v-model="settings.subJsonNoises" class="json-editor modal-json-editor" />
+                </AFormItem>
+                <AFormItem label="JSON Mux">
+                  <textarea v-model="settings.subJsonMux" class="json-editor modal-json-editor" />
+                </AFormItem>
+                <AFormItem label="JSON Rules">
+                  <textarea v-model="settings.subJsonRules" class="json-editor modal-json-editor" />
+                </AFormItem>
+              </div>
+            </FormSection>
           </AForm>
         </ATabPane>
 
         <ATabPane key="telegram" tab="Telegram">
           <AForm layout="vertical">
-            <div class="settings-switch-row">
-              <ACheckbox v-model:checked="settings.tgBotEnable">Enabled</ACheckbox>
-              <ACheckbox v-model:checked="settings.tgBotBackup">Backup</ACheckbox>
-              <ACheckbox v-model:checked="settings.tgBotLoginNotify">Login Notify</ACheckbox>
-            </div>
-            <div class="form-grid">
-              <AFormItem label="Bot Token">
-                <AInput v-model:value="settings.tgBotToken" type="password" />
-              </AFormItem>
-              <AFormItem label="Chat ID">
-                <AInput v-model:value="settings.tgBotChatId" />
-              </AFormItem>
-              <AFormItem label="Proxy">
-                <AInput v-model:value="settings.tgBotProxy" />
-              </AFormItem>
-              <AFormItem label="API Server">
-                <AInput v-model:value="settings.tgBotAPIServer" />
-              </AFormItem>
-              <AFormItem label="Runtime">
-                <AInput v-model:value="settings.tgRunTime" />
-              </AFormItem>
-              <AFormItem label="CPU Threshold">
-                <AInputNumber v-model:value="settings.tgCpu" class="full-width" :min="0" />
-              </AFormItem>
-              <AFormItem label="Language">
-                <AInput v-model:value="settings.tgLang" />
-              </AFormItem>
-            </div>
+            <FormSection eyebrow="Telegram" title="Bot Flags">
+              <div class="settings-switch-row">
+                <ACheckbox v-model:checked="settings.tgBotEnable">Enabled</ACheckbox>
+                <ACheckbox v-model:checked="settings.tgBotBackup">Backup</ACheckbox>
+                <ACheckbox v-model:checked="settings.tgBotLoginNotify">Login Notify</ACheckbox>
+              </div>
+            </FormSection>
+
+            <FormSection eyebrow="Telegram" title="Bot Connection">
+              <div class="form-grid">
+                <AFormItem label="Bot Token">
+                  <AInput v-model:value="settings.tgBotToken" type="password" />
+                </AFormItem>
+                <AFormItem label="Chat ID">
+                  <AInput v-model:value="settings.tgBotChatId" />
+                </AFormItem>
+                <AFormItem label="Proxy">
+                  <AInput v-model:value="settings.tgBotProxy" />
+                </AFormItem>
+                <AFormItem label="API Server">
+                  <AInput v-model:value="settings.tgBotAPIServer" />
+                </AFormItem>
+              </div>
+            </FormSection>
+
+            <FormSection eyebrow="Telegram" title="Runtime Rules">
+              <div class="form-grid">
+                <AFormItem label="Runtime">
+                  <AInput v-model:value="settings.tgRunTime" />
+                </AFormItem>
+                <AFormItem label="CPU Threshold">
+                  <AInputNumber v-model:value="settings.tgCpu" class="full-width" :min="0" />
+                </AFormItem>
+                <AFormItem label="Language">
+                  <AInput v-model:value="settings.tgLang" />
+                </AFormItem>
+              </div>
+            </FormSection>
           </AForm>
         </ATabPane>
 
         <ATabPane key="ldap" tab="LDAP">
           <AForm layout="vertical">
-            <div class="settings-switch-row">
-              <ACheckbox v-model:checked="settings.ldapEnable">Enabled</ACheckbox>
-              <ACheckbox v-model:checked="settings.ldapUseTLS">TLS</ACheckbox>
-              <ACheckbox v-model:checked="settings.ldapInvertFlag">Invert Flag</ACheckbox>
-              <ACheckbox v-model:checked="settings.ldapAutoCreate">Auto Create</ACheckbox>
-              <ACheckbox v-model:checked="settings.ldapAutoDelete">Auto Delete</ACheckbox>
-            </div>
-            <div class="form-grid">
-              <AFormItem label="Host">
-                <AInput v-model:value="settings.ldapHost" />
-              </AFormItem>
-              <AFormItem label="Port">
-                <AInputNumber
-                  v-model:value="settings.ldapPort"
-                  class="full-width"
-                  :min="1"
-                  :max="65535"
-                />
-              </AFormItem>
-              <AFormItem label="Bind DN">
-                <AInput v-model:value="settings.ldapBindDN" />
-              </AFormItem>
-              <AFormItem label="Password">
-                <AInput v-model:value="settings.ldapPassword" type="password" />
-              </AFormItem>
-              <AFormItem label="Base DN">
-                <AInput v-model:value="settings.ldapBaseDN" />
-              </AFormItem>
-              <AFormItem label="User Filter">
-                <AInput v-model:value="settings.ldapUserFilter" />
-              </AFormItem>
-              <AFormItem label="User Attr">
-                <AInput v-model:value="settings.ldapUserAttr" />
-              </AFormItem>
-              <AFormItem label="VLESS Field">
-                <AInput v-model:value="settings.ldapVlessField" />
-              </AFormItem>
-              <AFormItem label="Sync Cron">
-                <AInput v-model:value="settings.ldapSyncCron" />
-              </AFormItem>
-              <AFormItem label="Flag Field">
-                <AInput v-model:value="settings.ldapFlagField" />
-              </AFormItem>
-              <AFormItem label="Truthy Values">
-                <AInput v-model:value="settings.ldapTruthyValues" />
-              </AFormItem>
-              <AFormItem label="Inbound Tags">
-                <AInput v-model:value="settings.ldapInboundTags" />
-              </AFormItem>
-              <AFormItem label="Default Total GB">
-                <AInputNumber
-                  v-model:value="settings.ldapDefaultTotalGB"
-                  class="full-width"
-                  :min="0"
-                />
-              </AFormItem>
-              <AFormItem label="Default Expiry Days">
-                <AInputNumber
-                  v-model:value="settings.ldapDefaultExpiryDays"
-                  class="full-width"
-                  :min="0"
-                />
-              </AFormItem>
-              <AFormItem label="Default Limit IP">
-                <AInputNumber
-                  v-model:value="settings.ldapDefaultLimitIP"
-                  class="full-width"
-                  :min="0"
-                />
-              </AFormItem>
-            </div>
+            <FormSection eyebrow="LDAP" title="LDAP Flags">
+              <div class="settings-switch-row">
+                <ACheckbox v-model:checked="settings.ldapEnable">Enabled</ACheckbox>
+                <ACheckbox v-model:checked="settings.ldapUseTLS">TLS</ACheckbox>
+                <ACheckbox v-model:checked="settings.ldapInvertFlag">Invert Flag</ACheckbox>
+                <ACheckbox v-model:checked="settings.ldapAutoCreate">Auto Create</ACheckbox>
+                <ACheckbox v-model:checked="settings.ldapAutoDelete">Auto Delete</ACheckbox>
+              </div>
+            </FormSection>
+
+            <FormSection eyebrow="LDAP" title="Connection">
+              <div class="form-grid">
+                <AFormItem label="Host">
+                  <AInput v-model:value="settings.ldapHost" />
+                </AFormItem>
+                <AFormItem label="Port">
+                  <AInputNumber
+                    v-model:value="settings.ldapPort"
+                    class="full-width"
+                    :min="1"
+                    :max="65535"
+                  />
+                </AFormItem>
+                <AFormItem label="Bind DN">
+                  <AInput v-model:value="settings.ldapBindDN" />
+                </AFormItem>
+                <AFormItem label="Password">
+                  <AInput v-model:value="settings.ldapPassword" type="password" />
+                </AFormItem>
+                <AFormItem label="Base DN">
+                  <AInput v-model:value="settings.ldapBaseDN" />
+                </AFormItem>
+              </div>
+            </FormSection>
+
+            <FormSection eyebrow="LDAP" title="User Mapping">
+              <div class="form-grid">
+                <AFormItem label="User Filter">
+                  <AInput v-model:value="settings.ldapUserFilter" />
+                </AFormItem>
+                <AFormItem label="User Attr">
+                  <AInput v-model:value="settings.ldapUserAttr" />
+                </AFormItem>
+                <AFormItem label="VLESS Field">
+                  <AInput v-model:value="settings.ldapVlessField" />
+                </AFormItem>
+                <AFormItem label="Flag Field">
+                  <AInput v-model:value="settings.ldapFlagField" />
+                </AFormItem>
+                <AFormItem label="Truthy Values">
+                  <AInput v-model:value="settings.ldapTruthyValues" />
+                </AFormItem>
+              </div>
+            </FormSection>
+
+            <FormSection eyebrow="LDAP" title="Sync Defaults">
+              <div class="form-grid">
+                <AFormItem label="Sync Cron">
+                  <AInput v-model:value="settings.ldapSyncCron" />
+                </AFormItem>
+                <AFormItem label="Inbound Tags">
+                  <AInput v-model:value="settings.ldapInboundTags" />
+                </AFormItem>
+                <AFormItem label="Default Total GB">
+                  <AInputNumber
+                    v-model:value="settings.ldapDefaultTotalGB"
+                    class="full-width"
+                    :min="0"
+                  />
+                </AFormItem>
+                <AFormItem label="Default Expiry Days">
+                  <AInputNumber
+                    v-model:value="settings.ldapDefaultExpiryDays"
+                    class="full-width"
+                    :min="0"
+                  />
+                </AFormItem>
+                <AFormItem label="Default Limit IP">
+                  <AInputNumber
+                    v-model:value="settings.ldapDefaultLimitIP"
+                    class="full-width"
+                    :min="0"
+                  />
+                </AFormItem>
+              </div>
+            </FormSection>
           </AForm>
         </ATabPane>
 
         <ATabPane key="backup" tab="Backup">
-          <div class="panel-header">
-            <div>
-              <p class="page-eyebrow">Database</p>
-              <h2>Backup / Restore</h2>
-            </div>
-            <ASpace wrap>
+          <FormSection
+            eyebrow="Backup"
+            title="Database Backup / Restore"
+            description="Database import uses the existing legacy restore path and restarts Xray after import."
+          >
+            <template #actions>
               <AButton :loading="downloadingDb" @click="downloadDb">
                 <template #icon><DownloadOutlined /></template>
                 Download
@@ -500,34 +551,30 @@
                 <template #icon><ImportOutlined /></template>
                 Import
               </AButton>
-            </ASpace>
-          </div>
-          <AAlert
-            type="warning"
-            message="Database import uses the existing legacy restore path and restarts Xray after import."
-          />
-          <!-- eslint-disable vue/html-self-closing -->
-          <input
-            ref="dbFileInput"
-            aria-label="Import database file"
-            accept=".db,.sqlite,.sqlite3"
-            class="visually-hidden"
-            type="file"
-            @change="handleDbFileChange"
-          />
-          <!-- eslint-enable vue/html-self-closing -->
+            </template>
+            <AAlert
+              type="warning"
+              message="Database import uses the existing legacy restore path and restarts Xray after import."
+            />
+            <!-- eslint-disable vue/html-self-closing -->
+            <input
+              ref="dbFileInput"
+              aria-label="Import database file"
+              accept=".db,.sqlite,.sqlite3"
+              class="visually-hidden"
+              type="file"
+              @change="handleDbFileChange"
+            />
+            <!-- eslint-enable vue/html-self-closing -->
+          </FormSection>
 
-          <ADivider />
-
-          <div class="panel-header">
-            <div>
-              <p class="page-eyebrow">Panel Runtime</p>
-              <h2>Restart Panel</h2>
-            </div>
-            <AButton :loading="restartingPanel" danger @click="confirmRestartPanel">
-              Restart
-            </AButton>
-          </div>
+          <FormSection eyebrow="Backup" title="Panel Runtime">
+            <template #actions>
+              <AButton :loading="restartingPanel" danger @click="confirmRestartPanel">
+                Restart
+              </AButton>
+            </template>
+          </FormSection>
         </ATabPane>
       </ATabs>
     </ACard>
@@ -549,7 +596,6 @@ import {
   Button as AButton,
   Card as ACard,
   Checkbox as ACheckbox,
-  Divider as ADivider,
   Form as AForm,
   FormItem as AFormItem,
   Input as AInput,
@@ -573,6 +619,7 @@ import {
   updateUserCredentials,
 } from '@/api/settings';
 import PageHeader from '@/components/PageHeader.vue';
+import FormSection from '@/components/FormSection.vue';
 import type { PanelSettings, UserCredentialsUpdateForm } from '@/types/settings';
 import { hasInjectedRuntimeConfig } from '@/types/runtime';
 import { copyText, downloadBlob } from '@/utils/textExport';

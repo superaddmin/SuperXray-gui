@@ -2,6 +2,24 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.5] - 2026-05-09
+
+### Added
+
+- 增加统一 `FormSection` 表单分区组件，并为 Inbounds、Settings 表单组织和移动端布局补充源码结构测试。
+- 增加 Inbounds 与 Settings 表单重组实现计划，记录新 UI 在不重写业务函数前提下的验证边界。
+
+### Changed
+
+- 重组 Inbounds 编辑弹窗，将 Basic Inbound、WireGuard Settings、Transport Settings、Default Client 与 Advanced JSON 分区展示，保留旧 JSON 同步、协议规则、客户端生成、校验和提交路径。
+- 重组 Settings 各 tab 表单，将 Panel、Security、Subscription、Formats、Telegram、LDAP、Backup 工作流统一为公共表单容器和响应式行为。
+- 同步发布版本到 `3.0.5`，并将 Go 构建基线提升到 `1.26.3`。
+
+### Fixed
+
+- 修复发布门禁中 `staticcheck` 对未使用订阅辅助函数的阻断。
+- 修复 `externalProxy` 端口解析中的 `uint64` 到 `int` 转换风险，避免 `gosec` G115 阻断发布。
+
 ## [3.0.4] - 2026-05-05
 
 ### Added

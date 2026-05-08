@@ -403,7 +403,7 @@
       width="780px"
       @ok="submitInbound"
     >
-      <AForm layout="vertical">
+      <AForm class="responsive-modal-form" layout="vertical">
         <AAlert
           class="mb-12"
           message="Inbound setup guide"
@@ -411,50 +411,58 @@
           show-icon
           type="info"
         />
-        <div class="form-grid">
-          <AFormItem label="Protocol">
-            <ASelect
-              v-model:value="inboundEditor.protocol"
-              :disabled="inboundModalMode === 'edit'"
-              :options="editableProtocolOptions"
-            />
-          </AFormItem>
-          <AFormItem label="Remark">
-            <AInput v-model:value="inboundEditor.remark" />
-          </AFormItem>
-          <AFormItem label="Listen">
-            <AInput v-model:value="inboundEditor.listen" placeholder="0.0.0.0" />
-          </AFormItem>
-          <AFormItem label="Port">
-            <AInputNumber
-              v-model:value="inboundEditor.port"
-              :max="65535"
-              :min="1"
-              class="full-width"
-            />
-          </AFormItem>
-          <AFormItem label="Traffic Limit GB">
-            <AInputNumber v-model:value="inboundEditor.totalGB" :min="0" class="full-width" />
-          </AFormItem>
-          <AFormItem label="Expiry Timestamp">
-            <AInputNumber v-model:value="inboundEditor.expiryTime" :min="0" class="full-width" />
-          </AFormItem>
-          <AFormItem label="Traffic Reset">
-            <AInput v-model:value="inboundEditor.trafficReset" />
-          </AFormItem>
-          <AFormItem label="Enable">
-            <ASwitch v-model:checked="inboundEditor.enable" />
-          </AFormItem>
-        </div>
-
-        <div v-if="inboundEditor.protocol === 'wireguard'" class="json-section">
-          <div class="json-section-title">
-            <span>WireGuard Settings</span>
-            <ASpace>
-              <AButton size="small" @click="syncWireguardEditorFromSettings">Sync JSON</AButton>
-              <AButton size="small" @click="applyWireguardEditorToSettings">Apply</AButton>
-            </ASpace>
+        <FormSection
+          eyebrow="Inbound"
+          title="Basic Inbound"
+          description="Protocol, listening address, limits, and enable state are saved through the existing inbound submit path."
+        >
+          <div class="form-grid">
+            <AFormItem label="Protocol">
+              <ASelect
+                v-model:value="inboundEditor.protocol"
+                :disabled="inboundModalMode === 'edit'"
+                :options="editableProtocolOptions"
+              />
+            </AFormItem>
+            <AFormItem label="Remark">
+              <AInput v-model:value="inboundEditor.remark" />
+            </AFormItem>
+            <AFormItem label="Listen">
+              <AInput v-model:value="inboundEditor.listen" placeholder="0.0.0.0" />
+            </AFormItem>
+            <AFormItem label="Port">
+              <AInputNumber
+                v-model:value="inboundEditor.port"
+                :max="65535"
+                :min="1"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem label="Traffic Limit GB">
+              <AInputNumber v-model:value="inboundEditor.totalGB" :min="0" class="full-width" />
+            </AFormItem>
+            <AFormItem label="Expiry Timestamp">
+              <AInputNumber v-model:value="inboundEditor.expiryTime" :min="0" class="full-width" />
+            </AFormItem>
+            <AFormItem label="Traffic Reset">
+              <AInput v-model:value="inboundEditor.trafficReset" />
+            </AFormItem>
+            <AFormItem label="Enable">
+              <ASwitch v-model:checked="inboundEditor.enable" />
+            </AFormItem>
           </div>
+        </FormSection>
+
+        <FormSection
+          v-if="inboundEditor.protocol === 'wireguard'"
+          eyebrow="Protocol"
+          title="WireGuard Settings"
+          description="Server keys and WireGuard-specific settings stay synchronized with the legacy settings JSON."
+        >
+          <template #actions>
+            <AButton size="small" @click="syncWireguardEditorFromSettings">Sync JSON</AButton>
+            <AButton size="small" @click="applyWireguardEditorToSettings">Apply</AButton>
+          </template>
           <div class="form-grid">
             <AFormItem label="MTU">
               <AInputNumber v-model:value="wireguardEditor.mtu" :min="0" class="full-width" />
@@ -472,16 +480,18 @@
               <AInput v-model:value="wireguardEditor.pubKey" />
             </AFormItem>
           </div>
-        </div>
+        </FormSection>
 
-        <div v-if="protocolSupportsStream(inboundEditor.protocol)" class="json-section">
-          <div class="json-section-title">
-            <span>Stream Settings Form</span>
-            <ASpace>
-              <AButton size="small" @click="syncStreamEditorFromSettings">Sync JSON</AButton>
-              <AButton size="small" @click="applyStreamEditorToSettings">Apply</AButton>
-            </ASpace>
-          </div>
+        <FormSection
+          v-if="protocolSupportsStream(inboundEditor.protocol)"
+          eyebrow="Transport"
+          title="Transport Settings"
+          description="Network, security, TLS, Reality and sockopt controls continue to update the existing stream settings JSON."
+        >
+          <template #actions>
+            <AButton size="small" @click="syncStreamEditorFromSettings">Sync JSON</AButton>
+            <AButton size="small" @click="applyStreamEditorToSettings">Apply</AButton>
+          </template>
           <div class="form-grid">
             <AFormItem label="Network">
               <ASelect v-model:value="streamEditor.network" :options="transportNetworkOptions" />
@@ -754,43 +764,137 @@
               </AFormItem>
             </template>
           </div>
-        </div>
+        </FormSection>
 
-        <div class="json-section">
-          <div class="json-section-title">
-            <span>Settings JSON</span>
-            <AButton size="small" @click="formatInboundJson('settings')">Format</AButton>
+        <FormSection
+          v-if="inboundClientSectionVisible"
+          eyebrow="Client"
+          title="Default Client"
+          description="Create the first client for protocols that require one. Apply keeps the form and raw settings JSON in sync."
+        >
+          <template #actions>
+            <AButton size="small" @click="syncInboundClientEditorFromSettings">Sync JSON</AButton>
+            <AButton size="small" @click="applyInboundClientEditorToSettings">Apply</AButton>
+          </template>
+          <div class="form-grid client-form-grid">
+            <AFormItem label="Email">
+              <AInput v-model:value="inboundClientEditor.email" />
+            </AFormItem>
+            <AFormItem v-if="usesUuidClientId(inboundClientEditor.protocol)" label="UUID">
+              <ASpace.Compact class="full-width">
+                <AInput v-model:value="inboundClientEditor.id" />
+                <AButton @click="inboundClientEditor.id = randomUuid()">Generate</AButton>
+              </ASpace.Compact>
+            </AFormItem>
+            <AFormItem v-if="usesPasswordClientId(inboundClientEditor.protocol)" label="Password">
+              <ASpace.Compact class="full-width">
+                <AInput v-model:value="inboundClientEditor.password" />
+                <AButton
+                  @click="
+                    inboundClientEditor.password = generateClientCredential(
+                      inboundClientEditor.protocol,
+                    )
+                  "
+                >
+                  Generate
+                </AButton>
+              </ASpace.Compact>
+            </AFormItem>
+            <AFormItem v-if="usesAuthClientId(inboundClientEditor.protocol)" label="Auth">
+              <ASpace.Compact class="full-width">
+                <AInput v-model:value="inboundClientEditor.auth" />
+                <AButton
+                  @click="
+                    inboundClientEditor.auth = generateClientCredential(inboundClientEditor.protocol)
+                  "
+                >
+                  Generate
+                </AButton>
+              </ASpace.Compact>
+            </AFormItem>
+            <AFormItem v-if="inboundClientEditor.protocol === 'vmess'" label="Security">
+              <ASelect v-model:value="inboundClientEditor.security" :options="securityOptions" />
+            </AFormItem>
+            <AFormItem v-if="inboundVlessFlowVisible" label="Flow">
+              <ASelect v-model:value="inboundClientEditor.flow" :options="flowOptions" />
+            </AFormItem>
+            <AFormItem v-if="inboundClientEditor.protocol === 'shadowsocks'" label="Method">
+              <ASelect
+                v-model:value="inboundClientEditor.method"
+                :options="shadowsocksMethodOptions"
+              />
+            </AFormItem>
+            <AFormItem label="Traffic Limit GB">
+              <AInputNumber v-model:value="inboundClientEditor.totalGB" :min="0" class="full-width" />
+            </AFormItem>
+            <AFormItem label="Expiry Timestamp">
+              <AInputNumber
+                v-model:value="inboundClientEditor.expiryTime"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem label="IP Limit">
+              <AInputNumber v-model:value="inboundClientEditor.limitIp" :min="0" class="full-width" />
+            </AFormItem>
+            <AFormItem label="Reset Days">
+              <AInputNumber v-model:value="inboundClientEditor.reset" :min="0" class="full-width" />
+            </AFormItem>
+            <AFormItem label="Sub ID">
+              <AInput v-model:value="inboundClientEditor.subId" />
+            </AFormItem>
+            <AFormItem label="Enable">
+              <ASwitch v-model:checked="inboundClientEditor.enable" />
+            </AFormItem>
           </div>
-          <textarea
-            v-model="inboundEditor.settings"
-            class="json-editor modal-json-editor"
-            spellcheck="false"
-          />
-        </div>
+          <AFormItem label="Comment">
+            <AInput v-model:value="inboundClientEditor.comment" />
+          </AFormItem>
+        </FormSection>
 
-        <div class="json-section">
-          <div class="json-section-title">
-            <span>Stream Settings JSON</span>
-            <AButton size="small" @click="formatInboundJson('streamSettings')">Format</AButton>
-          </div>
-          <textarea
-            v-model="inboundEditor.streamSettings"
-            class="json-editor modal-json-editor"
-            spellcheck="false"
-          />
-        </div>
+        <FormSection
+          eyebrow="Advanced"
+          title="Advanced JSON"
+          description="Raw legacy JSON remains editable for compatibility and advanced Xray options."
+        >
+          <div class="form-json-stack">
+            <div class="json-section">
+              <div class="json-section-title">
+                <span>Settings JSON</span>
+                <AButton size="small" @click="formatInboundJson('settings')">Format</AButton>
+              </div>
+              <textarea
+                v-model="inboundEditor.settings"
+                class="json-editor modal-json-editor"
+                spellcheck="false"
+              />
+            </div>
 
-        <div class="json-section">
-          <div class="json-section-title">
-            <span>Sniffing JSON</span>
-            <AButton size="small" @click="formatInboundJson('sniffing')">Format</AButton>
+            <div class="json-section">
+              <div class="json-section-title">
+                <span>Stream Settings JSON</span>
+                <AButton size="small" @click="formatInboundJson('streamSettings')">Format</AButton>
+              </div>
+              <textarea
+                v-model="inboundEditor.streamSettings"
+                class="json-editor modal-json-editor"
+                spellcheck="false"
+              />
+            </div>
+
+            <div class="json-section">
+              <div class="json-section-title">
+                <span>Sniffing JSON</span>
+                <AButton size="small" @click="formatInboundJson('sniffing')">Format</AButton>
+              </div>
+              <textarea
+                v-model="inboundEditor.sniffing"
+                class="json-editor modal-json-editor"
+                spellcheck="false"
+              />
+            </div>
           </div>
-          <textarea
-            v-model="inboundEditor.sniffing"
-            class="json-editor modal-json-editor"
-            spellcheck="false"
-          />
-        </div>
+        </FormSection>
       </AForm>
     </AModal>
 
@@ -973,6 +1077,7 @@ import {
   updateInboundClient,
 } from '@/api/inbounds';
 import PageHeader from '@/components/PageHeader.vue';
+import FormSection from '@/components/FormSection.vue';
 import StatusTile from '@/components/StatusTile.vue';
 import {
   getProtocolRegistryEntry,
@@ -1180,6 +1285,7 @@ const clearingClientIpsEmail = ref('');
 const inboundEditor = reactive<InboundEditorState>(createInboundEditor());
 const wireguardEditor = reactive<WireguardEditorState>(createWireguardEditor());
 const streamEditor = reactive<StreamEditorState>(createStreamEditor());
+const inboundClientEditor = reactive<ClientEditorState>(createClientEditor());
 const clientEditor = reactive<ClientEditorState>(createClientEditor());
 
 const editableProtocolOptions = xrayEditableProtocols.map((protocol) => {
@@ -1364,6 +1470,14 @@ const clientRowSelection = computed(() => ({
 const inboundModalTitle = computed(() =>
   inboundModalMode.value === 'create' ? 'New Inbound' : 'Edit Inbound',
 );
+const inboundClientSectionVisible = computed(() =>
+  protocolSupportsClients(inboundEditor.protocol) && inboundEditor.protocol !== 'wireguard',
+);
+const inboundVlessFlowVisible = computed(() =>
+  inboundEditor.protocol === 'vless' &&
+  streamEditor.network === 'tcp' &&
+  (streamEditor.security === 'tls' || streamEditor.security === 'reality'),
+);
 const clientModalTitle = computed(() =>
   clientModalMode.value === 'create' ? 'Add Client' : 'Edit Client',
 );
@@ -1374,8 +1488,10 @@ watch(
     if (inboundModalMode.value === 'create') {
       inboundEditor.settings = stringifyJson(defaultInboundSettings(protocol));
       inboundEditor.streamSettings = stringifyJson(defaultStreamSettings(protocol));
+      Object.assign(inboundClientEditor, createClientEditor(protocol));
       syncWireguardEditorFromSettings();
       syncStreamEditorFromSettings();
+      syncInboundClientEditorFromSettings();
     }
   },
 );
@@ -1426,8 +1542,10 @@ async function refreshClientActivity() {
 function openCreateInbound() {
   inboundModalMode.value = 'create';
   Object.assign(inboundEditor, createInboundEditor());
+  Object.assign(inboundClientEditor, createClientEditor(inboundEditor.protocol));
   syncWireguardEditorFromSettings();
   syncStreamEditorFromSettings();
+  syncInboundClientEditorFromSettings();
   inboundModalOpen.value = true;
 }
 
@@ -1495,6 +1613,7 @@ function openEditInbound(record: Inbound | Record<string, unknown>) {
   });
   syncWireguardEditorFromSettings();
   syncStreamEditorFromSettings();
+  syncInboundClientEditorFromSettings();
   inboundModalOpen.value = true;
 }
 
@@ -1503,6 +1622,9 @@ async function submitInbound() {
     applyWireguardEditorToSettings();
   } else if (protocolSupportsStream(inboundEditor.protocol)) {
     applyStreamEditorToSettings();
+  }
+  if (inboundClientSectionVisible.value) {
+    applyInboundClientEditorToSettings();
   }
   const settings = normalizeJsonEditorText(inboundEditor.settings, 'Settings JSON');
   const streamSettings = normalizeJsonEditorText(
@@ -2264,6 +2386,40 @@ function applyWireguardEditorToSettings() {
   inboundEditor.settings = stringifyJson(settings);
 }
 
+function syncInboundClientEditorFromSettings() {
+  const settings = parseInboundSettingsText(inboundEditor.settings);
+  const clients = Array.isArray(settings.clients) ? settings.clients : [];
+  const client = objectField(clients[0]);
+  const fallback = createClientEditor(inboundEditor.protocol);
+  Object.assign(inboundClientEditor, {
+    ...fallback,
+    protocol: inboundEditor.protocol,
+    id: stringField(client.id) || fallback.id,
+    password: stringField(client.password) || fallback.password,
+    auth: stringField(client.auth) || fallback.auth,
+    method: stringField(client.method) || fallback.method,
+    email: stringField(client.email),
+    security: stringField(client.security) || fallback.security,
+    flow: stringField(client.flow),
+    limitIp: Number(client.limitIp || 0),
+    totalGB: bytesToGb(Number(client.totalGB || 0)),
+    expiryTime: Number(client.expiryTime || 0),
+    enable: client.enable !== false,
+    subId: stringField(client.subId) || fallback.subId,
+    comment: stringField(client.comment),
+    reset: Number(client.reset || 0),
+  });
+}
+
+function applyInboundClientEditorToSettings() {
+  const settings = parseInboundSettingsText(inboundEditor.settings);
+  const clients = Array.isArray(settings.clients) ? settings.clients : [];
+  const existingClient = objectField(clients[0]);
+  const client = buildClientPayloadFromEditor(inboundClientEditor);
+  settings.clients = [{ ...existingClient, ...client }, ...clients.slice(1)];
+  inboundEditor.settings = stringifyJson(settings);
+}
+
 function syncStreamEditorFromSettings() {
   const stream = parseInboundStreamSettingsText(inboundEditor.streamSettings);
   const tlsSettings = objectField(stream.tlsSettings);
@@ -2613,40 +2769,44 @@ function createClientEditor(
 }
 
 function buildClientPayload(): InboundClient {
+  return buildClientPayloadFromEditor(clientEditor);
+}
+
+function buildClientPayloadFromEditor(editor: ClientEditorState): InboundClient {
   const client: InboundClient = {
-    email: clientEditor.email.trim(),
-    limitIp: Math.max(0, Number(clientEditor.limitIp || 0)),
-    totalGB: gbToBytes(clientEditor.totalGB),
-    expiryTime: Math.max(0, Number(clientEditor.expiryTime || 0)),
-    enable: clientEditor.enable,
+    email: editor.email.trim(),
+    limitIp: Math.max(0, Number(editor.limitIp || 0)),
+    totalGB: gbToBytes(editor.totalGB),
+    expiryTime: Math.max(0, Number(editor.expiryTime || 0)),
+    enable: editor.enable,
     tgId: 0,
-    subId: clientEditor.subId.trim() || randomToken(16),
-    comment: clientEditor.comment.trim(),
-    reset: Math.max(0, Number(clientEditor.reset || 0)),
+    subId: editor.subId.trim() || randomToken(16),
+    comment: editor.comment.trim(),
+    reset: Math.max(0, Number(editor.reset || 0)),
   };
 
-  if (clientEditor.protocol === 'vmess') {
-    client.id = clientEditor.id.trim();
-    client.security = clientEditor.security || 'auto';
-  } else if (clientEditor.protocol === 'vless') {
-    client.id = clientEditor.id.trim();
-    client.flow = clientEditor.flow || '';
-  } else if (clientEditor.protocol === 'trojan') {
-    client.password = clientEditor.password.trim();
-  } else if (clientEditor.protocol === 'shadowsocks') {
-    client.password = clientEditor.password.trim();
-    const method = clientEditor.method.trim();
+  if (editor.protocol === 'vmess') {
+    client.id = editor.id.trim();
+    client.security = editor.security || 'auto';
+  } else if (editor.protocol === 'vless') {
+    client.id = editor.id.trim();
+    client.flow = editor.flow || '';
+  } else if (editor.protocol === 'trojan') {
+    client.password = editor.password.trim();
+  } else if (editor.protocol === 'shadowsocks') {
+    client.password = editor.password.trim();
+    const method = editor.method.trim();
     if (method && !isShadowsocks2022Method(method)) {
       client.method = method;
     }
-  } else if (isHysteriaProtocol(clientEditor.protocol)) {
-    client.auth = clientEditor.auth.trim();
-  } else if (clientEditor.protocol === 'wireguard') {
-    client.privateKey = clientEditor.privateKey.trim();
-    client.publicKey = clientEditor.publicKey.trim();
-    client.preSharedKey = clientEditor.preSharedKey.trim() || undefined;
-    client.allowedIPs = parseListText(clientEditor.allowedIPs).map(normalizeAllowedIp);
-    client.keepAlive = Math.max(0, Number(clientEditor.keepAlive || 0));
+  } else if (isHysteriaProtocol(editor.protocol)) {
+    client.auth = editor.auth.trim();
+  } else if (editor.protocol === 'wireguard') {
+    client.privateKey = editor.privateKey.trim();
+    client.publicKey = editor.publicKey.trim();
+    client.preSharedKey = editor.preSharedKey.trim() || undefined;
+    client.allowedIPs = parseListText(editor.allowedIPs).map(normalizeAllowedIp);
+    client.keepAlive = Math.max(0, Number(editor.keepAlive || 0));
     delete client.limitIp;
     delete client.totalGB;
     delete client.expiryTime;
