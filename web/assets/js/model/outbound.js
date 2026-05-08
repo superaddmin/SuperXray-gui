@@ -1146,7 +1146,7 @@ class Outbound extends CommonClass {
     }
 
     static fromLink(link) {
-        data = link.split('://');
+        const data = link.split('://');
         if (data.length != 2) return null;
         switch (data[0].toLowerCase()) {
             case Protocols.VMess:
@@ -1158,9 +1158,42 @@ class Outbound extends CommonClass {
             case 'hysteria2':
             case Protocols.Hysteria:
                 return this.fromHysteriaLink(link);
+            case 'socks':
+            case 'socks5':
+            case Protocols.HTTP:
+            case 'https':
+                return this.fromProxyUri(link);
             default:
                 return null;
         }
+    }
+
+    // fromProxyUri 将通用 HTTP/SOCKS 代理 URI 导入为 Xray 出站配置。
+    static fromProxyUri(link) {
+        let url;
+        try {
+            url = new URL(link);
+        } catch (_) {
+            return null;
+        }
+
+        const scheme = url.protocol.replace(':', '').toLowerCase();
+        const rawPort = url.port || (link.match(/:(\d+)(?:[/?#]|$)/)?.[1] ?? '');
+        const port = Number(rawPort);
+        if (!url.hostname || !Number.isInteger(port) || port <= 0 || port > 65535) {
+            return null;
+        }
+
+        const user = decodeURIComponent(url.username || '');
+        const pass = decodeURIComponent(url.password || '');
+        const tag = `out-${scheme}-${port}`;
+        if (scheme === 'socks' || scheme === 'socks5') {
+            return new Outbound(tag, Protocols.Socks, new Outbound.SocksSettings(url.hostname, port, user, pass));
+        }
+        if (scheme === Protocols.HTTP || scheme === 'https') {
+            return new Outbound(tag, Protocols.HTTP, new Outbound.HttpSettings(url.hostname, port, user, pass));
+        }
+        return null;
     }
 
     static fromVmessLink(json = {}) {
