@@ -2,6 +2,17 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.6] - 2026-05-09
+
+### Added
+
+- 增加 Gateway 本机代理出口模板，支持一键生成供 Super-Code-Gateway 使用的 HTTP 与 SOCKS5 回环代理入站。
+- 增加 Gateway Proxy URI 展示与复制入口，直接显示本机代理地址并补充前端回归测试。
+
+### Changed
+
+- 同步发布版本到 `3.0.6`，并重新生成嵌入式前端构建产物。
+
 ## [3.0.5] - 2026-05-09
 
 ### Added

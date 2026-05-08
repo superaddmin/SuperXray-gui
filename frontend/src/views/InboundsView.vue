@@ -21,6 +21,14 @@
         <AButton danger :loading="resettingAllTraffic" @click="confirmResetAllInboundTraffic">
           Reset All Traffic
         </AButton>
+        <AButton @click="openGatewayProxyTemplate('mixed')">
+          <template #icon><PlusOutlined /></template>
+          Gateway SOCKS5
+        </AButton>
+        <AButton @click="openGatewayProxyTemplate('http')">
+          <template #icon><PlusOutlined /></template>
+          Gateway HTTP
+        </AButton>
         <AButton type="primary" @click="openCreateInbound">
           <template #icon><PlusOutlined /></template>
           New Inbound
@@ -451,6 +459,35 @@
               <ASwitch v-model:checked="inboundEditor.enable" />
             </AFormItem>
           </div>
+        </FormSection>
+
+        <FormSection
+          v-if="gatewayProxyUris.length > 0"
+          eyebrow="Gateway"
+          title="Gateway Proxy URI"
+          description="Use these local-only proxy URIs in Super-Code-Gateway to route OpenAI access through this Xray exit."
+        >
+          <ASpace direction="vertical" class="full-width">
+            <AAlert
+              message="Local gateway exit"
+              description="The template listens on 127.0.0.1 only. Keep Super-Code-Gateway on the same host or connect through a trusted local network path."
+              show-icon
+              type="success"
+            />
+            <ASpace
+              v-for="item in gatewayProxyUris"
+              :key="item.uri"
+              class="gateway-proxy-uri-row"
+              wrap
+            >
+              <ATag>{{ item.label }}</ATag>
+              <AInput :value="item.uri" readonly class="gateway-proxy-uri-input" />
+              <AButton size="small" @click="copyGatewayProxyUri(item.uri)">
+                <template #icon><CopyOutlined /></template>
+                Copy
+              </AButton>
+            </ASpace>
+          </ASpace>
         </FormSection>
 
         <FormSection
@@ -1125,6 +1162,7 @@ type InboundModalMode = 'create' | 'edit';
 type ClientModalMode = 'create' | 'edit';
 type InboundJsonField = 'settings' | 'streamSettings' | 'sniffing';
 type StateFilter = 'all' | 'enabled' | 'disabled';
+type GatewayProxyTemplate = 'mixed' | 'http';
 
 interface InboundEditorState {
   id?: number;
@@ -1247,6 +1285,11 @@ interface ClientEditorState {
 interface ClientRow extends InboundClient {
   key: string;
   traffic?: ClientTraffic;
+}
+
+interface GatewayProxyUriItem {
+  label: string;
+  uri: string;
 }
 
 const inbounds = ref<Inbound[]>([]);
@@ -1478,6 +1521,25 @@ const inboundVlessFlowVisible = computed(() =>
   streamEditor.network === 'tcp' &&
   (streamEditor.security === 'tls' || streamEditor.security === 'reality'),
 );
+const gatewayProxyUris = computed<GatewayProxyUriItem[]>(() => {
+  if (inboundEditor.protocol !== 'mixed' && inboundEditor.protocol !== 'http') {
+    return [];
+  }
+  const host = inboundEditor.listen.trim() || '127.0.0.1';
+  const port = Math.max(1, Math.min(65535, Number(inboundEditor.port || 0)));
+  if (!port) {
+    return [];
+  }
+  const settings = parseInboundSettingsText(inboundEditor.settings);
+  const account = Array.isArray(settings.accounts) ? objectField(settings.accounts[0]) : {};
+  const user = encodeUriCredential(stringField(account.user));
+  const pass = encodeUriCredential(stringField(account.pass));
+  const auth = user && pass ? `${user}:${pass}@` : '';
+  if (inboundEditor.protocol === 'mixed') {
+    return [{ label: 'SOCKS5', uri: `socks5://${auth}${host}:${port}` }];
+  }
+  return [{ label: 'HTTP', uri: `http://${auth}${host}:${port}` }];
+});
 const clientModalTitle = computed(() =>
   clientModalMode.value === 'create' ? 'Add Client' : 'Edit Client',
 );
@@ -1543,6 +1605,27 @@ function openCreateInbound() {
   inboundModalMode.value = 'create';
   Object.assign(inboundEditor, createInboundEditor());
   Object.assign(inboundClientEditor, createClientEditor(inboundEditor.protocol));
+  syncWireguardEditorFromSettings();
+  syncStreamEditorFromSettings();
+  syncInboundClientEditorFromSettings();
+  inboundModalOpen.value = true;
+}
+
+/** 打开 Gateway 本机代理出口模板，并预填固定回环监听地址与端口。 */
+function openGatewayProxyTemplate(template: GatewayProxyTemplate) {
+  const protocol: XrayEditableInboundProtocol = template === 'mixed' ? 'mixed' : 'http';
+  Object.assign(
+    inboundEditor,
+    createInboundEditor(protocol, {
+      remark:
+        template === 'mixed' ? 'gateway-socks5-127.0.0.1-1080' : 'gateway-http-127.0.0.1-8081',
+      listen: '127.0.0.1',
+      port: template === 'mixed' ? 1080 : 8081,
+      settings: stringifyJson(gatewayProxySettings(template)),
+    }),
+  );
+  inboundModalMode.value = 'create';
+  Object.assign(inboundClientEditor, createClientEditor(protocol));
   syncWireguardEditorFromSettings();
   syncStreamEditorFromSettings();
   syncInboundClientEditorFromSettings();
@@ -2232,6 +2315,12 @@ async function copySharePreview() {
   void message.success('Copied');
 }
 
+/** 复制当前 Gateway 代理 URI，便于粘贴到 Super-Code-Gateway 代理配置。 */
+async function copyGatewayProxyUri(uri: string) {
+  await copyText(uri);
+  void message.success('Gateway proxy URI copied');
+}
+
 async function openClientIps(record: ClientRow | Record<string, unknown>) {
   const row = asClientRow(record);
   if (!row.email) {
@@ -2718,8 +2807,27 @@ function validateInboundEditorSettings(settingsText: string, streamSettingsText:
   return '';
 }
 
-function createInboundEditor(): InboundEditorState {
-  const protocol: XrayEditableInboundProtocol = 'vless';
+/** 生成供 Super-Code-Gateway 使用的本机 HTTP/SOCKS5 代理入站设置。 */
+function gatewayProxySettings(template: GatewayProxyTemplate): Record<string, unknown> {
+  if (template === 'mixed') {
+    return {
+      auth: 'noauth',
+      accounts: [],
+      udp: false,
+      ip: '127.0.0.1',
+    };
+  }
+  return {
+    accounts: [],
+    allowTransparent: false,
+  };
+}
+
+/** 创建入站编辑器状态，并允许模板覆盖默认字段。 */
+function createInboundEditor(
+  protocol: XrayEditableInboundProtocol = 'vless',
+  overrides: Partial<Omit<InboundEditorState, 'protocol'>> = {},
+): InboundEditorState {
   return {
     protocol,
     remark: '',
@@ -2732,6 +2840,7 @@ function createInboundEditor(): InboundEditorState {
     settings: stringifyJson(defaultInboundSettings(protocol)),
     streamSettings: stringifyJson(defaultStreamSettings(protocol)),
     sniffing: stringifyJson(defaultSniffingSettings()),
+    ...overrides,
   };
 }
 
@@ -3080,6 +3189,11 @@ function objectField(value: unknown): Record<string, unknown> {
 
 function stringField(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+/** 编码 URI 中的用户名和密码字段，避免特殊字符破坏代理地址。 */
+function encodeUriCredential(value: string): string {
+  return value ? encodeURIComponent(value) : '';
 }
 
 function arrayField(value: unknown): string[] {
