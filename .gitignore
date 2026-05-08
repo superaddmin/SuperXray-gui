@@ -60,4 +60,6 @@ docker-compose.override.yml
 SuperXray-gui
 
 # Ignore docs directory
-docs/
+/docs/*
+!/docs/superpowers/
+!/docs/superpowers/**

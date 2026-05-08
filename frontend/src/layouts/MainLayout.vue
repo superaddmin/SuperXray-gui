@@ -1,5 +1,5 @@
 <template>
-  <ALayout class="app-shell">
+  <ALayout class="app-shell" :class="`route-${String(route.name || 'dashboard')}`">
     <ALayoutSider
       v-model:collapsed="appStore.collapsed"
       breakpoint="lg"
@@ -8,7 +8,7 @@
       :trigger="null"
       width="236"
     >
-      <RouterLink aria-label="SuperXray dashboard" class="brand" to="/">
+      <RouterLink :aria-label="translate('nav.dashboard', appStore.locale)" class="brand" to="/">
         <!-- eslint-disable vue/html-self-closing -->
         <img
           v-if="appStore.collapsed"
@@ -34,7 +34,11 @@
         <AButton
           type="text"
           class="icon-button"
-          :aria-label="appStore.collapsed ? 'Expand navigation' : 'Collapse navigation'"
+          :aria-label="
+            appStore.collapsed
+              ? translate('status.expandNav', appStore.locale)
+              : translate('status.collapseNav', appStore.locale)
+          "
           @click="appStore.toggleCollapsed"
         >
           <MenuUnfoldOutlined v-if="appStore.collapsed" />
@@ -53,6 +57,7 @@
 <script setup lang="ts">
 import {
   ApiOutlined,
+  ClusterOutlined,
   DashboardOutlined,
   FileTextOutlined,
   MenuFoldOutlined,
@@ -76,19 +81,33 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import logoDarkUrl from '@/assets/logo-dark.svg';
 import logoIconUrl from '@/assets/logo-icon.svg';
 import AppStatusBar from '@/components/AppStatusBar.vue';
+import { translate } from '@/i18n/messages';
 import { useAppStore } from '@/stores/app';
 
 const appStore = useAppStore();
 const route = useRoute();
 const router = useRouter();
 
-const menuItems: ItemType[] = [
-  { key: 'dashboard', icon: () => h(DashboardOutlined), label: 'Dashboard' },
-  { key: 'logs', icon: () => h(FileTextOutlined), label: 'Logs' },
-  { key: 'xray', icon: () => h(ApiOutlined), label: 'Xray' },
-  { key: 'inbounds', icon: () => h(SwapOutlined), label: 'Inbounds' },
-  { key: 'settings', icon: () => h(SettingOutlined), label: 'Settings' },
-];
+const menuItems = computed<ItemType[]>(() => [
+  {
+    key: 'dashboard',
+    icon: () => h(DashboardOutlined),
+    label: translate('nav.dashboard', appStore.locale),
+  },
+  { key: 'logs', icon: () => h(FileTextOutlined), label: translate('nav.logs', appStore.locale) },
+  { key: 'cores', icon: () => h(ClusterOutlined), label: translate('nav.cores', appStore.locale) },
+  { key: 'xray', icon: () => h(ApiOutlined), label: translate('nav.xray', appStore.locale) },
+  {
+    key: 'inbounds',
+    icon: () => h(SwapOutlined),
+    label: translate('nav.inbounds', appStore.locale),
+  },
+  {
+    key: 'settings',
+    icon: () => h(SettingOutlined),
+    label: translate('nav.settings', appStore.locale),
+  },
+]);
 
 const selectedKeys = computed(() => [String(route.name || 'dashboard')]);
 

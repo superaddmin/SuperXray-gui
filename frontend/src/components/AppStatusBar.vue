@@ -1,19 +1,32 @@
 <template>
   <div class="status-bar">
-    <ATag class="status-tag" :color="xrayStatusColor">{{ xrayStatusLabel }}</ATag>
-    <ATag class="status-tag" color="blue">Phase 10</ATag>
-    <span class="icon-button theme-indicator" aria-label="Dark theme" role="img">
+    <ATag class="status-tag status-tag-runtime" :color="xrayStatusColor">
+      {{ xrayStatusLabel }}
+    </ATag>
+    <ATag class="status-tag status-tag-phase">{{ phaseLabel }}</ATag>
+    <AButton
+      class="language-toggle"
+      size="small"
+      :aria-label="languageToggleAriaLabel"
+      @click="appStore.toggleLocale"
+    >
+      {{ languageButtonLabel }}
+    </AButton>
+    <span class="icon-button theme-indicator" :aria-label="themeLabel" role="img">
       <span class="theme-crescent" aria-hidden="true" />
     </span>
   </div>
 </template>
 
 <script setup lang="ts">
-import { Tag as ATag } from 'ant-design-vue';
+import { Button as AButton, Tag as ATag } from 'ant-design-vue';
 import { computed, onMounted } from 'vue';
 
+import { getLanguageButtonLabel, getLanguageToggleAriaLabel, translate } from '@/i18n/messages';
+import { useAppStore } from '@/stores/app';
 import { useServerStore } from '@/stores/server';
 
+const appStore = useAppStore();
 const serverStore = useServerStore();
 
 const xrayStatusLabel = computed(() => {
@@ -36,6 +49,11 @@ const xrayStatusColor = computed(() => {
       return 'default';
   }
 });
+
+const languageButtonLabel = computed(() => getLanguageButtonLabel(appStore.locale));
+const languageToggleAriaLabel = computed(() => getLanguageToggleAriaLabel(appStore.locale));
+const phaseLabel = computed(() => translate('status.phase10', appStore.locale));
+const themeLabel = computed(() => translate('status.darkTheme', appStore.locale));
 
 onMounted(() => {
   serverStore.connectRealtime();

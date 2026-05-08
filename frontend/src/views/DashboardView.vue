@@ -1,6 +1,10 @@
 <template>
-  <section class="page-stack">
-    <PageHeader eyebrow="Overview" title="Dashboard">
+  <section class="page-stack dashboard-page">
+    <PageHeader
+      eyebrow="Overview"
+      title="Dashboard"
+      description="Live Xray health, traffic, clients, and geo maintenance."
+    >
       <AButton :loading="refreshing" type="primary" @click="refreshDashboard">
         <template #icon><ReloadOutlined /></template>
         Refresh
@@ -15,13 +19,33 @@
     />
 
     <div class="status-grid">
-      <StatusTile label="Xray State" :value="xrayStateLabel" :hint="xrayVersionLabel" />
-      <StatusTile label="CPU" :value="formatPercent(status?.cpu)" :hint="cpuHint" />
-      <StatusTile label="Memory" :value="memoryPercent" :hint="memoryHint" />
-      <StatusTile label="Traffic" :value="trafficTotal" :hint="trafficHint" />
-      <StatusTile label="Inbounds" :value="formatCount(inboundCount)" :hint="enabledInboundHint" />
-      <StatusTile label="Clients" :value="formatCount(clientCount)" :hint="enabledClientHint" />
-      <StatusTile label="Panel Uptime" :value="formatDuration(status?.uptime)" :hint="appHint" />
+      <StatusTile
+        label="Xray State"
+        :value="xrayStateLabel"
+        :hint="xrayVersionLabel"
+        :tone="xrayStateTone"
+      />
+      <StatusTile label="CPU" :value="formatPercent(status?.cpu)" :hint="cpuHint" tone="info" />
+      <StatusTile label="Memory" :value="memoryPercent" :hint="memoryHint" tone="info" />
+      <StatusTile label="Traffic" :value="trafficTotal" :hint="trafficHint" tone="success" />
+      <StatusTile
+        label="Inbounds"
+        :value="formatCount(inboundCount)"
+        :hint="enabledInboundHint"
+        tone="success"
+      />
+      <StatusTile
+        label="Clients"
+        :value="formatCount(clientCount)"
+        :hint="enabledClientHint"
+        tone="success"
+      />
+      <StatusTile
+        label="Panel Uptime"
+        :value="formatDuration(status?.uptime)"
+        :hint="appHint"
+        tone="neutral"
+      />
       <StatusTile label="Connections" :value="connectionTotal" :hint="connectionHint" />
     </div>
 
@@ -224,6 +248,18 @@ const xrayStateLabel = computed(() => {
     return '-';
   }
   return state.charAt(0).toUpperCase() + state.slice(1);
+});
+const xrayStateTone = computed<'danger' | 'neutral' | 'success' | 'warning'>(() => {
+  switch (status.value?.xray.state) {
+    case 'running':
+      return 'success';
+    case 'error':
+      return 'danger';
+    case 'stop':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
 });
 const xrayVersionLabel = computed(() => `Version ${status.value?.xray.version || '-'}`);
 const cpuHint = computed(() => {

@@ -238,11 +238,29 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 在面板设置中启用订阅服务后，每个客户端会自动生成订阅 ID，可通过以下地址获取配置：
 
-| 格式 | 地址 | 适用客户端 |
-|------|------|-----------|
-| Base64 | `http://<IP>:2096/sub/<subid>` | V2rayN、Shadowrocket |
-| JSON | `http://<IP>:2096/json/<subid>` | Xray 客户端 |
-| Clash | `http://<IP>:2096/clash/<subid>` | Clash/Mihomo |
+| 格式 | 地址 | 适用客户端 | 当前支持的协议 |
+|------|------|-----------|----------------|
+| Base64 / Plain URI | `http://<IP>:2096/sub/<subid>` | V2rayN、Shadowrocket、支持标准分享链接的客户端 | VMess、VLESS、Trojan、Shadowsocks、Hysteria、Hysteria2；WireGuard 返回独立配置文本 |
+| JSON | `http://<IP>:2096/json/<subid>` | Xray 客户端 | VMess、VLESS、Trojan、Shadowsocks、Hysteria、Hysteria2、WireGuard |
+| Clash | `http://<IP>:2096/clash/<subid>` | Clash/Mihomo | VMess、VLESS、Trojan、Shadowsocks、Hysteria、Hysteria2、WireGuard |
+
+> 订阅输出不包含 Tunnel、HTTP、Mixed、Tun 这类入站规则；它们可作为 Xray 入站配置使用，但不是面向客户端订阅分发的节点类型。Clash/Mihomo 输出中，普通代理协议当前仅生成 TCP、WebSocket、gRPC 传输节点，mKCP、HTTPUpgrade、XHTTP 等传输更适合通过 Xray JSON 或客户端手动配置验证。
+
+### 入站协议能力矩阵
+
+| 入站协议 | 后端入站配置 | 保存校验强度 | 新 UI 编辑 | 订阅分发 | 运行状态说明 |
+|----------|--------------|--------------|------------|----------|--------------|
+| VMess | 支持 | UUID 校验 | 支持 | 支持 Base64/JSON/Clash | 主路径完整，属于可正常运行协议 |
+| VLESS | 支持 | UUID 与 flow/TLS 约束校验 | 支持 | 支持 Base64/JSON/Clash | 主路径完整，Reality/XTLS 参数需与客户端能力匹配 |
+| Trojan | 支持 | password 必填校验 | 支持 | 支持 Base64/JSON/Clash | 主路径完整，TLS 参数需按客户端要求配置 |
+| Shadowsocks | 支持 | method/password/client 约束校验 | 支持 | 支持 Base64/JSON/Clash | 主路径完整，需选择客户端兼容的加密方法 |
+| Hysteria | 支持 | auth 必填且要求 TLS | 支持 | 支持 Base64/JSON/Clash | 主路径完整，依赖客户端 Hysteria v1 支持 |
+| Hysteria2 | 支持 | auth 必填且要求 TLS | 支持 | 支持 Base64/JSON/Clash | 主路径完整，依赖客户端 Hysteria2 支持 |
+| WireGuard | 支持 | 基础字段透传，订阅侧按 peer 输出 | 支持 | 支持 WireGuard 配置、JSON、Clash | 可运行，客户端导入方式与普通代理协议不同 |
+| Tunnel | 支持 | 后端轻校验，主要依赖 Xray 运行时校验 | 支持 | 不支持 | 可作为入站规则保存和运行，不生成客户端订阅节点 |
+| HTTP | 支持 | 后端轻校验，主要依赖 Xray 运行时校验 | 支持 | 不支持 | 可作为本地/服务端代理入站，不生成订阅节点 |
+| Mixed | 支持 | 后端轻校验，主要依赖 Xray 运行时校验 | 支持 | 不支持 | 可作为 HTTP + SOCKS 混合入站，不生成订阅节点 |
+| Tun | 支持 | 后端轻校验，主要依赖 Xray 运行时校验 | 支持 | 不支持 | 可作为透明代理类入站，运行效果依赖系统路由/权限配置 |
 
 ---
 

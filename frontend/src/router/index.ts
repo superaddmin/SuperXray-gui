@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 
+import { formatDocumentTitle, getStoredLocale } from '@/i18n/messages';
 import MainLayout from '@/layouts/MainLayout.vue';
 import { getRuntimeConfig } from '@/types/runtime';
 
@@ -30,6 +31,12 @@ const routes: RouteRecordRaw[] = [
         name: 'logs',
         component: () => import('@/views/LogsView.vue'),
         meta: { title: 'Logs' },
+      },
+      {
+        path: 'cores',
+        name: 'cores',
+        component: () => import('@/views/CoreInstancesView.vue'),
+        meta: { title: 'Core Instances' },
       },
       {
         path: 'xray',
@@ -65,6 +72,6 @@ export const router = createRouter({
 });
 
 router.beforeEach((to) => {
-  document.title = `${String(to.meta.title || 'Panel')} - SuperXray`;
+  document.title = formatDocumentTitle(to.name || to.meta.title, getStoredLocale());
   return true;
 });

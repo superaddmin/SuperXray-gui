@@ -1,6 +1,10 @@
 <template>
-  <section class="page-stack">
-    <PageHeader eyebrow="Runtime" title="Xray">
+  <section class="page-stack xray-page">
+    <PageHeader
+      eyebrow="Runtime"
+      title="Xray"
+      description="Control the legacy Xray runtime, template, versions, outbounds, and provider tools."
+    >
       <ASpace wrap>
         <AButton :loading="refreshing" @click="refreshRuntime">
           <template #icon><ReloadOutlined /></template>
@@ -20,13 +24,29 @@
     <AAlert v-if="error" banner type="warning" :message="error" />
 
     <div class="status-grid">
-      <StatusTile label="Xray State" :value="xrayStateLabel" :hint="xrayErrorHint" />
-      <StatusTile label="Current Version" :value="currentVersion" hint="Existing Xray process" />
-      <StatusTile label="Template" :value="templateState" :hint="configChangedHint" />
+      <StatusTile
+        label="Xray State"
+        :value="xrayStateLabel"
+        :hint="xrayErrorHint"
+        :tone="xrayStateTone"
+      />
+      <StatusTile
+        label="Current Version"
+        :value="currentVersion"
+        hint="Existing Xray process"
+        tone="info"
+      />
+      <StatusTile
+        label="Template"
+        :value="templateState"
+        :hint="configChangedHint"
+        :tone="configChanged ? 'warning' : 'success'"
+      />
       <StatusTile
         label="Outbound Test"
         :value="outboundTestUrl || '-'"
         hint="Saved with legacy template"
+        tone="neutral"
       />
     </div>
 
@@ -285,6 +305,18 @@ const currentVersion = computed(() => status.value?.xray.version || '-');
 const xrayStateLabel = computed(() => {
   const state = status.value?.xray.state;
   return state ? state.charAt(0).toUpperCase() + state.slice(1) : '-';
+});
+const xrayStateTone = computed<'danger' | 'neutral' | 'success' | 'warning'>(() => {
+  switch (status.value?.xray.state) {
+    case 'running':
+      return 'success';
+    case 'error':
+      return 'danger';
+    case 'stop':
+      return 'warning';
+    default:
+      return 'neutral';
+  }
 });
 const xrayErrorHint = computed(() => status.value?.xray.errorMsg || 'Existing Xray service');
 const startRestartLabel = computed(() =>

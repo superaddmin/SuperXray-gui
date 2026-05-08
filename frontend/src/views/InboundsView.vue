@@ -1,6 +1,10 @@
 <template>
-  <section class="page-stack">
-    <PageHeader eyebrow="Traffic" title="Inbounds">
+  <section class="page-stack inbounds-page">
+    <PageHeader
+      eyebrow="Traffic"
+      title="Inbounds"
+      description="Manage Xray listeners, clients, live activity, traffic counters, and sharing tools."
+    >
       <ASpace wrap>
         <AButton :loading="loading" @click="refreshInbounds">
           <template #icon><ReloadOutlined /></template>
@@ -27,19 +31,31 @@
     <AAlert v-if="error" banner type="warning" :message="error" />
 
     <div class="status-grid">
-      <StatusTile label="Total" :value="formatCount(inbounds.length)" hint="Legacy Xray inbounds" />
+      <StatusTile
+        label="Total"
+        :value="formatCount(inbounds.length)"
+        hint="Legacy Xray inbounds"
+        tone="info"
+      />
       <StatusTile
         label="Enabled"
         :value="formatCount(enabledInboundCount)"
         hint="Active listeners"
+        tone="success"
       />
       <StatusTile
         label="Online Clients"
         :value="formatCount(onlineClients.length)"
         hint="Live activity from Xray"
+        tone="success"
       />
-      <StatusTile label="Clients" :value="formatCount(clientCount)" hint="Configured users" />
-      <StatusTile label="Traffic" :value="trafficTotal" hint="Inbound counters" />
+      <StatusTile
+        label="Clients"
+        :value="formatCount(clientCount)"
+        hint="Configured users"
+        tone="info"
+      />
+      <StatusTile label="Traffic" :value="trafficTotal" hint="Inbound counters" tone="success" />
     </div>
 
     <ACard class="work-panel" :bordered="false">
@@ -251,7 +267,9 @@
                 Delete Selected
               </AButton>
               <AButton
-                :disabled="!selectedInboundEditable || selectedInbound.protocol === 'wireguard'"
+                :disabled="
+                  !selectedInboundClientManageable || selectedInbound.protocol === 'wireguard'
+                "
                 :loading="busyClient"
                 @click="confirmResetAllClients(selectedInbound)"
               >
@@ -260,14 +278,14 @@
               </AButton>
               <AButton
                 danger
-                :disabled="!selectedInboundEditable"
+                :disabled="!selectedInboundClientManageable"
                 :loading="deletingDepletedClients"
                 @click="confirmDeleteDepletedClients(selectedInbound)"
               >
                 Delete Depleted
               </AButton>
               <AButton
-                :disabled="!selectedInboundEditable || clientAddDisabled(selectedInbound)"
+                :disabled="!selectedInboundClientManageable || clientAddDisabled(selectedInbound)"
                 type="primary"
                 @click="openCreateClient(selectedInbound)"
               >
@@ -314,9 +332,7 @@
               <template v-else-if="column.key === 'enable'">
                 <ASwitch
                   :checked="record.enable !== false"
-                  :disabled="
-                    !selectedInboundEditable || !hasClientPrimaryId(selectedInbound, record)
-                  "
+                  :disabled="clientActionDisabled(selectedInbound, record)"
                   :loading="busyClientKey === record.key"
                   @change="(checked) => toggleClient(selectedInbound, record, Boolean(checked))"
                 />
@@ -325,9 +341,7 @@
               <template v-else-if="column.key === 'actions'">
                 <ASpace wrap>
                   <AButton
-                    :disabled="
-                      !selectedInboundEditable || !hasClientPrimaryId(selectedInbound, record)
-                    "
+                    :disabled="clientActionDisabled(selectedInbound, record)"
                     size="small"
                     @click="openEditClient(selectedInbound, record)"
                   >
@@ -335,7 +349,7 @@
                     Edit
                   </AButton>
                   <AButton
-                    :disabled="!hasClientPrimaryId(selectedInbound, record)"
+                    :disabled="clientShareDisabled(selectedInbound, record)"
                     size="small"
                     @click="previewShareLink(selectedInbound, record)"
                   >
@@ -352,9 +366,7 @@
                   </AButton>
                   <AButton
                     danger
-                    :disabled="
-                      !selectedInboundEditable || !hasClientPrimaryId(selectedInbound, record)
-                    "
+                    :disabled="clientActionDisabled(selectedInbound, record)"
                     size="small"
                     @click="confirmDeleteClient(selectedInbound, record)"
                   >
@@ -392,6 +404,13 @@
       @ok="submitInbound"
     >
       <AForm layout="vertical">
+        <AAlert
+          class="mb-12"
+          message="Inbound setup guide"
+          description="Start with protocol, remark, listen address, and port. Keep 0.0.0.0 to accept connections on all interfaces; set traffic and expiry to 0 for no limit. Use the transport form for common TCP/WS/gRPC/TLS/Reality options, then click Sync JSON only when you need to inspect or manually adjust the raw legacy JSON."
+          show-icon
+          type="info"
+        />
         <div class="form-grid">
           <AFormItem label="Protocol">
             <ASelect
@@ -455,7 +474,7 @@
           </div>
         </div>
 
-        <div v-if="inboundEditor.protocol !== 'wireguard'" class="json-section">
+        <div v-if="protocolSupportsStream(inboundEditor.protocol)" class="json-section">
           <div class="json-section-title">
             <span>Stream Settings Form</span>
             <ASpace>
@@ -470,6 +489,9 @@
             <AFormItem label="Security">
               <ASelect v-model:value="streamEditor.security" :options="transportSecurityOptions" />
             </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'tcp'" label="TCP Proxy Protocol">
+              <ASwitch v-model:checked="streamEditor.tcpAcceptProxyProtocol" />
+            </AFormItem>
             <AFormItem v-if="streamEditor.network === 'tcp'" label="TCP Header">
               <ASelect
                 v-model:value="streamEditor.tcpHeaderType"
@@ -479,11 +501,55 @@
                 ]"
               />
             </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'kcp'" label="mKCP MTU">
+              <AInputNumber v-model:value="streamEditor.kcpMtu" :min="1" class="full-width" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'kcp'" label="mKCP TTI">
+              <AInputNumber v-model:value="streamEditor.kcpTti" :min="1" class="full-width" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'kcp'" label="mKCP Uplink">
+              <AInputNumber
+                v-model:value="streamEditor.kcpUplinkCapacity"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'kcp'" label="mKCP Downlink">
+              <AInputNumber
+                v-model:value="streamEditor.kcpDownlinkCapacity"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'kcp'" label="mKCP CWND Multiplier">
+              <AInputNumber
+                v-model:value="streamEditor.kcpCwndMultiplier"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'kcp'" label="mKCP Sending Window">
+              <AInputNumber
+                v-model:value="streamEditor.kcpMaxSendingWindow"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'ws'" label="WS Proxy Protocol">
+              <ASwitch v-model:checked="streamEditor.wsAcceptProxyProtocol" />
+            </AFormItem>
             <AFormItem v-if="streamEditor.network === 'ws'" label="WS Path">
               <AInput v-model:value="streamEditor.wsPath" />
             </AFormItem>
             <AFormItem v-if="streamEditor.network === 'ws'" label="WS Host">
               <AInput v-model:value="streamEditor.wsHost" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'ws'" label="WS Heartbeat Period">
+              <AInputNumber
+                v-model:value="streamEditor.wsHeartbeatPeriod"
+                :min="0"
+                class="full-width"
+              />
             </AFormItem>
             <AFormItem v-if="streamEditor.network === 'grpc'" label="gRPC Service">
               <AInput v-model:value="streamEditor.grpcServiceName" />
@@ -494,14 +560,54 @@
             <AFormItem v-if="streamEditor.network === 'grpc'" label="gRPC Multi Mode">
               <ASwitch v-model:checked="streamEditor.grpcMultiMode" />
             </AFormItem>
+            <AFormItem
+              v-if="streamEditor.network === 'httpupgrade'"
+              label="HTTPUpgrade Proxy Protocol"
+            >
+              <ASwitch v-model:checked="streamEditor.httpupgradeAcceptProxyProtocol" />
+            </AFormItem>
             <AFormItem v-if="streamEditor.network === 'httpupgrade'" label="HTTPUpgrade Path">
               <AInput v-model:value="streamEditor.httpupgradePath" />
             </AFormItem>
             <AFormItem v-if="streamEditor.network === 'httpupgrade'" label="HTTPUpgrade Host">
               <AInput v-model:value="streamEditor.httpupgradeHost" />
             </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="XHTTP Path">
+              <AInput v-model:value="streamEditor.xhttpPath" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="XHTTP Host">
+              <AInput v-model:value="streamEditor.xhttpHost" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="XHTTP Mode">
+              <ASelect v-model:value="streamEditor.xhttpMode" :options="xhttpModeOptions" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="No SSE Header">
+              <ASwitch v-model:checked="streamEditor.xhttpNoSseHeader" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Max Buffered Posts">
+              <AInputNumber
+                v-model:value="streamEditor.xhttpScMaxBufferedPosts"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Each Post Bytes">
+              <AInput v-model:value="streamEditor.xhttpScMaxEachPostBytes" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Stream Up Server Secs">
+              <AInput v-model:value="streamEditor.xhttpScStreamUpServerSecs" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Padding Bytes">
+              <AInput v-model:value="streamEditor.xhttpXPaddingBytes" />
+            </AFormItem>
             <AFormItem v-if="streamEditor.security === 'tls'" label="TLS SNI">
               <AInput v-model:value="streamEditor.tlsServerName" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label="TLS Min Version">
+              <ASelect v-model:value="streamEditor.tlsMinVersion" :options="tlsVersionOptions" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label="TLS Max Version">
+              <ASelect v-model:value="streamEditor.tlsMaxVersion" :options="tlsVersionOptions" />
             </AFormItem>
             <AFormItem v-if="streamEditor.security === 'tls'" label="TLS ALPN">
               <AInput v-model:value="streamEditor.tlsAlpn" placeholder="h2,http/1.1" />
@@ -515,6 +621,27 @@
             <AFormItem v-if="streamEditor.security === 'tls'" label="Key File">
               <AInput v-model:value="streamEditor.tlsKeyFile" />
             </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label="Reject Unknown SNI">
+              <ASwitch v-model:checked="streamEditor.tlsRejectUnknownSni" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label="Disable System Root">
+              <ASwitch v-model:checked="streamEditor.tlsDisableSystemRoot" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label="Session Resumption">
+              <ASwitch v-model:checked="streamEditor.tlsEnableSessionResumption" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label="ECH Server Keys">
+              <AInput v-model:value="streamEditor.tlsEchServerKeys" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label="ECH Config List">
+              <AInput v-model:value="streamEditor.tlsEchConfigList" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'reality'" label="Reality Show">
+              <ASwitch v-model:checked="streamEditor.realityShow" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'reality'" label="Reality Xver">
+              <AInputNumber v-model:value="streamEditor.realityXver" :min="0" class="full-width" />
+            </AFormItem>
             <AFormItem v-if="streamEditor.security === 'reality'" label="Reality Target">
               <AInput v-model:value="streamEditor.realityTarget" />
             </AFormItem>
@@ -527,6 +654,31 @@
             <AFormItem v-if="streamEditor.security === 'reality'" label="Reality Short IDs">
               <AInput v-model:value="streamEditor.realityShortIds" />
             </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'reality'" label="Reality Public Key">
+              <AInput v-model:value="streamEditor.realityPublicKey" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'reality'" label="Reality SpiderX">
+              <AInput v-model:value="streamEditor.realitySpiderX" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'reality'" label="Min Client Version">
+              <AInput v-model:value="streamEditor.realityMinClientVer" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'reality'" label="Max Client Version">
+              <AInput v-model:value="streamEditor.realityMaxClientVer" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'reality'" label="Max Time Diff">
+              <AInputNumber
+                v-model:value="streamEditor.realityMaxTimediff"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'reality'" label="ML-DSA-65 Seed">
+              <AInput v-model:value="streamEditor.realityMldsa65Seed" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'reality'" label="ML-DSA-65 Verify">
+              <AInput v-model:value="streamEditor.realityMldsa65Verify" />
+            </AFormItem>
             <AFormItem v-if="isHysteriaProtocol(inboundEditor.protocol)" label="Hysteria2 Auth">
               <AInput v-model:value="streamEditor.hysteriaAuth" />
             </AFormItem>
@@ -537,6 +689,70 @@
                 class="full-width"
               />
             </AFormItem>
+            <AFormItem label="Sockopt Enabled">
+              <ASwitch v-model:checked="streamEditor.sockoptEnabled" />
+            </AFormItem>
+            <template v-if="streamEditor.sockoptEnabled">
+              <AFormItem label="Sockopt Proxy Protocol">
+                <ASwitch v-model:checked="streamEditor.sockoptAcceptProxyProtocol" />
+              </AFormItem>
+              <AFormItem label="TCP Fast Open">
+                <ASwitch v-model:checked="streamEditor.sockoptTcpFastOpen" />
+              </AFormItem>
+              <AFormItem label="Multipath TCP">
+                <ASwitch v-model:checked="streamEditor.sockoptTcpMptcp" />
+              </AFormItem>
+              <AFormItem label="Penetrate">
+                <ASwitch v-model:checked="streamEditor.sockoptPenetrate" />
+              </AFormItem>
+              <AFormItem label="V6 Only">
+                <ASwitch v-model:checked="streamEditor.sockoptV6Only" />
+              </AFormItem>
+              <AFormItem label="Domain Strategy">
+                <ASelect
+                  v-model:value="streamEditor.sockoptDomainStrategy"
+                  :options="sockoptDomainStrategyOptions"
+                />
+              </AFormItem>
+              <AFormItem label="TCP Congestion">
+                <ASelect
+                  v-model:value="streamEditor.sockoptTcpCongestion"
+                  :options="sockoptTcpCongestionOptions"
+                />
+              </AFormItem>
+              <AFormItem label="TProxy">
+                <ASelect
+                  v-model:value="streamEditor.sockoptTproxy"
+                  :options="sockoptTproxyOptions"
+                />
+              </AFormItem>
+              <AFormItem label="Mark">
+                <AInputNumber
+                  v-model:value="streamEditor.sockoptMark"
+                  :min="0"
+                  class="full-width"
+                />
+              </AFormItem>
+              <AFormItem label="TCP Max Segment">
+                <AInputNumber
+                  v-model:value="streamEditor.sockoptTcpMaxSeg"
+                  :min="0"
+                  class="full-width"
+                />
+              </AFormItem>
+              <AFormItem label="Dialer Proxy">
+                <AInput v-model:value="streamEditor.sockoptDialerProxy" />
+              </AFormItem>
+              <AFormItem label="Interface Name">
+                <AInput v-model:value="streamEditor.sockoptInterfaceName" />
+              </AFormItem>
+              <AFormItem label="Trusted X-Forwarded-For">
+                <AInput
+                  v-model:value="streamEditor.sockoptTrustedXForwardedFor"
+                  placeholder="CF-Connecting-IP,X-Real-IP"
+                />
+              </AFormItem>
+            </template>
           </div>
         </div>
 
@@ -758,6 +974,14 @@ import {
 } from '@/api/inbounds';
 import PageHeader from '@/components/PageHeader.vue';
 import StatusTile from '@/components/StatusTile.vue';
+import {
+  getProtocolRegistryEntry,
+  isRegisteredEditableProtocol,
+  protocolSupportsClients,
+  protocolSupportsShareLink,
+  protocolSupportsStream,
+  xrayEditableProtocols,
+} from '@/schemas/protocolRegistry';
 import { hasInjectedRuntimeConfig } from '@/types/runtime';
 import type {
   ClientTraffic,
@@ -822,25 +1046,73 @@ interface WireguardEditorState {
 interface StreamEditorState {
   network: string;
   security: string;
+  tcpAcceptProxyProtocol: boolean;
   tcpHeaderType: string;
+  kcpMtu: number;
+  kcpTti: number;
+  kcpUplinkCapacity: number;
+  kcpDownlinkCapacity: number;
+  kcpCwndMultiplier: number;
+  kcpMaxSendingWindow: number;
+  wsAcceptProxyProtocol: boolean;
   wsPath: string;
   wsHost: string;
+  wsHeartbeatPeriod: number;
   grpcServiceName: string;
   grpcAuthority: string;
   grpcMultiMode: boolean;
+  httpupgradeAcceptProxyProtocol: boolean;
   httpupgradePath: string;
   httpupgradeHost: string;
+  xhttpPath: string;
+  xhttpHost: string;
+  xhttpMode: string;
+  xhttpNoSseHeader: boolean;
+  xhttpScMaxBufferedPosts: number;
+  xhttpScMaxEachPostBytes: string;
+  xhttpScStreamUpServerSecs: string;
+  xhttpXPaddingBytes: string;
   tlsServerName: string;
+  tlsMinVersion: string;
+  tlsMaxVersion: string;
   tlsAlpn: string;
   tlsFingerprint: string;
   tlsCertificateFile: string;
   tlsKeyFile: string;
+  tlsRejectUnknownSni: boolean;
+  tlsDisableSystemRoot: boolean;
+  tlsEnableSessionResumption: boolean;
+  tlsEchServerKeys: string;
+  tlsEchConfigList: string;
+  realityShow: boolean;
+  realityXver: number;
   realityTarget: string;
   realityServerNames: string;
   realityPrivateKey: string;
   realityShortIds: string;
+  realityMinClientVer: string;
+  realityMaxClientVer: string;
+  realityMaxTimediff: number;
+  realityPublicKey: string;
+  realitySpiderX: string;
+  realityMldsa65Seed: string;
+  realityMldsa65Verify: string;
   hysteriaAuth: string;
   hysteriaUdpIdleTimeout: number;
+  sockoptEnabled: boolean;
+  sockoptAcceptProxyProtocol: boolean;
+  sockoptTcpFastOpen: boolean;
+  sockoptTcpMptcp: boolean;
+  sockoptPenetrate: boolean;
+  sockoptV6Only: boolean;
+  sockoptDomainStrategy: string;
+  sockoptTcpCongestion: string;
+  sockoptTproxy: string;
+  sockoptMark: number;
+  sockoptTcpMaxSeg: number;
+  sockoptDialerProxy: string;
+  sockoptInterfaceName: string;
+  sockoptTrustedXForwardedFor: string;
 }
 
 interface ClientEditorState {
@@ -910,14 +1182,13 @@ const wireguardEditor = reactive<WireguardEditorState>(createWireguardEditor());
 const streamEditor = reactive<StreamEditorState>(createStreamEditor());
 const clientEditor = reactive<ClientEditorState>(createClientEditor());
 
-const editableProtocolOptions = [
-  { label: 'VMess', value: 'vmess' },
-  { label: 'VLESS', value: 'vless' },
-  { label: 'Trojan', value: 'trojan' },
-  { label: 'Shadowsocks', value: 'shadowsocks' },
-  { label: 'Hysteria2', value: 'hysteria' },
-  { label: 'WireGuard', value: 'wireguard' },
-];
+const editableProtocolOptions = xrayEditableProtocols.map((protocol) => {
+  const entry = getProtocolRegistryEntry(protocol);
+  return {
+    label: entry?.label || protocol,
+    value: protocol,
+  };
+});
 const protocolFilterOptions = computed(() => [
   { label: 'All protocols', value: 'all' },
   ...Array.from(new Set(inbounds.value.map((inbound) => inbound.protocol))).map((protocol) => ({
@@ -950,9 +1221,11 @@ const transportNetworkOptions = computed(() =>
     ? [{ label: 'hysteria', value: 'hysteria' }]
     : [
         { label: 'tcp', value: 'tcp' },
+        { label: 'kcp', value: 'kcp' },
         { label: 'ws', value: 'ws' },
         { label: 'grpc', value: 'grpc' },
         { label: 'httpupgrade', value: 'httpupgrade' },
+        { label: 'xhttp', value: 'xhttp' },
       ],
 );
 const transportSecurityOptions = computed(() =>
@@ -964,6 +1237,26 @@ const transportSecurityOptions = computed(() =>
         { label: 'reality', value: 'reality' },
       ],
 );
+const xhttpModeOptions = ['auto', 'packet-up', 'stream-up', 'stream-one'].map((value) => ({
+  label: value,
+  value,
+}));
+const tlsVersionOptions = ['1.0', '1.1', '1.2', '1.3'].map((value) => ({
+  label: value,
+  value,
+}));
+const sockoptDomainStrategyOptions = ['AsIs', 'UseIP', 'UseIPv4', 'UseIPv6'].map((value) => ({
+  label: value,
+  value,
+}));
+const sockoptTcpCongestionOptions = ['bbr', 'cubic'].map((value) => ({
+  label: value,
+  value,
+}));
+const sockoptTproxyOptions = ['off', 'redirect', 'tproxy'].map((value) => ({
+  label: value,
+  value,
+}));
 const inboundColumns = [
   { title: 'Inbound', key: 'inbound' },
   { title: 'Address', key: 'address' },
@@ -1025,8 +1318,8 @@ const selectedInboundTitle = computed(() => {
   }
   return inbound.remark || inbound.tag || `Inbound ${inbound.id}`;
 });
-const selectedInboundEditable = computed(() =>
-  selectedInbound.value ? isEditableProtocol(selectedInbound.value.protocol) : false,
+const selectedInboundClientManageable = computed(() =>
+  selectedInbound.value ? protocolSupportsClients(selectedInbound.value.protocol) : false,
 );
 const selectedClientRows = computed<ClientRow[]>(() => {
   const inbound = selectedInbound.value;
@@ -1053,7 +1346,7 @@ const canResetSelectedClients = computed(
   () => resettableSelectedClientRows.value.length > 0 && !busyClient.value,
 );
 const canDeleteSelectedClients = computed(() => {
-  if (!selectedInboundEditable.value || busyClient.value) {
+  if (!selectedInboundClientManageable.value || busyClient.value) {
     return false;
   }
   const selectedCount = selectedBatchClientRows.value.length;
@@ -1208,7 +1501,7 @@ function openEditInbound(record: Inbound | Record<string, unknown>) {
 async function submitInbound() {
   if (inboundEditor.protocol === 'wireguard') {
     applyWireguardEditorToSettings();
-  } else {
+  } else if (protocolSupportsStream(inboundEditor.protocol)) {
     applyStreamEditorToSettings();
   }
   const settings = normalizeJsonEditorText(inboundEditor.settings, 'Settings JSON');
@@ -1358,7 +1651,7 @@ function openInboundDetail(record: Inbound | Record<string, unknown>) {
 }
 
 function openCreateClient(inbound: Inbound) {
-  if (!isEditableProtocol(inbound.protocol)) {
+  if (!isEditableProtocol(inbound.protocol) || !protocolSupportsClients(inbound.protocol)) {
     return;
   }
   if (clientAddDisabled(inbound)) {
@@ -1376,7 +1669,7 @@ function openEditClient(inbound: Inbound | null, record: ClientRow | Record<stri
     return;
   }
   const row = asClientRow(record);
-  if (!isEditableProtocol(inbound.protocol)) {
+  if (!isEditableProtocol(inbound.protocol) || !protocolSupportsClients(inbound.protocol)) {
     return;
   }
   const client = stripClientRow(row);
@@ -1420,7 +1713,11 @@ function openEditClient(inbound: Inbound | null, record: ClientRow | Record<stri
 
 async function submitClient() {
   const inbound = clientInbound.value;
-  if (!inbound || !isEditableProtocol(inbound.protocol)) {
+  if (
+    !inbound ||
+    !isEditableProtocol(inbound.protocol) ||
+    !protocolSupportsClients(inbound.protocol)
+  ) {
     return;
   }
 
@@ -1875,25 +2172,73 @@ function createStreamEditor(): StreamEditorState {
   return {
     network: 'tcp',
     security: 'none',
+    tcpAcceptProxyProtocol: false,
     tcpHeaderType: 'none',
+    kcpMtu: 1350,
+    kcpTti: 20,
+    kcpUplinkCapacity: 5,
+    kcpDownlinkCapacity: 20,
+    kcpCwndMultiplier: 1,
+    kcpMaxSendingWindow: 2_097_152,
+    wsAcceptProxyProtocol: false,
     wsPath: '/',
     wsHost: '',
+    wsHeartbeatPeriod: 0,
     grpcServiceName: '',
     grpcAuthority: '',
     grpcMultiMode: false,
+    httpupgradeAcceptProxyProtocol: false,
     httpupgradePath: '/',
     httpupgradeHost: '',
+    xhttpPath: '/',
+    xhttpHost: '',
+    xhttpMode: 'auto',
+    xhttpNoSseHeader: false,
+    xhttpScMaxBufferedPosts: 30,
+    xhttpScMaxEachPostBytes: '1000000',
+    xhttpScStreamUpServerSecs: '20-80',
+    xhttpXPaddingBytes: '100-1000',
     tlsServerName: '',
+    tlsMinVersion: '1.2',
+    tlsMaxVersion: '1.3',
     tlsAlpn: 'h2,http/1.1',
     tlsFingerprint: 'chrome',
     tlsCertificateFile: '',
     tlsKeyFile: '',
+    tlsRejectUnknownSni: false,
+    tlsDisableSystemRoot: false,
+    tlsEnableSessionResumption: false,
+    tlsEchServerKeys: '',
+    tlsEchConfigList: '',
+    realityShow: false,
+    realityXver: 0,
     realityTarget: '',
     realityServerNames: '',
     realityPrivateKey: '',
     realityShortIds: '',
+    realityMinClientVer: '',
+    realityMaxClientVer: '',
+    realityMaxTimediff: 0,
+    realityPublicKey: '',
+    realitySpiderX: '/',
+    realityMldsa65Seed: '',
+    realityMldsa65Verify: '',
     hysteriaAuth: '',
     hysteriaUdpIdleTimeout: 60,
+    sockoptEnabled: false,
+    sockoptAcceptProxyProtocol: false,
+    sockoptTcpFastOpen: false,
+    sockoptTcpMptcp: false,
+    sockoptPenetrate: false,
+    sockoptV6Only: false,
+    sockoptDomainStrategy: 'UseIP',
+    sockoptTcpCongestion: 'bbr',
+    sockoptTproxy: 'off',
+    sockoptMark: 0,
+    sockoptTcpMaxSeg: 1440,
+    sockoptDialerProxy: '',
+    sockoptInterfaceName: '',
+    sockoptTrustedXForwardedFor: '',
   };
 }
 
@@ -1927,9 +2272,13 @@ function syncStreamEditorFromSettings() {
     ? objectField(tlsSettings.certificates[0])
     : {};
   const realitySettings = objectField(stream.realitySettings);
+  const realityClientSettings = objectField(realitySettings.settings);
   const wsSettings = objectField(stream.wsSettings);
   const grpcSettings = objectField(stream.grpcSettings);
   const httpupgradeSettings = objectField(stream.httpupgradeSettings);
+  const xhttpSettings = objectField(stream.xhttpSettings);
+  const kcpSettings = objectField(stream.kcpSettings);
+  const sockopt = objectField(stream.sockopt);
   const tcpSettings = objectField(stream.tcpSettings);
   const tcpHeader = objectField(tcpSettings.header);
   const hysteriaSettings = objectField(stream.hysteriaSettings);
@@ -1937,26 +2286,74 @@ function syncStreamEditorFromSettings() {
   Object.assign(streamEditor, {
     network: stringField(stream.network) || defaultNetworkForProtocol(inboundEditor.protocol),
     security: stringField(stream.security) || defaultSecurityForProtocol(inboundEditor.protocol),
+    tcpAcceptProxyProtocol: Boolean(tcpSettings.acceptProxyProtocol),
     tcpHeaderType: stringField(tcpHeader.type) || 'none',
+    kcpMtu: Number(kcpSettings.mtu || 1350),
+    kcpTti: Number(kcpSettings.tti || 20),
+    kcpUplinkCapacity: Number(kcpSettings.uplinkCapacity || 5),
+    kcpDownlinkCapacity: Number(kcpSettings.downlinkCapacity || 20),
+    kcpCwndMultiplier: Number(kcpSettings.cwndMultiplier || 1),
+    kcpMaxSendingWindow: Number(kcpSettings.maxSendingWindow || 2_097_152),
+    wsAcceptProxyProtocol: Boolean(wsSettings.acceptProxyProtocol),
     wsPath: stringField(wsSettings.path) || '/',
     wsHost: stringField(wsSettings.host),
+    wsHeartbeatPeriod: Number(wsSettings.heartbeatPeriod || 0),
     grpcServiceName: stringField(grpcSettings.serviceName),
     grpcAuthority: stringField(grpcSettings.authority),
     grpcMultiMode: Boolean(grpcSettings.multiMode),
+    httpupgradeAcceptProxyProtocol: Boolean(httpupgradeSettings.acceptProxyProtocol),
     httpupgradePath: stringField(httpupgradeSettings.path) || '/',
     httpupgradeHost: stringField(httpupgradeSettings.host),
+    xhttpPath: stringField(xhttpSettings.path) || '/',
+    xhttpHost: stringField(xhttpSettings.host),
+    xhttpMode: stringField(xhttpSettings.mode) || 'auto',
+    xhttpNoSseHeader: Boolean(xhttpSettings.noSSEHeader),
+    xhttpScMaxBufferedPosts: Number(xhttpSettings.scMaxBufferedPosts || 30),
+    xhttpScMaxEachPostBytes: stringField(xhttpSettings.scMaxEachPostBytes) || '1000000',
+    xhttpScStreamUpServerSecs: stringField(xhttpSettings.scStreamUpServerSecs) || '20-80',
+    xhttpXPaddingBytes: stringField(xhttpSettings.xPaddingBytes) || '100-1000',
     tlsServerName: stringField(tlsSettings.serverName),
+    tlsMinVersion: stringField(tlsSettings.minVersion) || '1.2',
+    tlsMaxVersion: stringField(tlsSettings.maxVersion) || '1.3',
     tlsAlpn:
       arrayField(tlsSettings.alpn).join(',') || defaultTlsAlpnForProtocol(inboundEditor.protocol),
     tlsFingerprint: stringField(tlsClientSettings.fingerprint) || 'chrome',
     tlsCertificateFile: stringField(firstCertificate.certificateFile),
     tlsKeyFile: stringField(firstCertificate.keyFile),
+    tlsRejectUnknownSni: Boolean(tlsSettings.rejectUnknownSni),
+    tlsDisableSystemRoot: Boolean(tlsSettings.disableSystemRoot),
+    tlsEnableSessionResumption: Boolean(tlsSettings.enableSessionResumption),
+    tlsEchServerKeys: stringField(tlsSettings.echServerKeys),
+    tlsEchConfigList: stringField(tlsClientSettings.echConfigList),
+    realityShow: Boolean(realitySettings.show),
+    realityXver: Number(realitySettings.xver || 0),
     realityTarget: stringField(realitySettings.target),
     realityServerNames: arrayField(realitySettings.serverNames).join(','),
     realityPrivateKey: stringField(realitySettings.privateKey),
     realityShortIds: arrayField(realitySettings.shortIds).join(','),
+    realityMinClientVer: stringField(realitySettings.minClientVer),
+    realityMaxClientVer: stringField(realitySettings.maxClientVer),
+    realityMaxTimediff: Number(realitySettings.maxTimediff || 0),
+    realityPublicKey: stringField(realityClientSettings.publicKey),
+    realitySpiderX: stringField(realityClientSettings.spiderX) || '/',
+    realityMldsa65Seed: stringField(realitySettings.mldsa65Seed),
+    realityMldsa65Verify: stringField(realityClientSettings.mldsa65Verify),
     hysteriaAuth: stringField(hysteriaSettings.auth),
     hysteriaUdpIdleTimeout: Number(hysteriaSettings.udpIdleTimeout || 60),
+    sockoptEnabled: Object.keys(sockopt).length > 0,
+    sockoptAcceptProxyProtocol: Boolean(sockopt.acceptProxyProtocol),
+    sockoptTcpFastOpen: Boolean(sockopt.tcpFastOpen),
+    sockoptTcpMptcp: Boolean(sockopt.tcpMptcp),
+    sockoptPenetrate: Boolean(sockopt.penetrate),
+    sockoptV6Only: Boolean(sockopt.V6Only),
+    sockoptDomainStrategy: stringField(sockopt.domainStrategy) || 'UseIP',
+    sockoptTcpCongestion: stringField(sockopt.tcpcongestion) || 'bbr',
+    sockoptTproxy: stringField(sockopt.tproxy) || 'off',
+    sockoptMark: Number(sockopt.mark || 0),
+    sockoptTcpMaxSeg: Number(sockopt.tcpMaxSeg || 1440),
+    sockoptDialerProxy: stringField(sockopt.dialerProxy),
+    sockoptInterfaceName: stringField(sockopt.interface),
+    sockoptTrustedXForwardedFor: arrayField(sockopt.trustedXForwardedFor).join(','),
   });
 
   if (isHysteriaProtocol(inboundEditor.protocol)) {
@@ -1977,28 +2374,41 @@ function applyStreamEditorToSettings() {
   stream.externalProxy = Array.isArray(stream.externalProxy) ? stream.externalProxy : [];
 
   delete stream.tcpSettings;
+  delete stream.kcpSettings;
   delete stream.wsSettings;
   delete stream.grpcSettings;
   delete stream.httpupgradeSettings;
+  delete stream.xhttpSettings;
   delete stream.tlsSettings;
   delete stream.realitySettings;
   delete stream.hysteriaSettings;
+  delete stream.sockopt;
 
   if (network === 'tcp') {
     stream.tcpSettings = {
-      acceptProxyProtocol: false,
+      acceptProxyProtocol: streamEditor.tcpAcceptProxyProtocol,
       header: {
         type: streamEditor.tcpHeaderType || 'none',
       },
     };
   }
+  if (network === 'kcp') {
+    stream.kcpSettings = {
+      mtu: Math.max(1, Number(streamEditor.kcpMtu || 1350)),
+      tti: Math.max(1, Number(streamEditor.kcpTti || 20)),
+      uplinkCapacity: Math.max(0, Number(streamEditor.kcpUplinkCapacity || 0)),
+      downlinkCapacity: Math.max(0, Number(streamEditor.kcpDownlinkCapacity || 0)),
+      cwndMultiplier: Math.max(0, Number(streamEditor.kcpCwndMultiplier || 0)),
+      maxSendingWindow: Math.max(0, Number(streamEditor.kcpMaxSendingWindow || 0)),
+    };
+  }
   if (network === 'ws') {
     stream.wsSettings = {
-      acceptProxyProtocol: false,
+      acceptProxyProtocol: streamEditor.wsAcceptProxyProtocol,
       path: streamEditor.wsPath || '/',
       host: streamEditor.wsHost,
       headers: streamEditor.wsHost ? { Host: streamEditor.wsHost } : {},
-      heartbeatPeriod: 0,
+      heartbeatPeriod: Math.max(0, Number(streamEditor.wsHeartbeatPeriod || 0)),
     };
   }
   if (network === 'grpc') {
@@ -2010,10 +2420,23 @@ function applyStreamEditorToSettings() {
   }
   if (network === 'httpupgrade') {
     stream.httpupgradeSettings = {
-      acceptProxyProtocol: false,
+      acceptProxyProtocol: streamEditor.httpupgradeAcceptProxyProtocol,
       path: streamEditor.httpupgradePath || '/',
       host: streamEditor.httpupgradeHost,
       headers: streamEditor.httpupgradeHost ? { Host: streamEditor.httpupgradeHost } : {},
+    };
+  }
+  if (network === 'xhttp') {
+    stream.xhttpSettings = {
+      path: streamEditor.xhttpPath || '/',
+      host: streamEditor.xhttpHost,
+      headers: streamEditor.xhttpHost ? { Host: streamEditor.xhttpHost } : {},
+      scMaxBufferedPosts: Math.max(0, Number(streamEditor.xhttpScMaxBufferedPosts || 0)),
+      scMaxEachPostBytes: streamEditor.xhttpScMaxEachPostBytes || '1000000',
+      scStreamUpServerSecs: streamEditor.xhttpScStreamUpServerSecs || '20-80',
+      noSSEHeader: streamEditor.xhttpNoSseHeader,
+      xPaddingBytes: streamEditor.xhttpXPaddingBytes || '100-1000',
+      mode: streamEditor.xhttpMode || 'auto',
     };
   }
   if (network === 'hysteria') {
@@ -2029,26 +2452,51 @@ function applyStreamEditorToSettings() {
     stream.tlsSettings = buildTlsSettings(existingTlsSettings);
   }
   if (security === 'reality') {
+    const serverNames = parseListText(streamEditor.realityServerNames);
     stream.realitySettings = {
-      show: false,
-      xver: 0,
+      show: streamEditor.realityShow,
+      xver: Math.max(0, Number(streamEditor.realityXver || 0)),
       target: streamEditor.realityTarget,
-      serverNames: parseListText(streamEditor.realityServerNames),
+      serverNames,
       privateKey: streamEditor.realityPrivateKey,
-      minClientVer: '',
-      maxClientVer: '',
-      maxTimediff: 0,
+      minClientVer: streamEditor.realityMinClientVer,
+      maxClientVer: streamEditor.realityMaxClientVer,
+      maxTimediff: Math.max(0, Number(streamEditor.realityMaxTimediff || 0)),
       shortIds: parseListText(streamEditor.realityShortIds),
+      mldsa65Seed: streamEditor.realityMldsa65Seed,
       settings: {
-        publicKey: '',
+        publicKey: streamEditor.realityPublicKey,
         fingerprint: streamEditor.tlsFingerprint || 'chrome',
-        serverName: parseListText(streamEditor.realityServerNames)[0] || '',
-        spiderX: '/',
+        serverName: serverNames[0] || '',
+        spiderX: streamEditor.realitySpiderX || '/',
+        mldsa65Verify: streamEditor.realityMldsa65Verify,
       },
     };
   }
 
+  if (streamEditor.sockoptEnabled) {
+    stream.sockopt = buildSockoptSettings();
+  }
+
   inboundEditor.streamSettings = stringifyJson(stream);
+}
+
+function buildSockoptSettings(): Record<string, unknown> {
+  return {
+    acceptProxyProtocol: streamEditor.sockoptAcceptProxyProtocol,
+    tcpFastOpen: streamEditor.sockoptTcpFastOpen,
+    mark: Math.max(0, Number(streamEditor.sockoptMark || 0)),
+    tproxy: streamEditor.sockoptTproxy || 'off',
+    tcpMptcp: streamEditor.sockoptTcpMptcp,
+    penetrate: streamEditor.sockoptPenetrate,
+    domainStrategy: streamEditor.sockoptDomainStrategy || 'UseIP',
+    tcpMaxSeg: Math.max(0, Number(streamEditor.sockoptTcpMaxSeg || 0)),
+    dialerProxy: streamEditor.sockoptDialerProxy,
+    tcpcongestion: streamEditor.sockoptTcpCongestion || 'bbr',
+    V6Only: streamEditor.sockoptV6Only,
+    interface: streamEditor.sockoptInterfaceName,
+    trustedXForwardedFor: parseListText(streamEditor.sockoptTrustedXForwardedFor),
+  };
 }
 
 function buildTlsSettings(existingTlsSettings: Record<string, unknown>): Record<string, unknown> {
@@ -2072,17 +2520,19 @@ function buildTlsSettings(existingTlsSettings: Record<string, unknown>): Record<
 
   return {
     serverName: streamEditor.tlsServerName,
-    minVersion: '1.2',
-    maxVersion: '1.3',
+    minVersion: streamEditor.tlsMinVersion || '1.2',
+    maxVersion: streamEditor.tlsMaxVersion || '1.3',
     cipherSuites: '',
-    rejectUnknownSni: false,
-    disableSystemRoot: false,
-    enableSessionResumption: false,
+    rejectUnknownSni: streamEditor.tlsRejectUnknownSni,
+    disableSystemRoot: streamEditor.tlsDisableSystemRoot,
+    enableSessionResumption: streamEditor.tlsEnableSessionResumption,
     certificates: nextCertificates,
     alpn: parseListText(streamEditor.tlsAlpn),
+    echServerKeys: streamEditor.tlsEchServerKeys,
+    echForceQuery: stringField(existingTlsSettings.echForceQuery) || 'none',
     settings: {
       fingerprint: streamEditor.tlsFingerprint || 'chrome',
-      echConfigList: '',
+      echConfigList: streamEditor.tlsEchConfigList,
     },
   };
 }
@@ -2346,37 +2796,11 @@ function formatClientIpRecords(value: string | string[]): string {
 }
 
 function protocolColor(protocol: string): string {
-  if (protocol === 'vmess') {
-    return 'blue';
-  }
-  if (protocol === 'vless') {
-    return 'green';
-  }
-  if (protocol === 'trojan') {
-    return 'purple';
-  }
-  if (protocol === 'shadowsocks') {
-    return 'cyan';
-  }
-  if (protocol === 'hysteria' || protocol === 'hysteria2') {
-    return 'gold';
-  }
-  if (protocol === 'wireguard') {
-    return 'geekblue';
-  }
-  return 'default';
+  return getProtocolRegistryEntry(protocol)?.color || 'default';
 }
 
 function isEditableProtocol(protocol: string): protocol is XrayEditableInboundProtocol {
-  return (
-    protocol === 'vmess' ||
-    protocol === 'vless' ||
-    protocol === 'trojan' ||
-    protocol === 'shadowsocks' ||
-    protocol === 'hysteria' ||
-    protocol === 'hysteria2' ||
-    protocol === 'wireguard'
-  );
+  return isRegisteredEditableProtocol(protocol);
 }
 
 function usesUuidClientId(protocol: XrayEditableInboundProtocol): boolean {
@@ -2414,7 +2838,23 @@ function clientResetDisabled(
   row: InboundClient | Record<string, unknown>,
 ): boolean {
   const client = row as InboundClient;
-  return !selectedInboundEditable.value || !client.email || inbound?.protocol === 'wireguard';
+  return (
+    !selectedInboundClientManageable.value || !client.email || inbound?.protocol === 'wireguard'
+  );
+}
+
+function clientActionDisabled(
+  inbound: Inbound | null,
+  row: InboundClient | Record<string, unknown>,
+): boolean {
+  return !selectedInboundClientManageable.value || !hasClientPrimaryId(inbound, row);
+}
+
+function clientShareDisabled(
+  inbound: Inbound | null,
+  row: InboundClient | Record<string, unknown>,
+): boolean {
+  return !protocolSupportsShareLink(inbound?.protocol || '') || !hasClientPrimaryId(inbound, row);
 }
 
 function clientPrimaryText(

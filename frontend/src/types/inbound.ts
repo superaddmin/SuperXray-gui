@@ -1,4 +1,4 @@
-type InboundProtocol =
+export type InboundProtocol =
   | 'vmess'
   | 'vless'
   | 'tunnel'
@@ -63,11 +63,15 @@ export interface InboundClientForm {
 export type XrayEditableInboundProtocol =
   | 'vmess'
   | 'vless'
+  | 'tunnel'
+  | 'http'
   | 'trojan'
   | 'shadowsocks'
+  | 'mixed'
+  | 'wireguard'
+  | 'tun'
   | 'hysteria'
-  | 'hysteria2'
-  | 'wireguard';
+  | 'hysteria2';
 
 export interface InboundSettings {
   clients?: InboundClient[];
@@ -76,7 +80,7 @@ export interface InboundSettings {
   encryption?: string;
   fallbacks?: unknown[];
   version?: number;
-  mtu?: number;
+  mtu?: number | number[];
   secretKey?: string;
   pubKey?: string;
   noKernelTun?: boolean;
@@ -92,14 +96,18 @@ export interface InboundSettings {
 export interface InboundStreamSettings {
   network?: string;
   security?: string;
-  tcpSettings?: unknown;
-  tlsSettings?: unknown;
-  realitySettings?: unknown;
-  wsSettings?: unknown;
-  grpcSettings?: unknown;
-  httpupgradeSettings?: unknown;
-  xhttpSettings?: unknown;
-  sockopt?: unknown;
+  externalProxy?: unknown[];
+  tcpSettings?: Record<string, unknown>;
+  tlsSettings?: Record<string, unknown>;
+  realitySettings?: Record<string, unknown>;
+  kcpSettings?: Record<string, unknown>;
+  wsSettings?: Record<string, unknown>;
+  grpcSettings?: Record<string, unknown>;
+  httpupgradeSettings?: Record<string, unknown>;
+  xhttpSettings?: Record<string, unknown>;
+  hysteriaSettings?: Record<string, unknown>;
+  sockopt?: Record<string, unknown>;
+  finalmask?: Record<string, unknown>;
   [key: string]: unknown;
 }
 

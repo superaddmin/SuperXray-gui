@@ -1,0 +1,19 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - heading "Superpowers Brainstorming" [level=1] [ref=e3]:
+      - link "Superpowers Brainstorming" [ref=e4] [cursor=pointer]:
+        - /url: https://github.com/obra/superpowers
+    - generic [ref=e5]: Connected
+  - generic [ref=e7]:
+    - heading "SuperXray UI Visual Baseline" [level=2] [ref=e8]
+    - paragraph [ref=e9]: "Reference: CryptoVault fintech/crypto page. The goal is to translate its visual language into an operations console, not copy landing-page content."
+    - generic [ref=e10]:
+      - generic [ref=e11]: Reference Visual DNA
+      - generic [ref=e13]
+    - heading "Scope Confirmation" [level=3] [ref=e30]
+    - paragraph [ref=e31]: Pick the implementation scope before I draft the design plan.
+    - generic [ref=e32]:
+      - generic [ref=e33] [cursor=pointer]
+      - generic [ref=e39] [cursor=pointer]
+      - generic [ref=e45] [cursor=pointer]
+  - generic [ref=e52]: Click an option above, then return to the terminal

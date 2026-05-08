@@ -85,6 +85,44 @@ export function defaultInboundSettings(protocol: XrayEditableInboundProtocol): I
     return defaultWireguardSettings();
   }
 
+  if (protocol === 'tunnel') {
+    return {
+      address: '',
+      port: 0,
+      portMap: [],
+      network: 'tcp,udp',
+      followRedirect: false,
+    };
+  }
+
+  if (protocol === 'mixed') {
+    return {
+      auth: 'password',
+      accounts: [defaultProxyAccount()],
+      udp: false,
+      ip: '127.0.0.1',
+    };
+  }
+
+  if (protocol === 'http') {
+    return {
+      accounts: [defaultProxyAccount()],
+      allowTransparent: false,
+    };
+  }
+
+  if (protocol === 'tun') {
+    return {
+      name: 'xray0',
+      mtu: [1500, 1280],
+      gateway: [],
+      dns: [],
+      userLevel: 0,
+      autoSystemRoutingTable: [],
+      autoOutboundsInterface: 'auto',
+    };
+  }
+
   return {
     clients: [],
   };
@@ -93,7 +131,13 @@ export function defaultInboundSettings(protocol: XrayEditableInboundProtocol): I
 export function defaultStreamSettings(
   protocol?: XrayEditableInboundProtocol,
 ): InboundStreamSettings {
-  if (protocol === 'wireguard') {
+  if (
+    protocol === 'wireguard' ||
+    protocol === 'tunnel' ||
+    protocol === 'mixed' ||
+    protocol === 'http' ||
+    protocol === 'tun'
+  ) {
     return {};
   }
 
@@ -150,6 +194,13 @@ export function defaultSniffingSettings(): InboundSniffingSettings {
 
 export function stringifyJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
+}
+
+function defaultProxyAccount(): { user: string; pass: string } {
+  return {
+    user: randomLowerToken(10),
+    pass: randomLowerToken(10),
+  };
 }
 
 function parseJsonObject<T extends object>(text: string, fallback: T): T {

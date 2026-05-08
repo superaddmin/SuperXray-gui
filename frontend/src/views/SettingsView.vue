@@ -1,6 +1,10 @@
 <template>
-  <section class="page-stack">
-    <PageHeader eyebrow="Panel" title="Settings">
+  <section class="page-stack settings-page">
+    <PageHeader
+      eyebrow="Panel"
+      title="Settings"
+      description="Manage panel security, subscription endpoints, backups, and legacy-compatible settings."
+    >
       <ASpace wrap>
         <AButton :loading="loading" @click="loadSettings">
           <template #icon><ReloadOutlined /></template>
@@ -293,6 +297,48 @@
                   Open Clash
                 </AButton>
               </ASpace>
+
+              <ADivider />
+
+              <div class="client-recommendation-header">
+                <div>
+                  <h3>Recommended Client Links</h3>
+                  <p class="muted-text">
+                    Generate target-aware links for desktop, mobile, headless and WireGuard clients.
+                  </p>
+                </div>
+                <AButton :disabled="recommendedSubscriptionLinks.length === 0" @click="copyRecommendedLinks">
+                  <template #icon><CopyOutlined /></template>
+                  Copy Recommended
+                </AButton>
+              </div>
+              <div class="client-link-grid">
+                <div
+                  v-for="link in recommendedSubscriptionLinks"
+                  :key="link.target"
+                  class="client-link-card"
+                >
+                  <div class="client-link-title-row">
+                    <div>
+                      <strong>{{ link.client }}</strong>
+                      <p class="muted-text">{{ link.platform }}</p>
+                    </div>
+                    <span class="client-link-format">{{ link.format }}</span>
+                  </div>
+                  <AInput :value="link.url" readonly />
+                  <ASpace class="client-link-actions" wrap>
+                    <AButton size="small" @click="copyRecommendedLink(link.url)">Copy</AButton>
+                    <AButton size="small" @click="openPublicLink(link.url)">Open</AButton>
+                  </ASpace>
+                </div>
+              </div>
+              <AAlert
+                v-if="recommendedSubscriptionLinks.length === 0"
+                class="mt-16"
+                message="No URI subscription endpoint is configured yet. Use Fill Defaults first."
+                show-icon
+                type="info"
+              />
             </div>
 
             <AFormItem label="Announce">
@@ -559,6 +605,62 @@ const updatingCredentials = ref(false);
 const loadingDefaults = ref(false);
 const error = ref('');
 
+interface RecommendedSubscriptionProfile {
+  client: string;
+  platform: string;
+  target: string;
+  format: string;
+}
+
+interface RecommendedSubscriptionLink extends RecommendedSubscriptionProfile {
+  url: string;
+}
+
+const recommendedSubscriptionProfiles: readonly RecommendedSubscriptionProfile[] = [
+  {
+    client: 'Generic URI',
+    platform: 'Windows / macOS / Android',
+    target: 'generic',
+    format: 'URI',
+  },
+  {
+    client: 'v2rayN',
+    platform: 'Windows',
+    target: 'v2rayn',
+    format: 'URI',
+  },
+  {
+    client: 'Shadowrocket',
+    platform: 'iOS',
+    target: 'shadowrocket',
+    format: 'URI',
+  },
+  {
+    client: 'Stash',
+    platform: 'iOS / macOS',
+    target: 'stash',
+    format: 'Clash/Mihomo',
+  },
+  {
+    client: 'Mihomo',
+    platform: 'Windows / macOS / Linux / OpenWrt',
+    target: 'mihomo',
+    format: 'Clash/Mihomo',
+  },
+  {
+    client: 'xray-core',
+    platform: 'Linux / Headless',
+    target: 'xray',
+    format: 'Xray JSON',
+  },
+  {
+    client: 'WireGuard',
+    platform: 'Official WireGuard clients',
+    target: 'wireguard',
+    format: 'WireGuard Config',
+  },
+];
+
 const settingsLoaded = computed(() => Boolean(loadedSettings.value));
 const settingsChanged = computed(
   () =>
@@ -595,6 +697,21 @@ const subscriptionPublicLinkText = computed(() => {
   }
   return subscriptionPublicLinks.value.map((link) => `${link.label}: ${link.value}`).join('\n');
 });
+const recommendedSubscriptionLinks = computed<RecommendedSubscriptionLink[]>(() => {
+  const baseUrl = settings.value.subURI.trim();
+  if (!baseUrl) {
+    return [];
+  }
+  return recommendedSubscriptionProfiles.map((profile) => ({
+    ...profile,
+    url: withSubscriptionTarget(baseUrl, profile.target),
+  }));
+});
+const recommendedSubscriptionLinkText = computed(() =>
+  recommendedSubscriptionLinks.value
+    .map((link) => `${link.client} (${link.platform}, ${link.format}): ${link.url}`)
+    .join('\n'),
+);
 
 const datepickerOptions = [
   { label: 'Gregorian', value: 'gregorian' },
@@ -692,10 +809,36 @@ async function copySubscriptionLinks() {
   void message.success('Subscription links copied');
 }
 
+/** 复制单条推荐客户端订阅链接。 */
+async function copyRecommendedLink(value: string) {
+  const link = value.trim();
+  if (!link) {
+    void message.warning('Subscription link is empty');
+    return;
+  }
+  await copyText(link);
+  void message.success('Recommended link copied');
+}
+
+/** 批量复制全部推荐客户端订阅链接。 */
+async function copyRecommendedLinks() {
+  if (recommendedSubscriptionLinks.value.length === 0) {
+    void message.warning('No recommended subscription links to copy');
+    return;
+  }
+  await copyText(recommendedSubscriptionLinkText.value);
+  void message.success('Recommended subscription links copied');
+}
+
+/** 在新窗口打开经过协议白名单校验的公开订阅链接。 */
 function openPublicLink(value: string) {
   const link = value.trim();
   if (!link) {
     void message.warning('Subscription link is empty');
+    return;
+  }
+  if (!isSafePublicLink(link)) {
+    void message.warning('Only http and https subscription links can be opened');
     return;
   }
   window.open(link, '_blank', 'noopener,noreferrer');
@@ -826,6 +969,32 @@ function jsonFieldWarning(label: string, value: string): string {
     return '';
   } catch {
     return `${label} is not valid JSON`;
+  }
+}
+
+/** 为基础订阅地址追加或替换目标客户端参数。 */
+function withSubscriptionTarget(baseUrl: string, target: string): string {
+  const trimmed = baseUrl.trim();
+  if (!trimmed) {
+    return '';
+  }
+  try {
+    const url = new URL(trimmed);
+    url.searchParams.set('target', target);
+    return url.toString();
+  } catch {
+    const separator = trimmed.includes('?') ? '&' : '?';
+    return `${trimmed}${separator}target=${encodeURIComponent(target)}`;
+  }
+}
+
+/** 判断公开订阅链接是否允许被前端直接打开。 */
+function isSafePublicLink(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
   }
 }
 

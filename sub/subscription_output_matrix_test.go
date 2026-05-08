@@ -2,9 +2,12 @@ package sub
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/web/service"
 )
@@ -267,6 +270,266 @@ func firstMatrixOutbound(t *testing.T, config []byte) map[string]any {
 		t.Fatalf("first outbound has unexpected shape: %#v", outbounds[0])
 	}
 	return outbound
+}
+
+func TestBuildLinkWithParamsFiltersEmptyValuesAndOrdersQuery(t *testing.T) {
+	link := buildLinkWithParams("vless://uuid@example.com:443", map[string]string{
+		"type":       "tcp",
+		"security":   "none",
+		"empty":      "",
+		"serverName": "a b.example",
+	}, "remark with space")
+
+	if strings.Contains(link, "empty=") {
+		t.Fatalf("link should filter empty params: %s", link)
+	}
+	if !strings.Contains(link, "?security=none&serverName=a+b.example&type=tcp") {
+		t.Fatalf("link query is not stable or encoded as expected: %s", link)
+	}
+	if !strings.HasSuffix(link, "#remark%20with%20space") {
+		t.Fatalf("link fragment not encoded as expected: %s", link)
+	}
+}
+
+func TestNormalizeClientNodeReturnsClientMetadata(t *testing.T) {
+	client := matrixClient("matrix-normalized@example")
+	inbound := matrixInboundWithSettings(model.VLESS, 12008, map[string]any{
+		"decryption": "none",
+		"encryption": "none",
+		"clients":    []model.Client{client},
+	}, map[string]any{
+		"network":  "tcp",
+		"security": "none",
+	})
+	service := &SubService{address: "vpn.example"}
+
+	node, ok := service.normalizeClientNode(inbound, client.Email)
+	if !ok {
+		t.Fatalf("normalizeClientNode returned false")
+	}
+	if node.Protocol != model.VLESS || node.Address != "vpn.example" || node.Port != 12008 {
+		t.Fatalf("normalized node protocol/address/port = %s/%s/%d", node.Protocol, node.Address, node.Port)
+	}
+	if node.Client.Email != client.Email || node.StreamNetwork != "tcp" || node.Security != "none" {
+		t.Fatalf("normalized node metadata mismatch: %#v", node)
+	}
+	if node.Settings["encryption"] != "none" {
+		t.Fatalf("normalized node settings encryption = %v, want none", node.Settings["encryption"])
+	}
+}
+
+func TestNormalizeClientNodeRejectsMissingClient(t *testing.T) {
+	missingEmail := "missing@example"
+	presentClient := matrixClient("matrix-present@example")
+	tests := []struct {
+		name    string
+		inbound *model.Inbound
+		link    func(*SubService, *model.Inbound, string) string
+	}{
+		{
+			name:    "vmess",
+			inbound: matrixInbound(model.VMESS, 12009, presentClient),
+			link:    (*SubService).genVmessLink,
+		},
+		{
+			name:    "vless",
+			inbound: matrixInbound(model.VLESS, 12010, presentClient),
+			link:    (*SubService).genVlessLink,
+		},
+		{
+			name:    "trojan",
+			inbound: matrixInbound(model.Trojan, 12011, presentClient),
+			link:    (*SubService).genTrojanLink,
+		},
+		{
+			name: "shadowsocks",
+			inbound: matrixInboundWithSettings(model.Shadowsocks, 12012, map[string]any{
+				"method":  "aes-128-gcm",
+				"clients": []model.Client{presentClient},
+			}, map[string]any{
+				"network":  "tcp",
+				"security": "none",
+			}),
+			link: (*SubService).genShadowsocksLink,
+		},
+		{
+			name:    "hysteria2",
+			inbound: matrixHysteriaInbound(12013, matrixHysteriaClient("matrix-present@example")),
+			link:    (*SubService).genHysteriaLink,
+		},
+	}
+	service := &SubService{address: "vpn.example"}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, ok := service.normalizeClientNode(tt.inbound, missingEmail); ok {
+				t.Fatalf("normalizeClientNode should reject missing client")
+			}
+			if link := tt.link(service, tt.inbound, missingEmail); link != "" {
+				t.Fatalf("generated link with missing client = %q, want empty string", link)
+			}
+		})
+	}
+}
+
+func TestResolveRequestIgnoresMalformedForwardedHost(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	request := httptest.NewRequest(http.MethodGet, "http://panel.example/sub/sub-id", nil)
+	request.Host = "safe.example:2096"
+	request.Header.Set("X-Forwarded-Proto", "https")
+	request.Header.Set("X-Forwarded-Host", "evil.example/path@attacker")
+	context.Request = request
+
+	scheme, host, hostWithPort, hostHeader := (&SubService{}).ResolveRequest(context)
+
+	if scheme != "https" {
+		t.Fatalf("scheme = %q, want https", scheme)
+	}
+	if host != "safe.example" {
+		t.Fatalf("host = %q, want safe.example", host)
+	}
+	if hostWithPort != "safe.example:2096" {
+		t.Fatalf("hostWithPort = %q, want safe.example:2096", hostWithPort)
+	}
+	if hostHeader != "safe.example" {
+		t.Fatalf("hostHeader = %q, want safe.example", hostHeader)
+	}
+}
+
+func TestSubServiceWithRequestContextDoesNotMutateOriginal(t *testing.T) {
+	original := &SubService{
+		address:     "old.example",
+		datepicker:  "gregorian",
+		showInfo:    true,
+		remarkModel: "-ieo",
+	}
+
+	scoped := original.withRequestContext("new.example", "jalali")
+
+	if scoped == original {
+		t.Fatalf("request scoped service should be a copy")
+	}
+	if scoped.address != "new.example" || scoped.datepicker != "jalali" {
+		t.Fatalf("request scoped service has address=%q datepicker=%q", scoped.address, scoped.datepicker)
+	}
+	if original.address != "old.example" || original.datepicker != "gregorian" {
+		t.Fatalf("original service was mutated: address=%q datepicker=%q", original.address, original.datepicker)
+	}
+	if !scoped.showInfo || scoped.remarkModel != "-ieo" {
+		t.Fatalf("request scoped service should preserve static configuration")
+	}
+}
+
+func TestSubJsonExternalProxyForceTLSUsesIndependentStreamCopies(t *testing.T) {
+	client := matrixClient("matrix-external@example")
+	inbound := matrixInboundWithSettings(model.VLESS, 12006, map[string]any{
+		"decryption": "none",
+		"encryption": "none",
+		"clients":    []model.Client{client},
+	}, map[string]any{
+		"network":  "tcp",
+		"security": "tls",
+		"tlsSettings": map[string]any{
+			"serverName": "base.example",
+			"settings": map[string]any{
+				"fingerprint": "chrome",
+			},
+		},
+		"externalProxy": []map[string]any{
+			{
+				"forceTls": "none",
+				"dest":     "plain.example",
+				"port":     443,
+				"remark":   "plain",
+			},
+			{
+				"forceTls": "tls",
+				"dest":     "tls.example",
+				"port":     8443,
+				"remark":   "tls",
+			},
+		},
+	})
+	jsonService := &SubJsonService{
+		configJson: map[string]any{},
+		SubService: &SubService{remarkModel: "-ieo"},
+	}
+
+	configs := jsonService.getConfig(inbound, client, "vpn.example")
+	if len(configs) != 2 {
+		t.Fatalf("external proxy configs = %d, want 2", len(configs))
+	}
+
+	firstStream, ok := firstMatrixOutbound(t, configs[0])["streamSettings"].(map[string]any)
+	if !ok {
+		t.Fatalf("first config streamSettings has unexpected shape")
+	}
+	secondStream, ok := firstMatrixOutbound(t, configs[1])["streamSettings"].(map[string]any)
+	if !ok {
+		t.Fatalf("second config streamSettings has unexpected shape")
+	}
+
+	if firstStream["security"] != "none" {
+		t.Fatalf("first external proxy security = %v, want none", firstStream["security"])
+	}
+	if _, ok := firstStream["tlsSettings"]; ok {
+		t.Fatalf("first external proxy should not include tlsSettings: %#v", firstStream)
+	}
+	if secondStream["security"] != "tls" {
+		t.Fatalf("second external proxy security = %v, want tls", secondStream["security"])
+	}
+	secondTLS, ok := secondStream["tlsSettings"].(map[string]any)
+	if !ok {
+		t.Fatalf("second external proxy should keep tlsSettings: %#v", secondStream)
+	}
+	if secondTLS["serverName"] != "base.example" {
+		t.Fatalf("second external proxy tlsSettings.serverName = %v, want base.example", secondTLS["serverName"])
+	}
+}
+
+func TestExternalProxyMalformedEntriesDoNotPanic(t *testing.T) {
+	client := matrixClient("matrix-malformed@example")
+	inbound := matrixInboundWithSettings(model.VLESS, 12007, map[string]any{
+		"decryption": "none",
+		"encryption": "none",
+		"clients":    []model.Client{client},
+	}, map[string]any{
+		"network":  "tcp",
+		"security": "none",
+		"externalProxy": []any{
+			"not-a-map",
+			map[string]any{"forceTls": "same", "dest": "", "port": 443, "remark": "empty-dest"},
+			map[string]any{"forceTls": "same", "dest": "valid.example", "port": "bad-port", "remark": "bad-port"},
+			map[string]any{"forceTls": "same", "dest": "valid.example", "port": 9443, "remark": "valid"},
+		},
+	})
+	subService := &SubService{address: "vpn.example", remarkModel: "-ieo"}
+	jsonService := &SubJsonService{configJson: map[string]any{}, SubService: subService}
+
+	link := subService.genVlessLink(cloneMatrixInbound(inbound), client.Email)
+	if !strings.Contains(link, "valid.example:9443") {
+		t.Fatalf("plain subscription should keep valid external proxy only, got %q", link)
+	}
+
+	configs := jsonService.getConfig(cloneMatrixInbound(inbound), client, "vpn.example")
+	if len(configs) != 1 {
+		t.Fatalf("json subscription configs = %d, want 1 valid external proxy config", len(configs))
+	}
+	outbound := firstMatrixOutbound(t, configs[0])
+	settings, ok := outbound["settings"].(map[string]any)
+	if !ok {
+		t.Fatalf("json outbound settings has unexpected shape: %#v", outbound["settings"])
+	}
+	vnext, ok := settings["vnext"].([]any)
+	if !ok || len(vnext) != 1 {
+		t.Fatalf("json outbound vnext has unexpected shape: %#v", settings["vnext"])
+	}
+	server, ok := vnext[0].(map[string]any)
+	if !ok || server["address"] != "valid.example" {
+		t.Fatalf("json outbound address = %#v, want valid.example", vnext[0])
+	}
 }
 
 func parseMatrixOutbound(t *testing.T, outboundJSON []byte) map[string]any {

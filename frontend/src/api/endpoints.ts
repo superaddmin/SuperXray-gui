@@ -5,6 +5,15 @@ export const legacyEndpoints = {
     login: 'login',
     twoFactorEnabled: 'getTwoFactorEnable',
   },
+  cores: {
+    instances: 'panel/api/cores/instances',
+    instance: (id: string) => `panel/api/cores/instances/${encodePath(id)}`,
+    status: (id: string) => `panel/api/cores/instances/${encodePath(id)}/status`,
+    validate: (id: string) => `panel/api/cores/instances/${encodePath(id)}/validate`,
+    start: (id: string) => `panel/api/cores/instances/${encodePath(id)}/start`,
+    stop: (id: string) => `panel/api/cores/instances/${encodePath(id)}/stop`,
+    restart: (id: string) => `panel/api/cores/instances/${encodePath(id)}/restart`,
+  },
   server: {
     status: 'panel/api/server/status',
     xrayVersions: 'panel/api/server/getXrayVersion',

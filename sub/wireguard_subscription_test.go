@@ -16,6 +16,38 @@ const (
 	wireguardTestPSK           = "cHNoYXJlZGtleTEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI="
 )
 
+func TestNormalizeWireguardPeerNodeReturnsPeerMetadata(t *testing.T) {
+	inbound := wireguardInboundForTest(`[{
+		"email": "wg@example",
+		"enable": true,
+		"subId": "sub-123",
+		"privateKey": "` + wireguardTestPeerPrivate + `",
+		"publicKey": "` + wireguardTestPeerPublic + `",
+		"preSharedKey": "` + wireguardTestPSK + `",
+		"allowedIPs": ["10.0.0.2/32"],
+		"keepAlive": 25
+	}]`)
+	peers, err := wireguardPeersBySubID(inbound, "sub-123")
+	if err != nil {
+		t.Fatalf("wireguardPeersBySubID returned error: %v", err)
+	}
+	service := &SubService{address: "vpn.example"}
+
+	node, ok := service.normalizeWireguardPeerNode(inbound, peers[0])
+	if !ok {
+		t.Fatalf("normalizeWireguardPeerNode returned false")
+	}
+	if node.Protocol != model.WireGuard || node.Address != "vpn.example" || node.Port != 51820 {
+		t.Fatalf("normalized wireguard protocol/address/port = %s/%s/%d", node.Protocol, node.Address, node.Port)
+	}
+	if node.WireguardPeer.Email != "wg@example" || node.WireguardClientAddress != "10.0.0.2/32" {
+		t.Fatalf("normalized wireguard peer metadata mismatch: %#v", node)
+	}
+	if node.WireguardSettings.PublicKey != wireguardTestServerPublic {
+		t.Fatalf("normalized wireguard server public key = %q", node.WireguardSettings.PublicKey)
+	}
+}
+
 func TestWireguardPeersBySubIDFindsEnabledPeer(t *testing.T) {
 	inbound := wireguardInboundForTest(`[
 		{

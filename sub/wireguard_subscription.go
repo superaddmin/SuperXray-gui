@@ -130,31 +130,29 @@ func firstUsableAllowedIP(allowedIPs []string) string {
 }
 
 func (s *SubService) genWireguardConfig(inbound *model.Inbound, peer wireguardPeer) string {
-	settings, err := wireguardSettingsFromInbound(inbound)
-	if err != nil || !peer.isUsable(settings) {
+	node, ok := s.normalizeWireguardPeerNode(inbound, peer)
+	if !ok {
 		return ""
 	}
 
-	address := s.resolveInboundAddress(inbound)
-	clientAddress := firstUsableAllowedIP(peer.AllowedIPs)
 	var b strings.Builder
 	b.WriteString("[Interface]\n")
-	b.WriteString("PrivateKey = " + peer.PrivateKey + "\n")
-	b.WriteString("Address = " + clientAddress + "\n")
+	b.WriteString("PrivateKey = " + node.WireguardPeer.PrivateKey + "\n")
+	b.WriteString("Address = " + node.WireguardClientAddress + "\n")
 	b.WriteString("DNS = 1.1.1.1, 1.0.0.1\n")
-	if settings.MTU > 0 {
-		b.WriteString(fmt.Sprintf("MTU = %d\n", settings.MTU))
+	if node.WireguardSettings.MTU > 0 {
+		b.WriteString(fmt.Sprintf("MTU = %d\n", node.WireguardSettings.MTU))
 	}
-	b.WriteString("\n# " + s.genRemark(inbound, peer.Email, "") + "\n")
+	b.WriteString("\n# " + s.genRemark(inbound, node.WireguardPeer.Email, "") + "\n")
 	b.WriteString("[Peer]\n")
-	b.WriteString("PublicKey = " + settings.PublicKey + "\n")
+	b.WriteString("PublicKey = " + node.WireguardSettings.PublicKey + "\n")
 	b.WriteString("AllowedIPs = 0.0.0.0/0, ::/0\n")
-	b.WriteString(fmt.Sprintf("Endpoint = %s:%d", address, inbound.Port))
-	if peer.PreSharedKey != "" {
-		b.WriteString("\nPresharedKey = " + peer.PreSharedKey)
+	b.WriteString(fmt.Sprintf("Endpoint = %s:%d", node.Address, node.Port))
+	if node.WireguardPeer.PreSharedKey != "" {
+		b.WriteString("\nPresharedKey = " + node.WireguardPeer.PreSharedKey)
 	}
-	if peer.KeepAlive > 0 {
-		b.WriteString(fmt.Sprintf("\nPersistentKeepalive = %d\n", peer.KeepAlive))
+	if node.WireguardPeer.KeepAlive > 0 {
+		b.WriteString(fmt.Sprintf("\nPersistentKeepalive = %d\n", node.WireguardPeer.KeepAlive))
 	}
 	return b.String()
 }

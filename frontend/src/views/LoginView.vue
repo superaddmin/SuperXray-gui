@@ -1,11 +1,19 @@
 <template>
   <main class="login-page">
+    <AButton
+      class="login-language-toggle"
+      size="small"
+      :aria-label="languageToggleAriaLabel"
+      @click="appStore.toggleLocale"
+    >
+      {{ languageButtonLabel }}
+    </AButton>
     <section class="login-card" aria-labelledby="login-title">
       <div class="login-mark" aria-hidden="true">
         <StarOutlined />
       </div>
-      <h1 id="login-title">Welcome back</h1>
-      <p>Sign in to access SuperXray</p>
+      <h1 id="login-title">Control Xray with Confidence</h1>
+      <p>Sign in to access the SuperXray operations console</p>
 
       <AForm
         class="login-form"
@@ -93,12 +101,15 @@ import {
   message,
 } from 'ant-design-vue';
 import type { Rule } from 'ant-design-vue/es/form';
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 
 import { getTwoFactorEnabled, login } from '@/api/auth';
+import { getLanguageButtonLabel, getLanguageToggleAriaLabel, translate } from '@/i18n/messages';
+import { useAppStore } from '@/stores/app';
 import { getRuntimeConfig } from '@/types/runtime';
 
 const runtimeConfig = getRuntimeConfig();
+const appStore = useAppStore();
 
 const formState = reactive({
   password: '',
@@ -109,9 +120,17 @@ const formState = reactive({
 const submitting = ref(false);
 const twoFactorEnabled = ref(false);
 
-const usernameRules: Rule[] = [{ required: true, message: 'Username is required' }];
-const passwordRules: Rule[] = [{ required: true, message: 'Password is required' }];
-const twoFactorRules: Rule[] = [{ required: true, message: 'Two-factor code is required' }];
+const languageButtonLabel = computed(() => getLanguageButtonLabel(appStore.locale));
+const languageToggleAriaLabel = computed(() => getLanguageToggleAriaLabel(appStore.locale));
+const usernameRules = computed<Rule[]>(() => [
+  { required: true, message: translate('login.usernameRequired', appStore.locale) },
+]);
+const passwordRules = computed<Rule[]>(() => [
+  { required: true, message: translate('login.passwordRequired', appStore.locale) },
+]);
+const twoFactorRules = computed<Rule[]>(() => [
+  { required: true, message: translate('login.twoFactorRequired', appStore.locale) },
+]);
 
 onMounted(() => {
   void loadTwoFactorState();
@@ -141,7 +160,8 @@ async function handleSubmit() {
     );
     window.location.assign(runtimeConfig.uiBasePath);
   } catch (error) {
-    const text = error instanceof Error ? error.message : 'Sign in failed';
+    const text =
+      error instanceof Error ? error.message : translate('login.signInFailed', appStore.locale);
     void message.error(text);
   } finally {
     submitting.value = false;

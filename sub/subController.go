@@ -85,13 +85,16 @@ func NewSUBController(
 func (a *SUBController) initRouter(g *gin.RouterGroup) {
 	gLink := g.Group(a.subPath)
 	gLink.GET(":subid", a.subs)
+	gLink.GET(":subid/diagnose", a.diagnoseSubs)
 	if a.jsonEnabled {
 		gJson := g.Group(a.subJsonPath)
 		gJson.GET(":subid", a.subJsons)
+		gJson.GET(":subid/diagnose", a.diagnoseJSONSubs)
 	}
 	if a.clashEnabled {
 		gClash := g.Group(a.subClashPath)
 		gClash.GET(":subid", a.subClashs)
+		gClash.GET(":subid/diagnose", a.diagnoseClashSubs)
 	}
 }
 
@@ -99,6 +102,15 @@ func (a *SUBController) initRouter(g *gin.RouterGroup) {
 func (a *SUBController) subs(c *gin.Context) {
 	subId := c.Param("subid")
 	scheme, host, hostWithPort, hostHeader := a.subService.ResolveRequest(c)
+	profile := subscriptionTargetProfile(c.Query("target"))
+	switch resolveTargetSubscriptionFormat(profile, a.jsonEnabled, a.clashEnabled) {
+	case subscriptionFormatJSON:
+		a.renderJSONSubscription(c, subId, scheme, host, hostWithPort)
+		return
+	case subscriptionFormatClash:
+		a.renderClashSubscription(c, subId, scheme, host, hostWithPort)
+		return
+	}
 	subs, lastOnline, traffic, err := a.subService.GetSubs(subId, host)
 	if err != nil || len(subs) == 0 {
 		c.String(400, "Error!")
@@ -175,10 +187,15 @@ func (a *SUBController) subs(c *gin.Context) {
 	}
 }
 
-// subJsons handles HTTP requests for JSON subscription configurations.
+// subJsons 处理 JSON 订阅请求并复用统一的 JSON 订阅渲染逻辑。
 func (a *SUBController) subJsons(c *gin.Context) {
 	subId := c.Param("subid")
 	scheme, host, hostWithPort, _ := a.subService.ResolveRequest(c)
+	a.renderJSONSubscription(c, subId, scheme, host, hostWithPort)
+}
+
+// renderJSONSubscription 生成 Xray JSON 订阅并写入通用订阅响应头。
+func (a *SUBController) renderJSONSubscription(c *gin.Context, subId string, scheme string, host string, hostWithPort string) {
 	jsonSub, header, err := a.subJsonService.GetJson(subId, host)
 	if err != nil || len(jsonSub) == 0 {
 		c.String(400, "Error!")
@@ -193,9 +210,15 @@ func (a *SUBController) subJsons(c *gin.Context) {
 	}
 }
 
+// subClashs 处理 Clash/Mihomo 订阅请求并复用统一的 YAML 渲染逻辑。
 func (a *SUBController) subClashs(c *gin.Context) {
 	subId := c.Param("subid")
 	scheme, host, hostWithPort, _ := a.subService.ResolveRequest(c)
+	a.renderClashSubscription(c, subId, scheme, host, hostWithPort)
+}
+
+// renderClashSubscription 生成 Clash/Mihomo YAML 订阅并写入通用订阅响应头。
+func (a *SUBController) renderClashSubscription(c *gin.Context, subId string, scheme string, host string, hostWithPort string) {
 	clashSub, header, err := a.subClashService.GetClash(subId, host)
 	if err != nil || len(clashSub) == 0 {
 		c.String(400, "Error!")
@@ -207,6 +230,38 @@ func (a *SUBController) subClashs(c *gin.Context) {
 		a.ApplyCommonHeaders(c, header, a.updateInterval, a.subTitle, a.subSupportUrl, profileUrl, a.subAnnounce, a.subEnableRouting, a.subRoutingRules)
 		c.Data(200, "application/yaml; charset=utf-8", []byte(clashSub))
 	}
+}
+
+// diagnoseSubs 根据目标客户端参数返回 URI 订阅入口的诊断统计。
+func (a *SUBController) diagnoseSubs(c *gin.Context) {
+	subId := c.Param("subid")
+	profile := subscriptionTargetProfile(c.Query("target"))
+	format := resolveTargetSubscriptionFormat(profile, a.jsonEnabled, a.clashEnabled)
+	a.renderSubscriptionDiagnostic(c, subId, profile.Name, format)
+}
+
+// diagnoseJSONSubs 返回 Xray JSON 订阅入口的诊断统计。
+func (a *SUBController) diagnoseJSONSubs(c *gin.Context) {
+	subId := c.Param("subid")
+	a.renderSubscriptionDiagnostic(c, subId, "xray", subscriptionFormatJSON)
+}
+
+// diagnoseClashSubs 返回 Clash/Mihomo 订阅入口的诊断统计。
+func (a *SUBController) diagnoseClashSubs(c *gin.Context) {
+	subId := c.Param("subid")
+	a.renderSubscriptionDiagnostic(c, subId, "mihomo", subscriptionFormatClash)
+}
+
+// renderSubscriptionDiagnostic 查询订阅入站并输出安全精简的诊断 JSON。
+func (a *SUBController) renderSubscriptionDiagnostic(c *gin.Context, subId string, target string, format subscriptionFormat) {
+	inbounds, err := a.subService.getInboundsBySubId(subId)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	diagnostic := diagnoseSubscriptionInbounds(inbounds, subId, format)
+	diagnostic.Target = target
+	c.JSON(200, diagnostic)
 }
 
 // ApplyCommonHeaders sets common HTTP headers for subscription responses including user info, update interval, and profile title.
@@ -224,7 +279,7 @@ func (a *SUBController) ApplyCommonHeaders(
 	c.Writer.Header().Set("Subscription-Userinfo", header)
 	c.Writer.Header().Set("Profile-Update-Interval", updateInterval)
 
-	//Basics
+	// Basics
 	if profileTitle != "" {
 		c.Writer.Header().Set("Profile-Title", "base64:"+base64.StdEncoding.EncodeToString([]byte(profileTitle)))
 	}
@@ -238,7 +293,7 @@ func (a *SUBController) ApplyCommonHeaders(
 		c.Writer.Header().Set("Announce", "base64:"+base64.StdEncoding.EncodeToString([]byte(profileAnnounce)))
 	}
 
-	//Advanced (Happ)
+	// Advanced (Happ)
 	c.Writer.Header().Set("Routing-Enable", strconv.FormatBool(profileEnableRouting))
 	if profileRoutingRules != "" {
 		c.Writer.Header().Set("Routing", profileRoutingRules)

@@ -1,6 +1,10 @@
 <template>
-  <section class="page-stack">
-    <PageHeader eyebrow="Observability" title="Logs">
+  <section class="page-stack logs-page">
+    <PageHeader
+      eyebrow="Observability"
+      title="Logs"
+      description="Inspect panel and Xray logs with filtering, export, and auto-follow controls."
+    >
       <ASpace wrap>
         <ASwitch
           v-model:checked="autoFollow"
