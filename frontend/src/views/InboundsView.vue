@@ -1536,7 +1536,10 @@ const gatewayProxyUris = computed<GatewayProxyUriItem[]>(() => {
   const pass = encodeUriCredential(stringField(account.pass));
   const auth = user && pass ? `${user}:${pass}@` : '';
   if (inboundEditor.protocol === 'mixed') {
-    return [{ label: 'SOCKS5', uri: `socks5://${auth}${host}:${port}` }];
+    return [
+      { label: 'SOCKS5', uri: `socks5://${auth}${host}:${port}` },
+      { label: 'SOCKS5H', uri: `socks5h://${auth}${host}:${port}` },
+    ];
   }
   return [{ label: 'HTTP', uri: `http://${auth}${host}:${port}` }];
 });

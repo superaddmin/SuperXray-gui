@@ -1160,6 +1160,7 @@ class Outbound extends CommonClass {
                 return this.fromHysteriaLink(link);
             case 'socks':
             case 'socks5':
+            case 'socks5h':
             case Protocols.HTTP:
             case 'https':
                 return this.fromProxyUri(link);
@@ -1187,11 +1188,12 @@ class Outbound extends CommonClass {
         const user = decodeURIComponent(url.username || '');
         const pass = decodeURIComponent(url.password || '');
         const tag = `out-${scheme}-${port}`;
-        if (scheme === 'socks' || scheme === 'socks5') {
+        if (scheme === 'socks' || scheme === 'socks5' || scheme === 'socks5h') {
             return new Outbound(tag, Protocols.Socks, new Outbound.SocksSettings(url.hostname, port, user, pass));
         }
         if (scheme === Protocols.HTTP || scheme === 'https') {
-            return new Outbound(tag, Protocols.HTTP, new Outbound.HttpSettings(url.hostname, port, user, pass));
+            const stream = scheme === 'https' ? new StreamSettings('tcp', 'tls') : new StreamSettings();
+            return new Outbound(tag, Protocols.HTTP, new Outbound.HttpSettings(url.hostname, port, user, pass), stream);
         }
         return null;
     }

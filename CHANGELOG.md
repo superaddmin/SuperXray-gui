@@ -2,6 +2,22 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.7] - 2026-05-13
+
+### Added
+
+- 完整支持 HTTP、HTTPS、SOCKS5 与 SOCKS5H 代理 URI 导入。
+- Mixed 入站网关代理 URI 同时展示 SOCKS5 与 SOCKS5H 地址。
+- 增加代理 URI 导入回归测试，覆盖 SOCKS5H、IPv6、编码凭据与 HTTPS TLS 语义。
+
+### Changed
+
+- 同步发布版本到 `3.0.7`，并重新生成嵌入式前端构建产物。
+
+### Security
+
+- 将运行时 SQLite 数据库文件加入忽略规则，避免本地数据库误提交到版本库。
+
 ## [3.0.6] - 2026-05-09
 
 ### Added
