@@ -3,6 +3,17 @@ import { getJson, postForm, type ApiRequestOptions } from './request';
 
 import type { Inbound, InboundClientForm, InboundForm } from '@/types/inbound';
 
+export interface CopyInboundClientsForm {
+  sourceInboundId: number;
+  clientEmails: string[];
+  flow?: string;
+}
+
+export interface CopyInboundClientsResult {
+  added?: string[];
+  errors?: string[];
+}
+
 export function listInbounds(options?: ApiRequestOptions): Promise<Inbound[]> {
   return getJson<Inbound[]>(legacyEndpoints.inbounds.list, options);
 }
@@ -36,6 +47,22 @@ export function addInboundClient(
     {
       id: data.id,
       settings: data.settings,
+    },
+    options,
+  );
+}
+
+export function copyInboundClients(
+  targetInboundId: number,
+  data: CopyInboundClientsForm,
+  options?: ApiRequestOptions,
+): Promise<CopyInboundClientsResult> {
+  return postForm<CopyInboundClientsResult>(
+    legacyEndpoints.inbounds.copyClients(targetInboundId),
+    {
+      sourceInboundId: data.sourceInboundId,
+      clientEmails: data.clientEmails,
+      flow: data.flow || '',
     },
     options,
   );

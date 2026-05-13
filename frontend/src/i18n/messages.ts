@@ -97,7 +97,7 @@ const messages = {
   'common.xrayState': { 'zh-CN': 'Xray 状态', 'en-US': 'Xray State' },
   'dashboard.customGeo': { 'zh-CN': '自定义 Geo', 'en-US': 'Custom Geo' },
   'dashboard.description': {
-    'zh-CN': '实时查看 Xray 健康状态、流量、客户端与 Geo 维护。',
+    'zh-CN': '专为ChatGPT Claude Gemini设计的网络防封控管理工具。',
     'en-US': 'Live Xray health, traffic, clients, and geo maintenance.',
   },
   'dashboard.geoMaintenance': { 'zh-CN': 'Geo 维护', 'en-US': 'Geo Maintenance' },

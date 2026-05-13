@@ -44,6 +44,7 @@ export const legacyEndpoints = {
     delete: (id: number) => `panel/api/inbounds/del/${encodePath(id)}`,
     import: 'panel/api/inbounds/import',
     addClient: 'panel/api/inbounds/addClient',
+    copyClients: (id: number) => `panel/api/inbounds/${encodePath(id)}/copyClients`,
     updateClient: (clientId: string) => `panel/api/inbounds/updateClient/${encodePath(clientId)}`,
     deleteClient: (id: number, clientId: string) =>
       `panel/api/inbounds/${encodePath(id)}/delClient/${encodePath(clientId)}`,

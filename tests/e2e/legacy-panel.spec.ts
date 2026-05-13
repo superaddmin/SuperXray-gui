@@ -357,11 +357,20 @@ function cspDirective(csp: string | undefined, name: string): string {
 }
 
 test.describe("legacy Xray UI parity baseline", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem("superxray.locale", "en-US");
+    });
+  });
+
   test("can log in through the new Vue UI login page", async ({ page }) => {
     await page.goto(appUrl("panel/login"));
 
     await expect(
-      page.getByRole("heading", { name: "Welcome back", exact: true }),
+      page.getByRole("heading", {
+        name: "Control Xray with Confidence",
+        exact: true,
+      }),
     ).toBeVisible();
     await page
       .getByLabel("Username")
@@ -398,7 +407,9 @@ test.describe("legacy Xray UI parity baseline", () => {
     await login(page);
     await page.goto(appUrl("panel/dashboard"));
 
-    await expect(page.getByText("Geo Maintenance")).toBeVisible();
+    await expect(
+      page.getByText("Geo Maintenance", { exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Update geoip.dat" }),
     ).toBeVisible();
@@ -528,7 +539,9 @@ test.describe("legacy Xray UI parity baseline", () => {
     await page.goto(appUrl("panel/settings"));
 
     await page.getByRole("tab", { name: "Security", exact: true }).click();
-    await expect(page.getByText("Two Factor Setup")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Two Factor", exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Generate Token" }),
     ).toBeVisible();
@@ -538,7 +551,9 @@ test.describe("legacy Xray UI parity baseline", () => {
     await expect(page.getByLabel("Two-factor setup URI")).toBeVisible();
 
     await page.getByRole("tab", { name: "Subscription", exact: true }).click();
-    await expect(page.getByText("Subscription Public Links")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Public Links", exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Copy Links" }),
     ).toBeVisible();

@@ -141,6 +141,26 @@
                 <template #icon><EyeOutlined /></template>
                 Details
               </AButton>
+              <AButton
+                size="small"
+                :disabled="inboundClientCount(record) === 0"
+                @click="exportInboundShareLinks(asInbound(record))"
+              >
+                <template #icon><CopyOutlined /></template>
+                Export
+              </AButton>
+              <AButton
+                size="small"
+                :disabled="inboundClientCount(record) === 0"
+                @click="exportInboundSubscriptionLinks(asInbound(record))"
+              >
+                <template #icon><LinkOutlined /></template>
+                Subs
+              </AButton>
+              <AButton size="small" @click="confirmCloneInbound(asInbound(record))">
+                <template #icon><BlockOutlined /></template>
+                Clone
+              </AButton>
               <AButton size="small" @click="openEditInbound(record)">
                 <template #icon><EditOutlined /></template>
                 Edit
@@ -251,11 +271,35 @@
             </div>
             <ASpace wrap>
               <AButton
-                :disabled="!selectedClientRows.length"
-                @click="exportClientLinks(selectedInbound, selectedClientRows)"
+                :disabled="copyClientSourceOptions.length === 0"
+                @click="openCopyClientsModal(selectedInbound)"
               >
                 <template #icon><CopyOutlined /></template>
-                Export Links
+                Copy Clients
+              </AButton>
+              <AButton
+                :disabled="
+                  !selectedInboundClientManageable || selectedInbound?.protocol === 'wireguard'
+                "
+                @click="openBulkAddClientsModal(selectedInbound)"
+              >
+                <template #icon><UserAddOutlined /></template>
+                Bulk Add
+              </AButton>
+              <AButton
+                :disabled="!selectedClientRows.length"
+                @click="exportInboundShareLinks(selectedInbound)"
+              >
+                <template #icon><CopyOutlined /></template>
+                Export Share Links
+              </AButton>
+              <AButton
+                :disabled="!selectedClientRows.length"
+                :loading="loadingSubscriptionSettings"
+                @click="exportInboundSubscriptionLinks(selectedInbound)"
+              >
+                <template #icon><LinkOutlined /></template>
+                Export Subscription Links
               </AButton>
               <AButton
                 :disabled="!canResetSelectedClients"
@@ -365,6 +409,15 @@
                     Share
                   </AButton>
                   <AButton
+                    :disabled="clientSubscriptionDisabled(selectedInbound, record)"
+                    :loading="loadingSubscriptionSettings"
+                    size="small"
+                    @click="openClientAccessModal(record)"
+                  >
+                    <template #icon><QrcodeOutlined /></template>
+                    Access
+                  </AButton>
+                  <AButton
                     :disabled="clientResetDisabled(selectedInbound, record)"
                     size="small"
                     @click="confirmResetClient(selectedInbound, record)"
@@ -391,7 +444,7 @@
           <div class="panel-header">
             <div>
               <p class="page-eyebrow">Export</p>
-              <h2>Share Link</h2>
+              <h2>{{ sharePreviewTitle }}</h2>
             </div>
             <AButton @click="copySharePreview">
               <template #icon><CopyOutlined /></template>
@@ -1033,13 +1086,182 @@
       </AForm>
     </AModal>
 
-    <AModal v-model:open="clientIpsModalOpen" :footer="null" :title="clientIpsModalTitle">
+    <AModal
+      v-model:open="clientIpsModalOpen"
+      :footer="null"
+      :title="clientIpsModalTitle"
+      destroy-on-close
+      :focus-trigger-after-close="false"
+      :get-container="false"
+      :mask-closable="false"
+    >
       <textarea
         aria-label="Client IP records"
         class="json-editor compact-json-editor"
         readonly
         :value="clientIpsText"
       />
+    </AModal>
+
+    <AModal
+      v-model:open="clientAccessModalOpen"
+      :title="clientAccessTitle"
+      width="880px"
+      destroy-on-close
+      :focus-trigger-after-close="false"
+      :get-container="false"
+      :mask-closable="false"
+    >
+      <template #footer>
+        <AButton @click="clientAccessModalOpen = false">Close</AButton>
+      </template>
+      <template v-if="clientAccessClient">
+        <div class="drawer-summary">
+          <StatusTile
+            label="Email"
+            :value="clientAccessClient.email || '-'"
+            :hint="clientPrimaryText(selectedInbound, clientAccessClient)"
+          />
+          <StatusTile
+            label="Subscription"
+            :value="clientAccessClient.subId || '-'"
+            :hint="formatTimestamp(clientAccessClient.traffic?.expiryTime ?? clientAccessClient.expiryTime)"
+          />
+          <StatusTile
+            label="Usage"
+            :value="
+              formatTraffic(
+                clientAccessClient.traffic?.up || 0,
+                clientAccessClient.traffic?.down || 0,
+                clientAccessClient.traffic?.total || 0,
+              )
+            "
+            :hint="formatLimit(clientAccessClient.traffic?.total ?? clientAccessClient.totalGB)"
+          />
+          <StatusTile
+            label="Last Online"
+            :value="formatClientLastOnline(clientAccessClient)"
+            :hint="clientAccessClient.enable !== false ? 'Enabled' : 'Disabled'"
+          />
+        </div>
+
+        <div v-if="clientAccessLinks.length === 0" class="form-section">
+          <AAlert
+            message="No access links are available for this client."
+            show-icon
+            type="info"
+          />
+        </div>
+
+        <div v-else class="client-link-grid">
+          <div v-for="(item, index) in clientAccessLinks" :key="`${item.kind}-${item.label}`" class="client-link-card">
+            <div class="client-link-title-row">
+              <div>
+                <strong>{{ item.label }}</strong>
+                <p class="muted-text">{{ item.kind === 'share' ? 'Share link' : 'Subscription endpoint' }}</p>
+              </div>
+              <span class="client-link-format">{{ item.kind === 'share' ? 'Link' : 'Subscription' }}</span>
+            </div>
+            <AInput :value="item.url" readonly />
+            <ASpace class="client-link-actions" wrap>
+              <AButton size="small" @click="copyClientAccessLink(item.url)">Copy</AButton>
+              <AButton size="small" :disabled="!isOpenablePublicLink(item.url)" @click="openPublicAccessLink(item.url)">
+                Open
+              </AButton>
+            </ASpace>
+            <div class="qr-link-card">
+              <canvas :id="`client-access-qr-${index}`" class="qr-canvas"></canvas>
+            </div>
+          </div>
+        </div>
+      </template>
+    </AModal>
+
+    <AModal
+      v-model:open="copyClientsModalOpen"
+      :confirm-loading="copyingClients"
+      title="Copy Clients from Other Inbound"
+      width="900px"
+      destroy-on-close
+      :focus-trigger-after-close="false"
+      :get-container="false"
+      :mask-closable="false"
+      @ok="submitCopyClients"
+    >
+      <AForm layout="vertical">
+        <AFormItem label="Source Inbound">
+          <ASelect
+            v-model:value="copySourceInboundId"
+            :options="copyClientSourceOptions"
+            placeholder="Select source inbound"
+          />
+        </AFormItem>
+        <AFormItem v-if="selectedInboundFlowOverrideVisible" label="Flow Override">
+          <ASelect v-model:value="copyFlowOverride" :options="flowOptions" />
+        </AFormItem>
+      </AForm>
+
+      <ATable
+        v-if="copySourceInbound"
+        :columns="copyClientColumns"
+        :data-source="copySourceClientRows"
+        :pagination="false"
+        :row-selection="copyClientRowSelection"
+        row-key="key"
+        size="small"
+      />
+
+      <AAlert
+        v-else
+        class="mt-16"
+        message="Select a source inbound to preview copyable clients."
+        show-icon
+        type="info"
+      />
+    </AModal>
+
+    <AModal
+      v-model:open="bulkClientModalOpen"
+      :confirm-loading="bulkAddingClients"
+      title="Bulk Add Clients"
+      width="760px"
+      destroy-on-close
+      :focus-trigger-after-close="false"
+      :get-container="false"
+      :mask-closable="false"
+      @ok="submitBulkAddClients"
+    >
+      <AForm layout="vertical">
+        <div class="form-grid">
+          <AFormItem label="Quantity">
+            <AInputNumber v-model:value="bulkClientForm.quantity" :min="1" :max="500" class="full-width" />
+          </AFormItem>
+          <AFormItem label="First Index">
+            <AInputNumber v-model:value="bulkClientForm.firstIndex" :min="1" class="full-width" />
+          </AFormItem>
+          <AFormItem label="Email Prefix">
+            <AInput v-model:value="bulkClientForm.emailPrefix" placeholder="client-" />
+          </AFormItem>
+          <AFormItem label="Email Postfix">
+            <AInput v-model:value="bulkClientForm.emailPostfix" placeholder="@example.com" />
+          </AFormItem>
+          <AFormItem label="Traffic Limit GB">
+            <AInputNumber v-model:value="bulkClientForm.totalGB" :min="0" class="full-width" />
+          </AFormItem>
+          <AFormItem label="Expiry Timestamp">
+            <AInputNumber v-model:value="bulkClientForm.expiryTime" :min="0" class="full-width" />
+          </AFormItem>
+          <AFormItem label="IP Limit">
+            <AInputNumber v-model:value="bulkClientForm.limitIp" :min="0" class="full-width" />
+          </AFormItem>
+          <AFormItem label="Reset Days">
+            <AInputNumber v-model:value="bulkClientForm.reset" :min="0" class="full-width" />
+          </AFormItem>
+          <AFormItem v-if="selectedInboundFlowOverrideVisible" label="Flow">
+            <ASelect v-model:value="bulkClientForm.flow" :options="flowOptions" />
+          </AFormItem>
+        </div>
+      </AForm>
     </AModal>
 
     <AModal
@@ -1068,11 +1290,14 @@
 
 <script setup lang="ts">
 import {
+  BlockOutlined,
   CopyOutlined,
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
+  LinkOutlined,
   PlusOutlined,
+  QrcodeOutlined,
   ReloadOutlined,
   UserAddOutlined,
 } from '@ant-design/icons-vue';
@@ -1093,12 +1318,13 @@ import {
   Tag as ATag,
   message,
 } from 'ant-design-vue';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 
 import {
   addInbound,
   addInboundClient,
   clearClientIps,
+  copyInboundClients,
   deleteDepletedInboundClients,
   deleteInbound,
   deleteInboundClient,
@@ -1113,6 +1339,7 @@ import {
   updateInbound,
   updateInboundClient,
 } from '@/api/inbounds';
+import { getAllSettings } from '@/api/settings';
 import PageHeader from '@/components/PageHeader.vue';
 import FormSection from '@/components/FormSection.vue';
 import StatusTile from '@/components/StatusTile.vue';
@@ -1124,7 +1351,7 @@ import {
   protocolSupportsStream,
   xrayEditableProtocols,
 } from '@/schemas/protocolRegistry';
-import { hasInjectedRuntimeConfig } from '@/types/runtime';
+import { getRuntimeConfig, hasInjectedRuntimeConfig } from '@/types/runtime';
 import type {
   ClientTraffic,
   Inbound,
@@ -1132,13 +1359,16 @@ import type {
   InboundForm,
   XrayEditableInboundProtocol,
 } from '@/types/inbound';
+import type { PanelSettings } from '@/types/settings';
 import { formatBytes, formatCount } from '@/utils/format';
 import {
   SHADOWSOCKS_METHOD_OPTIONS,
   buildClientShareLink,
+  buildClientSubscriptionLinks,
   defaultInboundSettings,
   defaultSniffingSettings,
   defaultStreamSettings,
+  generateBulkClientProfiles,
   generateShadowsocksPassword,
   generateWireguardKeypair,
   generateWireguardPeer,
@@ -1292,6 +1522,42 @@ interface GatewayProxyUriItem {
   uri: string;
 }
 
+interface AccessLinkItem {
+  kind: 'share' | 'subscription';
+  label: string;
+  url: string;
+}
+
+interface CopyClientSourceRow extends ClientRow {
+  expiryLabel: string;
+  trafficLabel: string;
+}
+
+interface BulkClientFormState {
+  quantity: number;
+  firstIndex: number;
+  emailPrefix: string;
+  emailPostfix: string;
+  totalGB: number;
+  expiryTime: number;
+  limitIp: number;
+  reset: number;
+  flow: string;
+}
+
+type SubscriptionLinkSettings = Pick<
+  PanelSettings,
+  'subEnable' | 'subJsonEnable' | 'subClashEnable' | 'subURI' | 'subJsonURI' | 'subClashURI'
+>;
+
+type QriousConstructor = new (options: {
+  element: HTMLCanvasElement;
+  size: number;
+  value: string;
+}) => unknown;
+
+let qriousLoader: Promise<QriousConstructor> | null = null;
+
 const inbounds = ref<Inbound[]>([]);
 const loading = ref(false);
 const error = ref('');
@@ -1301,6 +1567,7 @@ const stateFilter = ref<StateFilter>('all');
 const detailOpen = ref(false);
 const selectedInbound = ref<Inbound | null>(null);
 const sharePreview = ref('');
+const sharePreviewTitle = ref('Share Links');
 const inboundModalOpen = ref(false);
 const inboundModalMode = ref<InboundModalMode>('create');
 const savingInbound = ref(false);
@@ -1320,16 +1587,30 @@ const deletingDepletedClients = ref(false);
 const onlineClients = ref<string[]>([]);
 const lastOnlineMap = ref<Record<string, number>>({});
 const loadingActivity = ref(false);
+const loadingSubscriptionSettings = ref(false);
 const clientIpsModalOpen = ref(false);
 const clientIpsModalTitle = ref('Client IP Records');
 const clientIpsText = ref('');
 const clearingClientIpsEmail = ref('');
+const subscriptionSettings = ref<SubscriptionLinkSettings | null>(null);
+const clientAccessModalOpen = ref(false);
+const clientAccessTitle = ref('Client Access');
+const clientAccessClient = ref<ClientRow | null>(null);
+const clientAccessLinks = ref<AccessLinkItem[]>([]);
+const bulkClientModalOpen = ref(false);
+const bulkAddingClients = ref(false);
+const copyClientsModalOpen = ref(false);
+const copyingClients = ref(false);
+const copySourceInboundId = ref<number>();
+const copySelectedClientKeys = ref<string[]>([]);
+const copyFlowOverride = ref('');
 
 const inboundEditor = reactive<InboundEditorState>(createInboundEditor());
 const wireguardEditor = reactive<WireguardEditorState>(createWireguardEditor());
 const streamEditor = reactive<StreamEditorState>(createStreamEditor());
 const inboundClientEditor = reactive<ClientEditorState>(createClientEditor());
 const clientEditor = reactive<ClientEditorState>(createClientEditor());
+const bulkClientForm = reactive<BulkClientFormState>(createBulkClientForm());
 
 const editableProtocolOptions = xrayEditableProtocols.map((protocol) => {
   const entry = getProtocolRegistryEntry(protocol);
@@ -1423,6 +1704,11 @@ const clientColumns = [
   { title: 'Enabled', key: 'enable', width: 90 },
   { title: 'Actions', key: 'actions', width: 330 },
 ];
+const copyClientColumns = [
+  { title: 'Client', dataIndex: 'email', key: 'email' },
+  { title: 'Traffic', dataIndex: 'trafficLabel', key: 'trafficLabel', width: 180 },
+  { title: 'Expiry', dataIndex: 'expiryLabel', key: 'expiryLabel', width: 180 },
+];
 const activityColumns = [
   { title: 'Client', key: 'client' },
   { title: 'Online', key: 'online', width: 96 },
@@ -1475,18 +1761,46 @@ const selectedClientRows = computed<ClientRow[]>(() => {
   if (!inbound) {
     return [];
   }
-  return getInboundClients(inbound).map((client, index) => {
-    const traffic = inbound.clientStats?.find((stats) => stats.email === client.email);
-    const primaryId = getClientPrimaryId(inbound.protocol, client);
-    return {
-      ...client,
-      key: primaryId || `${client.email}-${index}`,
-      traffic,
-    };
-  });
+  return buildClientRows(inbound);
 });
 const selectedBatchClientRows = computed(() =>
   selectedClientRows.value.filter((row) => selectedClientRowKeys.value.includes(row.key)),
+);
+const copyClientSourceOptions = computed(() =>
+  inbounds.value
+    .filter(
+      (inbound) =>
+        selectedInbound.value &&
+        inbound.id !== selectedInbound.value.id &&
+        protocolSupportsClients(inbound.protocol),
+    )
+    .map((inbound) => ({
+      label: inbound.remark || inbound.tag || `Inbound ${inbound.id}`,
+      value: inbound.id,
+    })),
+);
+const copySourceInbound = computed(() =>
+  copySourceInboundId.value
+    ? inbounds.value.find((inbound) => inbound.id === copySourceInboundId.value) || null
+    : null,
+);
+const copySourceClientRows = computed<CopyClientSourceRow[]>(() => {
+  const inbound = copySourceInbound.value;
+  if (!inbound) {
+    return [];
+  }
+  return buildClientRows(inbound).map((row) => ({
+    ...row,
+    trafficLabel: formatTraffic(
+      row.traffic?.up || 0,
+      row.traffic?.down || 0,
+      row.traffic?.total || 0,
+    ),
+    expiryLabel: formatTimestamp(row.traffic?.expiryTime ?? row.expiryTime),
+  }));
+});
+const copySelectedSourceRows = computed(() =>
+  copySourceClientRows.value.filter((row) => copySelectedClientKeys.value.includes(row.key)),
 );
 const resettableSelectedClientRows = computed(() =>
   selectedBatchClientRows.value.filter((row) => !clientResetDisabled(selectedInbound.value, row)),
@@ -1509,6 +1823,12 @@ const clientRowSelection = computed(() => ({
   getCheckboxProps: (record: ClientRow) => ({
     disabled: !hasClientPrimaryId(selectedInbound.value, record),
   }),
+}));
+const copyClientRowSelection = computed(() => ({
+  selectedRowKeys: copySelectedClientKeys.value,
+  onChange: (keys: Array<string | number>) => {
+    copySelectedClientKeys.value = keys.map(String);
+  },
 }));
 const inboundModalTitle = computed(() =>
   inboundModalMode.value === 'create' ? 'New Inbound' : 'Edit Inbound',
@@ -1543,6 +1863,13 @@ const gatewayProxyUris = computed<GatewayProxyUriItem[]>(() => {
   }
   return [{ label: 'HTTP', uri: `http://${auth}${host}:${port}` }];
 });
+const selectedInboundFlowOverrideVisible = computed(() => {
+  const inbound = selectedInbound.value;
+  if (!inbound || inbound.protocol !== 'vless') {
+    return false;
+  }
+  return inboundNetwork(inbound) === 'tcp' && ['tls', 'reality'].includes(inboundSecurity(inbound));
+});
 const clientModalTitle = computed(() =>
   clientModalMode.value === 'create' ? 'Add Client' : 'Edit Client',
 );
@@ -1564,6 +1891,20 @@ watch(
 watch(selectedClientRows, (rows) => {
   const keys = new Set(rows.map((row) => row.key));
   selectedClientRowKeys.value = selectedClientRowKeys.value.filter((key) => keys.has(key));
+});
+
+watch(copySourceClientRows, (rows) => {
+  const keys = new Set(rows.map((row) => row.key));
+  copySelectedClientKeys.value = copySelectedClientKeys.value.filter((key) => keys.has(key));
+});
+
+watch(clientAccessModalOpen, (open) => {
+  if (!open) {
+    clientAccessClient.value = null;
+    clientAccessLinks.value = [];
+    return;
+  }
+  void renderClientAccessQrs();
 });
 
 async function refreshInbounds() {
@@ -1854,8 +2195,55 @@ function openInboundDetail(record: Inbound | Record<string, unknown>) {
   const inbound = asInbound(record);
   selectedInbound.value = inbound;
   selectedClientRowKeys.value = [];
+  sharePreviewTitle.value = 'Share Links';
   sharePreview.value = '';
   detailOpen.value = true;
+}
+
+function openCopyClientsModal(inbound: Inbound | null) {
+  if (!inbound) {
+    return;
+  }
+  if (copyClientSourceOptions.value.length === 0) {
+    error.value = 'No other inbounds are available as copy sources';
+    return;
+  }
+  copySourceInboundId.value = copyClientSourceOptions.value[0]?.value;
+  copySelectedClientKeys.value = [];
+  copyFlowOverride.value = '';
+  copyClientsModalOpen.value = true;
+}
+
+function openBulkAddClientsModal(inbound: Inbound | null) {
+  if (!inbound) {
+    return;
+  }
+  if (inbound.protocol === 'wireguard') {
+    error.value = 'WireGuard bulk add is not supported in the new UI yet';
+    return;
+  }
+  resetBulkClientForm();
+  bulkClientModalOpen.value = true;
+}
+
+function confirmCloneInbound(inbound: Inbound) {
+  AModal.confirm({
+    title: `Clone ${inbound.remark || inbound.tag || inbound.id}?`,
+    content: 'The clone keeps protocol, stream, sniffing, and limits, but starts with a fresh port and empty client list.',
+    okText: 'Clone',
+    onOk: () => runCloneInbound(inbound),
+  });
+}
+
+async function runCloneInbound(inbound: Inbound) {
+  error.value = '';
+  try {
+    await addInbound(buildClonedInboundForm(inbound), { notifyOnError: false });
+    void message.success('Inbound cloned');
+    await refreshInbounds();
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : 'Failed to clone inbound';
+  }
 }
 
 function openCreateClient(inbound: Inbound) {
@@ -2283,6 +2671,7 @@ async function previewShareLink(
   }
   const row = asClientRow(record);
   const link = buildClientShareLink(inbound, row);
+  sharePreviewTitle.value = 'Share Link';
   sharePreview.value = link;
   if (!link) {
     error.value = 'Share link is only available for supported clients with complete credentials';
@@ -2290,6 +2679,33 @@ async function previewShareLink(
   }
   await copyText(link);
   void message.success('Share link copied');
+}
+
+async function openClientAccessModal(record: ClientRow | Record<string, unknown>) {
+  const inbound = selectedInbound.value;
+  if (!inbound) {
+    return;
+  }
+  const row = asClientRow(record);
+  const settings = await ensureSubscriptionSettingsLoaded();
+  if (!settings) {
+    return;
+  }
+
+  const nextLinks: AccessLinkItem[] = [];
+  const shareLink = buildClientShareLink(inbound, row);
+  if (shareLink) {
+    nextLinks.push({ kind: 'share', label: 'Share Link', url: shareLink });
+  }
+  buildClientSubscriptionLinks(row, settings).forEach((link) => {
+    nextLinks.push({ kind: 'subscription', label: link.label, url: link.url });
+  });
+
+  clientAccessClient.value = row;
+  clientAccessLinks.value = nextLinks;
+  clientAccessTitle.value = row.email ? `Client Access - ${row.email}` : 'Client Access';
+  clientAccessModalOpen.value = true;
+  await renderClientAccessQrs();
 }
 
 async function exportClientLinks(inbound: Inbound | null, rows: ClientRow[]) {
@@ -2305,9 +2721,135 @@ async function exportClientLinks(inbound: Inbound | null, rows: ClientRow[]) {
     return;
   }
   const text = links.join('\n');
+  sharePreviewTitle.value = 'Share Links';
   sharePreview.value = text;
   await copyText(text);
   void message.success(`${links.length} share links copied`);
+}
+
+async function exportInboundShareLinks(inbound: Inbound | null) {
+  if (!inbound) {
+    return;
+  }
+  await exportClientLinks(inbound, buildClientRows(inbound));
+}
+
+async function exportInboundSubscriptionLinks(inbound: Inbound | null) {
+  if (!inbound) {
+    return;
+  }
+  const settings = await ensureSubscriptionSettingsLoaded();
+  if (!settings) {
+    return;
+  }
+  const blocks = buildClientRows(inbound)
+    .map((row) => {
+      const links = buildClientSubscriptionLinks(row, settings);
+      if (links.length === 0) {
+        return '';
+      }
+      return formatSubscriptionPreview(row.email || row.subId || row.key, links);
+    })
+    .filter((value) => value.trim().length > 0);
+
+  if (blocks.length === 0) {
+    error.value = 'No subscription links are available for this inbound';
+    sharePreview.value = '';
+    return;
+  }
+
+  const text = blocks.join('\n\n');
+  sharePreviewTitle.value = 'Subscription Links';
+  sharePreview.value = text;
+  await copyText(text);
+  void message.success(`${blocks.length} client subscription link groups copied`);
+}
+
+async function submitCopyClients() {
+  const inbound = selectedInbound.value;
+  if (!inbound || !copySourceInboundId.value) {
+    return;
+  }
+  if (copySelectedSourceRows.value.length === 0) {
+    error.value = 'Select at least one client to copy';
+    return;
+  }
+
+  copyingClients.value = true;
+  error.value = '';
+  try {
+    const result = await copyInboundClients(
+      inbound.id,
+      {
+        sourceInboundId: copySourceInboundId.value,
+        clientEmails: copySelectedSourceRows.value.map((row) => row.email),
+        flow: copyFlowOverride.value || undefined,
+      },
+      { notifyOnError: false },
+    );
+    const addedCount = Array.isArray(result.added) ? result.added.length : copySelectedSourceRows.value.length;
+    if (Array.isArray(result.errors) && result.errors.length > 0) {
+      error.value = result.errors.join('; ');
+    }
+    void message.success(`${addedCount} clients copied`);
+    copyClientsModalOpen.value = false;
+    await refreshInbounds();
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : 'Failed to copy clients';
+  } finally {
+    copyingClients.value = false;
+  }
+}
+
+async function submitBulkAddClients() {
+  const inbound = selectedInbound.value;
+  if (!inbound) {
+    return;
+  }
+  if (!bulkClientForm.emailPrefix.trim() && !bulkClientForm.emailPostfix.trim()) {
+    error.value = 'Bulk add requires an email prefix or postfix';
+    return;
+  }
+
+  const protocol = isEditableProtocol(inbound.protocol) ? inbound.protocol : null;
+  if (!protocol) {
+    error.value = 'Bulk add is only available for editable protocols';
+    return;
+  }
+
+  const clients = generateBulkClientProfiles({
+    protocol,
+    quantity: bulkClientForm.quantity,
+    firstIndex: bulkClientForm.firstIndex,
+    emailPrefix: bulkClientForm.emailPrefix.trim(),
+    emailPostfix: bulkClientForm.emailPostfix.trim(),
+    flow: bulkClientForm.flow,
+    security: 'auto',
+    shadowsocksMethod: inbound.protocol === 'shadowsocks' ? getShadowsocksMethod(inbound) : '',
+    limitIp: bulkClientForm.limitIp,
+    totalGB: bulkClientForm.totalGB,
+    expiryTime: bulkClientForm.expiryTime,
+    reset: bulkClientForm.reset,
+  });
+
+  bulkAddingClients.value = true;
+  error.value = '';
+  try {
+    await addInboundClient(
+      {
+        id: inbound.id,
+        settings: stringifyJson({ clients }),
+      },
+      { notifyOnError: false },
+    );
+    void message.success(`${clients.length} clients added`);
+    bulkClientModalOpen.value = false;
+    await refreshInbounds();
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : 'Failed to bulk add clients';
+  } finally {
+    bulkAddingClients.value = false;
+  }
 }
 
 async function copySharePreview() {
@@ -2316,6 +2858,18 @@ async function copySharePreview() {
   }
   await copyText(sharePreview.value);
   void message.success('Copied');
+}
+
+async function copyClientAccessLink(uri: string) {
+  await copyText(uri);
+  void message.success('Link copied');
+}
+
+function openPublicAccessLink(uri: string) {
+  if (!isOpenablePublicLink(uri)) {
+    return;
+  }
+  window.open(uri, '_blank', 'noopener,noreferrer');
 }
 
 /** 复制当前 Gateway 代理 URI，便于粘贴到 Super-Code-Gateway 代理配置。 */
@@ -3129,6 +3683,14 @@ function clientShareDisabled(
   return !protocolSupportsShareLink(inbound?.protocol || '') || !hasClientPrimaryId(inbound, row);
 }
 
+function clientSubscriptionDisabled(
+  inbound: Inbound | null,
+  row: InboundClient | Record<string, unknown>,
+): boolean {
+  const client = row as InboundClient;
+  return !inbound || !hasClientPrimaryId(inbound, row) || !client.subId;
+}
+
 function clientPrimaryText(
   inbound: Inbound | null,
   row: InboundClient | Record<string, unknown>,
@@ -3268,6 +3830,162 @@ function asInbound(record: Inbound | Record<string, unknown>): Inbound {
 
 function asClientRow(record: ClientRow | Record<string, unknown>): ClientRow {
   return record as ClientRow;
+}
+
+function buildClientRows(inbound: Inbound): ClientRow[] {
+  return getInboundClients(inbound).map((client, index) => {
+    const traffic = inbound.clientStats?.find((stats) => stats.email === client.email);
+    const primaryId = getClientPrimaryId(inbound.protocol, client);
+    return {
+      ...client,
+      key: primaryId || `${client.email}-${index}`,
+      traffic,
+    };
+  });
+}
+
+function pickSubscriptionSettings(payload: PanelSettings): SubscriptionLinkSettings {
+  return {
+    subEnable: payload.subEnable,
+    subJsonEnable: payload.subJsonEnable,
+    subClashEnable: payload.subClashEnable,
+    subURI: payload.subURI,
+    subJsonURI: payload.subJsonURI,
+    subClashURI: payload.subClashURI,
+  };
+}
+
+async function ensureSubscriptionSettingsLoaded(): Promise<SubscriptionLinkSettings | null> {
+  if (subscriptionSettings.value) {
+    return subscriptionSettings.value;
+  }
+  if (!hasInjectedRuntimeConfig()) {
+    return null;
+  }
+
+  loadingSubscriptionSettings.value = true;
+  error.value = '';
+  try {
+    const payload = await getAllSettings({ notifyOnError: false });
+    subscriptionSettings.value = pickSubscriptionSettings(payload);
+    return subscriptionSettings.value;
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : 'Failed to load subscription settings';
+    return null;
+  } finally {
+    loadingSubscriptionSettings.value = false;
+  }
+}
+
+function formatSubscriptionPreview(
+  title: string,
+  links: Array<{ label: string; url: string }>,
+): string {
+  return [`[${title}]`, ...links.map((link) => `${link.label}: ${link.url}`)].join('\n');
+}
+
+function createBulkClientForm(): BulkClientFormState {
+  return {
+    quantity: 1,
+    firstIndex: 1,
+    emailPrefix: 'client-',
+    emailPostfix: '',
+    totalGB: 0,
+    expiryTime: 0,
+    limitIp: 0,
+    reset: 0,
+    flow: '',
+  };
+}
+
+function resetBulkClientForm() {
+  Object.assign(bulkClientForm, createBulkClientForm());
+}
+
+function buildClonedInboundForm(inbound: Inbound): InboundForm {
+  const protocol = isEditableProtocol(inbound.protocol) ? inbound.protocol : null;
+  return {
+    up: 0,
+    down: 0,
+    total: inbound.total,
+    allTime: 0,
+    remark: `${inbound.remark || inbound.tag || `Inbound ${inbound.id}`} - Cloned`,
+    enable: inbound.enable,
+    expiryTime: inbound.expiryTime,
+    trafficReset: inbound.trafficReset,
+    lastTrafficResetTime: inbound.lastTrafficResetTime,
+    listen: '',
+    port: randomPort(),
+    protocol: inbound.protocol,
+    settings: protocol
+      ? stringifyJson(defaultInboundSettings(protocol))
+      : formatJsonText(inbound.settings, parseInboundSettings(inbound)),
+    streamSettings: formatJsonText(inbound.streamSettings, parseInboundStreamSettings(inbound)),
+    sniffing: formatJsonText(inbound.sniffing, parseInboundSniffingSettings(inbound)),
+  };
+}
+
+function isOpenablePublicLink(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+async function loadQrious(): Promise<QriousConstructor> {
+  if (qriousLoader) {
+    return qriousLoader;
+  }
+
+  qriousLoader = new Promise<QriousConstructor>((resolve, reject) => {
+    const existing = (window as Window & { QRious?: QriousConstructor }).QRious;
+    if (existing) {
+      resolve(existing);
+      return;
+    }
+
+    const runtime = getRuntimeConfig();
+    const script = document.createElement('script');
+    script.src = `${runtime.basePath}assets/qrcode/qrious2.min.js?${runtime.version}`;
+    script.async = true;
+    script.onload = () => {
+      const loaded = (window as Window & { QRious?: QriousConstructor }).QRious;
+      if (loaded) {
+        resolve(loaded);
+        return;
+      }
+      reject(new Error('QRious did not load'));
+    };
+    script.onerror = () => reject(new Error('Failed to load QRious script'));
+    document.head.appendChild(script);
+  });
+
+  return qriousLoader;
+}
+
+async function renderClientAccessQrs() {
+  if (!clientAccessModalOpen.value || clientAccessLinks.value.length === 0) {
+    return;
+  }
+  try {
+    const QRious = await loadQrious();
+    await nextTick();
+    clientAccessLinks.value.forEach((item, index) => {
+      const canvas = document.getElementById(`client-access-qr-${index}`);
+      if (!(canvas instanceof HTMLCanvasElement)) {
+        return;
+      }
+      new QRious({
+        element: canvas,
+        size: 220,
+        value: item.url,
+      });
+    });
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : 'Failed to render QR codes';
+  }
 }
 
 function stripClientRow(row: ClientRow): InboundClient {

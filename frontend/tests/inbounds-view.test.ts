@@ -70,3 +70,44 @@ test('inbound form keeps default client and JSON action paths', () => {
   assert.match(source, /v-model="inboundEditor\.streamSettings"/);
   assert.match(source, /v-model="inboundEditor\.sniffing"/);
 });
+
+test('inbounds detail keeps visible share and subscription export actions', () => {
+  assert.match(source, /Export Share Links/);
+  assert.match(source, /Export Subscription Links/);
+  assert.match(source, /@click="exportInboundShareLinks\(selectedInbound\)"/);
+  assert.match(source, /@click="exportInboundSubscriptionLinks\(selectedInbound\)"/);
+  assert.match(source, /@click="openClientAccessModal\(record\)"/);
+  assert.match(source, />\s*Access\s*</);
+  assert.match(source, /sharePreviewTitle/);
+});
+
+test('inbounds row actions expose direct export entry points', () => {
+  assert.match(source, /@click="exportInboundShareLinks\(asInbound\(record\)\)"/);
+  assert.match(source, /@click="exportInboundSubscriptionLinks\(asInbound\(record\)\)"/);
+  assert.match(source, />\s*Subs\s*</);
+});
+
+test('inbounds view exposes client access, copy-clients, and clone flows', () => {
+  assert.match(source, /Copy Clients/);
+  assert.match(source, /@click="openCopyClientsModal\(selectedInbound\)"/);
+  assert.match(source, /title="Copy Clients from Other Inbound"/);
+  assert.match(source, /@ok="submitCopyClients"/);
+  assert.match(source, /confirmCloneInbound\(asInbound\(record\)\)/);
+  assert.match(source, />\s*Clone\s*</);
+  assert.match(source, /v-model:open="clientAccessModalOpen"/);
+  assert.match(source, /clientAccessTitle/);
+  assert.match(source, /@click="openClientAccessModal\(record\)"/);
+  assert.match(source, />\s*Access\s*</);
+  assert.match(source, /client-access-qr-\$\{index\}/);
+});
+
+test('inbounds view exposes bulk add clients flow', () => {
+  assert.match(source, /Bulk Add/);
+  assert.match(source, /@click="openBulkAddClientsModal\(selectedInbound\)"/);
+  assert.match(source, /title="Bulk Add Clients"/);
+  assert.match(source, /@ok="submitBulkAddClients"/);
+  assert.match(source, /v-model:value="bulkClientForm\.quantity"/);
+  assert.match(source, /v-model:value="bulkClientForm\.emailPrefix"/);
+  assert.match(source, /v-model:value="bulkClientForm\.firstIndex"/);
+  assert.match(source, /v-model:value="bulkClientForm\.emailPostfix"/);
+});

@@ -14,6 +14,35 @@ const SHADOWSOCKS_2022_AES_128_GCM = '2022-blake3-aes-128-gcm';
 const SHADOWSOCKS_2022_SINGLE_USER = '2022-blake3-chacha20-poly1305';
 const SHADOWSOCKS_DEFAULT_KEY_BYTES = 32;
 
+export interface SubscriptionEndpointSettings {
+  subEnable: boolean;
+  subJsonEnable: boolean;
+  subClashEnable: boolean;
+  subURI: string;
+  subJsonURI: string;
+  subClashURI: string;
+}
+
+export interface SubscriptionLinkItem {
+  label: string;
+  url: string;
+}
+
+export interface BulkClientGenerationInput {
+  protocol: XrayEditableInboundProtocol;
+  quantity: number;
+  firstIndex: number;
+  emailPrefix: string;
+  emailPostfix: string;
+  flow?: string;
+  security?: string;
+  shadowsocksMethod?: string;
+  limitIp: number;
+  totalGB: number;
+  expiryTime: number;
+  reset: number;
+}
+
 export const SHADOWSOCKS_METHOD_OPTIONS = [
   SHADOWSOCKS_DEFAULT_METHOD,
   'chacha20-poly1305',
@@ -303,6 +332,91 @@ export function buildClientShareLink(inbound: Inbound, client: InboundClient): s
   return '';
 }
 
+export function buildClientSubscriptionLinks(
+  client: Pick<InboundClient, 'subId'>,
+  settings: SubscriptionEndpointSettings,
+): SubscriptionLinkItem[] {
+  const subId = String(client.subId || '').trim();
+  if (!settings.subEnable || !subId) {
+    return [];
+  }
+
+  const links: SubscriptionLinkItem[] = [];
+  const uri = appendSubscriptionId(settings.subURI, subId);
+  if (uri) {
+    links.push({ label: 'URI', url: uri });
+  }
+
+  if (settings.subJsonEnable) {
+    const jsonUri = appendSubscriptionId(settings.subJsonURI, subId);
+    if (jsonUri) {
+      links.push({ label: 'JSON', url: jsonUri });
+    }
+  }
+
+  if (settings.subClashEnable) {
+    const clashUri = appendSubscriptionId(settings.subClashURI, subId);
+    if (clashUri) {
+      links.push({ label: 'Clash', url: clashUri });
+    }
+  }
+
+  return links;
+}
+
+export function generateBulkClientProfiles(input: BulkClientGenerationInput): InboundClient[] {
+  const quantity = Math.max(1, Math.min(500, Math.trunc(input.quantity || 1)));
+  const firstIndex = Math.max(1, Math.trunc(input.firstIndex || 1));
+  const prefix = input.emailPrefix || '';
+  const postfix = input.emailPostfix || '';
+
+  return Array.from({ length: quantity }, (_, index) => {
+    const email = `${prefix}${firstIndex + index}${postfix}`;
+    const client: InboundClient = {
+      email,
+      limitIp: Math.max(0, Number(input.limitIp || 0)),
+      totalGB: Math.max(0, Number(input.totalGB || 0)),
+      expiryTime: Math.max(0, Number(input.expiryTime || 0)),
+      enable: true,
+      subId: randomLowerToken(16),
+      reset: Math.max(0, Number(input.reset || 0)),
+    };
+
+    if (input.protocol === 'vmess') {
+      client.id = randomUuid();
+      client.security = input.security || 'auto';
+      return client;
+    }
+
+    if (input.protocol === 'vless') {
+      client.id = randomUuid();
+      client.flow = input.flow || '';
+      return client;
+    }
+
+    if (input.protocol === 'trojan') {
+      client.password = randomLowerToken(32);
+      return client;
+    }
+
+    if (input.protocol === 'shadowsocks') {
+      const method = normalizeShadowsocksMethod(input.shadowsocksMethod || SHADOWSOCKS_DEFAULT_METHOD);
+      client.password = generateShadowsocksPassword(method);
+      if (!isShadowsocks2022Method(method)) {
+        client.method = method;
+      }
+      return client;
+    }
+
+    if (input.protocol === 'hysteria' || input.protocol === 'hysteria2') {
+      client.auth = randomLowerToken(32);
+      return client;
+    }
+
+    return client;
+  });
+}
+
 function buildVmessShareLink(inbound: Inbound, client: InboundClient): string {
   const stream = parseInboundStreamSettings(inbound);
   const payload = {
@@ -553,6 +667,25 @@ function randomLowerToken(length: number): string {
     token += alphabet[Math.floor(Math.random() * alphabet.length)];
   }
   return token;
+}
+
+function randomUuid(): string {
+  if (crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (token) => {
+    const value = Math.floor(Math.random() * 16);
+    const digit = token === 'x' ? value : (value & 0x3) | 0x8;
+    return digit.toString(16);
+  });
+}
+
+function appendSubscriptionId(base: string, subId: string): string {
+  const trimmed = base.trim();
+  if (!trimmed) {
+    return '';
+  }
+  return `${trimmed}${subId}`;
 }
 
 function hasSettingsText(

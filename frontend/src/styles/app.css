@@ -815,6 +815,22 @@ a,
   margin-top: 10px;
 }
 
+.qr-link-card {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--brand-border-soft);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.qr-canvas {
+  width: 220px;
+  height: 220px;
+  max-width: 100%;
+}
+
 .full-width {
   width: 100%;
 }
