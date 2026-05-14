@@ -1421,7 +1421,7 @@ import {
   updateInbound,
   updateInboundClient,
 } from '@/api/inbounds';
-import { getAllSettings } from '@/api/settings';
+import { getAllSettings, getDefaultSettings } from '@/api/settings';
 import PageHeader from '@/components/PageHeader.vue';
 import FormSection from '@/components/FormSection.vue';
 import StatusTile from '@/components/StatusTile.vue';
@@ -1463,6 +1463,7 @@ import {
   getShadowsocksMethod,
   isShadowsocks2022Method,
   isSingleUserShadowsocks2022,
+  mergeSubscriptionEndpointDefaults,
   parseInboundSettings,
   parseInboundSniffingSettings,
   parseInboundStreamSettings,
@@ -4175,7 +4176,14 @@ async function ensureSubscriptionSettingsLoaded(): Promise<SubscriptionLinkSetti
   error.value = '';
   try {
     const payload = await getAllSettings({ notifyOnError: false });
-    subscriptionSettings.value = pickSubscriptionSettings(payload);
+    let settings = pickSubscriptionSettings(payload);
+    if (hasMissingEnabledSubscriptionEndpoint(settings)) {
+      const defaults = pickSubscriptionSettings(
+        await getDefaultSettings({ notifyOnError: false }),
+      );
+      settings = mergeSubscriptionEndpointDefaults(settings, defaults);
+    }
+    subscriptionSettings.value = settings;
     return subscriptionSettings.value;
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : 'Failed to load subscription settings';
@@ -4183,6 +4191,14 @@ async function ensureSubscriptionSettingsLoaded(): Promise<SubscriptionLinkSetti
   } finally {
     loadingSubscriptionSettings.value = false;
   }
+}
+
+function hasMissingEnabledSubscriptionEndpoint(settings: SubscriptionLinkSettings): boolean {
+  return Boolean(
+    (settings.subEnable && !settings.subURI.trim()) ||
+      (settings.subJsonEnable && !settings.subJsonURI.trim()) ||
+      (settings.subClashEnable && !settings.subClashURI.trim()),
+  );
 }
 
 function formatSubscriptionPreview(

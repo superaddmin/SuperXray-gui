@@ -5,6 +5,7 @@ import {
   buildClientSubscriptionLinks,
   buildInboundShareLinks,
   generateBulkClientProfiles,
+  mergeSubscriptionEndpointDefaults,
 } from '../src/utils/inboundCompat.ts';
 
 test('buildClientSubscriptionLinks returns enabled subscription endpoints for a client subId', () => {
@@ -73,6 +74,33 @@ test('buildClientSubscriptionLinks returns empty when subscription is disabled o
     ),
     [],
   );
+});
+
+test('mergeSubscriptionEndpointDefaults fills enabled blank subscription URIs', () => {
+  const settings = mergeSubscriptionEndpointDefaults(
+    {
+      subEnable: true,
+      subJsonEnable: false,
+      subClashEnable: true,
+      subURI: '',
+      subJsonURI: '',
+      subClashURI: '',
+    },
+    {
+      subURI: 'https://example.com/sub/',
+      subJsonURI: 'https://example.com/json/',
+      subClashURI: 'https://example.com/clash/',
+    },
+  );
+
+  assert.deepEqual(settings, {
+    subEnable: true,
+    subJsonEnable: false,
+    subClashEnable: true,
+    subURI: 'https://example.com/sub/',
+    subJsonURI: '',
+    subClashURI: 'https://example.com/clash/',
+  });
 });
 
 test('buildInboundShareLinks exports single-user Shadowsocks links like legacy UI', () => {

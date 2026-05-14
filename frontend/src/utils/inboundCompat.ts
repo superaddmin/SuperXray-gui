@@ -28,6 +28,19 @@ export interface SubscriptionLinkItem {
   url: string;
 }
 
+export function mergeSubscriptionEndpointDefaults(
+  settings: SubscriptionEndpointSettings,
+  defaults: Partial<SubscriptionEndpointSettings>,
+): SubscriptionEndpointSettings {
+  return {
+    ...settings,
+    subURI: settings.subURI || (settings.subEnable ? defaults.subURI || '' : ''),
+    subJsonURI: settings.subJsonURI || (settings.subJsonEnable ? defaults.subJsonURI || '' : ''),
+    subClashURI:
+      settings.subClashURI || (settings.subClashEnable ? defaults.subClashURI || '' : ''),
+  };
+}
+
 interface ShareLinkBuildOptions {
   address?: string;
   port?: number;

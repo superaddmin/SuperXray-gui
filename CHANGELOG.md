@@ -2,6 +2,16 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.11] - 2026-05-14
+
+### Fixed
+
+- 修复新 UI 入站“导出订阅”在订阅开关已启用但公开 URI 尚未保存时提示 `No subscription links are available for this inbound` 的问题，自动复用后端默认订阅地址生成逻辑。
+
+### Changed
+
+- 同步发布版本到 `3.0.11`，并重新生成嵌入式前端构建产物。
+
 ## [3.0.10] - 2026-05-14
 
 ### Added
