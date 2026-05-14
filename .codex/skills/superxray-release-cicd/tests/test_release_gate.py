@@ -29,8 +29,8 @@ class ReleaseMetadataTests(unittest.TestCase):
         subprocess.run(["git", "add", "."], cwd=root, check=True, stdout=subprocess.DEVNULL)
         return root
 
-    def make_gate(self, root: pathlib.Path):
-        args = argparse.Namespace(tag="v3.0.8", install_tools=False, allow_dirty=True, ci=False)
+    def make_gate(self, root: pathlib.Path, tag: str = "v3.0.8"):
+        args = argparse.Namespace(tag=tag, install_tools=False, allow_dirty=True, ci=False)
         return release_gate.Gate(root, args)
 
     def base_files(self) -> dict[str, str]:
@@ -57,6 +57,19 @@ class ReleaseMetadataTests(unittest.TestCase):
         files["README.zh_CN.md"] = "Install v3.0.7.\n"
         with self.assertRaisesRegex(RuntimeError, "stale version references"):
             self.make_gate(self.make_repo(files)).check_release_metadata()
+
+    def test_release_metadata_does_not_match_current_version_prefixes(self) -> None:
+        files = {
+            "CHANGELOG.md": (
+                "# CHANGELOG\n\n"
+                "## [3.0.10]\n\n- Current.\n\n"
+                "## [3.0.9]\n\n- Previous.\n\n"
+                "## [3.0.1]\n\n- Historical.\n"
+            ),
+            "config/version": "3.0.10\n",
+            "README.md": "Install v3.0.10.\n",
+        }
+        self.make_gate(self.make_repo(files), tag="v3.0.10").check_release_metadata()
 
     def test_release_workflow_runs_reusable_metadata_gate(self) -> None:
         release_workflow = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text(

@@ -18,8 +18,36 @@
           <template #icon><PlusOutlined /></template>
           Import JSON
         </AButton>
+        <AButton :disabled="inbounds.length === 0" @click="exportAllInboundShareLinks">
+          <template #icon><CopyOutlined /></template>
+          Export All
+        </AButton>
+        <AButton
+          :disabled="inbounds.length === 0"
+          :loading="loadingSubscriptionSettings"
+          @click="exportAllInboundSubscriptionLinks"
+        >
+          <template #icon><LinkOutlined /></template>
+          导出全部订阅
+        </AButton>
         <AButton danger :loading="resettingAllTraffic" @click="confirmResetAllInboundTraffic">
           Reset All Traffic
+        </AButton>
+        <AButton
+          danger
+          :loading="resettingAllClientTraffic"
+          @click="confirmResetAllInboundClientTraffic"
+        >
+          <template #icon><ReloadOutlined /></template>
+          Reset All Clients
+        </AButton>
+        <AButton
+          danger
+          :loading="deletingAllDepletedClients"
+          @click="confirmDeleteAllDepletedClients"
+        >
+          <template #icon><DeleteOutlined /></template>
+          Delete Depleted
         </AButton>
         <AButton @click="openGatewayProxyTemplate('mixed')">
           <template #icon><PlusOutlined /></template>
@@ -143,11 +171,11 @@
               </AButton>
               <AButton
                 size="small"
-                :disabled="inboundClientCount(record) === 0"
+                :disabled="inboundShareExportDisabled(record)"
                 @click="exportInboundShareLinks(asInbound(record))"
               >
                 <template #icon><CopyOutlined /></template>
-                Export
+                导出链接
               </AButton>
               <AButton
                 size="small"
@@ -155,7 +183,27 @@
                 @click="exportInboundSubscriptionLinks(asInbound(record))"
               >
                 <template #icon><LinkOutlined /></template>
-                Subs
+                导出订阅
+              </AButton>
+              <AButton size="small" @click="exportInboundJson(asInbound(record))">
+                <template #icon><CopyOutlined /></template>
+                JSON
+              </AButton>
+              <AButton
+                size="small"
+                :disabled="inboundShareExportDisabled(record)"
+                @click="openInboundQrcode(asInbound(record))"
+              >
+                <template #icon><QrcodeOutlined /></template>
+                QR
+              </AButton>
+              <AButton
+                size="small"
+                :loading="busyInboundId === record.id"
+                @click="confirmResetInboundTraffic(asInbound(record))"
+              >
+                <template #icon><ReloadOutlined /></template>
+                Reset
               </AButton>
               <AButton size="small" @click="confirmCloneInbound(asInbound(record))">
                 <template #icon><BlockOutlined /></template>
@@ -287,7 +335,7 @@
                 Bulk Add
               </AButton>
               <AButton
-                :disabled="!selectedClientRows.length"
+                :disabled="selectedInbound ? inboundShareExportDisabled(selectedInbound) : true"
                 @click="exportInboundShareLinks(selectedInbound)"
               >
                 <template #icon><CopyOutlined /></template>
@@ -446,10 +494,16 @@
               <p class="page-eyebrow">Export</p>
               <h2>{{ sharePreviewTitle }}</h2>
             </div>
-            <AButton @click="copySharePreview">
-              <template #icon><CopyOutlined /></template>
-              Copy
-            </AButton>
+            <ASpace wrap>
+              <AButton @click="copySharePreview">
+                <template #icon><CopyOutlined /></template>
+                Copy
+              </AButton>
+              <AButton @click="downloadSharePreview">
+                <template #icon><DownloadOutlined /></template>
+                Download
+              </AButton>
+            </ASpace>
           </div>
           <textarea class="json-editor compact-json-editor" readonly :value="sharePreview" />
         </ACard>
@@ -895,7 +949,9 @@
                 <AInput v-model:value="inboundClientEditor.auth" />
                 <AButton
                   @click="
-                    inboundClientEditor.auth = generateClientCredential(inboundClientEditor.protocol)
+                    inboundClientEditor.auth = generateClientCredential(
+                      inboundClientEditor.protocol,
+                    )
                   "
                 >
                   Generate
@@ -915,7 +971,11 @@
               />
             </AFormItem>
             <AFormItem label="Traffic Limit GB">
-              <AInputNumber v-model:value="inboundClientEditor.totalGB" :min="0" class="full-width" />
+              <AInputNumber
+                v-model:value="inboundClientEditor.totalGB"
+                :min="0"
+                class="full-width"
+              />
             </AFormItem>
             <AFormItem label="Expiry Timestamp">
               <AInputNumber
@@ -925,7 +985,11 @@
               />
             </AFormItem>
             <AFormItem label="IP Limit">
-              <AInputNumber v-model:value="inboundClientEditor.limitIp" :min="0" class="full-width" />
+              <AInputNumber
+                v-model:value="inboundClientEditor.limitIp"
+                :min="0"
+                class="full-width"
+              />
             </AFormItem>
             <AFormItem label="Reset Days">
               <AInputNumber v-model:value="inboundClientEditor.reset" :min="0" class="full-width" />
@@ -1125,7 +1189,11 @@
           <StatusTile
             label="Subscription"
             :value="clientAccessClient.subId || '-'"
-            :hint="formatTimestamp(clientAccessClient.traffic?.expiryTime ?? clientAccessClient.expiryTime)"
+            :hint="
+              formatTimestamp(
+                clientAccessClient.traffic?.expiryTime ?? clientAccessClient.expiryTime,
+              )
+            "
           />
           <StatusTile
             label="Usage"
@@ -1146,26 +1214,34 @@
         </div>
 
         <div v-if="clientAccessLinks.length === 0" class="form-section">
-          <AAlert
-            message="No access links are available for this client."
-            show-icon
-            type="info"
-          />
+          <AAlert message="No access links are available for this client." show-icon type="info" />
         </div>
 
         <div v-else class="client-link-grid">
-          <div v-for="(item, index) in clientAccessLinks" :key="`${item.kind}-${item.label}`" class="client-link-card">
+          <div
+            v-for="(item, index) in clientAccessLinks"
+            :key="`${item.kind}-${item.label}`"
+            class="client-link-card"
+          >
             <div class="client-link-title-row">
               <div>
                 <strong>{{ item.label }}</strong>
-                <p class="muted-text">{{ item.kind === 'share' ? 'Share link' : 'Subscription endpoint' }}</p>
+                <p class="muted-text">
+                  {{ item.kind === 'share' ? 'Share link' : 'Subscription endpoint' }}
+                </p>
               </div>
-              <span class="client-link-format">{{ item.kind === 'share' ? 'Link' : 'Subscription' }}</span>
+              <span class="client-link-format">{{
+                item.kind === 'share' ? 'Link' : 'Subscription'
+              }}</span>
             </div>
             <AInput :value="item.url" readonly />
             <ASpace class="client-link-actions" wrap>
               <AButton size="small" @click="copyClientAccessLink(item.url)">Copy</AButton>
-              <AButton size="small" :disabled="!isOpenablePublicLink(item.url)" @click="openPublicAccessLink(item.url)">
+              <AButton
+                size="small"
+                :disabled="!isOpenablePublicLink(item.url)"
+                @click="openPublicAccessLink(item.url)"
+              >
                 Open
               </AButton>
             </ASpace>
@@ -1234,7 +1310,12 @@
       <AForm layout="vertical">
         <div class="form-grid">
           <AFormItem label="Quantity">
-            <AInputNumber v-model:value="bulkClientForm.quantity" :min="1" :max="500" class="full-width" />
+            <AInputNumber
+              v-model:value="bulkClientForm.quantity"
+              :min="1"
+              :max="500"
+              class="full-width"
+            />
           </AFormItem>
           <AFormItem label="First Index">
             <AInputNumber v-model:value="bulkClientForm.firstIndex" :min="1" class="full-width" />
@@ -1293,6 +1374,7 @@ import {
   BlockOutlined,
   CopyOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   EditOutlined,
   EyeOutlined,
   LinkOutlined,
@@ -1365,6 +1447,7 @@ import {
   SHADOWSOCKS_METHOD_OPTIONS,
   buildClientShareLink,
   buildClientSubscriptionLinks,
+  buildInboundShareLinks,
   defaultInboundSettings,
   defaultSniffingSettings,
   defaultStreamSettings,
@@ -1390,7 +1473,7 @@ import {
   normalizeRealityServerSettings,
   validateRealityServerSettings,
 } from '@/utils/realitySettings';
-import { copyText } from '@/utils/textExport';
+import { copyText, downloadText } from '@/utils/textExport';
 
 type InboundModalMode = 'create' | 'edit';
 type ClientModalMode = 'create' | 'edit';
@@ -1572,6 +1655,7 @@ const detailOpen = ref(false);
 const selectedInbound = ref<Inbound | null>(null);
 const sharePreview = ref('');
 const sharePreviewTitle = ref('Share Links');
+const sharePreviewFilename = ref('inbounds-export.txt');
 const inboundModalOpen = ref(false);
 const inboundModalMode = ref<InboundModalMode>('create');
 const savingInbound = ref(false);
@@ -1580,6 +1664,7 @@ const importModalOpen = ref(false);
 const importInboundText = ref('');
 const importingInbound = ref(false);
 const resettingAllTraffic = ref(false);
+const resettingAllClientTraffic = ref(false);
 const clientModalOpen = ref(false);
 const clientModalMode = ref<ClientModalMode>('create');
 const clientInbound = ref<Inbound | null>(null);
@@ -1588,6 +1673,7 @@ const savingClient = ref(false);
 const busyClient = ref(false);
 const busyClientKey = ref('');
 const deletingDepletedClients = ref(false);
+const deletingAllDepletedClients = ref(false);
 const onlineClients = ref<string[]>([]);
 const lastOnlineMap = ref<Record<string, number>>({});
 const loadingActivity = ref(false);
@@ -1837,13 +1923,14 @@ const copyClientRowSelection = computed(() => ({
 const inboundModalTitle = computed(() =>
   inboundModalMode.value === 'create' ? 'New Inbound' : 'Edit Inbound',
 );
-const inboundClientSectionVisible = computed(() =>
-  protocolSupportsClients(inboundEditor.protocol) && inboundEditor.protocol !== 'wireguard',
+const inboundClientSectionVisible = computed(
+  () => protocolSupportsClients(inboundEditor.protocol) && inboundEditor.protocol !== 'wireguard',
 );
-const inboundVlessFlowVisible = computed(() =>
-  inboundEditor.protocol === 'vless' &&
-  streamEditor.network === 'tcp' &&
-  (streamEditor.security === 'tls' || streamEditor.security === 'reality'),
+const inboundVlessFlowVisible = computed(
+  () =>
+    inboundEditor.protocol === 'vless' &&
+    streamEditor.network === 'tcp' &&
+    (streamEditor.security === 'tls' || streamEditor.security === 'reality'),
 );
 const gatewayProxyUris = computed<GatewayProxyUriItem[]>(() => {
   if (inboundEditor.protocol !== 'mixed' && inboundEditor.protocol !== 'http') {
@@ -2195,12 +2282,86 @@ async function runResetAllInboundTraffic() {
   }
 }
 
+function confirmResetAllInboundClientTraffic() {
+  AModal.confirm({
+    title: 'Reset all client traffic?',
+    content: 'This resets every client traffic counter through the existing Xray API.',
+    okButtonProps: { danger: true },
+    okText: 'Reset All Clients',
+    onOk: runResetAllInboundClientTraffic,
+  });
+}
+
+async function runResetAllInboundClientTraffic() {
+  resettingAllClientTraffic.value = true;
+  error.value = '';
+  try {
+    await resetAllInboundClientTraffics(-1, { notifyOnError: false });
+    void message.success('All client traffic reset');
+    await refreshInbounds();
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : 'Failed to reset all client traffic';
+  } finally {
+    resettingAllClientTraffic.value = false;
+  }
+}
+
+function confirmDeleteAllDepletedClients() {
+  AModal.confirm({
+    title: 'Delete all depleted clients?',
+    content: 'Clients that exhausted their traffic limit will be removed from all inbounds.',
+    okButtonProps: { danger: true },
+    okText: 'Delete Depleted',
+    onOk: runDeleteAllDepletedClients,
+  });
+}
+
+async function runDeleteAllDepletedClients() {
+  deletingAllDepletedClients.value = true;
+  error.value = '';
+  try {
+    await deleteDepletedInboundClients(-1, { notifyOnError: false });
+    void message.success('All depleted clients deleted');
+    await refreshInbounds();
+  } catch (caught) {
+    error.value =
+      caught instanceof Error ? caught.message : 'Failed to delete all depleted clients';
+  } finally {
+    deletingAllDepletedClients.value = false;
+  }
+}
+
+function confirmResetInboundTraffic(inbound: Inbound) {
+  AModal.confirm({
+    title: `Reset traffic for ${inbound.remark || inbound.tag || inbound.id}?`,
+    content: 'This resets the selected inbound up/down counters.',
+    okButtonProps: { danger: true },
+    okText: 'Reset',
+    onOk: () => runResetInboundTraffic(inbound),
+  });
+}
+
+async function runResetInboundTraffic(inbound: Inbound) {
+  busyInboundId.value = inbound.id;
+  error.value = '';
+  try {
+    await updateInbound(inbound.id, { ...inbound, up: 0, down: 0 }, { notifyOnError: false });
+    void message.success('Inbound traffic reset');
+    await refreshInbounds();
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : 'Failed to reset inbound traffic';
+  } finally {
+    busyInboundId.value = null;
+  }
+}
+
 function openInboundDetail(record: Inbound | Record<string, unknown>) {
   const inbound = asInbound(record);
   selectedInbound.value = inbound;
   selectedClientRowKeys.value = [];
   sharePreviewTitle.value = 'Share Links';
   sharePreview.value = '';
+  sharePreviewFilename.value = 'inbounds-export.txt';
   detailOpen.value = true;
 }
 
@@ -2233,7 +2394,8 @@ function openBulkAddClientsModal(inbound: Inbound | null) {
 function confirmCloneInbound(inbound: Inbound) {
   AModal.confirm({
     title: `Clone ${inbound.remark || inbound.tag || inbound.id}?`,
-    content: 'The clone keeps protocol, stream, sniffing, and limits, but starts with a fresh port and empty client list.',
+    content:
+      'The clone keeps protocol, stream, sniffing, and limits, but starts with a fresh port and empty client list.',
     okText: 'Clone',
     onOk: () => runCloneInbound(inbound),
   });
@@ -2677,6 +2839,9 @@ async function previewShareLink(
   const link = buildClientShareLink(inbound, row);
   sharePreviewTitle.value = 'Share Link';
   sharePreview.value = link;
+  sharePreviewFilename.value = safeExportFilename(
+    `${inbound.remark || inbound.tag || 'inbound'}-${row.email || row.key}`,
+  );
   if (!link) {
     error.value = 'Share link is only available for supported clients with complete credentials';
     return;
@@ -2712,30 +2877,29 @@ async function openClientAccessModal(record: ClientRow | Record<string, unknown>
   await renderClientAccessQrs();
 }
 
-async function exportClientLinks(inbound: Inbound | null, rows: ClientRow[]) {
-  if (!inbound) {
-    return;
-  }
-  const links = rows
-    .map((row) => buildClientShareLink(inbound, row))
-    .filter((link) => link.trim().length > 0);
-  if (links.length === 0) {
-    error.value = 'No share links are available for the selected clients';
-    sharePreview.value = '';
-    return;
-  }
-  const text = links.join('\n');
-  sharePreviewTitle.value = 'Share Links';
-  sharePreview.value = text;
-  await copyText(text);
-  void message.success(`${links.length} share links copied`);
-}
-
 async function exportInboundShareLinks(inbound: Inbound | null) {
   if (!inbound) {
     return;
   }
-  await exportClientLinks(inbound, buildClientRows(inbound));
+  const links = buildInboundShareLinks(inbound);
+  await presentSharePreview({
+    emptyError: 'No share links are available for this inbound',
+    filename: safeExportFilename(inbound.remark || inbound.tag || `inbound-${inbound.id}`),
+    messageText: `${links.length} share links copied`,
+    text: links.join('\n'),
+    title: 'Share Links',
+  });
+}
+
+async function exportAllInboundShareLinks() {
+  const links = inbounds.value.flatMap((inbound) => buildInboundShareLinks(inbound));
+  await presentSharePreview({
+    emptyError: 'No share links are available for current inbounds',
+    filename: 'All-Inbounds.txt',
+    messageText: `${links.length} share links copied`,
+    text: links.join('\n'),
+    title: 'All Share Links',
+  });
 }
 
 async function exportInboundSubscriptionLinks(inbound: Inbound | null) {
@@ -2759,14 +2923,98 @@ async function exportInboundSubscriptionLinks(inbound: Inbound | null) {
   if (blocks.length === 0) {
     error.value = 'No subscription links are available for this inbound';
     sharePreview.value = '';
+    sharePreviewFilename.value = safeExportFilename(
+      `${inbound.remark || inbound.tag || `inbound-${inbound.id}`}-Subs`,
+    );
     return;
   }
 
   const text = blocks.join('\n\n');
   sharePreviewTitle.value = 'Subscription Links';
   sharePreview.value = text;
+  sharePreviewFilename.value = safeExportFilename(
+    `${inbound.remark || inbound.tag || `inbound-${inbound.id}`}-Subs`,
+  );
   await copyText(text);
   void message.success(`${blocks.length} client subscription link groups copied`);
+}
+
+async function exportAllInboundSubscriptionLinks() {
+  const settings = await ensureSubscriptionSettingsLoaded();
+  if (!settings) {
+    return;
+  }
+
+  const links = inbounds.value.flatMap((inbound) =>
+    buildClientRows(inbound).flatMap((row) =>
+      buildClientSubscriptionLinks(row, settings).map((link) => link.url),
+    ),
+  );
+  const uniqueLinks = [...new Set(links)].filter((link) => link.trim().length > 0);
+  await presentSharePreview({
+    emptyError: 'No subscription links are available for current inbounds',
+    filename: 'All-Inbounds-Subs.txt',
+    messageText: `${uniqueLinks.length} subscription links copied`,
+    text: uniqueLinks.join('\n'),
+    title: 'All Subscription Links',
+  });
+}
+
+async function exportInboundJson(inbound: Inbound) {
+  const text = JSON.stringify(inbound, null, 2);
+  sharePreviewTitle.value = 'Inbound JSON';
+  sharePreview.value = text;
+  sharePreviewFilename.value = safeExportFilename(
+    inbound.remark || inbound.tag || `inbound-${inbound.id}`,
+    'json',
+  );
+  await copyText(text);
+  void message.success('Inbound JSON copied');
+}
+
+async function openInboundQrcode(inbound: Inbound) {
+  const links = buildInboundShareLinks(inbound);
+  if (links.length === 0) {
+    error.value = 'No share links are available for this inbound';
+    return;
+  }
+
+  selectedInbound.value = inbound;
+  clientAccessClient.value = {
+    key: `inbound-${inbound.id}`,
+    email: inbound.remark || inbound.tag || `Inbound ${inbound.id}`,
+    enable: inbound.enable,
+    subId: '',
+  };
+  clientAccessLinks.value = links.map((url, index) => ({
+    kind: 'share',
+    label: links.length === 1 ? 'Share Link' : `Share Link ${index + 1}`,
+    url,
+  }));
+  clientAccessTitle.value = `Inbound Access - ${inbound.remark || inbound.tag || inbound.id}`;
+  clientAccessModalOpen.value = true;
+  await renderClientAccessQrs();
+}
+
+async function presentSharePreview(input: {
+  emptyError: string;
+  filename: string;
+  messageText: string;
+  text: string;
+  title: string;
+}) {
+  if (!input.text.trim()) {
+    error.value = input.emptyError;
+    sharePreview.value = '';
+    sharePreviewFilename.value = input.filename;
+    return;
+  }
+
+  sharePreviewTitle.value = input.title;
+  sharePreview.value = input.text;
+  sharePreviewFilename.value = input.filename;
+  await copyText(input.text);
+  void message.success(input.messageText);
 }
 
 async function submitCopyClients() {
@@ -2791,7 +3039,9 @@ async function submitCopyClients() {
       },
       { notifyOnError: false },
     );
-    const addedCount = Array.isArray(result.added) ? result.added.length : copySelectedSourceRows.value.length;
+    const addedCount = Array.isArray(result.added)
+      ? result.added.length
+      : copySelectedSourceRows.value.length;
     if (Array.isArray(result.errors) && result.errors.length > 0) {
       error.value = result.errors.join('; ');
     }
@@ -2862,6 +3112,14 @@ async function copySharePreview() {
   }
   await copyText(sharePreview.value);
   void message.success('Copied');
+}
+
+function downloadSharePreview() {
+  if (!sharePreview.value) {
+    return;
+  }
+  downloadText(sharePreviewFilename.value, sharePreview.value);
+  void message.success('Downloaded');
 }
 
 async function copyClientAccessLink(uri: string) {
@@ -3616,6 +3874,10 @@ function inboundClientCount(record: Inbound | Record<string, unknown>): number {
   return getInboundClients(inbound).length;
 }
 
+function inboundShareExportDisabled(record: Inbound | Record<string, unknown>): boolean {
+  return buildInboundShareLinks(asInbound(record)).length === 0;
+}
+
 function formatTraffic(up: number, down: number, total: number): string {
   const used = Math.max(0, Number(up || 0) + Number(down || 0));
   return `${formatBytes(used)} / ${formatLimit(total)}`;
@@ -3886,6 +4148,19 @@ function pickSubscriptionSettings(payload: PanelSettings): SubscriptionLinkSetti
     subJsonURI: payload.subJsonURI,
     subClashURI: payload.subClashURI,
   };
+}
+
+function safeExportFilename(value: string, extension = 'txt'): string {
+  const withoutControls = Array.from(value)
+    .filter((char) => char.charCodeAt(0) >= 32)
+    .join('');
+  const stem = withoutControls
+    .trim()
+    .replace(/[<>:"/\\|?*]/g, '-')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+  return `${stem || 'inbounds-export'}.${extension}`;
 }
 
 async function ensureSubscriptionSettingsLoaded(): Promise<SubscriptionLinkSettings | null> {

@@ -24,6 +24,11 @@ SECRET_PATTERNS = [
 ]
 
 
+def version_reference_pattern(version: str) -> str:
+    escaped = re.escape(version)
+    return rf"(^|[^0-9A-Za-z.])v?{escaped}([^0-9A-Za-z-]|$)"
+
+
 class Gate:
     def __init__(self, root: pathlib.Path, args: argparse.Namespace) -> None:
         self.root = root
@@ -162,9 +167,7 @@ class Gate:
         changelog_versions = re.findall(r"^## \[([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)\]", changelog_text, re.M)
         stale_versions = [entry for entry in changelog_versions if entry != version]
         if stale_versions:
-            stale_pattern = "|".join(
-                f"{re.escape(entry)}|v{re.escape(entry)}" for entry in stale_versions
-            )
+            stale_pattern = "|".join(version_reference_pattern(entry) for entry in stale_versions)
             stale_result = subprocess.run(
                 [
                     "git",
@@ -414,7 +417,14 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def configure_output_encoding() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
+
 def main() -> int:
+    configure_output_encoding()
     args = parse_args()
     root = find_root(pathlib.Path.cwd().resolve())
     return Gate(root, args).run()

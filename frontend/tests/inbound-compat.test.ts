@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildClientSubscriptionLinks, generateBulkClientProfiles } from '../src/utils/inboundCompat.ts';
+import {
+  buildClientSubscriptionLinks,
+  buildInboundShareLinks,
+  generateBulkClientProfiles,
+} from '../src/utils/inboundCompat.ts';
 
 test('buildClientSubscriptionLinks returns enabled subscription endpoints for a client subId', () => {
   const links = buildClientSubscriptionLinks(
@@ -69,6 +73,54 @@ test('buildClientSubscriptionLinks returns empty when subscription is disabled o
     ),
     [],
   );
+});
+
+test('buildInboundShareLinks exports single-user Shadowsocks links like legacy UI', () => {
+  const links = buildInboundShareLinks({
+    protocol: 'shadowsocks',
+    remark: 'single-ss',
+    listen: '203.0.113.10',
+    port: 8388,
+    settings: JSON.stringify({
+      method: '2022-blake3-chacha20-poly1305',
+      password: 'server-secret',
+      network: 'tcp,udp',
+      clients: [],
+    }),
+    streamSettings: JSON.stringify({ network: 'tcp', security: 'none', externalProxy: [] }),
+  } as never);
+
+  assert.equal(links.length, 1);
+  assert.match(links[0], /^ss:\/\//);
+  assert.match(links[0], /203\.0\.113\.10:8388/);
+  assert.match(links[0], /#single-ss/);
+});
+
+test('buildInboundShareLinks preserves external proxy export rows', () => {
+  const links = buildInboundShareLinks({
+    protocol: 'vless',
+    remark: 'edge',
+    listen: '0.0.0.0',
+    port: 443,
+    settings: JSON.stringify({
+      clients: [{ id: '11111111-1111-4111-8111-111111111111', email: 'alice' }],
+      decryption: 'none',
+    }),
+    streamSettings: JSON.stringify({
+      network: 'tcp',
+      security: 'reality',
+      externalProxy: [{ remark: 'cdn', dest: 'cdn.example.com', port: 8443, forceTls: 'same' }],
+      realitySettings: {
+        settings: { publicKey: 'pub', fingerprint: 'chrome', spiderX: '/' },
+        serverNames: ['www.apple.com'],
+        shortIds: ['abcd'],
+      },
+    }),
+  } as never);
+
+  assert.equal(links.length, 1);
+  assert.match(links[0], /cdn\.example\.com:8443/);
+  assert.match(links[0], /#edge-alice-cdn/);
 });
 
 test('generateBulkClientProfiles creates sequential client emails and unique ids', () => {

@@ -9,13 +9,22 @@ test('new inbound form exposes default client flow fields for VLESS Vision', () 
   assert.match(source, /v-if="inboundVlessFlowVisible" label="Flow"/);
   assert.match(source, /v-model:value="inboundClientEditor\.flow"/);
   assert.match(source, /streamEditor\.network === 'tcp'/);
-  assert.match(source, /streamEditor\.security === 'tls' \|\| streamEditor\.security === 'reality'/);
+  assert.match(
+    source,
+    /streamEditor\.security === 'tls' \|\| streamEditor\.security === 'reality'/,
+  );
 });
 
 test('new inbound submit syncs default client into settings JSON', () => {
-  assert.match(source, /if \(inboundClientSectionVisible\.value\) \{\s*applyInboundClientEditorToSettings\(\);\s*\}/);
+  assert.match(
+    source,
+    /if \(inboundClientSectionVisible\.value\) \{\s*applyInboundClientEditorToSettings\(\);\s*\}/,
+  );
   assert.match(source, /function applyInboundClientEditorToSettings\(\)/);
-  assert.match(source, /settings\.clients = \[\{ \.\.\.existingClient, \.\.\.client \}, \.\.\.clients\.slice\(1\)\]/);
+  assert.match(
+    source,
+    /settings\.clients = \[\{ \.\.\.existingClient, \.\.\.client \}, \.\.\.clients\.slice\(1\)\]/,
+  );
   assert.match(source, /client\.flow = editor\.flow \|\| ''/);
 });
 
@@ -91,7 +100,23 @@ test('inbounds detail keeps visible share and subscription export actions', () =
 test('inbounds row actions expose direct export entry points', () => {
   assert.match(source, /@click="exportInboundShareLinks\(asInbound\(record\)\)"/);
   assert.match(source, /@click="exportInboundSubscriptionLinks\(asInbound\(record\)\)"/);
-  assert.match(source, />\s*Subs\s*</);
+  assert.match(source, />\s*导出订阅\s*</);
+  assert.match(source, /@click="exportInboundJson\(asInbound\(record\)\)"/);
+  assert.match(source, /@click="openInboundQrcode\(asInbound\(record\)\)"/);
+  assert.match(source, /@click="confirmResetInboundTraffic\(asInbound\(record\)\)"/);
+});
+
+test('inbounds page keeps legacy general action buttons', () => {
+  assert.match(source, /@click="exportAllInboundShareLinks"/);
+  assert.match(source, /@click="exportAllInboundSubscriptionLinks"/);
+  assert.match(source, /@click="confirmResetAllInboundClientTraffic"/);
+  assert.match(source, /@click="confirmDeleteAllDepletedClients"/);
+});
+
+test('inbounds export preview keeps copy and download actions', () => {
+  assert.match(source, /@click="downloadSharePreview"/);
+  assert.match(source, /sharePreviewFilename/);
+  assert.match(source, /downloadText\(sharePreviewFilename\.value, sharePreview\.value\)/);
 });
 
 test('inbounds view exposes client access, copy-clients, and clone flows', () => {

@@ -28,6 +28,19 @@ export interface SubscriptionLinkItem {
   url: string;
 }
 
+interface ShareLinkBuildOptions {
+  address?: string;
+  port?: number;
+  forceTls?: string;
+  remark?: string;
+}
+
+interface ShareLinkTarget extends ShareLinkBuildOptions {
+  address: string;
+  port: number;
+  remark: string;
+}
+
 export interface BulkClientGenerationInput {
   protocol: XrayEditableInboundProtocol;
   quantity: number;
@@ -306,30 +319,53 @@ export function getClientPrimaryId(protocol: string, client: InboundClient): str
   return String(client.id || '');
 }
 
-export function buildClientShareLink(inbound: Inbound, client: InboundClient): string {
+export function buildClientShareLink(
+  inbound: Inbound,
+  client: InboundClient,
+  options: ShareLinkBuildOptions = {},
+): string {
   if (!getClientPrimaryId(inbound.protocol, client)) {
     return '';
   }
 
   if (inbound.protocol === 'vmess') {
-    return buildVmessShareLink(inbound, client);
+    return buildVmessShareLink(inbound, client, options);
   }
   if (inbound.protocol === 'vless') {
-    return buildVlessShareLink(inbound, client);
+    return buildVlessShareLink(inbound, client, options);
   }
   if (inbound.protocol === 'trojan') {
-    return buildTrojanShareLink(inbound, client);
+    return buildTrojanShareLink(inbound, client, options);
   }
   if (inbound.protocol === 'shadowsocks') {
-    return buildShadowsocksShareLink(inbound, client);
+    return buildShadowsocksShareLink(inbound, client, options);
   }
   if (inbound.protocol === 'hysteria' || inbound.protocol === 'hysteria2') {
-    return buildHysteriaShareLink(inbound, client);
+    return buildHysteriaShareLink(inbound, client, options);
   }
   if (inbound.protocol === 'wireguard') {
-    return buildWireguardShareLink(inbound, client);
+    return buildWireguardShareLink(inbound, client, options);
   }
   return '';
+}
+
+export function buildInboundShareLinks(inbound: Inbound): string[] {
+  const targetsForClient = (clientEmail = '') => buildShareLinkTargets(inbound, clientEmail);
+
+  if (
+    inbound.protocol === 'shadowsocks' &&
+    isSingleUserShadowsocks2022(getShadowsocksMethod(inbound))
+  ) {
+    return targetsForClient()
+      .map((target) => buildSingleUserShadowsocksShareLink(inbound, target))
+      .filter(hasText);
+  }
+
+  return getInboundClients(inbound)
+    .flatMap((client) =>
+      targetsForClient(client.email).map((target) => buildClientShareLink(inbound, client, target)),
+    )
+    .filter(hasText);
 }
 
 export function buildClientSubscriptionLinks(
@@ -400,7 +436,9 @@ export function generateBulkClientProfiles(input: BulkClientGenerationInput): In
     }
 
     if (input.protocol === 'shadowsocks') {
-      const method = normalizeShadowsocksMethod(input.shadowsocksMethod || SHADOWSOCKS_DEFAULT_METHOD);
+      const method = normalizeShadowsocksMethod(
+        input.shadowsocksMethod || SHADOWSOCKS_DEFAULT_METHOD,
+      );
       client.password = generateShadowsocksPassword(method);
       if (!isShadowsocks2022Method(method)) {
         client.method = method;
@@ -417,13 +455,18 @@ export function generateBulkClientProfiles(input: BulkClientGenerationInput): In
   });
 }
 
-function buildVmessShareLink(inbound: Inbound, client: InboundClient): string {
+function buildVmessShareLink(
+  inbound: Inbound,
+  client: InboundClient,
+  options: ShareLinkBuildOptions,
+): string {
   const stream = parseInboundStreamSettings(inbound);
+  const security = resolveShareSecurity(stream, options.forceTls);
   const payload = {
     v: '2',
-    ps: client.email || inbound.remark || inbound.tag,
-    add: resolveInboundHost(inbound),
-    port: String(inbound.port),
+    ps: shareLinkRemark(inbound, client, options),
+    add: shareLinkAddress(inbound, options),
+    port: String(shareLinkPort(inbound, options)),
     id: client.id,
     aid: '0',
     scy: client.security || 'auto',
@@ -431,42 +474,60 @@ function buildVmessShareLink(inbound: Inbound, client: InboundClient): string {
     type: 'none',
     host: '',
     path: '',
-    tls: stream.security === 'tls' ? 'tls' : '',
+    tls: security === 'tls' ? 'tls' : '',
     sni: '',
   };
 
   return `vmess://${base64Utf8(JSON.stringify(payload))}`;
 }
 
-function buildVlessShareLink(inbound: Inbound, client: InboundClient): string {
+function buildVlessShareLink(
+  inbound: Inbound,
+  client: InboundClient,
+  options: ShareLinkBuildOptions,
+): string {
   const stream = parseInboundStreamSettings(inbound);
   const params = new URLSearchParams();
   params.set('encryption', 'none');
-  params.set('security', stream.security || 'none');
+  appendSecurityParams(params, stream, resolveShareSecurity(stream, options.forceTls));
   params.set('type', stream.network || 'tcp');
   if (client.flow) {
     params.set('flow', client.flow);
   }
 
-  const label = encodeURIComponent(client.email || inbound.remark || inbound.tag);
-  return `vless://${client.id}@${resolveInboundHost(inbound)}:${inbound.port}?${params.toString()}#${label}`;
+  const label = encodeURIComponent(shareLinkRemark(inbound, client, options));
+  return `vless://${client.id}@${shareLinkAddress(inbound, options)}:${shareLinkPort(
+    inbound,
+    options,
+  )}?${params.toString()}#${label}`;
 }
 
-function buildTrojanShareLink(inbound: Inbound, client: InboundClient): string {
+function buildTrojanShareLink(
+  inbound: Inbound,
+  client: InboundClient,
+  options: ShareLinkBuildOptions,
+): string {
   if (!client.password) {
     return '';
   }
 
   const stream = parseInboundStreamSettings(inbound);
   const params = new URLSearchParams();
-  params.set('security', stream.security || 'none');
+  appendSecurityParams(params, stream, resolveShareSecurity(stream, options.forceTls));
   params.set('type', stream.network || 'tcp');
 
-  const label = encodeURIComponent(client.email || inbound.remark || inbound.tag);
-  return `trojan://${encodeURIComponent(client.password)}@${resolveInboundHost(inbound)}:${inbound.port}?${params.toString()}#${label}`;
+  const label = encodeURIComponent(shareLinkRemark(inbound, client, options));
+  return `trojan://${encodeURIComponent(client.password)}@${shareLinkAddress(
+    inbound,
+    options,
+  )}:${shareLinkPort(inbound, options)}?${params.toString()}#${label}`;
 }
 
-function buildShadowsocksShareLink(inbound: Inbound, client: InboundClient): string {
+function buildShadowsocksShareLink(
+  inbound: Inbound,
+  client: InboundClient,
+  options: ShareLinkBuildOptions,
+): string {
   if (!client.password) {
     return '';
   }
@@ -483,12 +544,38 @@ function buildShadowsocksShareLink(inbound: Inbound, client: InboundClient): str
   }
   passwordParts.push(client.password);
 
-  const label = encodeURIComponent(client.email || inbound.remark || inbound.tag);
+  const label = encodeURIComponent(shareLinkRemark(inbound, client, options));
   const userInfo = base64UrlUtf8(passwordParts.join(':'));
-  return `ss://${userInfo}@${resolveInboundHost(inbound)}:${inbound.port}#${label}`;
+  return `ss://${userInfo}@${shareLinkAddress(inbound, options)}:${shareLinkPort(
+    inbound,
+    options,
+  )}#${label}`;
 }
 
-function buildHysteriaShareLink(inbound: Inbound, client: InboundClient): string {
+function buildSingleUserShadowsocksShareLink(
+  inbound: Inbound,
+  options: ShareLinkBuildOptions,
+): string {
+  const settings = parseInboundSettings(inbound);
+  const method = normalizeShadowsocksMethod(getShadowsocksMethod(settings));
+  const serverPassword = String(settings.password || '');
+  if (!method || !serverPassword) {
+    return '';
+  }
+
+  const label = encodeURIComponent(shareLinkRemark(inbound, undefined, options));
+  const userInfo = base64UrlUtf8(`${method}:${serverPassword}`);
+  return `ss://${userInfo}@${shareLinkAddress(inbound, options)}:${shareLinkPort(
+    inbound,
+    options,
+  )}#${label}`;
+}
+
+function buildHysteriaShareLink(
+  inbound: Inbound,
+  client: InboundClient,
+  options: ShareLinkBuildOptions,
+): string {
   if (!client.auth) {
     return '';
   }
@@ -505,11 +592,18 @@ function buildHysteriaShareLink(inbound: Inbound, client: InboundClient): string
     params.set('alpn', alpn);
   }
 
-  const label = encodeURIComponent(client.email || inbound.remark || inbound.tag);
-  return `hysteria2://${encodeURIComponent(client.auth)}@${resolveInboundHost(inbound)}:${inbound.port}?${params.toString()}#${label}`;
+  const label = encodeURIComponent(shareLinkRemark(inbound, client, options));
+  return `hysteria2://${encodeURIComponent(client.auth)}@${shareLinkAddress(
+    inbound,
+    options,
+  )}:${shareLinkPort(inbound, options)}?${params.toString()}#${label}`;
 }
 
-function buildWireguardShareLink(inbound: Inbound, client: InboundClient): string {
+function buildWireguardShareLink(
+  inbound: Inbound,
+  client: InboundClient,
+  options: ShareLinkBuildOptions,
+): string {
   if (!client.privateKey) {
     return '';
   }
@@ -522,7 +616,9 @@ function buildWireguardShareLink(inbound: Inbound, client: InboundClient): strin
     return '';
   }
 
-  const url = new URL(`wireguard://${resolveInboundHost(inbound)}:${inbound.port}`);
+  const url = new URL(
+    `wireguard://${shareLinkAddress(inbound, options)}:${shareLinkPort(inbound, options)}`,
+  );
   url.username = client.privateKey;
   url.searchParams.set('publickey', serverPublicKey);
   const allowedIp = client.allowedIPs?.find((item) => item.trim());
@@ -538,8 +634,119 @@ function buildWireguardShareLink(inbound: Inbound, client: InboundClient): strin
   if (client.keepAlive) {
     url.searchParams.set('keepalive', String(client.keepAlive));
   }
-  url.hash = encodeURIComponent(client.email || inbound.remark || inbound.tag);
+  url.hash = encodeURIComponent(shareLinkRemark(inbound, client, options));
   return url.toString();
+}
+
+function buildShareLinkTargets(inbound: Inbound, clientEmail: string): ShareLinkTarget[] {
+  const stream = parseInboundStreamSettings(inbound);
+  const proxies = Array.isArray(stream.externalProxy)
+    ? stream.externalProxy.map(normalizeExternalProxy).filter((proxy) => proxy.address)
+    : [];
+
+  if (proxies.length === 0) {
+    return [
+      {
+        address: resolveInboundHost(inbound),
+        port: inbound.port,
+        forceTls: 'same',
+        remark: formatShareRemark(inbound, clientEmail),
+      },
+    ];
+  }
+
+  return proxies.map((proxy) => ({
+    address: proxy.address,
+    port: proxy.port || inbound.port,
+    forceTls: proxy.forceTls || 'same',
+    remark: formatShareRemark(inbound, clientEmail, proxy.remark),
+  }));
+}
+
+function normalizeExternalProxy(value: unknown): {
+  address: string;
+  port: number;
+  forceTls: string;
+  remark: string;
+} {
+  const proxy = asRecord(value);
+  return {
+    address: stringValue(proxy.dest).trim(),
+    port: Number(proxy.port || 0),
+    forceTls: stringValue(proxy.forceTls || 'same'),
+    remark: stringValue(proxy.remark).trim(),
+  };
+}
+
+function formatShareRemark(inbound: Inbound, clientEmail = '', proxyRemark = ''): string {
+  const inboundRemark = inbound.remark || inbound.tag || `inbound-${inbound.port}`;
+  return [inboundRemark, clientEmail, proxyRemark]
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .join('-');
+}
+
+function shareLinkAddress(inbound: Inbound, options: ShareLinkBuildOptions): string {
+  return options.address || resolveInboundHost(inbound);
+}
+
+function shareLinkPort(inbound: Inbound, options: ShareLinkBuildOptions): number {
+  return Number(options.port || inbound.port);
+}
+
+function shareLinkRemark(
+  inbound: Inbound,
+  client: InboundClient | undefined,
+  options: ShareLinkBuildOptions,
+): string {
+  return (
+    options.remark || client?.email || inbound.remark || inbound.tag || `inbound-${inbound.port}`
+  );
+}
+
+function resolveShareSecurity(stream: InboundStreamSettings, forceTls: string | undefined): string {
+  if (forceTls && forceTls !== 'same') {
+    return forceTls;
+  }
+  return stream.security || 'none';
+}
+
+function appendSecurityParams(
+  params: URLSearchParams,
+  stream: InboundStreamSettings,
+  security: string,
+) {
+  params.set('security', security || 'none');
+  if (security === 'tls') {
+    appendTlsParams(params, stream);
+    return;
+  }
+  if (security === 'reality') {
+    appendRealityParams(params, stream);
+  }
+}
+
+function appendTlsParams(params: URLSearchParams, stream: InboundStreamSettings) {
+  const tlsSettings = asRecord(stream.tlsSettings);
+  const tlsClientSettings = asRecord(tlsSettings.settings);
+  setParamIfPresent(params, 'fp', stringValue(tlsClientSettings.fingerprint));
+  setParamIfPresent(params, 'sni', stringValue(tlsSettings.serverName));
+  const alpn = arrayOrCsv(tlsSettings.alpn);
+  if (alpn) {
+    params.set('alpn', alpn);
+  }
+  setParamIfPresent(params, 'ech', stringValue(tlsClientSettings.echConfigList));
+}
+
+function appendRealityParams(params: URLSearchParams, stream: InboundStreamSettings) {
+  const realitySettings = asRecord(stream.realitySettings);
+  const realityClientSettings = asRecord(realitySettings.settings);
+  setParamIfPresent(params, 'pbk', stringValue(realityClientSettings.publicKey));
+  setParamIfPresent(params, 'fp', stringValue(realityClientSettings.fingerprint));
+  setParamIfPresent(params, 'sni', firstValue(realitySettings.serverNames));
+  setParamIfPresent(params, 'sid', firstValue(realitySettings.shortIds));
+  setParamIfPresent(params, 'spx', stringValue(realityClientSettings.spiderX));
+  setParamIfPresent(params, 'pqv', stringValue(realityClientSettings.mldsa65Verify));
 }
 
 function defaultWireguardSettings(): InboundSettings {
@@ -652,6 +859,20 @@ function arrayOrCsv(value: unknown): string {
   return stringValue(value);
 }
 
+function firstValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return (
+      value.find((item): item is string => typeof item === 'string' && item.trim().length > 0) || ''
+    );
+  }
+  return (
+    stringValue(value)
+      .split(',')
+      .find((item) => item.trim().length > 0)
+      ?.trim() || ''
+  );
+}
+
 function normalizeAllowedIp(value: string): string {
   const trimmed = value.trim();
   if (!trimmed || trimmed.includes('/')) {
@@ -696,6 +917,10 @@ function hasSettingsText(
 
 function isInboundClient(value: unknown): value is InboundClient {
   return Boolean(value && typeof value === 'object' && 'email' in value);
+}
+
+function hasText(value: string): boolean {
+  return value.trim().length > 0;
 }
 
 // Ported from the legacy UI so generated WireGuard keys stay legacy-compatible.
