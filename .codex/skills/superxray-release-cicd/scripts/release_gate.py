@@ -22,6 +22,7 @@ SECRET_PATTERNS = [
     re.compile(r"sk-[A-Za-z0-9]{20,}"),
     re.compile(r"-----BEGIN (?:RSA|DSA|EC|OPENSSH) PRIVATE KEY-----"),
 ]
+SHELL_SCRIPTS = ["install.sh", "x-ui.sh", "update.sh", "DockerEntrypoint.sh", "DockerInit.sh"]
 
 
 def version_reference_pattern(version: str) -> str:
@@ -301,8 +302,16 @@ class Gate:
 
     def check_shell_syntax(self) -> None:
         bash = self.bash()
-        for script in ["install.sh", "x-ui.sh", "update.sh", "DockerEntrypoint.sh", "DockerInit.sh"]:
+        for script in SHELL_SCRIPTS:
+            self.check_shell_file_format(script)
             self.command([bash, "-n", script])
+
+    def check_shell_file_format(self, script: str) -> None:
+        data = (self.root / script).read_bytes()
+        if data.startswith(b"\xef\xbb\xbf"):
+            raise RuntimeError(f"{script} must be UTF-8 without BOM so Linux can read the shebang")
+        if b"\r" in data:
+            raise RuntimeError(f"{script} must use LF line endings, not CRLF")
 
     def check_translations(self) -> None:
         for path in sorted((self.root / "web" / "translation").glob("*.toml")):

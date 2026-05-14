@@ -2,6 +2,18 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.12] - 2026-05-15
+
+### Fixed
+
+- 修复 `x-ui.sh` 带 UTF-8 BOM 和 CRLF 换行导致 Linux 服务器直接执行 `x-ui` 时无法稳定打开交互式管理菜单的问题。
+- 将 `update.sh`、`DockerInit.sh` 统一为 LF 换行，避免发布资产中的 shell 脚本在 Linux 环境出现解释器或语法兼容问题。
+
+### Changed
+
+- 发布门禁新增 shell 脚本 BOM/CRLF 检查，防止后续 Release 再次产出无法直接执行的管理脚本。
+- 同步发布版本到 `3.0.12`。
+
 ## [3.0.11] - 2026-05-14
 
 ### Added
