@@ -64,10 +64,10 @@
 - 👥 **客户端管理**：支持多客户端，独立流量限制、过期时间、IP 限制
 - 📊 **实时监控**：流量统计、CPU/内存监控、WebSocket 实时推送
 - 📱 **Telegram Bot**：通过 Bot 管理服务器、接收通知、自动备份
-- 🔗 **订阅服务**：支持 Base64、JSON、Clash/Mihomo 三种订阅格式
+- 🔗 **订阅服务**：支持 Base64、JSON、Clash/Mihomo 三种订阅格式，入站列表可导出单入站或全量订阅链接
 - 🔐 **安全特性**：TOTP 双因素认证、LDAP 集成、fail2ban 防暴力破解
 - 🌐 **国际化**：支持 13 种语言
-- 🔄 **扩展集成**：Cloudflare WARP、NordVPN、自定义 GeoIP/GeoSite
+- 🔄 **扩展集成**：Cloudflare WARP、NordVPN、自定义 GeoIP/GeoSite、Xray 出站健康检测与域名级智能分流配置
 - 🐳 **容器化**：完整的 Docker 支持，一键部署
 
 ---
@@ -245,6 +245,8 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 | Clash | `http://<IP>:2096/clash/<subid>` | Clash/Mihomo | VMess、VLESS、Trojan、Shadowsocks、Hysteria、Hysteria2、WireGuard |
 
 > 订阅输出不包含 Tunnel、HTTP、Mixed、Tun 这类入站规则；它们可作为 Xray 入站配置使用，但不是面向客户端订阅分发的节点类型。Clash/Mihomo 输出中，普通代理协议当前仅生成 TCP、WebSocket、gRPC 传输节点，mKCP、HTTPUpgrade、XHTTP 等传输更适合通过 Xray JSON 或客户端手动配置验证。
+>
+> 默认订阅服务监听 `2096/tcp`，提供 `/sub/`、`/json/`、`/clash/` 三类入口。若直接从公网访问订阅链接，需要在云安全组和系统防火墙放行 `2096/tcp`；更推荐通过 Nginx/Caddy 将订阅路径反向代理到统一的 `443/tcp`。
 
 ### 入站协议能力矩阵
 
@@ -270,7 +272,7 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
-| Go | 1.26.2 | 后端开发语言 |
+| Go | 1.26.3 | 后端开发语言 |
 | Gin | v1.12.0 | HTTP Web 框架 |
 | GORM | v1.31.1 | ORM 框架 |
 | SQLite | - | 嵌入式数据库 |
@@ -470,6 +472,7 @@ x-ui migrate                                # 数据库迁移
 |------|------|
 | [系统架构设计](docs/architecture.md) | 整体架构、数据流、安全设计、实时通信架构 |
 | [部署指南](docs/deployment.md) | Docker/脚本/手动部署、反向代理、故障排查 |
+| [AI 平台智能分流与住宅出口运行手册](docs/ai-routing-and-residential-egress.md) | OpenAI、Claude、Google/Gemini 等 AI 平台域名级分流、住宅 SOCKS 出口、DNS、健康检测和回滚步骤 |
 | [核心模块解析](docs/modules.md) | 每个模块的详细分析、关键代码路径 |
 | [API 接口说明](docs/api.md) | 完整的 REST API 文档、请求/响应示例 |
 | [开发者贡献指南](docs/development.md) | 开发环境搭建、代码规范、测试、CI/CD |

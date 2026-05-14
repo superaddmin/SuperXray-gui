@@ -2,6 +2,8 @@
 
 日期：2026-05-09
 
+> **状态更新（2026-05-15）**：本评审是对 2026-05-09 静态报告的交叉验证，部分风险项已经在后续版本收敛。`v3.0.10` 补齐 Inbounds 全量/单入站分享与订阅导出、二维码、JSON、Clone、Reset 等入口；`v3.0.11` 修复订阅开关启用但公开 URI 未保存时出现 `No subscription links are available for this inbound` 的问题。文内关于这些入口“未迁移”的表述仅保留为历史审计背景。
+
 ## 1. 评审对象与核实边界
 
 本评审基于 `docs/superpowers/reports/2026-05-09-v303-new-ui-functional-comparison.md` 的结论进行二次交叉验证。

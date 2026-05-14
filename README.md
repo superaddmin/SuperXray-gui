@@ -51,7 +51,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
 
 The repository `docker-compose.yml` builds the image from local source. For image-based container deployment, you can switch Compose to `image: ghcr.io/superaddmin/superxray-gui:3.0.11`. Docker startup does not run the one-click installer's random security initialization, so change the default credentials, panel port, and `webBasePath` immediately after the first start.
 
-For deployment details, see [docs/deployment.md](docs/deployment.md). For development and release workflow notes, see [docs/development.md](docs/development.md). The project Wiki remains available at <https://github.com/superaddmin/SuperXray-gui/wiki>.
+For deployment details, see [docs/deployment.md](docs/deployment.md). For AI-platform routing through a dedicated residential egress, see [docs/ai-routing-and-residential-egress.md](docs/ai-routing-and-residential-egress.md). For development and release workflow notes, see [docs/development.md](docs/development.md). The project Wiki remains available at <https://github.com/superaddmin/SuperXray-gui/wiki>.
 
 ## A Special Thanks to
 

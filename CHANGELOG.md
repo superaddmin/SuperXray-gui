@@ -4,6 +4,10 @@
 
 ## [3.0.11] - 2026-05-14
 
+### Added
+
+- 增加 AI 平台智能分流与住宅出口运行手册，覆盖 OpenAI/ChatGPT、Anthropic/Claude、Google/Gemini 的域名级路由、住宅 SOCKS 出口、DNS、健康检测、终端泄漏防护边界和回滚步骤。
+
 ### Fixed
 
 - 修复新 UI 入站“导出订阅”在订阅开关已启用但公开 URI 尚未保存时提示 `No subscription links are available for this inbound` 的问题，自动复用后端默认订阅地址生成逻辑。
@@ -11,6 +15,7 @@
 ### Changed
 
 - 同步发布版本到 `3.0.11`，并重新生成嵌入式前端构建产物。
+- 同步 README、部署指南和架构文档中的当前版本、订阅端口、新 UI 订阅导出能力与 Xray 分流说明。
 
 ## [3.0.10] - 2026-05-14
 
