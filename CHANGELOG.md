@@ -2,6 +2,16 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.9] - 2026-05-14
+
+### Fixed
+
+- 修复新 UI 保存 Reality 入站时允许空 `target` 写入的问题，避免 Xray 因 `please fill in a valid value for "target"` 启动失败。
+
+### Changed
+
+- 同步发布版本到 `3.0.9`，并重新生成嵌入式前端构建产物。
+
 ## [3.0.8] - 2026-05-14
 
 ### Added

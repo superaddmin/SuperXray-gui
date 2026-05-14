@@ -1170,7 +1170,7 @@
               </AButton>
             </ASpace>
             <div class="qr-link-card">
-              <canvas :id="`client-access-qr-${index}`" class="qr-canvas"></canvas>
+              <canvas :id="`client-access-qr-${index}`" class="qr-canvas" />
             </div>
           </div>
         </div>
@@ -1386,6 +1386,10 @@ import {
   resolveInboundHost,
   stringifyJson,
 } from '@/utils/inboundCompat';
+import {
+  normalizeRealityServerSettings,
+  validateRealityServerSettings,
+} from '@/utils/realitySettings';
 import { copyText } from '@/utils/textExport';
 
 type InboundModalMode = 'create' | 'edit';
@@ -3254,24 +3258,41 @@ function applyStreamEditorToSettings() {
     stream.tlsSettings = buildTlsSettings(existingTlsSettings);
   }
   if (security === 'reality') {
-    const serverNames = parseListText(streamEditor.realityServerNames);
+    const reality = normalizeRealityServerSettings({
+      target: streamEditor.realityTarget,
+      serverNames: streamEditor.realityServerNames,
+      privateKey: streamEditor.realityPrivateKey,
+      shortIds: streamEditor.realityShortIds,
+      publicKey: streamEditor.realityPublicKey,
+      spiderX: streamEditor.realitySpiderX,
+      mldsa65Seed: streamEditor.realityMldsa65Seed,
+      mldsa65Verify: streamEditor.realityMldsa65Verify,
+    });
+    streamEditor.realityTarget = reality.target;
+    streamEditor.realityServerNames = reality.serverNames.join(',');
+    streamEditor.realityPrivateKey = reality.privateKey;
+    streamEditor.realityShortIds = reality.shortIds.join(',');
+    streamEditor.realityPublicKey = reality.publicKey;
+    streamEditor.realitySpiderX = reality.spiderX;
+    streamEditor.realityMldsa65Seed = reality.mldsa65Seed;
+    streamEditor.realityMldsa65Verify = reality.mldsa65Verify;
     stream.realitySettings = {
       show: streamEditor.realityShow,
       xver: Math.max(0, Number(streamEditor.realityXver || 0)),
-      target: streamEditor.realityTarget,
-      serverNames,
-      privateKey: streamEditor.realityPrivateKey,
+      target: reality.target,
+      serverNames: reality.serverNames,
+      privateKey: reality.privateKey,
       minClientVer: streamEditor.realityMinClientVer,
       maxClientVer: streamEditor.realityMaxClientVer,
       maxTimediff: Math.max(0, Number(streamEditor.realityMaxTimediff || 0)),
-      shortIds: parseListText(streamEditor.realityShortIds),
-      mldsa65Seed: streamEditor.realityMldsa65Seed,
+      shortIds: reality.shortIds,
+      mldsa65Seed: reality.mldsa65Seed,
       settings: {
-        publicKey: streamEditor.realityPublicKey,
+        publicKey: reality.publicKey,
         fingerprint: streamEditor.tlsFingerprint || 'chrome',
-        serverName: serverNames[0] || '',
-        spiderX: streamEditor.realitySpiderX || '/',
-        mldsa65Verify: streamEditor.realityMldsa65Verify,
+        serverName: reality.serverNames[0] || '',
+        spiderX: reality.spiderX,
+        mldsa65Verify: reality.mldsa65Verify,
       },
     };
   }
@@ -3359,6 +3380,18 @@ function validateInboundEditorSettings(settingsText: string, streamSettingsText:
     }
     if (!Array.isArray(settings.peers) || settings.peers.length === 0) {
       return 'WireGuard requires at least one peer';
+    }
+  }
+  if (stream.security === 'reality') {
+    const realitySettings = objectField(stream.realitySettings);
+    const realityValidationError = validateRealityServerSettings({
+      target: stringField(realitySettings.target),
+      serverNames: arrayField(realitySettings.serverNames),
+      privateKey: stringField(realitySettings.privateKey),
+      shortIds: arrayField(realitySettings.shortIds),
+    });
+    if (realityValidationError) {
+      return realityValidationError;
     }
   }
   return '';

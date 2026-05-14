@@ -71,6 +71,13 @@ test('inbound form keeps default client and JSON action paths', () => {
   assert.match(source, /v-model="inboundEditor\.sniffing"/);
 });
 
+test('inbound form validates and normalizes Reality server settings before saving', () => {
+  assert.match(source, /normalizeRealityServerSettings/);
+  assert.match(source, /validateRealityServerSettings/);
+  assert.match(source, /streamEditor\.realityTarget = reality\.target/);
+  assert.match(source, /return realityValidationError/);
+});
+
 test('inbounds detail keeps visible share and subscription export actions', () => {
   assert.match(source, /Export Share Links/);
   assert.match(source, /Export Subscription Links/);
