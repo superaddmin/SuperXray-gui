@@ -37,6 +37,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Validate release metadata
+        shell: bash
+        run: python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only
+
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
@@ -63,31 +67,6 @@ jobs:
 
       - name: Run tests
         run: go test -race -shuffle=on ./...
-
-      - name: Validate release metadata
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-        shell: bash
-        run: |
-          set -euo pipefail
-          tag="${GITHUB_REF_NAME}"
-          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "Release tag must follow semantic version format vX.Y.Z or vX.Y.Z-prerelease: $tag" >&2
-            exit 1
-          fi
-          version="${tag#v}"
-          config_version="$(tr -d '[:space:]' < config/version)"
-          if [[ "$version" != "$config_version" ]]; then
-            echo "Tag version ($version) must match config/version ($config_version)." >&2
-            exit 1
-          fi
-          if [[ ! -f CHANGELOG.md ]]; then
-            echo "CHANGELOG.md is required for release notes." >&2
-            exit 1
-          fi
-          if ! grep -Eq "^## \[${version//./\\.}\]" CHANGELOG.md; then
-            echo "CHANGELOG.md must contain a release section for [$version]." >&2
-            exit 1
-          fi
 
   build:
     name: Build Linux (${{ matrix.platform }})

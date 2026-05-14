@@ -55,24 +55,27 @@ class Gate:
             return None
 
     def run(self) -> int:
-        checks = [
-            self.check_clean_worktree,
-            self.check_release_metadata,
-            self.check_workflows,
-            self.check_actionlint,
-            self.check_go_mod_tidy,
-            self.check_go_format,
-            self.check_shell_syntax,
-            self.check_translations,
-            self.check_go_vet,
-            self.check_staticcheck,
-            self.check_tests,
-            self.check_race_tests,
-            self.check_govulncheck,
-            self.check_gosec,
-            self.check_binary_version,
-            self.check_secret_patterns,
-        ]
+        if self.args.metadata_only:
+            checks = [self.check_release_metadata]
+        else:
+            checks = [
+                self.check_clean_worktree,
+                self.check_release_metadata,
+                self.check_workflows,
+                self.check_actionlint,
+                self.check_go_mod_tidy,
+                self.check_go_format,
+                self.check_shell_syntax,
+                self.check_translations,
+                self.check_go_vet,
+                self.check_staticcheck,
+                self.check_tests,
+                self.check_race_tests,
+                self.check_govulncheck,
+                self.check_gosec,
+                self.check_binary_version,
+                self.check_secret_patterns,
+            ]
         for check in checks:
             name = check.__name__.replace("check_", "")
             print(f"==> {name}")
@@ -163,7 +166,19 @@ class Gate:
                 f"{re.escape(entry)}|v{re.escape(entry)}" for entry in stale_versions
             )
             stale_result = subprocess.run(
-                ["git", "grep", "-n", "-E", stale_pattern, "--", "README*.md", "docs", ".github", "config"],
+                [
+                    "git",
+                    "grep",
+                    "-n",
+                    "-E",
+                    stale_pattern,
+                    "--",
+                    "README*.md",
+                    "docs",
+                    ".github",
+                    "config",
+                    ":(exclude)docs/superpowers/reports/**",
+                ],
                 cwd=self.root,
                 text=True,
                 encoding="utf-8",
@@ -196,6 +211,7 @@ class Gate:
             "id: release_notes",
             "body: ${{ steps.release_notes.outputs.body }}",
             ".github/agentic-workflows/**",
+            "release_gate.py --ci --metadata-only",
             "actions/setup-go",
             "gcc-aarch64-linux-gnu",
             "GOARCH=\"$goarch\"",
@@ -393,6 +409,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ci", action="store_true", help="Run in CI mode; currently informational.")
     parser.add_argument("--install-tools", action="store_true", help="Install govulncheck/gosec when missing.")
     parser.add_argument("--allow-dirty", action="store_true", help="Allow uncommitted changes while developing.")
+    parser.add_argument("--metadata-only", action="store_true", help="Run only release metadata checks.")
     parser.add_argument("--tag", help="Release tag to validate, for example v2.9.4.")
     return parser.parse_args()
 

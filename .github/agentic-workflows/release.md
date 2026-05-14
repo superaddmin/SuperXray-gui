@@ -47,6 +47,7 @@ Draft metadata
 - tag 去掉前缀 `v` 后必须与 `config/version` 完全一致。
 - `CHANGELOG.md` 必须包含 `## [X.Y.Z]` 对应段落。
 - README、docs、安装示例和 Docker 示例不得残留旧版本号。
+- `Release SuperXray` 必须在 PR、分支 push、tag push 阶段执行 `release_gate.py --ci --metadata-only`，提前阻断缺失 `CHANGELOG.md` 版本段、README/docs 旧版本残留和 tag/version 不一致。
 
 ## 发布前门禁
 

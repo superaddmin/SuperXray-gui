@@ -2,6 +2,20 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.8] - 2026-05-14
+
+### Added
+
+- 增加入站客户端批量生成功能，覆盖 VMess、VLESS、Trojan、Shadowsocks 与 Hysteria 协议。
+- 增加入站订阅链接导出能力，支持 URI、JSON 与 Clash/Mihomo 格式。
+- 增加客户端跨入站复制与移动能力。
+- 增加 Xray 协议工具面板，支持 WireGuard 与 Shadowsocks 密钥生成。
+- 增加 `xrayCompat` 与 `xrayProtocolTools` 前端工具模块及回归测试。
+
+### Changed
+
+- 同步发布版本到 `3.0.8`，并重新生成嵌入式前端构建产物。
+
 ## [3.0.7] - 2026-05-13
 
 ### Added

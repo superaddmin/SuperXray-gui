@@ -22,6 +22,7 @@ Every releasable commit must satisfy:
 `release.yml` is the binary release workflow:
 
 - Analyze first, then build.
+- Run `release_gate.py --ci --metadata-only` on pull requests, branch pushes, and tag pushes before Go setup/build steps so version metadata drift fails before a release tag is relied on.
 - Publish GitHub Release assets only for pushed semantic tags.
 - Generate release notes from `CHANGELOG.md`.
 - Linux `amd64` and `arm64` artifacts are mandatory for Ubuntu server deployments.
