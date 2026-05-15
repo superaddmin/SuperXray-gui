@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/superaddmin/SuperXray-gui/v2/database"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
+	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
 	"github.com/superaddmin/SuperXray-gui/v2/web/service"
 )
 
@@ -419,6 +421,57 @@ func TestSubServiceWithRequestContextDoesNotMutateOriginal(t *testing.T) {
 	}
 	if !scoped.showInfo || scoped.remarkModel != "-ieo" {
 		t.Fatalf("request scoped service should preserve static configuration")
+	}
+}
+
+func TestBrowserSubscriptionRequestRendersLegacyVisualPageWithMountedAssets(t *testing.T) {
+	setupSubscriptionDiagnosticDB(t)
+	client := matrixClient("matrix-subpage@example")
+	inbound := matrixInbound(model.VLESS, 13014, client)
+	inbound.Enable = true
+	if err := database.GetDB().Create(inbound).Error; err != nil {
+		t.Fatalf("create inbound failed: %v", err)
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(middleware.SecurityHeadersMiddleware())
+	router.Use(func(c *gin.Context) {
+		c.Set("base_path", "/sub/")
+	})
+	router.SetFuncMap(map[string]any{
+		"i18n": func(key string, params ...string) string {
+			return key
+		},
+	})
+	if err := setEmbeddedTemplates(router); err != nil {
+		t.Fatalf("setEmbeddedTemplates failed: %v", err)
+	}
+	NewSUBController(router.Group("/"), "/sub/", "/json/", "/clash/", true, true, false, true, "-ieo", "12", "", "", "", "", "", "", "", "", true, "")
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/sub/matrix-sub", nil)
+	request.Host = "vpn.example:2096"
+	request.Header.Set("Accept", "text/html,application/xhtml+xml")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	for _, want := range []string{
+		`id="qrcode"`,
+		`id="qrcode-subjson"`,
+		`id="qrcode-subclash"`,
+		`src="/sub/assets/qrcode/qrious2.min.js`,
+		`src="/sub/assets/js/subscription.js`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("subscription visual page missing %q:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "/sub/matrix-sub/assets/") {
+		t.Fatalf("subscription visual page uses unmounted subId asset prefix:\n%s", body)
 	}
 }
 

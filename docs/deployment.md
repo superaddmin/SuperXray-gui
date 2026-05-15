@@ -1,7 +1,7 @@
 # 服务器环境部署教程
 
 > **目标读者**：准备在 VPS、云服务器或自建 Linux 主机上部署 SuperXray 的运维人员 / 开发者
-> **适用版本**：`v3.0.12`
+> **适用版本**：`v3.0.13`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md)
 
 ---
@@ -146,7 +146,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 如 GitHub latest 正式版接口暂时不可用，也可以显式指定版本号安装：
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.12
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.13
 ```
 
 安装脚本会自动把 `x86_64` / `amd64` 映射为 `amd64`，把 `aarch64` / `arm64` 映射为 `arm64`，并下载对应的 `x-ui-linux-<arch>.tar.gz`。
@@ -450,7 +450,7 @@ systemctl reload caddy
 适合只想运行官方容器镜像的服务器。当前镜像发布到 GitHub Container Registry：
 
 ```text
-ghcr.io/superaddmin/superxray-gui:3.0.12
+ghcr.io/superaddmin/superxray-gui:3.0.13
 ghcr.io/superaddmin/superxray-gui:latest
 ```
 
@@ -463,7 +463,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
   -v $PWD/cert:/root/cert \
   -e XRAY_VMESS_AEAD_FORCED=false \
   -e XUI_ENABLE_FAIL2BAN=true \
-  ghcr.io/superaddmin/superxray-gui:3.0.12
+  ghcr.io/superaddmin/superxray-gui:3.0.13
 ```
 
 使用 Compose 时建议写成：
@@ -471,7 +471,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
 ```yaml
 services:
   3xui:
-    image: ghcr.io/superaddmin/superxray-gui:3.0.12
+    image: ghcr.io/superaddmin/superxray-gui:3.0.13
     container_name: 3xui_app
     volumes:
       - $PWD/db/:/etc/x-ui/
@@ -505,7 +505,7 @@ docker compose up -d --build
 如果想复用官方 GHCR 镜像，把 Compose 中的 `build:` 段替换为：
 
 ```yaml
-image: ghcr.io/superaddmin/superxray-gui:3.0.12
+image: ghcr.io/superaddmin/superxray-gui:3.0.13
 ```
 
 ### 7.3 数据目录
@@ -866,6 +866,8 @@ systemctl daemon-reload
 
 新 UI 的入站列表已经补齐旧 UI 的关键导出入口：顶部支持“导出全部分享链接”和“导出全部订阅”，单个入站行支持“导出链接”“导出订阅”“导出入站 JSON”“QR”“Clone”“Reset”“Edit”“Delete”。当订阅开关已启用但 `subURI`、`subJsonURI` 或 `subClashURI` 尚未持久化时，新 UI 会读取后端默认值补齐公开 URI，再生成订阅链接；如果仍然为空，应先在 **设置 → 订阅设置** 中执行默认值填充或手动填写公开地址。
 
+浏览器直接打开 `/sub/<subId>` 时，订阅服务会返回旧版兼容的可视化订阅页，展示订阅状态、流量、过期时间、普通 URI 订阅二维码、JSON/Clash 订阅二维码和 Android/iOS 客户端导入菜单。客户端订阅程序访问同一地址时仍按原有协议返回 Base64 或明文链接列表，不改变 v2rayN、Shadowrocket 等客户端的导入行为。
+
 订阅端口的开放策略：
 
 - 直接用 `https://<域名或IP>:2096/sub/<subId>`、`/json/<subId>`、`/clash/<subId>` 访问时，云安全组和本机防火墙都必须放行 `2096/tcp`。
@@ -1085,7 +1087,7 @@ x-ui restart-xray
 一键脚本和构建流程都需要访问 GitHub Release。可选处理：
 
 - 如果提示 `获取 SuperXray Release 版本失败`，先打开 `https://github.com/superaddmin/SuperXray-gui/releases` 确认是否存在可下载的 Release。
-- 如果仓库只有预发布版本，使用显式版本安装命令，例如：`bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.12`。
+- 如果仓库只有预发布版本，使用显式版本安装命令，例如：`bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.0.13`。
 - 换用可访问 GitHub 的网络环境。
 - 手动下载 Release 包后上传到服务器。
 - 使用企业内网制品库缓存 Release 包。

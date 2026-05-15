@@ -131,18 +131,20 @@ func (a *SUBController) subs(c *gin.Context) {
 			if !a.clashEnabled {
 				subClashURL = ""
 			}
-			// Get base_path from context (set by middleware)
+			// Get base_path from context (set by middleware). The subscription
+			// server mounts assets under the configured subscription path
+			// itself (for example /sub/assets), so the visual page must not
+			// add the dynamic subId into asset URLs.
 			basePath, exists := c.Get("base_path")
 			if !exists {
 				basePath = "/"
 			}
-			// Add subId to base_path for asset URLs
 			basePathStr := basePath.(string)
-			if basePathStr == "/" {
-				basePathStr = "/" + subId + "/"
-			} else {
-				// Remove trailing slash if exists, add subId, then add trailing slash
-				basePathStr = strings.TrimRight(basePathStr, "/") + "/" + subId + "/"
+			if basePathStr == "" {
+				basePathStr = "/"
+			}
+			if !strings.HasSuffix(basePathStr, "/") {
+				basePathStr += "/"
 			}
 			page := a.subService.BuildPageData(subId, hostHeader, traffic, lastOnline, subs, subURL, subJsonURL, subClashURL, basePathStr)
 			c.HTML(200, "subpage.html", gin.H{
