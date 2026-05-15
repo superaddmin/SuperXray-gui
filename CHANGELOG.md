@@ -2,6 +2,17 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.14] - 2026-05-15
+
+### Fixed
+
+- 修复 Clash/Mihomo 订阅生成时将 VLESS `encryption: none` 误写为 `packet-encoding: none` 的问题，避免严格客户端导入后节点不可用。
+- 修复 VLESS + TCP + Reality + Vision 的 Clash 订阅在部分 Reality 原始配置结构下漏出 `client-fingerprint`、`servername`、`public-key` 或 `short-id` 的问题，提升 ClashMI/mihomo 客户端兼容性。
+
+### Changed
+
+- 同步发布版本到 `3.0.14`。
+
 ## [3.0.13] - 2026-05-15
 
 ### Fixed
