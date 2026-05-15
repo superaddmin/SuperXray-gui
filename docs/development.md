@@ -1,7 +1,7 @@
 # 开发者贡献指南
 
 > **目标读者**：贡献者
-> **适用版本**：`v3.0.14`
+> **适用版本**：`v3.0.15`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [部署指南](deployment.md)
 
 ---
@@ -155,7 +155,7 @@ SuperXray-gui/
 │
 ├── config/                    # 配置管理
 │   ├── config.go              # 配置加载（版本/日志/路径）
-│   ├── version                # 版本号：3.0.14
+│   ├── version                # 版本号：3.0.15
 │   └── name                   # 应用名：x-ui
 │
 ├── database/                  # 数据库层
@@ -522,7 +522,7 @@ docs(api): update API documentation for inbound endpoints
 
 ```
 主版本号.次版本号.修订号
-3.0.14
+3.0.15
 ```
 
 版本号存储在 [`config/version`](../config/version) 文件中。
@@ -557,8 +557,8 @@ go vet ./...
 cd frontend && npm run typecheck && npm run lint && npm run build
 cd ..
 python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only
-git tag v3.0.14
-git push origin main v3.0.14
+git tag v3.0.15
+git push origin main v3.0.15
 ```
 
 如果安装脚本出现 `curl: (22) ... 404`，优先检查 GitHub Release 是否已经包含对应 tag 的 `x-ui-linux-<arch>.tar.gz`，再检查 `install.sh` 的仓库、tag 和资产命名是否与 Release 工作流一致。

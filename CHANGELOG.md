@@ -2,6 +2,18 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.15] - 2026-05-16
+
+### Added
+
+- 新增 Xray 页面住宅 IP 池管理界面，支持维护多个 SOCKS5 住宅出站、行级测试与一键应用 AI 平台专用路由。
+- 新增 AI 住宅路由模板生成逻辑，通过 `ai-residential` balancer 管理多个住宅出站，并保持旧版 Xray JSON 模板兼容。
+
+### Changed
+
+- 将 Google AI 分流域名收窄到 Gemini、AI Studio 与 Generative Language API 相关入口，避免通用 Google 流量占用住宅出口。
+- 同步发布版本到 `3.0.15`。
+
 ## [3.0.14] - 2026-05-15
 
 ### Fixed

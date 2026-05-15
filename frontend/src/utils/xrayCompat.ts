@@ -56,6 +56,15 @@ export interface ReverseEditorForm {
   portalInboundTagsText: string;
 }
 
+export interface ResidentialIpEditorForm {
+  tag: string;
+  protocol: 'socks';
+  server: string;
+  port: number;
+  username: string;
+  password: string;
+}
+
 export interface DnsPresetOption {
   name: string;
   family: boolean;
@@ -153,6 +162,28 @@ export interface ReverseRow extends JsonObject {
   portalInboundTagsText: string;
 }
 
+export interface ResidentialIpRow extends JsonObject {
+  key: number;
+  tag: string;
+  protocol: string;
+  address: string;
+  routed: boolean;
+}
+
+export const AI_RESIDENTIAL_BALANCER_TAG = 'ai-residential';
+export const AI_RESIDENTIAL_DOMAINS = [
+  'domain:openai.com',
+  'domain:chatgpt.com',
+  'domain:oaistatic.com',
+  'domain:oaiusercontent.com',
+  'domain:anthropic.com',
+  'domain:claude.ai',
+  'domain:aistudio.google.com',
+  'domain:generativelanguage.googleapis.com',
+  'domain:makersuite.google.com',
+  'domain:gemini.google.com',
+];
+
 export const DNS_PRESET_OPTIONS: DnsPresetOption[] = [
   {
     name: 'Google DNS',
@@ -236,6 +267,121 @@ export function deleteOutboundAt(config: JsonValue | null | undefined, index: nu
   const outbounds = asObjectArray(template.outbounds);
   outbounds.splice(index, 1);
   template.outbounds = outbounds;
+  return template;
+}
+
+export function getResidentialIpRows(config: JsonValue | null | undefined): ResidentialIpRow[] {
+  const template = asObject(config);
+  const outbounds = asObjectArray(template.outbounds);
+  const routedTags = getResidentialRoutingTags(template);
+  return outbounds
+    .map((outbound, index) => ({ outbound, index }))
+    .filter(({ outbound }) => isResidentialOutbound(outbound))
+    .map(({ outbound, index }) => ({
+      key: index,
+      tag: stringValue(outbound.tag) || `residential-${index + 1}`,
+      protocol: stringValue(outbound.protocol),
+      address: resolveOutboundAddress(outbound),
+      routed: routedTags.has(stringValue(outbound.tag)),
+    }));
+}
+
+export function upsertResidentialIpOutbound(
+  config: JsonValue | null | undefined,
+  index: number | null,
+  form: ResidentialIpEditorForm,
+): JsonObject {
+  const template = cloneObject(config);
+  const outbounds = asObjectArray(template.outbounds);
+  const server: JsonObject = {
+    address: form.server.trim(),
+    port: Math.trunc(form.port || 0),
+  };
+  const username = form.username.trim();
+  const password = form.password;
+  if (username || password) {
+    server.users = [
+      {
+        user: username,
+        pass: password,
+      },
+    ];
+  }
+
+  const outbound: JsonObject = {
+    tag: form.tag.trim(),
+    protocol: 'socks',
+    settings: {
+      servers: [server],
+    },
+  };
+
+  if (index === null || index < 0 || index >= outbounds.length) {
+    outbounds.push(outbound);
+  } else {
+    outbounds[index] = outbound;
+  }
+  template.outbounds = outbounds;
+  return template;
+}
+
+export function applyAiResidentialRouting(config: JsonValue | null | undefined): JsonObject {
+  const template = cloneObject(config);
+  const residentialTags = getResidentialIpRows(template)
+    .map((row) => row.tag)
+    .filter(Boolean);
+  if (residentialTags.length === 0) {
+    return template;
+  }
+
+  const routing = asObject(template.routing);
+  const balancers = asObjectArray(routing.balancers).filter(
+    (balancer) => stringValue(balancer.tag) !== AI_RESIDENTIAL_BALANCER_TAG,
+  );
+  balancers.unshift({
+    tag: AI_RESIDENTIAL_BALANCER_TAG,
+    selector: uniqueList(residentialTags),
+    strategy: {
+      type: 'random',
+    },
+  });
+  routing.balancers = balancers;
+
+  const rules = asObjectArray(routing.rules).filter(
+    (rule) => !isManagedAiResidentialRule(rule, residentialTags),
+  );
+  const apiRules = rules.filter((rule) => stringValue(rule.outboundTag) === 'api');
+  const remainingRules = rules.filter((rule) => stringValue(rule.outboundTag) !== 'api');
+  routing.rules = [
+    ...apiRules,
+    {
+      type: 'field',
+      balancerTag: AI_RESIDENTIAL_BALANCER_TAG,
+      network: 'tcp',
+      domain: AI_RESIDENTIAL_DOMAINS.slice(),
+    },
+    {
+      type: 'field',
+      outboundTag: 'blocked',
+      network: 'udp',
+      domain: AI_RESIDENTIAL_DOMAINS.slice(),
+    },
+    ...remainingRules,
+  ];
+  if (!routing.domainStrategy) {
+    routing.domainStrategy = 'AsIs';
+  }
+  template.routing = routing;
+
+  const outbounds = asObjectArray(template.outbounds);
+  if (!outbounds.some((outbound) => stringValue(outbound.tag) === 'blocked')) {
+    outbounds.push({
+      tag: 'blocked',
+      protocol: 'blackhole',
+    });
+    template.outbounds = outbounds;
+  }
+
   return template;
 }
 
@@ -845,6 +991,58 @@ function resolveOutboundAddress(outbound: JsonObject): string {
   }
   const address = stringValue(settings.address);
   return address || stringValue(outbound.sendThrough) || '-';
+}
+
+function isResidentialOutbound(outbound: JsonObject): boolean {
+  const tag = stringValue(outbound.tag).toLowerCase();
+  const protocol = stringValue(outbound.protocol);
+  return protocol === 'socks' && tag.includes('residential');
+}
+
+function getResidentialRoutingTags(template: JsonObject): Set<string> {
+  const routing = asObject(template.routing);
+  const balancer = asObjectArray(routing.balancers).find(
+    (item) => stringValue(item.tag) === AI_RESIDENTIAL_BALANCER_TAG,
+  );
+  return new Set(
+    arrayValue(balancer?.selector)
+      .filter((item): item is string => typeof item === 'string')
+      .filter(Boolean),
+  );
+}
+
+function isManagedAiResidentialRule(rule: JsonObject, residentialTags: string[]): boolean {
+  const domains = arrayValue(rule.domain).filter((item): item is string => typeof item === 'string');
+  if (!domains.some(isAiResidentialDomainCandidate)) {
+    return false;
+  }
+
+  const outboundTag = stringValue(rule.outboundTag);
+  const balancerTag = stringValue(rule.balancerTag);
+  const network = stringValue(rule.network);
+  if (balancerTag === AI_RESIDENTIAL_BALANCER_TAG) {
+    return true;
+  }
+  if (residentialTags.includes(outboundTag)) {
+    return true;
+  }
+  return outboundTag === 'blocked' && network === 'udp';
+}
+
+function isAiResidentialDomainCandidate(domain: string): boolean {
+  const lowered = domain.toLowerCase();
+  return [
+    'openai',
+    'chatgpt',
+    'oaistatic',
+    'oaiusercontent',
+    'anthropic',
+    'claude',
+    'google',
+    'gemini',
+    'generativelanguage',
+    'makersuite',
+  ].some((term) => lowered.includes(term));
 }
 
 function cloneObject(value: JsonValue | null | undefined): JsonObject {

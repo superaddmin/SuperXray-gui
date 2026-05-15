@@ -1,7 +1,7 @@
 # AI 平台智能分流与住宅出口运行手册
 
 > **目标读者**：需要在 SuperXray 中为 OpenAI/ChatGPT、Anthropic/Claude、Google/Gemini 等 AI 平台配置专用出口的运维人员
-> **适用版本**：`v3.0.14`
+> **适用版本**：`v3.0.15`
 > **相关文档**：[部署指南](deployment.md) | [系统架构设计](architecture.md) | [入站创建教程](inbound-creation-guide.md)
 
 ---
@@ -12,8 +12,8 @@
 
 - AI 平台相关域名通过专用住宅 SOCKS 出站访问。
 - 非 AI 平台流量保持 `direct` 或既有常规线路，不占用住宅出口资源。
-- 住宅出口通过 `observatory` 做健康探测，并由 `leastPing` Balancer 选择可用出口。
-- AI 规则命中但住宅出口不可用时，默认 `fallbackTag=blocked`，避免自动降级到非住宅出口。
+- 新版 Xray 页面提供 **Residential IP Pool**，可维护多个 SOCKS5 住宅出站，并一键生成 AI 平台专用路由。
+- AI 路由默认不配置 balancer fallback；住宅出站不可用时请求在该住宅链路失败，不会自动降级到 `direct`。
 - DNS 对 AI 域名使用显式 DoH 解析和 `skipFallback`，降低 DNS 污染和错误回退风险。
 
 重要边界：
@@ -31,7 +31,7 @@
 客户端
   -> VLESS + TCP + Reality 入站（例如 inbound-443）
     -> Xray 路由规则
-      -> AI 域名：ai-residential-balancer
+      -> AI 域名：ai-residential
           -> us-residential-socks（高纯净度住宅 SOCKS 出口）
           -> blocked（住宅出口不可用时失败关闭）
       -> 其他流量：direct / 既有常规线路
@@ -55,7 +55,7 @@
 
 ## 3. 出站配置
 
-在 **Xray → Outbounds** 或 Xray JSON 中新增住宅 SOCKS 出站。示例：
+在 **Xray → Residential IP Pool** 中新增住宅 SOCKS 出站，或在 **Xray → Outbounds** / Xray JSON 中手工维护。示例：
 
 ```json
 {
@@ -135,21 +135,13 @@ domain:console.anthropic.com
 ```text
 domain:gemini.google.com
 domain:aistudio.google.com
-domain:ai.google.dev
 domain:generativelanguage.googleapis.com
 domain:makersuite.google.com
-domain:bard.google.com
-domain:googleapis.com
-domain:googleusercontent.com
-domain:gstatic.com
-domain:googleusercontent.cn
-domain:google.com
-domain:googleapis.cn
 ```
 
 维护建议：
 
-- 如果只希望 Google AI 走住宅出口，不希望所有 Google 搜索、YouTube 或 Gmail 走住宅出口，可以移除 `domain:google.com`、`domain:googleusercontent.com`、`domain:gstatic.com` 等宽域名，再通过日志补充更精确域名。
+- 默认清单只保留 Gemini、AI Studio 和 Generative Language API 入口，避免 Google 搜索、YouTube、Gmail 等通用流量占用住宅出口。
 - 如果客户端使用 QUIC/HTTP3，需确认 sniffing 能识别目标域名；否则可在客户端禁用 QUIC 或使用 DNS/FakeDNS 辅助分流。
 - 对平台新增域名，先添加到 DNS server 的 `domains`，再添加到 routing rule，保存后重启 Xray 验证。
 
@@ -174,14 +166,12 @@ domain:googleapis.cn
     "domain:oaiusercontent.com",
     "domain:anthropic.com",
     "domain:claude.ai",
-    "domain:claudeusercontent.com",
     "domain:gemini.google.com",
     "domain:aistudio.google.com",
     "domain:generativelanguage.googleapis.com",
-    "domain:ai.google.dev",
-    "domain:googleapis.com"
+    "domain:makersuite.google.com"
   ],
-  "balancerTag": "ai-residential-balancer"
+  "balancerTag": "ai-residential"
 }
 ```
 
@@ -196,18 +186,17 @@ domain:googleapis.cn
 
 ```json
 {
-  "tag": "ai-residential-balancer",
+  "tag": "ai-residential",
   "selector": [
     "us-residential-socks"
   ],
   "strategy": {
-    "type": "leastPing"
-  },
-  "fallbackTag": "blocked"
+    "type": "random"
+  }
 }
 ```
 
-`fallbackTag=blocked` 是失败关闭策略：当住宅出口不可用或探测失败时，AI 平台请求不会自动落到 `direct`，从而避免出口身份漂移。若业务更重视可用性，可把 fallback 改为常规代理 tag，但必须接受出口变化带来的风控风险。
+默认不设置 `fallbackTag`，避免 Xray 26.4.x 出现 balancer 依赖解析失败。住宅出口不可用时，对应请求会在住宅链路失败，不会自动落到 `direct`。若业务更重视可用性，可手工改为常规代理 tag，但必须先用 `xray run -test -config` 验证当前 Xray 版本是否支持该字段，并接受出口变化带来的出口一致性风险。
 
 ### 5.3 Observatory
 
@@ -226,7 +215,7 @@ domain:googleapis.cn
 
 - `probeURL` 用于出站健康探测，不代表所有 AI 平台的真实延迟。
 - 如果住宅供应商对并发或探测频率敏感，可把 `probeInterval` 调整为 `2m` 或更长。
-- 新 UI 和旧 UI 均可保存 Observatory JSON；使用 `leastPing` Balancer 时需确认 `subjectSelector` 覆盖住宅出站 tag。
+- 新 UI 和旧 UI 均可保存 Observatory JSON；如手工启用 `leastPing` Balancer，需确认 `subjectSelector` 覆盖住宅出站 tag。
 
 ---
 
@@ -248,7 +237,7 @@ domain:googleapis.cn
         "domain:gemini.google.com",
         "domain:aistudio.google.com",
         "domain:generativelanguage.googleapis.com",
-        "domain:googleapis.com"
+        "domain:makersuite.google.com"
       ],
       "skipFallback": true
     },
@@ -276,13 +265,12 @@ cp -a /etc/x-ui/x-ui.db "/root/x-ui-db-$(date +%F-%H%M%S).db"
 cp -a /usr/local/x-ui/bin/config.json "/root/xray-config-$(date +%F-%H%M%S).json" 2>/dev/null || true
 ```
 
-2. 在 **Xray → Outbounds** 添加 `us-residential-socks`，使用占位符对应的真实住宅 SOCKS 主机、端口、用户名和密码。
-3. 在 **Xray → Routing** 添加 AI 域名规则，`balancerTag` 指向 `ai-residential-balancer`。
-4. 在 **Xray → Balancers** 添加 `ai-residential-balancer`，selector 包含 `us-residential-socks`，策略选择 `leastPing`，fallback 选择 `blocked`。
-5. 在 **Xray → DNS** 添加 AI 专用 DoH server，并启用 `skipFallback`。
-6. 在 **Xray → Observatory** 写入健康检测 JSON。
-7. 保存配置并重启 Xray。
-8. 在面板日志中确认 Xray Running，无 `failed to build`、`invalid`、`target`、`balancer` 等错误。
+2. 在 **Xray → Residential IP Pool** 添加一个或多个住宅 SOCKS5 出站，使用占位符对应的真实住宅 SOCKS 主机、端口、用户名和密码。
+3. 点击 **Apply AI Routing**，面板会生成 `ai-residential` balancer、AI TCP 路由规则和 AI UDP 阻断规则。
+4. 如需 DNS 精细控制，在 **Xray → DNS** 添加 AI 专用 DoH server，并启用 `skipFallback`。
+5. 如需健康探测，在 **Xray → Observatory** 写入健康检测 JSON，并手工把 balancer 策略改为 `leastPing`。
+6. 保存配置并重启 Xray。
+7. 在面板日志中确认 Xray Running，无 `failed to build`、`invalid`、`target`、`balancer` 等错误。
 
 ---
 
@@ -301,8 +289,8 @@ ss -tulpen | grep -E 'x-ui|xray|:2096|:443'
 
 ```bash
 jq '.outbounds[] | select(.tag=="us-residential-socks")' /usr/local/x-ui/bin/config.json
-jq '.routing.balancers[] | select(.tag=="ai-residential-balancer")' /usr/local/x-ui/bin/config.json
-jq '.routing.rules[] | select(.balancerTag=="ai-residential-balancer")' /usr/local/x-ui/bin/config.json
+jq '.routing.balancers[] | select(.tag=="ai-residential")' /usr/local/x-ui/bin/config.json
+jq '.routing.rules[] | select(.balancerTag=="ai-residential")' /usr/local/x-ui/bin/config.json
 jq '.observatory' /usr/local/x-ui/bin/config.json
 ```
 
@@ -340,7 +328,7 @@ curl -kI "https://<SUB_HOST>:2096/clash/<SUB_ID>"
 |------|------------|----------|
 | AI 平台仍走直连 | 路由规则未命中、sniffing 未开启、域名缺失 | 开启 TLS/HTTP/QUIC sniffing，补充域名，确认规则在兜底规则之前 |
 | 所有流量都走住宅出口 | 存在 `inboundTag -> us-residential-socks` 全量规则 | 删除全量规则，仅保留 AI 域名规则 |
-| Xray 启动失败 | JSON 语法、Reality `target`、Balancer tag、出站 tag 错误 | 查看面板 Xray 日志，按首个 `failed to build` 错误修复 |
+| Xray 启动失败 | JSON 语法、Reality `target`、Balancer tag、出站 tag、当前 Xray 不支持的 balancer 字段 | 查看面板 Xray 日志，按首个 `failed to build` 错误修复；如出现依赖解析失败，先移除 balancer `fallbackTag` |
 | Google 或 ChatGPT 很慢 | 住宅出口延迟高、供应商限速、客户端到服务器链路抖动 | 用 Outbound Test 对比 `direct` 与住宅出口；更换住宅节点或降低并发 |
 | 订阅导出为空 | 订阅开关未启用、客户端无 `subId`、公开 URI 为空 | 在设置页填充默认订阅 URI，确认客户端启用并存在 `subId` |
 | Clash/Mihomo 导入失败 | 协议或传输不被 Clash 输出覆盖 | 改用 `/json/<subId>` 或客户端手动配置，优先使用 TCP/WS/gRPC 主路径 |
@@ -353,8 +341,8 @@ curl -kI "https://<SUB_HOST>:2096/clash/<SUB_ID>"
 出现不可接受的延迟、平台失败或 Xray 启动问题时：
 
 1. 在面板中停用 AI 域名路由规则，保留住宅 SOCKS 出站配置。
-2. 或将 `ai-residential-balancer` 的 selector 临时改为空，并观察 Xray 是否启动。
-3. 如需完全回滚，删除 `us-residential-socks` 出站、AI 路由规则、`ai-residential-balancer`、对应 Observatory 和 AI 专用 DNS server。
+2. 或将 `ai-residential` 的 selector 临时改为空，并观察 Xray 是否启动。
+3. 如需完全回滚，删除住宅 SOCKS 出站、AI 路由规则、`ai-residential`、对应 Observatory 和 AI 专用 DNS server。
 4. 恢复备份的 `/usr/local/x-ui/bin/config.json` 或数据库后重启：
 
 ```bash

@@ -218,6 +218,58 @@
     </ACard>
 
     <ACard class="work-panel" :bordered="false">
+      <FormSection eyebrow="Structured" title="Residential IP Pool">
+        <template #actions>
+          <ASpace wrap>
+            <AButton type="primary" @click="openResidentialIpModal()">
+              <template #icon><PlusOutlined /></template>
+              Add SOCKS5 IP
+            </AButton>
+            <AButton
+              :disabled="residentialIpRows.length === 0"
+              @click="applyAiResidentialRoutingChanges"
+            >
+              <template #icon><ClusterOutlined /></template>
+              Apply AI Routing
+            </AButton>
+          </ASpace>
+        </template>
+        <ATable
+          :columns="residentialIpColumns"
+          :data-source="residentialIpRows"
+          :pagination="false"
+          row-key="key"
+          size="middle"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'routed'">
+              {{ record.routed ? 'AI' : '-' }}
+            </template>
+            <template v-if="column.key === 'action'">
+              <ASpace wrap>
+                <AButton
+                  size="small"
+                  :loading="testingResidentialIpKey === record.key"
+                  @click="testResidentialIpOutbound(record.key)"
+                >
+                  Test
+                </AButton>
+                <AButton size="small" @click="openResidentialIpModal(record.key)">
+                  <template #icon><EditOutlined /></template>
+                  Edit
+                </AButton>
+                <AButton size="small" danger @click="confirmDeleteOutbound(record.key)">
+                  <template #icon><DeleteOutlined /></template>
+                  Delete
+                </AButton>
+              </ASpace>
+            </template>
+          </template>
+        </ATable>
+      </FormSection>
+    </ACard>
+
+    <ACard class="work-panel" :bordered="false">
       <FormSection eyebrow="Structured" title="Outbounds">
         <template #actions>
           <AButton type="primary" @click="openOutboundModal()">
@@ -606,6 +658,39 @@
       </AForm>
     </Modal>
 
+    <Modal
+      v-model:open="residentialIpModalOpen"
+      title="Residential SOCKS5 Editor"
+      @ok="submitResidentialIpModal"
+    >
+      <AForm layout="vertical">
+        <div class="form-grid">
+          <AFormItem label="Tag"><AInput v-model:value="residentialIpEditor.tag" /></AFormItem>
+          <AFormItem label="Protocol">
+            <ASelect
+              v-model:value="residentialIpEditor.protocol"
+              :options="[{ label: 'SOCKS5', value: 'socks' }]"
+            />
+          </AFormItem>
+          <AFormItem label="Server"><AInput v-model:value="residentialIpEditor.server" /></AFormItem>
+          <AFormItem label="Port">
+            <AInputNumber
+              v-model:value="residentialIpEditor.port"
+              class="full-width"
+              :min="1"
+              :max="65535"
+            />
+          </AFormItem>
+          <AFormItem label="Username">
+            <AInput v-model:value="residentialIpEditor.username" />
+          </AFormItem>
+          <AFormItem label="Password">
+            <AInput v-model:value="residentialIpEditor.password" type="password" />
+          </AFormItem>
+        </div>
+      </AForm>
+    </Modal>
+
     <Modal v-model:open="routingRuleModalOpen" title="Routing Rule Editor" @ok="submitRoutingRuleModal">
       <AForm layout="vertical">
         <div class="form-grid">
@@ -739,12 +824,14 @@ import type {
   FakeDnsEditorForm,
   ObservatoryForm,
   OutboundEditorForm,
+  ResidentialIpEditorForm,
   ReverseEditorForm,
   RuntimePolicyForm,
   RoutingRuleEditorForm,
 } from '@/utils/xrayCompat';
 import {
   DNS_PRESET_OPTIONS,
+  applyAiResidentialRouting,
   applyDnsPolicyForm,
   applyDnsPreset,
   applyObservatoryForm,
@@ -761,10 +848,12 @@ import {
   getFakeDnsRows,
   getObservatoryForm,
   getOutboundRows,
+  getResidentialIpRows,
   getReverseRows,
   getRoutingRuleRows,
   getRuntimePolicyForm,
   moveArrayItem,
+  upsertResidentialIpOutbound,
   upsertBalancer,
   upsertDnsServer,
   upsertFakeDns,
@@ -803,18 +892,22 @@ const resettingOutboundTag = ref('');
 const outboundToolResult = ref('');
 const providerAction = ref('');
 const outboundModalOpen = ref(false);
+const residentialIpModalOpen = ref(false);
 const routingRuleModalOpen = ref(false);
 const dnsServerModalOpen = ref(false);
 const fakeDnsModalOpen = ref(false);
 const balancerModalOpen = ref(false);
 const reverseModalOpen = ref(false);
+const testingResidentialIpKey = ref<number | null>(null);
 const editingOutboundIndex = ref<number | null>(null);
+const editingResidentialIpOutboundIndex = ref<number | null>(null);
 const editingRoutingRuleIndex = ref<number | null>(null);
 const editingDnsServerIndex = ref<number | null>(null);
 const editingFakeDnsIndex = ref<number | null>(null);
 const editingBalancerIndex = ref<number | null>(null);
 const editingReverseIndex = ref<number | null>(null);
 const outboundEditor = reactive<OutboundEditorForm>(createOutboundEditor());
+const residentialIpEditor = reactive<ResidentialIpEditorForm>(createResidentialIpEditor());
 const routingRuleEditor = reactive<RoutingRuleEditorForm>(createRoutingRuleEditor());
 const dnsServerEditor = reactive<DnsServerEditorForm>(createDnsServerEditor());
 const fakeDnsEditor = reactive<FakeDnsEditorForm>(createFakeDnsEditor());
@@ -954,6 +1047,13 @@ const outboundColumns = [
   { title: 'Send Through', dataIndex: 'sendThrough', key: 'sendThrough', width: 140 },
   { title: 'Actions', key: 'action', width: 260 },
 ];
+const residentialIpColumns = [
+  { title: 'Tag', dataIndex: 'tag', key: 'tag' },
+  { title: 'Protocol', dataIndex: 'protocol', key: 'protocol', width: 120 },
+  { title: 'Address', dataIndex: 'address', key: 'address' },
+  { title: 'Routing', key: 'routed', width: 100 },
+  { title: 'Actions', key: 'action', width: 260 },
+];
 const routingColumns = [
   { title: 'Type', dataIndex: 'type', key: 'type', width: 90 },
   { title: 'Outbound', dataIndex: 'outboundTag', key: 'outboundTag', width: 140 },
@@ -1010,6 +1110,7 @@ const outboundTrafficRows = computed(() => {
   });
 });
 const outboundRows = computed(() => getOutboundRows(parsedConfig.value));
+const residentialIpRows = computed(() => getResidentialIpRows(parsedConfig.value));
 const routingRuleRows = computed(() => getRoutingRuleRows(parsedConfig.value));
 const dnsServerRows = computed(() => getDnsServerRows(parsedConfig.value));
 const fakeDnsRows = computed(() => getFakeDnsRows(parsedConfig.value));
@@ -1031,6 +1132,17 @@ function createOutboundEditor(): OutboundEditorForm {
     streamSettingsJson: '{}',
     proxySettingsJson: '{}',
     muxJson: '{}',
+  };
+}
+
+function createResidentialIpEditor(): ResidentialIpEditorForm {
+  return {
+    tag: 'residential-us-1',
+    protocol: 'socks',
+    server: '',
+    port: 1080,
+    username: '',
+    password: '',
   };
 }
 
@@ -1209,6 +1321,29 @@ function openOutboundModal(index?: number) {
   outboundModalOpen.value = true;
 }
 
+function openResidentialIpModal(index?: number) {
+  const outbound = typeof index === 'number' ? outboundsFromConfig.value[index] : null;
+  const settings = isJsonObject(outbound?.settings) ? outbound.settings : {};
+  const servers = Array.isArray(settings.servers) ? settings.servers : [];
+  const server = isJsonObject(servers[0]) ? servers[0] : {};
+  const users = Array.isArray(server.users) ? server.users : [];
+  const user = isJsonObject(users[0]) ? users[0] : {};
+  const defaultEditor = createResidentialIpEditor();
+
+  editingResidentialIpOutboundIndex.value = typeof index === 'number' ? index : null;
+  Object.assign(residentialIpEditor, defaultEditor, {
+    tag:
+      (typeof outbound?.tag === 'string' && outbound.tag) ||
+      `residential-us-${residentialIpRows.value.length + 1}`,
+    protocol: 'socks',
+    server: typeof server.address === 'string' ? server.address : '',
+    port: typeof server.port === 'number' ? server.port : Number(server.port) || defaultEditor.port,
+    username: typeof user.user === 'string' ? user.user : '',
+    password: typeof user.pass === 'string' ? user.pass : '',
+  });
+  residentialIpModalOpen.value = true;
+}
+
 function openRoutingRuleModal(index?: number) {
   const row = typeof index === 'number' ? routingRuleRows.value[index] : null;
   editingRoutingRuleIndex.value = typeof index === 'number' ? index : null;
@@ -1285,6 +1420,51 @@ function submitOutboundModal() {
   const next = upsertOutbound(current, editingOutboundIndex.value, outboundEditor);
   applyTemplateConfig(next);
   outboundModalOpen.value = false;
+}
+
+function submitResidentialIpModal() {
+  if (!residentialIpEditor.tag.trim() || !residentialIpEditor.server.trim()) {
+    error.value = 'Residential IP tag and server are required';
+    return;
+  }
+  const next = upsertResidentialIpOutbound(
+    parsedConfig.value,
+    editingResidentialIpOutboundIndex.value,
+    residentialIpEditor,
+  );
+  applyTemplateConfig(next);
+  residentialIpModalOpen.value = false;
+  void message.success('Residential IP saved to template');
+}
+
+function applyAiResidentialRoutingChanges() {
+  const next = applyAiResidentialRouting(parsedConfig.value);
+  applyTemplateConfig(next);
+  void message.success('AI residential routing updated');
+}
+
+async function testResidentialIpOutbound(index: number) {
+  const outbound = outboundsFromConfig.value[index];
+  if (!outbound) {
+    return;
+  }
+
+  testingResidentialIpKey.value = index;
+  outboundToolResult.value = '';
+  try {
+    const result = await testOutbound(
+      JSON.stringify(outbound),
+      JSON.stringify(outboundsFromConfig.value),
+      { notifyOnError: false },
+    );
+    outboundToolResult.value = result.success
+      ? `Residential IP test succeeded in ${result.delay} ms with status ${result.statusCode || '-'}`
+      : `Residential IP test failed: ${result.error || 'unknown error'}`;
+  } catch (caught) {
+    outboundToolResult.value = caught instanceof Error ? caught.message : 'Residential IP test failed';
+  } finally {
+    testingResidentialIpKey.value = null;
+  }
 }
 
 function submitRoutingRuleModal() {

@@ -107,3 +107,25 @@ test('xray view exposes dns presets and observatory log policy workflows', () =>
     assert.match(source, new RegExp(stateField.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
 });
+
+test('xray view exposes residential ip pool workflow for ai routing', () => {
+  assert.match(source, /title="Residential IP Pool"/);
+  for (const action of [
+    '@click="openResidentialIpModal()"',
+    '@click="applyAiResidentialRoutingChanges"',
+    '@click="testResidentialIpOutbound(record.key)"',
+    '@ok="submitResidentialIpModal"',
+  ]) {
+    assert.match(source, new RegExp(action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+
+  for (const stateField of [
+    'residentialIpEditor.tag',
+    'residentialIpEditor.server',
+    'residentialIpEditor.port',
+    'residentialIpEditor.username',
+    'residentialIpEditor.password',
+  ]) {
+    assert.match(source, new RegExp(stateField.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+});
