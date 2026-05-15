@@ -116,6 +116,93 @@ func TestSubscriptionOutputMatrixCoversLinksJSONAndClash(t *testing.T) {
 	}
 }
 
+func TestSubClashVlessEncryptionNoneDoesNotEmitPacketEncoding(t *testing.T) {
+	client := matrixClient("matrix-vless-packet@example")
+	inbound := matrixInbound(model.VLESS, 12009, client)
+	service := &SubClashService{SubService: &SubService{remarkModel: "-ieo"}}
+
+	proxy := service.buildProxy(inbound, client, matrixTCPStream(), "")
+	if proxy == nil {
+		t.Fatal("buildProxy returned nil")
+	}
+	if value, ok := proxy["packet-encoding"]; ok {
+		t.Fatalf("packet-encoding = %v, want field omitted for VLESS encryption none", value)
+	}
+}
+
+func TestSubClashVlessRealityEmitsClientFingerprint(t *testing.T) {
+	client := matrixClient("matrix-vless-reality@example")
+	client.Flow = "xtls-rprx-vision"
+	inbound := matrixInboundWithSettings(model.VLESS, 12011, map[string]any{
+		"decryption": "none",
+		"encryption": "none",
+		"clients":    []model.Client{client},
+	}, map[string]any{
+		"network":  "tcp",
+		"security": "reality",
+		"realitySettings": map[string]any{
+			"serverNames": []any{"www.cloudflare.com"},
+			"shortIds":    []any{"0123456789abcdef"},
+			"settings": map[string]any{
+				"publicKey":   "matrix-public-key",
+				"fingerprint": "chrome",
+			},
+		},
+	})
+	service := &SubClashService{SubService: &SubService{remarkModel: "-ieo"}}
+
+	proxies := service.getProxies(inbound, client, "vpn.example")
+	if len(proxies) != 1 {
+		t.Fatalf("getProxies returned %d proxies, want 1", len(proxies))
+	}
+	proxy := proxies[0]
+	if proxy["client-fingerprint"] != "chrome" {
+		t.Fatalf("client-fingerprint = %v, want chrome", proxy["client-fingerprint"])
+	}
+	if proxy["flow"] != "xtls-rprx-vision" {
+		t.Fatalf("flow = %v, want xtls-rprx-vision", proxy["flow"])
+	}
+	if _, ok := proxy["packet-encoding"]; ok {
+		t.Fatalf("packet-encoding should be omitted for VLESS encryption none: %#v", proxy)
+	}
+}
+
+func TestSubClashApplySecurityAcceptsRawRealitySettings(t *testing.T) {
+	service := &SubClashService{SubService: &SubService{remarkModel: "-ieo"}}
+	proxy := map[string]any{"type": "vless"}
+	stream := map[string]any{
+		"security": "reality",
+		"realitySettings": map[string]any{
+			"serverNames": []any{"www.cloudflare.com"},
+			"shortIds":    []any{"0123456789abcdef"},
+			"settings": map[string]any{
+				"publicKey":   "matrix-public-key",
+				"fingerprint": "chrome",
+			},
+		},
+	}
+
+	if !service.applySecurity(proxy, "reality", stream) {
+		t.Fatal("applySecurity returned false")
+	}
+	if proxy["client-fingerprint"] != "chrome" {
+		t.Fatalf("client-fingerprint = %v, want chrome", proxy["client-fingerprint"])
+	}
+	if proxy["servername"] != "www.cloudflare.com" {
+		t.Fatalf("servername = %v, want www.cloudflare.com", proxy["servername"])
+	}
+	realityOpts, ok := proxy["reality-opts"].(map[string]any)
+	if !ok {
+		t.Fatalf("reality-opts missing or invalid: %#v", proxy["reality-opts"])
+	}
+	if realityOpts["public-key"] != "matrix-public-key" {
+		t.Fatalf("public-key = %v, want matrix-public-key", realityOpts["public-key"])
+	}
+	if realityOpts["short-id"] != "0123456789abcdef" {
+		t.Fatalf("short-id = %v, want 0123456789abcdef", realityOpts["short-id"])
+	}
+}
+
 func TestSubscriptionOutputMatrixCoversWireGuardPeerOutputs(t *testing.T) {
 	host := "vpn.example"
 	inbound := wireguardInboundForTest(`[{

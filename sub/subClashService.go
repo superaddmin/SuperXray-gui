@@ -219,8 +219,11 @@ func (s *SubClashService) buildProxy(inbound *model.Inbound, client model.Client
 		if !decodeJSONString(inbound.Settings, &inboundSettings, "vless inbound settings") {
 			return nil
 		}
-		if encryption, ok := inboundSettings["encryption"].(string); ok && encryption != "" {
-			proxy["packet-encoding"] = encryption
+		if encryption, ok := inboundSettings["encryption"].(string); ok {
+			switch strings.TrimSpace(encryption) {
+			case "packetaddr", "xudp":
+				proxy["packet-encoding"] = encryption
+			}
 		}
 	case model.Trojan:
 		proxy["type"] = "trojan"
@@ -416,26 +419,44 @@ func (s *SubClashService) applySecurity(proxy map[string]any, security string, s
 		if realitySettings == nil {
 			return false
 		}
-		if serverName, ok := realitySettings["serverName"].(string); ok && serverName != "" {
+		if serverName := firstRealityString(realitySettings, "serverName", "serverNames"); serverName != "" {
 			proxy["servername"] = serverName
 		}
 		realityOpts := map[string]any{}
-		if publicKey, ok := realitySettings["publicKey"].(string); ok && publicKey != "" {
+		if publicKey := firstRealityString(realitySettings, "publicKey", "publicKey"); publicKey != "" {
 			realityOpts["public-key"] = publicKey
 		}
-		if shortID, ok := realitySettings["shortId"].(string); ok && shortID != "" {
+		if shortID := firstRealityString(realitySettings, "shortId", "shortIds"); shortID != "" {
 			realityOpts["short-id"] = shortID
 		}
 		if len(realityOpts) > 0 {
 			proxy["reality-opts"] = realityOpts
 		}
-		if fingerprint, ok := realitySettings["fingerprint"].(string); ok && fingerprint != "" {
+		if fingerprint := firstRealityString(realitySettings, "fingerprint", "fingerprint"); fingerprint != "" {
 			proxy["client-fingerprint"] = fingerprint
 		}
 		return true
 	default:
 		return false
 	}
+}
+
+func firstRealityString(settings map[string]any, normalizedKey string, rawKey string) string {
+	if value, ok := settings[normalizedKey].(string); ok && strings.TrimSpace(value) != "" {
+		return value
+	}
+	if values, ok := settings[rawKey].([]any); ok {
+		for _, value := range values {
+			if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
+				return text
+			}
+		}
+	}
+	clientSettings, _ := settings["settings"].(map[string]any)
+	if value, ok := clientSettings[rawKey].(string); ok && strings.TrimSpace(value) != "" {
+		return value
+	}
+	return ""
 }
 
 func (s *SubClashService) streamData(stream string) map[string]any {
