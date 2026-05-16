@@ -22,6 +22,22 @@
 
 As an enhanced fork of the original X-UI project, SuperXray provides improved stability, broader protocol support, and additional features.
 
+## Current Vue UI
+
+The new Vue 3 operations UI now includes a front-loaded Xray workspace navigation and a Gateway Egress MVP panel. The MVP only generates Xray-compatible SOCKS5 inbounds and a Gateway CSV registration manifest; it does not add egress database models, take over CoreManager lifecycle, or promote sing-box to a production path.
+
+<p align="center">
+  <img src="./docs/assets/xray-mvp-desktop.png" alt="Xray workspace and Gateway Egress MVP desktop view" width="720">
+</p>
+
+<p align="center">
+  <img src="./docs/assets/xray-mvp-mobile.png" alt="Gateway Egress MVP mobile view" width="240">
+</p>
+
+- `listenHost` is written to the generated Xray inbound listen address.
+- `manifestHost` is written to Gateway CSV `host` rows, so Docker bridge deployments can register a Gateway-reachable address instead of unusable container-local loopback.
+- The current MVP keeps the existing Xray template save path as the only persistence path.
+
 ## Quick Start
 
 ### One-click install (Linux)
@@ -51,7 +67,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
 
 The repository `docker-compose.yml` builds the image from local source. For image-based container deployment, you can switch Compose to `image: ghcr.io/superaddmin/superxray-gui:3.0.16`. Docker startup does not run the one-click installer's random security initialization, so change the default credentials, panel port, and `webBasePath` immediately after the first start.
 
-For deployment details, see [docs/deployment.md](docs/deployment.md). For AI-platform routing through a dedicated residential egress, see [docs/ai-routing-and-residential-egress.md](docs/ai-routing-and-residential-egress.md). For development and release workflow notes, see [docs/development.md](docs/development.md). The project Wiki remains available at <https://github.com/superaddmin/SuperXray-gui/wiki>.
+For deployment details, see [docs/deployment.md](docs/deployment.md). For AI-platform routing through a dedicated residential egress, see [docs/ai-routing-and-residential-egress.md](docs/ai-routing-and-residential-egress.md). For the Xray-compatible Gateway egress MVP plan, see [docs/superpowers/plans/2026-05-16-vpn-egress-mvp-xray-compatible.md](docs/superpowers/plans/2026-05-16-vpn-egress-mvp-xray-compatible.md). For development and release workflow notes, see [docs/development.md](docs/development.md). The project Wiki remains available at <https://github.com/superaddmin/SuperXray-gui/wiki>.
 
 ## A Special Thanks to
 

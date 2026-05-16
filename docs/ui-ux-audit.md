@@ -5,6 +5,37 @@
 测试方式：本地启动面板，使用 Playwright 在 1440x900、390x844 视口执行视觉检查、可访问性快照、DOM 尺寸取证与截图。
 参考基线：WCAG 2.2 AA。W3C 当前发布页显示 [WCAG 2.2](https://www.w3.org/TR/WCAG22/) 是 Recommendation，最新发布版本为 2024-12-12；[WAI 概览](https://www.w3.org/WAI/standards-guidelines/wcag/)说明 WCAG 2.2 由可感知、可操作、可理解、健壮四类原则组织。
 
+## 2026-05-16 新 UI 增量审计结论
+
+审计范围：Vue 3 新 UI 的 Xray 页面、入站页顶部动作区、全局 Header、移动端抽屉导航与触控目标。
+
+参考视觉：继续沿用 digital-banking 风格基线，主色为深海军蓝背景、银行蓝主操作、绿色仅用于成功状态，字体为 Space Grotesk + DM Sans，组件半径保持 8px 运维控制台密度。
+
+最新截图：
+
+![Xray 工作区与 Gateway 出口 MVP 桌面视图](assets/xray-mvp-desktop.png)
+
+![Gateway 出口 MVP 移动视图](assets/xray-mvp-mobile.png)
+
+### 已修复问题
+
+- **P1：Xray 页信息架构过长，Gateway MVP 入口过深。** 已在 Xray 页顶部新增工作区导航，并将 Gateway 出口 MVP 面板前置到模板编辑器之前，用户无需滚动到配置长表后段即可生成 Xray 兼容入站和 Gateway CSV。
+- **P1：中文界面混入裸英文。** Inbounds 的“更多操作”、Xray 工作区、Gateway 操作按钮、`listenHost` / `manifestHost` 字段、首屏状态卡与 Gateway 预览标签已改为显式 i18n 文案。
+- **P1：Header 视觉 token 被 Ant 默认样式覆盖。** `.app-header.ant-layout-header` 现在强制使用 `rgba(6, 17, 31, 0.84)` 玻璃背景，避免回退到 Ant 默认 `#001529`。
+- **P1：移动端焦点与触控细节不足。** 移动抽屉加入显式关闭按钮，打开后焦点自动落到“关闭导航”；工作区导航按钮、抽屉关闭按钮、开关与复选框补齐稳定触控尺寸。
+- **P2：源码测试仍鼓励裸英文文案。** 相关断言已改为检查 i18n key，避免未来回归时把英文硬塞回中文界面。
+
+### 浏览器取证
+
+- 1440px：Header computed background 为 `rgba(6, 17, 31, 0.84)`；Gateway MVP DOM 顺序位于模板编辑器之前。
+- 375px：页面无横向溢出；工作区导航按钮宽度约 296px、高度 44px；抽屉关闭按钮尺寸 44x44，打开后 `document.activeElement` 为关闭按钮，aria-label 为“关闭导航”。
+- Gateway MVP：默认策略仍展示 `listenHost=127.0.0.1`、`manifestHost=127.0.0.1`；生产 Docker bridge 场景应先改为 Gateway 容器可达的 `manifestHost`，再导入 CSV。
+
+### 保留边界
+
+- 本轮只改前端 UI、前端测试、文档和构建产物。
+- MVP 仍只通过现有 Xray 模板保存路径落地，不新增 `egress_*` 数据库表，不新增 `/panel/api/egress/*`，不接管 CoreManager，不触碰 sing-box 生产路径。
+
 ## 已完成的高优先级修复
 
 ### P0：系统状态桌面端关键指标被折叠面板覆盖

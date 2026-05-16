@@ -37,6 +37,25 @@
 
 因此，本文档当前必须按“两层交付”理解：MVP 先解决 Xray 兼容配置生成、本机入口和 Gateway 登记清单；完整出口治理平台能力进入 Phase 10+。
 
+### 0.2 新 UI 落地状态（2026-05-16）
+
+MVP 入口已经完成前端落地并在 Xray 页前置：
+
+- Xray 页新增 **Xray 工作区** 导航，`Gateway 出口`、`运行控制`、`模板编辑`、`出站工具`、`结构化配置`、`DNS 策略`、`协议工具` 可直接跳转。
+- **Gateway 出口 MVP** 面板位于模板编辑器之前，避免入口埋在长配置页后段。
+- 面板提供 `listenHost`、`manifestHost`、网络策略标签输入，以及“生成 Xray 配置 / 复制登记清单 / 下载登记清单”操作。
+- 当前仍只生成 Xray 兼容配置与 CSV，不新增数据库模型，不新增 API，不接管 CoreManager，不触碰 sing-box 生产路径。
+- 中文界面首屏、Gateway MVP 操作和移动端表单已经改为显式 i18n 文案；顶部 Header 玻璃背景 token 已覆盖 Ant 默认样式。
+- 移动端抽屉提供显式关闭按钮，打开后自动聚焦“关闭导航”，工作区导航按钮保持 44px 高度且无横向溢出。
+
+桌面视图：
+
+![Xray 工作区与 Gateway 出口 MVP](assets/xray-mvp-desktop.png)
+
+移动视图：
+
+![Gateway 出口 MVP 移动端表单](assets/xray-mvp-mobile.png)
+
 ## 1. 背景
 
 Super-Code-Gateway 已经具备 AI API 网关、账号管理、代理登记、账号区域标签和区域代理池能力。网关侧可以在账号创建和编辑时绑定：

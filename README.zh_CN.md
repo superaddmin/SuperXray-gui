@@ -68,6 +68,7 @@
 - 🔐 **安全特性**：TOTP 双因素认证、LDAP 集成、fail2ban 防暴力破解
 - 🌐 **国际化**：支持 13 种语言
 - 🔄 **扩展集成**：Cloudflare WARP、NordVPN、自定义 GeoIP/GeoSite、Xray 出站健康检测与域名级智能分流配置
+- 🧭 **Gateway 出口 MVP**：新 UI 的 Xray 工作区提供 Gateway 出口入口，可生成 Xray 兼容 SOCKS5 入站与 CSV 登记清单，区分 `listenHost` 与 `manifestHost`
 - 🐳 **容器化**：完整的 Docker 支持，一键部署
 
 ---
@@ -98,6 +99,14 @@
   <tr>
     <td align="center">面板设置</td>
     <td align="center">Xray 配置</td>
+  </tr>
+  <tr>
+    <td><img src="./docs/assets/xray-mvp-desktop.png" alt="Xray Gateway 出口 MVP 桌面视图" width="400"/></td>
+    <td><img src="./docs/assets/xray-mvp-mobile.png" alt="Xray Gateway 出口 MVP 移动视图" width="220"/></td>
+  </tr>
+  <tr>
+    <td align="center">新 UI：Xray 工作区与 Gateway 出口 MVP</td>
+    <td align="center">移动端 Gateway 出口表单</td>
   </tr>
 </table>
 
@@ -247,6 +256,14 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 > 订阅输出不包含 Tunnel、HTTP、Mixed、Tun 这类入站规则；它们可作为 Xray 入站配置使用，但不是面向客户端订阅分发的节点类型。Clash/Mihomo 输出中，普通代理协议当前仅生成 TCP、WebSocket、gRPC 传输节点，mKCP、HTTPUpgrade、XHTTP 等传输更适合通过 Xray JSON 或客户端手动配置验证。
 >
 > 默认订阅服务监听 `2096/tcp`，提供 `/sub/`、`/json/`、`/clash/` 三类入口。若直接从公网访问订阅链接，需要在云安全组和系统防火墙放行 `2096/tcp`；更推荐通过 Nginx/Caddy 将订阅路径反向代理到统一的 `443/tcp`。
+
+### Gateway 出口 MVP
+
+新 UI 的 **Xray** 页面已经将 **Gateway 出口 MVP** 前置到模板编辑器之前。该入口只生成 Xray 兼容配置和 Gateway CSV 登记清单，不新增数据库模型、不接管 CoreManager、不触碰 sing-box 生产路径。
+
+- `listenHost` 写入 Xray 生成入站的监听地址。
+- `manifestHost` 写入 Gateway CSV 的 `host` 字段；Gateway 运行在 Docker 容器内时，不应把容器内不可达的 `127.0.0.1` 直接登记给 Gateway。
+- 当前 MVP 固定生成 OpenAI、Anthropic、Gemini、US、JP 五个本机 SOCKS5 出口端口，并通过旧版 Xray 模板保存路径应用。
 
 ### 入站协议能力矩阵
 

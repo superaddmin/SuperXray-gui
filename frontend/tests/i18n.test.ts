@@ -26,6 +26,23 @@ test('translates primary navigation and route titles', () => {
   assert.equal(getRouteTitle('cores', 'en-US'), 'Core Instances');
 });
 
+test('translates xray workspace and gateway mvp actions without dom fallback', () => {
+  assert.equal(translate('action.moreActions', 'zh-CN'), '更多操作');
+  assert.equal(translate('status.closeNav', 'zh-CN'), '关闭导航');
+  assert.equal(translate('xray.workspace.gateway', 'zh-CN'), 'Gateway 出口');
+  assert.equal(translate('xray.gateway.generateConfig', 'zh-CN'), '生成 Xray 配置');
+  assert.equal(translate('xray.gateway.copyManifest', 'zh-CN'), '复制登记清单');
+  assert.equal(translate('xray.gateway.downloadManifest', 'zh-CN'), '下载登记清单');
+  assert.equal(translate('xray.gateway.listenHost', 'zh-CN'), 'Xray 监听主机');
+  assert.equal(translate('xray.gateway.manifestHost', 'zh-CN'), 'Gateway 登记主机');
+  assert.equal(translate('xray.gateway.previewProfiles', 'zh-CN'), '配置档');
+  assert.equal(translate('xray.gateway.strategyLabel', 'zh-CN'), '网络策略标签');
+  assert.equal(translate('xray.status.currentVersion', 'zh-CN'), '当前版本');
+  assert.equal(translate('xray.status.invalidJson', 'zh-CN'), 'JSON 无效');
+  assert.equal(translate('xray.status.legacyCompatible', 'zh-CN'), '旧版兼容');
+  assert.equal(translate('xray.gateway.validStrategyRequired', 'zh-CN'), '请选择有效网络策略后再导出登记清单。');
+});
+
 test('translates dashboard generated labels and dynamic hints', () => {
   assert.equal(translateDomText('Overview', 'zh-CN'), '概览');
   assert.equal(translateDomText('TYPE', 'zh-CN'), '类型');

@@ -52,3 +52,15 @@ test('operational cards use compact radius and stable mobile action grids', () =
   assert.match(css, /\.page-header-actions--compact/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*\.page-header-actions--compact/);
 });
+
+test('header glass token overrides ant layout default background', () => {
+  assert.match(css, /\.app-header\.ant-layout-header/);
+  assert.match(css, /\.app-header\.ant-layout-header[\s\S]*background:\s*rgba\(6, 17, 31, 0\.84\) !important/);
+});
+
+test('mobile drawer and compact toggles keep accessible touch targets', () => {
+  assert.match(css, /\.drawer-close-button/);
+  assert.match(css, /\.ant-switch[\s\S]*min-width:\s*44px/);
+  assert.match(css, /\.ant-checkbox-wrapper[\s\S]*min-height:\s*40px/);
+  assert.match(css, /\.xray-workspace-nav/);
+});

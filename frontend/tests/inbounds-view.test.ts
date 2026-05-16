@@ -117,7 +117,7 @@ test('inbounds page groups secondary and destructive header actions in a more-ac
   assert.match(source, /<ADropdown/);
   assert.match(source, /<AMenu/);
   assert.match(source, /moreActionsOpen/);
-  assert.match(source, /More actions/);
+  assert.match(source, /translate\('action\.moreActions'/);
   assert.match(source, /menuDangerActionKeys/);
   assert.match(source, /@click="handleMoreActionClick"/);
   assert.match(source, /const headerPrimaryActionKeys/);

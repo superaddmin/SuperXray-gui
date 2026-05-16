@@ -8,6 +8,8 @@
 
 **Tech Stack:** Vue 3, Vite, TypeScript, Ant Design Vue 4, Node test runner, CSS media queries.
 
+**Latest update (2026-05-16):** Follow-up UI audit fixes are complete for the Xray information architecture, Gateway MVP placement, Chinese i18n cleanup, Header token override, and mobile drawer focus/touch behavior. Updated screenshots are stored in `docs/assets/xray-mvp-desktop.png` and `docs/assets/xray-mvp-mobile.png`.
+
 ---
 
 ### Task 1: Regression Tests
@@ -67,3 +69,32 @@
 - [x] Start Vite locally and capture 375px, 768px, and 1440px screenshots for Dashboard and Inbounds.
 - [x] Run Lighthouse snapshot on Dashboard and resolve any new accessibility regressions.
 - [x] Run Lighthouse snapshot on Inbounds and resolve filter/accessible-name regressions.
+
+### Task 6: Xray Workspace And Mobile Polish
+
+**Files:**
+- Modify: `frontend/src/views/XrayView.vue`
+- Modify: `frontend/src/views/InboundsView.vue`
+- Modify: `frontend/src/layouts/MainLayout.vue`
+- Modify: `frontend/src/i18n/messages.ts`
+- Modify: `frontend/src/styles/app.css`
+- Modify: `frontend/tests/*.test.ts`
+- Modify: `README.md`
+- Modify: `README.zh_CN.md`
+- Modify: `docs/ui-ux-audit.md`
+- Add: `docs/assets/xray-mvp-desktop.png`
+- Add: `docs/assets/xray-mvp-mobile.png`
+
+- [x] Add source tests that require Xray workspace navigation and Gateway MVP placement before the template editor.
+- [x] Add source tests that require Gateway MVP actions and labels to use i18n keys.
+- [x] Add source tests for Header glass token override and mobile drawer close-focus behavior.
+- [x] Move Gateway Egress MVP above the long Xray template editor.
+- [x] Add the Xray workspace navigation card with anchors for runtime, Gateway, template, outbound tools, structured config, DNS policy, and protocol tools.
+- [x] Replace remaining high-priority mixed English labels in the Xray/Gateway first viewport with Chinese i18n text.
+- [x] Override `.app-header.ant-layout-header` so Ant default layout background cannot replace the approved glass token.
+- [x] Add an explicit mobile drawer close button, focus it after drawer open, and keep compact controls at touch-safe dimensions.
+- [x] Capture updated desktop and mobile screenshots for documentation.
+
+**Browser evidence:**
+- Desktop 1440px: Header computed background is `rgba(6, 17, 31, 0.84)` and Gateway MVP appears before the template editor.
+- Mobile 375px: no horizontal overflow; workspace buttons are 44px tall; drawer close control is 44x44 and receives focus with aria-label `关闭导航`.

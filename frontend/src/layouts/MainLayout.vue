@@ -55,8 +55,18 @@
       placement="left"
       :closable="false"
       :width="288"
+      @after-open-change="handleMobileDrawerOpenChange"
       @close="closeMobileNav"
     >
+      <AButton
+        ref="mobileNavFirstItemRef"
+        class="drawer-close-button"
+        type="text"
+        :aria-label="translate('status.closeNav', appStore.locale)"
+        @click="closeMobileNav"
+      >
+        <template #icon><CloseOutlined /></template>
+      </AButton>
       <RouterLink :aria-label="translate('nav.dashboard', appStore.locale)" class="brand" to="/" @click="closeMobileNav">
         <!-- eslint-disable vue/html-self-closing -->
         <img class="brand-logo" :src="logoDarkUrl" alt="SuperXray" />
@@ -76,6 +86,7 @@
 <script setup lang="ts">
 import {
   ApiOutlined,
+  CloseOutlined,
   ClusterOutlined,
   DashboardOutlined,
   FileTextOutlined,
@@ -95,7 +106,7 @@ import {
 } from 'ant-design-vue';
 import type { ItemType } from 'ant-design-vue';
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
-import { computed, h, ref } from 'vue';
+import { computed, h, nextTick, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 
 import logoDarkUrl from '@/assets/logo-dark.svg';
@@ -109,6 +120,7 @@ const route = useRoute();
 const router = useRouter();
 const isMobileLayout = ref(false);
 const mobileNavOpen = ref(false);
+const mobileNavFirstItemRef = ref<{ focus: () => void }>();
 
 const menuItems = computed<ItemType[]>(() => [
   {
@@ -166,5 +178,12 @@ function handleSiderBreakpoint(broken: boolean) {
   if (!broken) {
     closeMobileNav();
   }
+}
+
+function handleMobileDrawerOpenChange(open: boolean) {
+  if (!open) {
+    return;
+  }
+  void nextTick(() => mobileNavFirstItemRef.value?.focus());
 }
 </script>

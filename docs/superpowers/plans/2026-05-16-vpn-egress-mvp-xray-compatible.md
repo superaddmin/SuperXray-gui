@@ -8,6 +8,10 @@
 
 **Tech Stack:** Vue 3, TypeScript, Ant Design Vue, existing Xray template API, Node test runner, existing Go backend only for current Xray template persistence.
 
+**Implementation status (2026-05-16):** MVP frontend implementation is complete and now appears near the top of the Xray page, before the long template editor. The UI exposes separate `listenHost` and `manifestHost` inputs, copy/download manifest actions, and deterministic JP/US registration rows. Updated screenshots are available at `docs/assets/xray-mvp-desktop.png` and `docs/assets/xray-mvp-mobile.png`.
+
+![Xray Gateway Egress MVP desktop](../../assets/xray-mvp-desktop.png)
+
 ---
 
 ## Phase Gate
@@ -23,6 +27,7 @@ Approved implementation decision:
 - Docker bridge + host x-ui deployments must choose a reachable `manifestHost` before importing CSV rows into Gateway.
 - Egress database tables and `/panel/api/egress/*` APIs remain deferred to Phase 10+ design review.
 - `default-xray` remains a read-only CoreManager observation instance; this MVP must not call CoreManager lifecycle methods. The source boundary is `web/service/core_service.go:62`, where `default-xray` is defined with `LifecycleViaCoreManager: false`.
+- Server-side egress governance remains deferred: `egress_groups`, `egress_nodes`, `egress_probe_results`, `egress_switch_events`, and `/panel/api/egress/*` are still Phase 10+ design-review items only.
 
 Allowed:
 - Add frontend utilities that generate Xray JSON snippets and Gateway CSV rows.

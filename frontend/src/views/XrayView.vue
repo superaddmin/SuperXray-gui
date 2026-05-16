@@ -1,9 +1,9 @@
 <template>
   <section class="page-stack xray-page">
     <PageHeader
-      eyebrow="Runtime"
+      :eyebrow="translate('common.runtime', appStore.locale)"
       title="Xray"
-      description="Control the legacy Xray runtime, template, versions, outbounds, and provider tools."
+      :description="translate('xray.description', appStore.locale)"
     >
       <ASpace wrap>
         <AButton :loading="refreshing" @click="refreshRuntime">
@@ -25,32 +25,130 @@
 
     <div class="status-grid">
       <StatusTile
-        label="Xray State"
+        :label="translate('common.xrayState', appStore.locale)"
         :value="xrayStateLabel"
         :hint="xrayErrorHint"
         :tone="xrayStateTone"
       />
       <StatusTile
-        label="Current Version"
+        :label="translate('xray.status.currentVersion', appStore.locale)"
         :value="currentVersion"
-        hint="Existing Xray process"
+        :hint="translate('xray.status.existingProcess', appStore.locale)"
         tone="info"
       />
       <StatusTile
-        label="Template"
+        :label="translate('common.template', appStore.locale)"
         :value="templateState"
         :hint="configChangedHint"
         :tone="configChanged ? 'warning' : 'success'"
       />
       <StatusTile
-        label="Outbound Test"
+        :label="translate('xray.status.outboundTest', appStore.locale)"
         :value="outboundTestUrl || '-'"
-        hint="Saved with legacy template"
+        :hint="translate('xray.status.savedLegacyTemplate', appStore.locale)"
         tone="neutral"
       />
     </div>
 
-    <ACard class="work-panel" :bordered="false">
+    <ACard class="work-panel xray-workspace-panel" :bordered="false">
+      <div class="panel-header">
+        <div>
+          <p class="page-eyebrow">{{ translate('xray.workspace.eyebrow', appStore.locale) }}</p>
+          <h2>{{ translate('xray.workspace.title', appStore.locale) }}</h2>
+        </div>
+      </div>
+      <nav class="xray-workspace-nav" aria-label="Xray workspace navigation">
+        <AButton
+          v-for="section in xrayWorkspaceSections"
+          :key="section.id"
+          :type="section.primary ? 'primary' : 'default'"
+          @click="scrollToXraySection(section.id)"
+        >
+          {{ section.label }}
+        </AButton>
+      </nav>
+    </ACard>
+
+    <ACard id="xray-gateway-egress" class="work-panel gateway-egress-mvp-panel" :bordered="false">
+      <FormSection
+        :eyebrow="translate('xray.gateway.eyebrow', appStore.locale)"
+        :title="translate('xray.gateway.title', appStore.locale)"
+        :description="translate('xray.gateway.description', appStore.locale)"
+      >
+        <template #actions>
+          <ASpace wrap>
+            <AButton
+              :disabled="Boolean(gatewayEgressNetworkError)"
+              type="primary"
+              @click="applyGatewayEgressMvp"
+            >
+              {{ translate('xray.gateway.generateConfig', appStore.locale) }}
+            </AButton>
+            <AButton
+              :disabled="Boolean(gatewayEgressNetworkError)"
+              @click="copyGatewayEgressManifest"
+            >
+              <template #icon><CopyOutlined /></template>
+              {{ translate('xray.gateway.copyManifest', appStore.locale) }}
+            </AButton>
+            <AButton
+              :disabled="Boolean(gatewayEgressNetworkError)"
+              @click="downloadGatewayEgressManifest"
+            >
+              <template #icon><DownloadOutlined /></template>
+              {{ translate('xray.gateway.downloadManifest', appStore.locale) }}
+            </AButton>
+          </ASpace>
+        </template>
+
+        <AAlert
+          v-if="gatewayEgressNetworkError"
+          class="mb-12"
+          show-icon
+          type="warning"
+          :message="gatewayEgressNetworkError"
+        />
+
+        <AForm class="gateway-egress-network-form" layout="vertical">
+          <div class="form-grid">
+            <AFormItem :label="translate('xray.gateway.listenHost', appStore.locale)">
+              <AInput v-model:value="gatewayEgressNetwork.listenHost" />
+            </AFormItem>
+            <AFormItem :label="translate('xray.gateway.manifestHost', appStore.locale)">
+              <AInput v-model:value="gatewayEgressNetwork.manifestHost" />
+            </AFormItem>
+            <AFormItem :label="translate('xray.gateway.strategyLabel', appStore.locale)">
+              <AInput v-model:value="gatewayEgressNetwork.strategyLabel" />
+            </AFormItem>
+          </div>
+        </AForm>
+
+        <div class="gateway-egress-mvp-grid">
+          <div class="client-link-card">
+            <strong>{{ gatewayEgressMvpPreview.profileCount }}</strong>
+            <p class="muted-text">{{ translate('xray.gateway.previewProfiles', appStore.locale) }}</p>
+          </div>
+          <div class="client-link-card">
+            <strong>{{ gatewayEgressMvpPreview.ports.join(', ') }}</strong>
+            <p class="muted-text">{{ translate('xray.gateway.previewPorts', appStore.locale) }}</p>
+          </div>
+          <div class="client-link-card">
+            <strong>{{ gatewayEgressMvpPreview.listenHost }}</strong>
+            <p class="muted-text">{{ translate('xray.gateway.previewListenHost', appStore.locale) }}</p>
+          </div>
+          <div class="client-link-card">
+            <strong>{{ gatewayEgressMvpPreview.manifestHost }}</strong>
+            <p class="muted-text">{{ translate('xray.gateway.previewManifestHost', appStore.locale) }}</p>
+          </div>
+        </div>
+
+        <pre class="code-preview compact-preview mt-16">{{
+          gatewayEgressManifestCsv || translate('xray.gateway.validStrategyRequired', appStore.locale)
+        }}</pre>
+      </FormSection>
+    </ACard>
+
+    <ACard id="xray-runtime-control" class="work-panel" :bordered="false">
       <div class="panel-header">
         <div>
           <p class="page-eyebrow">Lifecycle</p>
@@ -102,7 +200,7 @@
       />
     </ACard>
 
-    <ACard class="work-panel" :bordered="false">
+    <ACard id="xray-template-editor" class="work-panel" :bordered="false">
       <div class="panel-header">
         <div>
           <p class="page-eyebrow">Configuration</p>
@@ -138,86 +236,7 @@
       />
     </ACard>
 
-    <ACard class="work-panel gateway-egress-mvp-panel" :bordered="false">
-      <FormSection
-        eyebrow="Gateway"
-        title="Gateway Egress MVP"
-        description="Generate Xray-compatible Gateway-facing SOCKS5 inbounds and a manifest without adding backend egress models."
-      >
-        <template #actions>
-          <ASpace wrap>
-            <AButton
-              :disabled="Boolean(gatewayEgressNetworkError)"
-              type="primary"
-              @click="applyGatewayEgressMvp"
-            >
-              Generate Xray Config
-            </AButton>
-            <AButton
-              :disabled="Boolean(gatewayEgressNetworkError)"
-              @click="copyGatewayEgressManifest"
-            >
-              <template #icon><CopyOutlined /></template>
-              Copy Manifest
-            </AButton>
-            <AButton
-              :disabled="Boolean(gatewayEgressNetworkError)"
-              @click="downloadGatewayEgressManifest"
-            >
-              <template #icon><DownloadOutlined /></template>
-              Download Manifest
-            </AButton>
-          </ASpace>
-        </template>
-
-        <AAlert
-          v-if="gatewayEgressNetworkError"
-          class="mb-12"
-          show-icon
-          type="warning"
-          :message="gatewayEgressNetworkError"
-        />
-
-        <AForm class="gateway-egress-network-form" layout="vertical">
-          <div class="form-grid">
-            <AFormItem label="Listen Host">
-              <AInput v-model:value="gatewayEgressNetwork.listenHost" />
-            </AFormItem>
-            <AFormItem label="Manifest Host">
-              <AInput v-model:value="gatewayEgressNetwork.manifestHost" />
-            </AFormItem>
-            <AFormItem label="Strategy Label">
-              <AInput v-model:value="gatewayEgressNetwork.strategyLabel" />
-            </AFormItem>
-          </div>
-        </AForm>
-
-        <div class="gateway-egress-mvp-grid">
-          <div class="client-link-card">
-            <strong>{{ gatewayEgressMvpPreview.profileCount }}</strong>
-            <p class="muted-text">profiles</p>
-          </div>
-          <div class="client-link-card">
-            <strong>{{ gatewayEgressMvpPreview.ports.join(', ') }}</strong>
-            <p class="muted-text">ports</p>
-          </div>
-          <div class="client-link-card">
-            <strong>{{ gatewayEgressMvpPreview.listenHost }}</strong>
-            <p class="muted-text">Xray listen host</p>
-          </div>
-          <div class="client-link-card">
-            <strong>{{ gatewayEgressMvpPreview.manifestHost }}</strong>
-            <p class="muted-text">Gateway manifest host</p>
-          </div>
-        </div>
-
-        <pre class="code-preview compact-preview mt-16">{{
-          gatewayEgressManifestCsv || 'Select a valid network strategy before exporting manifest.'
-        }}</pre>
-      </FormSection>
-    </ACard>
-
-    <ACard class="work-panel" :bordered="false">
+    <ACard id="xray-outbound-tools" class="work-panel" :bordered="false">
       <div class="panel-header">
         <div>
           <p class="page-eyebrow">Outbound</p>
@@ -296,7 +315,7 @@
       </div>
     </ACard>
 
-    <ACard class="work-panel" :bordered="false">
+    <ACard id="xray-structured-config" class="work-panel" :bordered="false">
       <FormSection eyebrow="Structured" title="Residential IP Pool">
         <template #actions>
           <ASpace wrap>
@@ -348,7 +367,7 @@
       </FormSection>
     </ACard>
 
-    <ACard class="work-panel" :bordered="false">
+    <ACard id="xray-protocol-tools" class="work-panel" :bordered="false">
       <FormSection eyebrow="Structured" title="Outbounds">
         <template #actions>
           <AButton type="primary" @click="openOutboundModal()">
@@ -379,7 +398,7 @@
       </FormSection>
     </ACard>
 
-    <ACard class="work-panel" :bordered="false">
+    <ACard id="xray-dns-policy" class="work-panel" :bordered="false">
       <FormSection eyebrow="Structured" title="Routing Rules">
         <template #actions>
           <AButton type="primary" @click="openRoutingRuleModal()">
@@ -891,6 +910,8 @@ import {
 import FormSection from '@/components/FormSection.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import StatusTile from '@/components/StatusTile.vue';
+import { translate } from '@/i18n/messages';
+import { useAppStore } from '@/stores/app';
 import { useServerStore } from '@/stores/server';
 import type { JsonObject, JsonValue } from '@/types/api';
 import { hasInjectedRuntimeConfig } from '@/types/runtime';
@@ -957,6 +978,7 @@ import {
   normalizeGatewayEgressMvpNetworkStrategy,
 } from '@/utils/gatewayEgressMvp';
 
+const appStore = useAppStore();
 const serverStore = useServerStore();
 const error = ref('');
 const configText = ref('');
@@ -1025,6 +1047,37 @@ const dnsPolicyForm = reactive<DnsPolicyForm>(createDnsPolicyForm());
 const runtimePolicyForm = reactive<RuntimePolicyForm>(createRuntimePolicyForm());
 const observatoryForm = reactive<ObservatoryForm>(createObservatoryForm());
 const gatewayEgressNetwork = reactive({ ...DEFAULT_GATEWAY_EGRESS_MVP_NETWORK_STRATEGY });
+const xrayWorkspaceSections = computed(() => [
+  {
+    id: 'xray-gateway-egress',
+    label: translate('xray.workspace.gateway', appStore.locale),
+    primary: true,
+  },
+  {
+    id: 'xray-runtime-control',
+    label: translate('xray.workspace.runtime', appStore.locale),
+  },
+  {
+    id: 'xray-template-editor',
+    label: translate('xray.workspace.template', appStore.locale),
+  },
+  {
+    id: 'xray-outbound-tools',
+    label: translate('xray.workspace.outbound', appStore.locale),
+  },
+  {
+    id: 'xray-structured-config',
+    label: translate('xray.workspace.structured', appStore.locale),
+  },
+  {
+    id: 'xray-dns-policy',
+    label: translate('xray.workspace.dns', appStore.locale),
+  },
+  {
+    id: 'xray-protocol-tools',
+    label: translate('xray.workspace.tools', appStore.locale),
+  },
+]);
 
 const status = computed(() => serverStore.status);
 const refreshing = computed(
@@ -1047,7 +1100,9 @@ const xrayStateTone = computed<'danger' | 'neutral' | 'success' | 'warning'>(() 
       return 'neutral';
   }
 });
-const xrayErrorHint = computed(() => status.value?.xray.errorMsg || 'Existing Xray service');
+const xrayErrorHint = computed(
+  () => status.value?.xray.errorMsg || translate('xray.status.existingService', appStore.locale),
+);
 const startRestartLabel = computed(() =>
   status.value?.xray.state === 'stop' ? 'Start' : 'Restart',
 );
@@ -1057,9 +1112,15 @@ const configChanged = computed(
     outboundTestUrl.value !== loadedOutboundTestUrl.value,
 );
 const configChangedHint = computed(() =>
-  configChanged.value ? 'Unsaved changes' : 'Legacy-compatible',
+  configChanged.value
+    ? translate('xray.status.unsavedChanges', appStore.locale)
+    : translate('xray.status.legacyCompatible', appStore.locale),
 );
-const templateState = computed(() => (parsedConfig.value ? 'Valid JSON' : 'Invalid JSON'));
+const templateState = computed(() =>
+  parsedConfig.value
+    ? translate('xray.status.validJson', appStore.locale)
+    : translate('xray.status.invalidJson', appStore.locale),
+);
 const runtimeResult = computed(() => {
   const lines = [
     `State: ${status.value?.xray.state || '-'}`,
@@ -1227,6 +1288,10 @@ const canApplyProtocolToolOutbound = computed(() =>
 );
 
 const loadedOutboundTestUrl = ref('');
+
+function scrollToXraySection(sectionId: string) {
+  document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 function createOutboundEditor(): OutboundEditorForm {
   return {

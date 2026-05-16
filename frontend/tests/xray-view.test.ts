@@ -131,7 +131,7 @@ test('xray view exposes residential ip pool workflow for ai routing', () => {
 });
 
 test('xray view exposes gateway egress mvp generator with separate listen and manifest hosts', () => {
-  assert.match(source, /Gateway Egress MVP/);
+  assert.match(source, /translate\('xray\.gateway\.title'/);
   assert.match(source, /gatewayEgressNetwork\.listenHost/);
   assert.match(source, /gatewayEgressNetwork\.manifestHost/);
   assert.match(source, /gatewayEgressNetwork\.strategyLabel/);
@@ -141,4 +141,36 @@ test('xray view exposes gateway egress mvp generator with separate listen and ma
   assert.match(source, /copyGatewayEgressManifest/);
   assert.match(source, /downloadGatewayEgressManifest/);
   assert.doesNotMatch(source, /panel\/api\/egress|egress_groups|egress_nodes|sing-box production/);
+});
+
+test('xray view lifts gateway mvp above template editing and exposes workspace navigation', () => {
+  const gatewayPanelIndex = source.indexOf('class="work-panel gateway-egress-mvp-panel"');
+  const templateEditorIndex = source.indexOf('Xray Template Editor');
+
+  assert.notEqual(gatewayPanelIndex, -1);
+  assert.notEqual(templateEditorIndex, -1);
+  assert.ok(gatewayPanelIndex < templateEditorIndex);
+  assert.match(source, /class="xray-workspace-nav"/);
+  assert.match(source, /aria-label="Xray workspace navigation"/);
+  assert.match(source, /xrayWorkspaceSections/);
+  assert.match(source, /scrollToXraySection/);
+  assert.match(source, /id="xray-gateway-egress"/);
+});
+
+test('xray view renders gateway actions and labels through i18n keys', () => {
+  for (const key of [
+    'xray.gateway.generateConfig',
+    'xray.gateway.copyManifest',
+    'xray.gateway.downloadManifest',
+    'xray.gateway.listenHost',
+    'xray.gateway.manifestHost',
+    'xray.gateway.strategyLabel',
+    'xray.gateway.validStrategyRequired',
+  ]) {
+    assert.match(source, new RegExp(`translate\\('${key}'`));
+  }
+
+  assert.doesNotMatch(source, />\s*Generate Xray Config\s*</);
+  assert.doesNotMatch(source, />\s*Copy Manifest\s*</);
+  assert.doesNotMatch(source, />\s*Download Manifest\s*</);
 });

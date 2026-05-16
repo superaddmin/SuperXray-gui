@@ -332,6 +332,10 @@ a,
   backdrop-filter: blur(22px);
 }
 
+.app-header.ant-layout-header {
+  background: rgba(6, 17, 31, 0.84) !important;
+}
+
 .icon-button {
   display: inline-flex;
   align-items: center;
@@ -583,12 +587,46 @@ a,
   background: var(--brand-shell);
 }
 
+.drawer-close-button.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  margin: 0 0 10px 6px;
+  border: 1px solid var(--brand-border-soft);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--brand-ink);
+}
+
+.drawer-close-button.ant-btn:hover,
+.drawer-close-button.ant-btn:focus {
+  border-color: rgba(0, 102, 255, 0.58);
+  background: rgba(0, 102, 255, 0.14);
+  color: #ffffff;
+}
+
 .mobile-nav-menu {
   margin-top: 4px;
 }
 
 .work-panel .ant-card-body {
   padding: 22px;
+}
+
+.xray-workspace-nav {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.xray-workspace-nav .ant-btn {
+  justify-content: center;
+  min-height: 44px;
+  width: 100%;
+  white-space: normal;
 }
 
 .work-panel .ant-table-wrapper {
@@ -1260,6 +1298,15 @@ a,
   background: var(--brand-success);
 }
 
+.ant-switch {
+  min-width: 44px;
+}
+
+.ant-checkbox-wrapper {
+  align-items: center;
+  min-height: 40px;
+}
+
 .ant-divider {
   border-color: var(--brand-border-soft);
 }
@@ -1390,6 +1437,10 @@ a,
     margin-top: 4px;
   }
 
+  .mobile-nav-menu .ant-menu-item {
+    min-height: 44px;
+  }
+
   .app-sider {
     display: none;
     transform: translateX(-100%);
@@ -1476,6 +1527,7 @@ a,
   .drawer-summary,
   .form-grid,
   .client-form-grid,
+  .xray-workspace-nav,
   .gateway-egress-mvp-grid,
   .settings-token-grid {
     grid-template-columns: 1fr;

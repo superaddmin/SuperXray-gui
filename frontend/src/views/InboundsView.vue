@@ -20,7 +20,7 @@
         <ADropdown v-model:open="moreActionsOpen" :trigger="['click']">
           <AButton>
             <template #icon><EllipsisOutlined /></template>
-            More actions
+            {{ translate('action.moreActions', appStore.locale) }}
           </AButton>
           <template #overlay>
             <AMenu :items="moreActionItems" @click="handleMoreActionClick" />
@@ -1424,7 +1424,7 @@ import {
   xrayEditableProtocols,
 } from '@/schemas/protocolRegistry';
 import { getRuntimeConfig, hasInjectedRuntimeConfig } from '@/types/runtime';
-import { translateDomText } from '@/i18n/messages';
+import { translate, translateDomText } from '@/i18n/messages';
 import { useAppStore } from '@/stores/app';
 import type {
   ClientTraffic,

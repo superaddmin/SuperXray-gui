@@ -20,3 +20,12 @@ test('language toggle accessible name keeps visible label and hidden action text
   assert.match(statusBarSource, /<span>\{\{ languageButtonLabel \}\}<\/span>/);
   assert.match(statusBarSource, /class="visually-hidden"/);
 });
+
+test('mobile drawer provides explicit close control and manages focus after opening', () => {
+  assert.match(layoutSource, /@after-open-change="handleMobileDrawerOpenChange"/);
+  assert.match(layoutSource, /class="drawer-close-button"/);
+  assert.match(layoutSource, /:aria-label="translate\('status.closeNav'/);
+  assert.match(layoutSource, /mobileNavFirstItemRef/);
+  assert.match(layoutSource, /function handleMobileDrawerOpenChange/);
+  assert.match(layoutSource, /focus\(\)/);
+});
