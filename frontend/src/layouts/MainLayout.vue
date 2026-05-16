@@ -7,6 +7,7 @@
       collapsible
       :trigger="null"
       width="236"
+      @breakpoint="handleSiderBreakpoint"
     >
       <RouterLink :aria-label="translate('nav.dashboard', appStore.locale)" class="brand" to="/">
         <!-- eslint-disable vue/html-self-closing -->
@@ -34,14 +35,10 @@
         <AButton
           type="text"
           class="icon-button"
-          :aria-label="
-            appStore.collapsed
-              ? translate('status.expandNav', appStore.locale)
-              : translate('status.collapseNav', appStore.locale)
-          "
-          @click="appStore.toggleCollapsed"
+          :aria-label="navButtonLabel"
+          @click="handleNavButtonClick"
         >
-          <MenuUnfoldOutlined v-if="appStore.collapsed" />
+          <MenuUnfoldOutlined v-if="isMobileLayout || appStore.collapsed" />
           <MenuFoldOutlined v-else />
         </AButton>
         <AppStatusBar />
@@ -51,6 +48,28 @@
         <RouterView />
       </ALayoutContent>
     </ALayout>
+
+    <ADrawer
+      v-model:open="mobileNavOpen"
+      class="mobile-nav-drawer"
+      placement="left"
+      :closable="false"
+      :width="288"
+      @close="closeMobileNav"
+    >
+      <RouterLink :aria-label="translate('nav.dashboard', appStore.locale)" class="brand" to="/" @click="closeMobileNav">
+        <!-- eslint-disable vue/html-self-closing -->
+        <img class="brand-logo" :src="logoDarkUrl" alt="SuperXray" />
+        <!-- eslint-enable vue/html-self-closing -->
+      </RouterLink>
+      <AMenu
+        class="app-menu mobile-nav-menu"
+        mode="inline"
+        :items="menuItems"
+        :selected-keys="selectedKeys"
+        @click="handleMenuClick"
+      />
+    </ADrawer>
   </ALayout>
 </template>
 
@@ -67,6 +86,7 @@ import {
 } from '@ant-design/icons-vue';
 import {
   Button as AButton,
+  Drawer as ADrawer,
   Layout as ALayout,
   LayoutContent as ALayoutContent,
   LayoutHeader as ALayoutHeader,
@@ -75,7 +95,7 @@ import {
 } from 'ant-design-vue';
 import type { ItemType } from 'ant-design-vue';
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
-import { computed, h } from 'vue';
+import { computed, h, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 
 import logoDarkUrl from '@/assets/logo-dark.svg';
@@ -87,6 +107,8 @@ import { useAppStore } from '@/stores/app';
 const appStore = useAppStore();
 const route = useRoute();
 const router = useRouter();
+const isMobileLayout = ref(false);
+const mobileNavOpen = ref(false);
 
 const menuItems = computed<ItemType[]>(() => [
   {
@@ -110,9 +132,39 @@ const menuItems = computed<ItemType[]>(() => [
 ]);
 
 const selectedKeys = computed(() => [String(route.name || 'dashboard')]);
+const navButtonLabel = computed(() => {
+  if (isMobileLayout.value) {
+    return mobileNavOpen.value
+      ? translate('status.collapseNav', appStore.locale)
+      : translate('status.expandNav', appStore.locale);
+  }
+  return appStore.collapsed
+    ? translate('status.expandNav', appStore.locale)
+    : translate('status.collapseNav', appStore.locale);
+});
 
 function handleMenuClick({ key }: MenuInfo) {
   const routeKey = String(key);
+  closeMobileNav();
   router.push(routeKey === 'dashboard' ? '/' : `/${routeKey}`);
+}
+
+function handleNavButtonClick() {
+  if (isMobileLayout.value) {
+    mobileNavOpen.value = true;
+    return;
+  }
+  appStore.toggleCollapsed();
+}
+
+function closeMobileNav() {
+  mobileNavOpen.value = false;
+}
+
+function handleSiderBreakpoint(broken: boolean) {
+  isMobileLayout.value = broken;
+  if (!broken) {
+    closeMobileNav();
+  }
 }
 </script>

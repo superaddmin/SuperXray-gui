@@ -2,6 +2,21 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.16] - 2026-05-16
+
+### Added
+
+- 新 UI 完成 digital banking 风格的运营控制台视觉收口，统一银行蓝主色、成功态绿色、深色高对比面板、移动端抽屉导航与紧凑操作布局。
+- 新增 Gateway Egress MVP 生成器，在 Xray 模板编辑流程中生成 Xray 兼容 SOCKS5 inbound、平台域名路由规则和 Super-Code-Gateway CSV 登记清单。
+- 新增 `listenHost` 与 `manifestHost` 双 host 策略，分别用于 Xray inbound 监听和 Gateway CSV 登记，支持 Docker bridge 场景使用 Gateway 可达地址。
+- 新增 Phase 10+ 出口治理设计草案，保留 `egress_groups`、`egress_nodes`、`egress_probe_results`、`egress_switch_events` 的 schema/API/UI 评审入口。
+
+### Changed
+
+- 明确当前 MVP 不新增数据库模型、不接管 CoreManager、不触碰 sing-box 生产路径，`default-xray` 仍保持只读观察实例。
+- 更新 VPN 层出口治理交接文档，要求实施前确认网络可达 host 策略，并禁止当前 MVP 使用 `0.0.0.0` 通配监听。
+- 同步发布版本到 `3.0.16`。
+
 ## [3.0.15] - 2026-05-16
 
 ### Added

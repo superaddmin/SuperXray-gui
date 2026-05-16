@@ -129,3 +129,16 @@ test('xray view exposes residential ip pool workflow for ai routing', () => {
     assert.match(source, new RegExp(stateField.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
 });
+
+test('xray view exposes gateway egress mvp generator with separate listen and manifest hosts', () => {
+  assert.match(source, /Gateway Egress MVP/);
+  assert.match(source, /gatewayEgressNetwork\.listenHost/);
+  assert.match(source, /gatewayEgressNetwork\.manifestHost/);
+  assert.match(source, /gatewayEgressNetwork\.strategyLabel/);
+  assert.match(source, /mergeGatewayEgressMvpConfig/);
+  assert.match(source, /buildGatewayEgressManifestCsv/);
+  assert.match(source, /applyGatewayEgressMvp/);
+  assert.match(source, /copyGatewayEgressManifest/);
+  assert.match(source, /downloadGatewayEgressManifest/);
+  assert.doesNotMatch(source, /panel\/api\/egress|egress_groups|egress_nodes|sing-box production/);
+});

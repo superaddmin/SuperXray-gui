@@ -1,7 +1,7 @@
 # AI 平台智能分流与住宅出口运行手册
 
 > **目标读者**：需要在 SuperXray 中为 OpenAI/ChatGPT、Anthropic/Claude、Google/Gemini 等 AI 平台配置专用出口的运维人员
-> **适用版本**：`v3.0.15`
+> **适用版本**：`v3.0.16`
 > **相关文档**：[部署指南](deployment.md) | [系统架构设计](architecture.md) | [入站创建教程](inbound-creation-guide.md)
 
 ---

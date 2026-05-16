@@ -138,6 +138,85 @@
       />
     </ACard>
 
+    <ACard class="work-panel gateway-egress-mvp-panel" :bordered="false">
+      <FormSection
+        eyebrow="Gateway"
+        title="Gateway Egress MVP"
+        description="Generate Xray-compatible Gateway-facing SOCKS5 inbounds and a manifest without adding backend egress models."
+      >
+        <template #actions>
+          <ASpace wrap>
+            <AButton
+              :disabled="Boolean(gatewayEgressNetworkError)"
+              type="primary"
+              @click="applyGatewayEgressMvp"
+            >
+              Generate Xray Config
+            </AButton>
+            <AButton
+              :disabled="Boolean(gatewayEgressNetworkError)"
+              @click="copyGatewayEgressManifest"
+            >
+              <template #icon><CopyOutlined /></template>
+              Copy Manifest
+            </AButton>
+            <AButton
+              :disabled="Boolean(gatewayEgressNetworkError)"
+              @click="downloadGatewayEgressManifest"
+            >
+              <template #icon><DownloadOutlined /></template>
+              Download Manifest
+            </AButton>
+          </ASpace>
+        </template>
+
+        <AAlert
+          v-if="gatewayEgressNetworkError"
+          class="mb-12"
+          show-icon
+          type="warning"
+          :message="gatewayEgressNetworkError"
+        />
+
+        <AForm class="gateway-egress-network-form" layout="vertical">
+          <div class="form-grid">
+            <AFormItem label="Listen Host">
+              <AInput v-model:value="gatewayEgressNetwork.listenHost" />
+            </AFormItem>
+            <AFormItem label="Manifest Host">
+              <AInput v-model:value="gatewayEgressNetwork.manifestHost" />
+            </AFormItem>
+            <AFormItem label="Strategy Label">
+              <AInput v-model:value="gatewayEgressNetwork.strategyLabel" />
+            </AFormItem>
+          </div>
+        </AForm>
+
+        <div class="gateway-egress-mvp-grid">
+          <div class="client-link-card">
+            <strong>{{ gatewayEgressMvpPreview.profileCount }}</strong>
+            <p class="muted-text">profiles</p>
+          </div>
+          <div class="client-link-card">
+            <strong>{{ gatewayEgressMvpPreview.ports.join(', ') }}</strong>
+            <p class="muted-text">ports</p>
+          </div>
+          <div class="client-link-card">
+            <strong>{{ gatewayEgressMvpPreview.listenHost }}</strong>
+            <p class="muted-text">Xray listen host</p>
+          </div>
+          <div class="client-link-card">
+            <strong>{{ gatewayEgressMvpPreview.manifestHost }}</strong>
+            <p class="muted-text">Gateway manifest host</p>
+          </div>
+        </div>
+
+        <pre class="code-preview compact-preview mt-16">{{
+          gatewayEgressManifestCsv || 'Select a valid network strategy before exporting manifest.'
+        }}</pre>
+      </FormSection>
+    </ACard>
+
     <ACard class="work-panel" :bordered="false">
       <div class="panel-header">
         <div>
@@ -870,6 +949,13 @@ import {
   generateProtocolToolCombo,
 } from '@/utils/xrayProtocolTools';
 import { copyText, downloadText } from '@/utils/textExport';
+import {
+  DEFAULT_GATEWAY_EGRESS_MVP_NETWORK_STRATEGY,
+  buildGatewayEgressManifestCsv,
+  buildGatewayEgressMvpPreview,
+  mergeGatewayEgressMvpConfig,
+  normalizeGatewayEgressMvpNetworkStrategy,
+} from '@/utils/gatewayEgressMvp';
 
 const serverStore = useServerStore();
 const error = ref('');
@@ -938,6 +1024,7 @@ const warpConfigRaw = ref<Record<string, unknown> | null>(null);
 const dnsPolicyForm = reactive<DnsPolicyForm>(createDnsPolicyForm());
 const runtimePolicyForm = reactive<RuntimePolicyForm>(createRuntimePolicyForm());
 const observatoryForm = reactive<ObservatoryForm>(createObservatoryForm());
+const gatewayEgressNetwork = reactive({ ...DEFAULT_GATEWAY_EGRESS_MVP_NETWORK_STRATEGY });
 
 const status = computed(() => serverStore.status);
 const refreshing = computed(
@@ -1116,6 +1203,24 @@ const dnsServerRows = computed(() => getDnsServerRows(parsedConfig.value));
 const fakeDnsRows = computed(() => getFakeDnsRows(parsedConfig.value));
 const balancerRows = computed(() => getBalancerRows(parsedConfig.value));
 const reverseRows = computed(() => getReverseRows(parsedConfig.value));
+const gatewayEgressNetworkError = computed(() => {
+  try {
+    normalizeGatewayEgressMvpNetworkStrategy(gatewayEgressNetwork);
+    return '';
+  } catch (caught) {
+    return caught instanceof Error ? caught.message : 'Invalid Gateway egress network strategy';
+  }
+});
+const gatewayEgressMvpPreview = computed(() => {
+  try {
+    return buildGatewayEgressMvpPreview(gatewayEgressNetwork);
+  } catch {
+    return buildGatewayEgressMvpPreview(DEFAULT_GATEWAY_EGRESS_MVP_NETWORK_STRATEGY);
+  }
+});
+const gatewayEgressManifestCsv = computed(() =>
+  gatewayEgressNetworkError.value ? '' : buildGatewayEgressManifestCsv(gatewayEgressNetwork),
+);
 const protocolToolRows = computed(() => PROTOCOL_TOOL_PRESETS);
 const canApplyProtocolToolOutbound = computed(() =>
   Boolean(protocolToolLastResult.value?.saveToXray && protocolToolLastResult.value?.clientOutbound),
@@ -1245,6 +1350,36 @@ function applyTemplateConfig(nextTemplate: JsonObject) {
   const formatted = JSON.stringify(nextTemplate, null, 2);
   configText.value = formatted;
   syncStructuredFormsFromConfig(nextTemplate);
+}
+
+function applyGatewayEgressMvp() {
+  try {
+    const merged = mergeGatewayEgressMvpConfig(parsedConfig.value, gatewayEgressNetwork);
+    applyTemplateConfig(merged);
+    void message.success('Gateway egress MVP config generated. Review and save the Xray template.');
+  } catch (caught) {
+    const errorMessage =
+      caught instanceof Error ? caught.message : 'Failed to generate Gateway egress config';
+    error.value = errorMessage;
+    void message.error(errorMessage);
+  }
+}
+
+async function copyGatewayEgressManifest() {
+  if (gatewayEgressNetworkError.value) {
+    void message.error(gatewayEgressNetworkError.value);
+    return;
+  }
+  await copyText(gatewayEgressManifestCsv.value);
+  void message.success('Gateway egress manifest copied');
+}
+
+function downloadGatewayEgressManifest() {
+  if (gatewayEgressNetworkError.value) {
+    void message.error(gatewayEgressNetworkError.value);
+    return;
+  }
+  downloadText('gateway-egress-mvp.csv', gatewayEgressManifestCsv.value, 'text/csv;charset=utf-8');
 }
 
 function syncStructuredFormsFromConfig(config: JsonValue | null | undefined) {

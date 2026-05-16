@@ -29,8 +29,8 @@ test('new inbound submit syncs default client into settings JSON', () => {
 });
 
 test('gateway proxy templates expose local HTTP and SOCKS5 exits', () => {
-  assert.match(source, /@click="openGatewayProxyTemplate\('mixed'\)"/);
-  assert.match(source, /@click="openGatewayProxyTemplate\('http'\)"/);
+  assert.match(source, /openGatewayProxyTemplate\('mixed'\)/);
+  assert.match(source, /openGatewayProxyTemplate\('http'\)/);
   assert.match(source, /Gateway SOCKS5/);
   assert.match(source, /Gateway HTTP/);
   assert.match(source, /createInboundEditor\(protocol, \{/);
@@ -106,11 +106,24 @@ test('inbounds row actions expose direct export entry points', () => {
   assert.match(source, /@click="confirmResetInboundTraffic\(asInbound\(record\)\)"/);
 });
 
-test('inbounds page keeps legacy general action buttons', () => {
-  assert.match(source, /@click="exportAllInboundShareLinks"/);
-  assert.match(source, /@click="exportAllInboundSubscriptionLinks"/);
-  assert.match(source, /@click="confirmResetAllInboundClientTraffic"/);
-  assert.match(source, /@click="confirmDeleteAllDepletedClients"/);
+test('inbounds page keeps legacy general action handlers reachable from the header', () => {
+  assert.match(source, /exportAllInboundShareLinks/);
+  assert.match(source, /exportAllInboundSubscriptionLinks/);
+  assert.match(source, /confirmResetAllInboundClientTraffic/);
+  assert.match(source, /confirmDeleteAllDepletedClients/);
+});
+
+test('inbounds page groups secondary and destructive header actions in a more-actions menu', () => {
+  assert.match(source, /<ADropdown/);
+  assert.match(source, /<AMenu/);
+  assert.match(source, /moreActionsOpen/);
+  assert.match(source, /More actions/);
+  assert.match(source, /menuDangerActionKeys/);
+  assert.match(source, /@click="handleMoreActionClick"/);
+  assert.match(source, /const headerPrimaryActionKeys/);
+  assert.match(source, /'newInbound'/);
+  assert.match(source, /'refresh'/);
+  assert.match(source, /'refreshActivity'/);
 });
 
 test('inbounds export preview keeps copy and download actions', () => {

@@ -7,10 +7,11 @@
     <AButton
       class="language-toggle"
       size="small"
-      :aria-label="languageToggleAriaLabel"
+      :title="languageToggleAriaLabel"
       @click="appStore.toggleLocale"
     >
-      {{ languageButtonLabel }}
+      <span>{{ languageButtonLabel }}</span>
+      <span class="visually-hidden">: {{ languageToggleAriaLabel }}</span>
     </AButton>
     <span class="icon-button theme-indicator" :aria-label="themeLabel" role="img">
       <span class="theme-crescent" aria-hidden="true" />

@@ -5,7 +5,10 @@
       title="Inbounds"
       description="Manage Xray listeners, clients, live activity, traffic counters, and sharing tools."
     >
-      <ASpace wrap>
+      <div
+        class="page-header-actions--compact"
+        :data-primary-actions="headerPrimaryActionKeys.length"
+      >
         <AButton :loading="loading" @click="refreshInbounds">
           <template #icon><ReloadOutlined /></template>
           Refresh
@@ -14,54 +17,20 @@
           <template #icon><ReloadOutlined /></template>
           Refresh Activity
         </AButton>
-        <AButton @click="openImportInbound">
-          <template #icon><PlusOutlined /></template>
-          Import JSON
-        </AButton>
-        <AButton :disabled="inbounds.length === 0" @click="exportAllInboundShareLinks">
-          <template #icon><CopyOutlined /></template>
-          Export All
-        </AButton>
-        <AButton
-          :disabled="inbounds.length === 0"
-          :loading="loadingSubscriptionSettings"
-          @click="exportAllInboundSubscriptionLinks"
-        >
-          <template #icon><LinkOutlined /></template>
-          导出全部订阅
-        </AButton>
-        <AButton danger :loading="resettingAllTraffic" @click="confirmResetAllInboundTraffic">
-          Reset All Traffic
-        </AButton>
-        <AButton
-          danger
-          :loading="resettingAllClientTraffic"
-          @click="confirmResetAllInboundClientTraffic"
-        >
-          <template #icon><ReloadOutlined /></template>
-          Reset All Clients
-        </AButton>
-        <AButton
-          danger
-          :loading="deletingAllDepletedClients"
-          @click="confirmDeleteAllDepletedClients"
-        >
-          <template #icon><DeleteOutlined /></template>
-          Delete Depleted
-        </AButton>
-        <AButton @click="openGatewayProxyTemplate('mixed')">
-          <template #icon><PlusOutlined /></template>
-          Gateway SOCKS5
-        </AButton>
-        <AButton @click="openGatewayProxyTemplate('http')">
-          <template #icon><PlusOutlined /></template>
-          Gateway HTTP
-        </AButton>
+        <ADropdown v-model:open="moreActionsOpen" :trigger="['click']">
+          <AButton>
+            <template #icon><EllipsisOutlined /></template>
+            More actions
+          </AButton>
+          <template #overlay>
+            <AMenu :items="moreActionItems" @click="handleMoreActionClick" />
+          </template>
+        </ADropdown>
         <AButton type="primary" @click="openCreateInbound">
           <template #icon><PlusOutlined /></template>
           New Inbound
         </AButton>
-      </ASpace>
+      </div>
     </PageHeader>
 
     <AAlert v-if="error" banner type="warning" :message="error" />
@@ -96,16 +65,32 @@
 
     <ACard class="work-panel" :bordered="false">
       <div class="toolbar-grid inbounds-toolbar">
-        <ASelect
-          v-model:value="protocolFilter"
+        <label class="visually-hidden" for="inbounds-protocol-filter">Protocol filter</label>
+        <select
+          id="inbounds-protocol-filter"
+          v-model="protocolFilter"
+          class="toolbar-select"
           aria-label="Protocol filter"
-          :options="protocolFilterOptions"
-        />
-        <ASelect
-          v-model:value="stateFilter"
+        >
+          <option
+            v-for="option in protocolFilterOptions"
+            :key="option.value"
+            :value="option.value"
+          >
+            {{ option.label }}
+          </option>
+        </select>
+        <label class="visually-hidden" for="inbounds-state-filter">State filter</label>
+        <select
+          id="inbounds-state-filter"
+          v-model="stateFilter"
+          class="toolbar-select"
           aria-label="State filter"
-          :options="stateFilterOptions"
-        />
+        >
+          <option v-for="option in stateFilterOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
         <AInput
           v-model:value="keyword"
           allow-clear
@@ -1376,6 +1361,7 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   EditOutlined,
+  EllipsisOutlined,
   EyeOutlined,
   LinkOutlined,
   PlusOutlined,
@@ -1388,10 +1374,12 @@ import {
   Button as AButton,
   Card as ACard,
   Drawer as ADrawer,
+  Dropdown as ADropdown,
   Form as AForm,
   FormItem as AFormItem,
   Input as AInput,
   InputNumber as AInputNumber,
+  Menu as AMenu,
   Modal as AModal,
   Select as ASelect,
   Space as ASpace,
@@ -1400,6 +1388,8 @@ import {
   Tag as ATag,
   message,
 } from 'ant-design-vue';
+import type { ItemType } from 'ant-design-vue';
+import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 
 import {
@@ -1434,6 +1424,8 @@ import {
   xrayEditableProtocols,
 } from '@/schemas/protocolRegistry';
 import { getRuntimeConfig, hasInjectedRuntimeConfig } from '@/types/runtime';
+import { translateDomText } from '@/i18n/messages';
+import { useAppStore } from '@/stores/app';
 import type {
   ClientTraffic,
   Inbound,
@@ -1481,6 +1473,19 @@ type ClientModalMode = 'create' | 'edit';
 type InboundJsonField = 'settings' | 'streamSettings' | 'sniffing';
 type StateFilter = 'all' | 'enabled' | 'disabled';
 type GatewayProxyTemplate = 'mixed' | 'http';
+type HeaderPrimaryActionKey = 'refresh' | 'refreshActivity' | 'newInbound';
+type HeaderMoreActionKey =
+  | 'importJson'
+  | 'exportAll'
+  | 'exportAllSubscriptions'
+  | 'gatewaySocks'
+  | 'gatewayHttp'
+  | 'resetAllTraffic'
+  | 'resetAllClients'
+  | 'deleteDepleted';
+type HeaderActionKey = HeaderPrimaryActionKey | HeaderMoreActionKey;
+
+const appStore = useAppStore();
 
 interface InboundEditorState {
   id?: number;
@@ -1652,6 +1657,7 @@ const error = ref('');
 const keyword = ref('');
 const protocolFilter = ref('all');
 const stateFilter = ref<StateFilter>('all');
+const moreActionsOpen = ref(false);
 const detailOpen = ref(false);
 const selectedInbound = ref<Inbound | null>(null);
 const sharePreview = ref('');
@@ -1696,6 +1702,17 @@ const copySourceInboundId = ref<number>();
 const copySelectedClientKeys = ref<string[]>([]);
 const copyFlowOverride = ref('');
 
+const headerPrimaryActionKeys: HeaderPrimaryActionKey[] = [
+  'refresh',
+  'refreshActivity',
+  'newInbound',
+];
+const menuDangerActionKeys = new Set<HeaderActionKey>([
+  'resetAllTraffic',
+  'resetAllClients',
+  'deleteDepleted',
+]);
+
 const inboundEditor = reactive<InboundEditorState>(createInboundEditor());
 const wireguardEditor = reactive<WireguardEditorState>(createWireguardEditor());
 const streamEditor = reactive<StreamEditorState>(createStreamEditor());
@@ -1711,17 +1728,51 @@ const editableProtocolOptions = xrayEditableProtocols.map((protocol) => {
   };
 });
 const protocolFilterOptions = computed(() => [
-  { label: 'All protocols', value: 'all' },
+  { label: translateDomText('All protocols', appStore.locale), value: 'all' },
   ...Array.from(new Set(inbounds.value.map((inbound) => inbound.protocol))).map((protocol) => ({
     label: protocol,
     value: protocol,
   })),
 ]);
-const stateFilterOptions = [
-  { label: 'All states', value: 'all' },
-  { label: 'Enabled', value: 'enabled' },
-  { label: 'Disabled', value: 'disabled' },
-];
+const stateFilterOptions = computed(() => [
+  { label: translateDomText('All states', appStore.locale), value: 'all' },
+  { label: translateDomText('Enabled', appStore.locale), value: 'enabled' },
+  { label: translateDomText('Disabled', appStore.locale), value: 'disabled' },
+]);
+const moreActionItems = computed<ItemType[]>(() => [
+  { key: 'importJson', label: 'Import JSON' },
+  {
+    key: 'exportAll',
+    label: 'Export All',
+    disabled: inbounds.value.length === 0,
+  },
+  {
+    key: 'exportAllSubscriptions',
+    label: 'Export All Subscriptions',
+    disabled: inbounds.value.length === 0 || loadingSubscriptionSettings.value,
+  },
+  { key: 'gatewaySocks', label: 'Gateway SOCKS5' },
+  { key: 'gatewayHttp', label: 'Gateway HTTP' },
+  { type: 'divider' },
+  {
+    key: 'resetAllTraffic',
+    label: 'Reset All Traffic',
+    danger: menuDangerActionKeys.has('resetAllTraffic'),
+    disabled: resettingAllTraffic.value,
+  },
+  {
+    key: 'resetAllClients',
+    label: 'Reset All Clients',
+    danger: menuDangerActionKeys.has('resetAllClients'),
+    disabled: resettingAllClientTraffic.value,
+  },
+  {
+    key: 'deleteDepleted',
+    label: 'Delete Depleted Clients',
+    danger: menuDangerActionKeys.has('deleteDepleted'),
+    disabled: deletingAllDepletedClients.value,
+  },
+]);
 const securityOptions = ['auto', 'aes-128-gcm', 'chacha20-poly1305', 'none', 'zero'].map(
   (value) => ({
     label: value,
@@ -1998,6 +2049,37 @@ watch(clientAccessModalOpen, (open) => {
   }
   void renderClientAccessQrs();
 });
+
+function handleMoreActionClick({ key }: MenuInfo) {
+  const actionKey = String(key) as HeaderMoreActionKey;
+  moreActionsOpen.value = false;
+  switch (actionKey) {
+    case 'importJson':
+      openImportInbound();
+      break;
+    case 'exportAll':
+      void exportAllInboundShareLinks();
+      break;
+    case 'exportAllSubscriptions':
+      void exportAllInboundSubscriptionLinks();
+      break;
+    case 'gatewaySocks':
+      openGatewayProxyTemplate('mixed');
+      break;
+    case 'gatewayHttp':
+      openGatewayProxyTemplate('http');
+      break;
+    case 'resetAllTraffic':
+      confirmResetAllInboundTraffic();
+      break;
+    case 'resetAllClients':
+      confirmResetAllInboundClientTraffic();
+      break;
+    case 'deleteDepleted':
+      confirmDeleteAllDepletedClients();
+      break;
+  }
+}
 
 async function refreshInbounds() {
   if (!hasInjectedRuntimeConfig()) {
