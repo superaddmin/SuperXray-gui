@@ -1,0 +1,73 @@
+[project]
+name = "SuperXray-gui"
+module = "github.com/superaddmin/SuperXray-gui/v2"
+product = "Xray-core web control panel with legacy UI, Vue 3 new UI, subscription server, and experimental multi-core runtime entry."
+default_language = "zh-CN"
+license = "GPL-3.0"
+current_version_file = "config/version"
+current_phase = "Phase 9 security closeout with forced/minimal Phase 10 core runtime entry"
+
+[source_of_truth]
+architecture = ["docs/architecture.md", "docs/modules.md", "docs/development.md"]
+phase_status = ["plans/STATUS.md", "plans/01-strategy/ui-first-xray-stable-multi-core-roadmap.md"]
+phase_gates = [".codex/skills/superxray-ui-first-migration/references/phase-gates.md"]
+release_policy = [".codex/skills/superxray-release-cicd/SKILL.md", ".codex/skills/superxray-release-cicd/references/release-policy.md"]
+frontend_scope = ["frontend/README.md", "plans/03-ui-design/multi-core-ui-design-plan.md"]
+
+[stack.backend]
+language = "Go"
+version = "1.26.3"
+frameworks = ["Gin", "GORM", "SQLite", "robfig/cron", "gorilla/websocket", "go-i18n"]
+runtime_integrations = ["Xray-core gRPC", "Telegram Bot via telego", "LDAP", "TOTP", "WARP", "NordVPN", "Custom Geo"]
+
+[stack.frontend]
+language = "TypeScript"
+frameworks = ["Vue 3", "Vite", "Pinia", "Ant Design Vue 4", "Axios"]
+source_dir = "frontend/src"
+build_output = "web/ui"
+legacy_ui_dirs = ["web/html", "web/assets"]
+
+[stack.database]
+engine = "SQLite"
+orm = "GORM"
+core_tables = ["users", "inbounds", "settings", "client_traffics", "inbound_client_ips", "custom_geo_resources", "history_of_seeders"]
+compatibility_contract = "model.Inbound with JSON settings/streamSettings/sniffing remains the active Xray write model."
+
+[stack.testing]
+go = ["go test ./...", "go vet ./...", "go build -o bin/SuperXray.exe ./main.go"]
+frontend = ["cd frontend; npm run typecheck", "cd frontend; npm run lint", "cd frontend; npm run test", "cd frontend; npm run build"]
+e2e = ["npm run e2e"]
+release = ["python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only"]
+
+[hard_gates]
+forbidden_before_phase_10_2 = [
+  "Route old Xray startup/stop/restart through CoreManager",
+  "Remove legacy UI fallback",
+  "Write new UI data that legacy UI cannot read",
+]
+forbidden_until_explicit_architecture_gate = [
+  "Migrate active model.Inbound writes to proxy_inbounds/proxy_clients",
+  "Promote experimental sing-box to production default",
+  "Store secrets or runtime state in .codex",
+]
+security = [
+  "No v-html/innerHTML/insertAdjacentHTML for logs/config/subscription/external content",
+  "State-changing API calls require CSRF protection",
+  "Database/config/log downloads require authentication",
+  "Database import must validate size, format, and rollback on failure",
+]
+
+[agents]
+program_manager = "superxray-ui-program-manager"
+frontend = "superxray-frontend-migrator"
+go_integration = "superxray-go-integration"
+backend = "superxray-backend-service-guardian"
+core_runtime = "superxray-core-runtime-architect"
+database = "superxray-database-steward"
+subscription = "superxray-subscription-protocol-specialist"
+security = "superxray-security-gate"
+testing = "superxray-test-strategist"
+e2e = "superxray-e2e-gate"
+devops = "superxray-devops-cicd-maintainer"
+release = "superxray-release-gate"
+docs_i18n = "superxray-docs-i18n-maintainer"

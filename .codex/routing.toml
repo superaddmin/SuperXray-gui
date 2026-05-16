@@ -1,0 +1,85 @@
+# Path-based routing for SuperXray-gui project agents.
+
+[[routes]]
+name = "phase-planning"
+globs = ["plans/**", ".codex/**"]
+primary = "superxray-ui-program-manager"
+reviewers = ["superxray-docs-i18n-maintainer"]
+verification = ["markdown review", "phase gate check"]
+
+[[routes]]
+name = "vue-frontend"
+globs = ["frontend/src/**", "frontend/tests/**", "frontend/package.json", "frontend/vite.config.ts"]
+primary = "superxray-frontend-migrator"
+reviewers = ["superxray-security-gate", "superxray-test-strategist", "superxray-e2e-gate"]
+verification = ["cd frontend; npm run typecheck", "cd frontend; npm run lint", "cd frontend; npm run test", "cd frontend; npm run build"]
+
+[[routes]]
+name = "go-web-integration"
+globs = ["web/web.go", "web/controller/**", "web/middleware/**", "web/session/**", "web/locale/**"]
+primary = "superxray-go-integration"
+reviewers = ["superxray-security-gate", "superxray-test-strategist"]
+verification = ["go test ./web ./web/controller ./web/middleware", "go vet ./...", "go build -o bin/SuperXray.exe ./main.go"]
+
+[[routes]]
+name = "backend-services"
+globs = ["web/service/**", "web/job/**", "web/websocket/**", "xray/**", "util/**", "config/**", "logger/**"]
+primary = "superxray-backend-service-guardian"
+reviewers = ["superxray-security-gate", "superxray-test-strategist"]
+verification = ["go test ./web/service ./web/job ./xray ./util/...", "go test ./..."]
+
+[[routes]]
+name = "core-runtime"
+globs = ["core/**", "web/service/core_service.go", "web/controller/core.go", "frontend/src/api/cores.ts", "frontend/src/types/core.ts", "frontend/src/views/CoreInstancesView.vue"]
+primary = "superxray-core-runtime-architect"
+reviewers = ["superxray-ui-program-manager", "superxray-security-gate", "superxray-test-strategist"]
+verification = ["go test ./core/... ./web/service ./web/controller", "rg \"proxy_inbounds|proxy_clients\" core web/controller web/service database/model frontend/src -n"]
+
+[[routes]]
+name = "database"
+globs = ["database/**", "database/model/**", "web/service/setting.go", "web/service/inbound.go", "web/service/server.go"]
+primary = "superxray-database-steward"
+reviewers = ["superxray-security-gate", "superxray-test-strategist", "superxray-subscription-protocol-specialist"]
+verification = ["go test ./database ./database/model", "go test ./web/service", "go test ./..."]
+
+[[routes]]
+name = "subscription-protocols"
+globs = ["sub/**", "web/service/protocol_validation.go", "web/service/config.json", "frontend/src/utils/*Compat*", "frontend/src/utils/gatewayEgressMvp.ts", "frontend/src/schemas/protocolRegistry.ts"]
+primary = "superxray-subscription-protocol-specialist"
+reviewers = ["superxray-test-strategist", "superxray-e2e-gate", "superxray-docs-i18n-maintainer"]
+verification = ["go test ./sub ./web/service", "cd frontend; npm run test"]
+
+[[routes]]
+name = "security"
+globs = ["web/middleware/**", "web/controller/server.go", "web/service/server.go", "web/service/custom_geo.go", "core/**", "Dockerfile", "install.sh"]
+primary = "superxray-security-gate"
+reviewers = ["superxray-test-strategist"]
+verification = ["go test ./web/middleware ./web/controller ./web/service ./sub ./core/...", "rg \"v-html|innerHTML|insertAdjacentHTML\" web/html frontend/src -n"]
+
+[[routes]]
+name = "testing"
+globs = ["**/*_test.go", "frontend/tests/**", "web/assets/**/*.test.js", "tests/e2e/**", "playwright.config.ts"]
+primary = "superxray-test-strategist"
+reviewers = ["superxray-e2e-gate"]
+verification = ["go test ./...", "cd frontend; npm run test", "npm run e2e"]
+
+[[routes]]
+name = "devops"
+globs = [".github/**", "Dockerfile", "docker-compose.yml", "DockerEntrypoint.sh", "DockerInit.sh", "install.sh", "update.sh", "x-ui.sh"]
+primary = "superxray-devops-cicd-maintainer"
+reviewers = ["superxray-security-gate", "superxray-release-gate", "superxray-docs-i18n-maintainer"]
+verification = ["python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only"]
+
+[[routes]]
+name = "release"
+globs = ["CHANGELOG.md", "config/version", ".github/workflows/release.yml", ".github/workflows/docker.yml"]
+primary = "superxray-release-gate"
+reviewers = ["superxray-devops-cicd-maintainer", "superxray-security-gate", "superxray-e2e-gate"]
+verification = ["python .codex/skills/superxray-release-cicd/scripts/release_gate.py --install-tools"]
+
+[[routes]]
+name = "docs-i18n"
+globs = ["README*.md", "docs/**", "web/translation/**", "frontend/src/i18n/**"]
+primary = "superxray-docs-i18n-maintainer"
+reviewers = ["superxray-ui-program-manager", "superxray-subscription-protocol-specialist"]
+verification = ["cd frontend; npm run test", "go test ./web/locale ./web"]
