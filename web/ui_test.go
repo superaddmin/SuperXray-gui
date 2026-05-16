@@ -135,6 +135,32 @@ func TestNewUIRoutesServeInjectedIndexForLoggedInUser(t *testing.T) {
 	}
 }
 
+func TestNewUIRoutesServeTopLevelVuePagesForLoggedInUser(t *testing.T) {
+	router := newTestNewUIRouter(true)
+
+	for _, route := range []string{
+		"/panel/dashboard",
+		"/panel/logs",
+		"/panel/cores",
+		"/panel/xray",
+		"/panel/inbounds",
+		"/panel/settings",
+	} {
+		t.Run(route, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "http://example.test"+route, nil)
+			router.ServeHTTP(recorder, req)
+
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+			}
+			if !strings.Contains(recorder.Body.String(), `"uiBasePath":"/panel/"`) {
+				t.Fatalf("expected top-level route to return injected Vue index, got %s", recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestNewUIRoutesKeepCompatibilityEntryForLoggedInUser(t *testing.T) {
 	router := newTestNewUIRouter(true)
 

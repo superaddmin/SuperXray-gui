@@ -43,6 +43,7 @@ func (s *Server) registerNewUIRoutes(g *gin.RouterGroup, basePath string) {
 	for _, route := range []string{
 		"/panel/dashboard",
 		"/panel/logs",
+		"/panel/cores",
 		"/panel/xray",
 		"/panel/inbounds",
 		"/panel/settings",
