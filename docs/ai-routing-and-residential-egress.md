@@ -2,60 +2,52 @@
 
 > **目标读者**：需要在 SuperXray 中为 OpenAI/ChatGPT、Anthropic/Claude、Google/Gemini 等 AI 平台配置专用出口的运维人员
 > **适用版本**：`v3.0.16`
-> **相关文档**：[部署指南](deployment.md) | [系统架构设计](architecture.md) | [入站创建教程](inbound-creation-guide.md)
+> **事实来源**：`frontend/src/views/XrayView.vue`、`frontend/src/utils/xrayCompat.ts`、`frontend/src/utils/gatewayEgressMvp.ts`、`web/controller/xray_setting.go`
+> **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [入站创建教程](inbound-creation-guide.md)
 
 ---
 
-## 1. 目标与边界
+## 1. 当前实现边界
 
-本文档描述一套基于 Xray 原生能力的域名级智能分流方案：
+本文描述的是 **Xray JSON 模板级** 分流方案。新 UI 的 Xray 页面可以结构化编辑 Residential IP Pool、AI Routing、DNS、Routing、Balancer、Observatory、Gateway Egress MVP，但保存时仍写入现有 Xray 配置模板：
 
-- AI 平台相关域名通过专用住宅 SOCKS 出站访问。
-- 非 AI 平台流量保持 `direct` 或既有常规线路，不占用住宅出口资源。
-- 新版 Xray 页面提供 **Residential IP Pool**，可维护多个 SOCKS5 住宅出站，并一键生成 AI 平台专用路由。
-- AI 路由默认不配置 balancer fallback；住宅出站不可用时请求在该住宅链路失败，不会自动降级到 `direct`。
-- DNS 对 AI 域名使用显式 DoH 解析和 `skipFallback`，降低 DNS 污染和错误回退风险。
+```text
+XrayView
+  -> frontend utils 修改 JSON
+  -> POST /panel/xray/update
+  -> XraySettingService.SaveXraySetting
+  -> 用户显式重启 legacy XrayService
+```
+
+不会发生：
+
+- 不新增数据库表。
+- 不新增后端出口模型。
+- 不创建 `proxy_inbounds` / `proxy_clients`。
+- 不让 CoreManager 接管 legacy Xray。
+- 不把 sing-box 设为默认出口治理层。
 
 重要边界：
 
-- 本方案是“合规可控的域名级分流与失败保护”，不承诺规避平台风控，也不承诺账号绝对安全。
-- WebRTC 泄漏主要发生在终端浏览器或客户端侧；面板侧可约束 Xray DNS 和路由，但不能替代终端浏览器隐私配置。
-- AI 平台域名会持续变化，域名清单需要按日志和实际访问定期维护。
+- 这是合规可控的域名级路由和失败保护，不承诺规避平台风控。
+- AI 域名清单会变化，需要按日志和实际访问维护。
+- WebRTC、浏览器指纹、客户端 DNS 泄漏主要发生在终端侧，面板无法替代终端隐私配置。
 - 文档示例必须使用占位符，不应写入真实服务器 IP、订阅 ID、UUID、私钥、公钥或住宅代理密码。
 
 ---
 
-## 2. 推荐拓扑
+## 2. Residential IP Pool
+
+新 UI 的 **Residential IP Pool** 不是后端模型，而是识别和编辑 Xray 模板中的 `socks` outbound。
+
+识别规则来自 `xrayCompat.ts`：
 
 ```text
-客户端
-  -> VLESS + TCP + Reality 入站（例如 inbound-443）
-    -> Xray 路由规则
-      -> AI 域名：ai-residential
-          -> us-residential-socks（高纯净度住宅 SOCKS 出口）
-          -> blocked（住宅出口不可用时失败关闭）
-      -> 其他流量：direct / 既有常规线路
+protocol == "socks"
+tag 包含 "residential"
 ```
 
-推荐先保证 VLESS Reality 入站自身稳定，再叠加分流：
-
-| 项目 | 推荐值 |
-|------|--------|
-| 入站协议 | `vless` |
-| 传输 | `tcp` |
-| 安全层 | `reality` |
-| 入站 tag | `inbound-443` 或其他稳定 tag |
-| Reality target | `<REALITY_TARGET_HOST>:443` |
-| Reality serverNames | 至少包含 `<REALITY_TARGET_HOST>` |
-| Sniffing | 建议开启 `http`、`tls`、`quic`，必要时包含 `fakedns` |
-
-如果日志出现 `please fill in a valid value for "target"`，说明 Reality `target` 为空或无效，需要先修复入站配置并重启 Xray。
-
----
-
-## 3. 出站配置
-
-在 **Xray → Residential IP Pool** 中新增住宅 SOCKS 出站，或在 **Xray → Outbounds** / Xray JSON 中手工维护。示例：
+推荐手工或通过 UI 生成：
 
 ```json
 {
@@ -78,111 +70,29 @@
 }
 ```
 
-保留默认 `direct` 和 `blocked` 出站：
+保留默认失败保护出站：
 
 ```json
-[
-  {
-    "tag": "direct",
-    "protocol": "freedom",
-    "settings": {
-      "domainStrategy": "AsIs"
-    }
-  },
-  {
-    "tag": "blocked",
-    "protocol": "blackhole",
-    "settings": {}
-  }
-]
+{
+  "tag": "blocked",
+  "protocol": "blackhole"
+}
 ```
 
 安全要求：
 
-- `<SOCKS_PASSWORD>` 只写入服务器实际配置，不写入 Git、截图、Issue 或通用文档。
-- 不要添加 `inboundTag -> us-residential-socks` 的全量兜底规则，否则所有流量都会占用住宅出口。
-- SOCKS 出站连通性应使用面板的 Outbound Test 或临时测试配置验证，不要只依赖客户端主观体感。
+- 不要把住宅代理密码写入 Git、Issue、截图或共享文档。
+- 不要添加“所有入站 / 所有域名 -> residential”的兜底规则。
+- 测试住宅 outbound 时使用 Xray 页的 Outbound Test；测试 URL 由服务端保存的 `xrayOutboundTestUrl` 决定，不接受请求临时传入任意 URL。
 
 ---
 
-## 4. AI 域名清单
+## 3. AI Residential Routing
 
-基础域名清单建议放在 AI 路由规则和 AI DNS server 的 `domains` 中。该清单是可维护基线，不代表覆盖未来新增的全部域名。
+点击 **Apply AI Routing** 时，前端 `applyAiResidentialRouting` 会：
 
-### 4.1 OpenAI / ChatGPT
-
-```text
-domain:openai.com
-domain:chatgpt.com
-domain:oaistatic.com
-domain:oaiusercontent.com
-domain:openaiapi-site.azureedge.net
-domain:openaicom-api-bdcpf8c6d2e9atf6.z01.azurefd.net
-domain:auth0.openai.com
-```
-
-### 4.2 Anthropic / Claude
-
-```text
-domain:anthropic.com
-domain:claude.ai
-domain:claudeusercontent.com
-domain:console.anthropic.com
-```
-
-### 4.3 Google AI / Gemini
-
-```text
-domain:gemini.google.com
-domain:aistudio.google.com
-domain:generativelanguage.googleapis.com
-domain:makersuite.google.com
-```
-
-维护建议：
-
-- 默认清单只保留 Gemini、AI Studio 和 Generative Language API 入口，避免 Google 搜索、YouTube、Gmail 等通用流量占用住宅出口。
-- 如果客户端使用 QUIC/HTTP3，需确认 sniffing 能识别目标域名；否则可在客户端禁用 QUIC 或使用 DNS/FakeDNS 辅助分流。
-- 对平台新增域名，先添加到 DNS server 的 `domains`，再添加到 routing rule，保存后重启 Xray 验证。
-
----
-
-## 5. 路由、Balancer 与健康检测
-
-### 5.1 路由规则
-
-将 AI 域名绑定到 Balancer：
-
-```json
-{
-  "type": "field",
-  "inboundTag": [
-    "inbound-443"
-  ],
-  "domain": [
-    "domain:openai.com",
-    "domain:chatgpt.com",
-    "domain:oaistatic.com",
-    "domain:oaiusercontent.com",
-    "domain:anthropic.com",
-    "domain:claude.ai",
-    "domain:gemini.google.com",
-    "domain:aistudio.google.com",
-    "domain:generativelanguage.googleapis.com",
-    "domain:makersuite.google.com"
-  ],
-  "balancerTag": "ai-residential"
-}
-```
-
-规则顺序建议：
-
-1. 面板内部 API 规则保持在最前。
-2. 私网、BT 阻断规则保留。
-3. AI 域名规则放在普通直连或兜底规则之前。
-4. 不添加捕获所有域名或所有入站的住宅出口规则。
-
-### 5.2 Balancer
+1. 收集当前模板中所有 Residential IP Pool outbound tag。
+2. 创建或替换 balancer：
 
 ```json
 {
@@ -196,36 +106,72 @@ domain:makersuite.google.com
 }
 ```
 
-默认不设置 `fallbackTag`，避免 Xray 26.4.x 出现 balancer 依赖解析失败。住宅出口不可用时，对应请求会在住宅链路失败，不会自动落到 `direct`。若业务更重视可用性，可手工改为常规代理 tag，但必须先用 `xray run -test -config` 验证当前 Xray 版本是否支持该字段，并接受出口变化带来的出口一致性风险。
-
-### 5.3 Observatory
+3. 添加 TCP 域名规则，走 `ai-residential`：
 
 ```json
 {
-  "subjectSelector": [
-    "us-residential-socks"
-  ],
-  "probeURL": "https://www.google.com/generate_204",
-  "probeInterval": "1m",
-  "enableConcurrency": true
+  "type": "field",
+  "balancerTag": "ai-residential",
+  "network": "tcp",
+  "domain": [
+    "domain:openai.com",
+    "domain:chatgpt.com",
+    "domain:oaistatic.com",
+    "domain:oaiusercontent.com",
+    "domain:anthropic.com",
+    "domain:claude.ai",
+    "domain:aistudio.google.com",
+    "domain:generativelanguage.googleapis.com",
+    "domain:makersuite.google.com",
+    "domain:gemini.google.com"
+  ]
 }
 ```
 
-说明：
+4. 添加 UDP 域名规则，走 `blocked`：
 
-- `probeURL` 用于出站健康探测，不代表所有 AI 平台的真实延迟。
-- 如果住宅供应商对并发或探测频率敏感，可把 `probeInterval` 调整为 `2m` 或更长。
-- 新 UI 和旧 UI 均可保存 Observatory JSON；如手工启用 `leastPing` Balancer，需确认 `subjectSelector` 覆盖住宅出站 tag。
+```json
+{
+  "type": "field",
+  "outboundTag": "blocked",
+  "network": "udp",
+  "domain": [
+    "domain:openai.com",
+    "domain:chatgpt.com",
+    "domain:oaistatic.com",
+    "domain:oaiusercontent.com",
+    "domain:anthropic.com",
+    "domain:claude.ai",
+    "domain:aistudio.google.com",
+    "domain:generativelanguage.googleapis.com",
+    "domain:makersuite.google.com",
+    "domain:gemini.google.com"
+  ]
+}
+```
+
+5. 如果模板缺少 `blocked` outbound，会自动补一个 blackhole。
+
+规则顺序：
+
+- 原有 `outboundTag=api` 的规则保留在前。
+- AI TCP 和 UDP 规则插在 API 规则之后。
+- 其他已有规则跟在后面。
+
+默认不设置 balancer `fallbackTag`。住宅出口不可用时，请求应失败关闭，而不是自动直连。
 
 ---
 
-## 6. DNS 策略
+## 4. DNS 建议
 
-推荐在 Xray JSON 中配置 AI 专用 DNS server：
+AI Routing 只负责 Xray routing；DNS 仍需单独配置。推荐在 Xray 页的 DNS Servers / DNS Policy 中维护 AI 域名解析。
+
+示例：
 
 ```json
 {
   "queryStrategy": "UseIPv4",
+  "disableFallbackIfMatch": true,
   "servers": [
     {
       "address": "https://1.1.1.1/dns-query",
@@ -247,103 +193,245 @@ domain:makersuite.google.com
 }
 ```
 
-DNS 设计原则：
+原则：
 
-- AI 域名优先走显式 DoH，减少被系统 DNS 或运营商 DNS 改写的概率。
-- `skipFallback=true` 避免 AI 域名解析失败后回落到其他 DNS server。
-- `UseIPv4` 适合 IPv6 质量不稳定或住宅出口仅保证 IPv4 质量的场景。
-- 终端客户端如支持 `socks5h`，应优先让域名在代理侧解析，减少本地 DNS 泄漏。
+- AI 域名优先使用显式 DoH。
+- 对 AI 专用 DNS server 开启 `skipFallback`。
+- IPv6 质量不稳定时优先 `UseIPv4`。
+- 终端客户端支持 `socks5h`、TUN 或 FakeDNS 时，优先让域名在代理侧解析。
 
 ---
 
-## 7. 部署步骤
+## 5. Observatory
 
-1. 备份当前数据库和 Xray 配置：
+Xray 页可编辑 `observatory` 和 `burstObservatory` JSON。基础示例：
+
+```json
+{
+  "subjectSelector": [
+    "us-residential-socks"
+  ],
+  "probeURL": "https://www.google.com/generate_204",
+  "probeInterval": "1m",
+  "enableConcurrency": true
+}
+```
+
+说明：
+
+- `probeURL` 只用于健康探测，不代表 AI 平台真实延迟。
+- 住宅供应商限制探测频率时，把 `probeInterval` 调整为 `2m` 或更长。
+- 如手工启用 `leastPing`，确认 balancer selector 与 observatory subject selector 覆盖相同 outbound tag。
+
+---
+
+## 6. Gateway Egress MVP
+
+Xray 页的 **Gateway Egress MVP** 用于生成供 Super-Code-Gateway 或同类网关登记的本机代理入口和 CSV 清单。它仍然只修改 Xray JSON 模板，不新增后端 API、数据库或 CoreManager 功能。
+
+### 6.1 默认网络策略
+
+来自 `gatewayEgressMvp.ts`：
+
+```json
+{
+  "listenHost": "127.0.0.1",
+  "manifestHost": "127.0.0.1",
+  "strategyLabel": "same-network"
+}
+```
+
+Host 校验会拒绝：
+
+- 空值。
+- 通配监听：`0.0.0.0`、`::`、`[::]`、`*`。
+- 带协议、路径、逗号或空白的值。
+
+### 6.2 生成的 profiles
+
+| key | port | platform | region | egressGroup |
+|---|---:|---|---|---|
+| `openai-us-primary` | `11801` | `openai` | `US` | `openai-egress` |
+| `anthropic-us-primary` | `11802` | `anthropic` | `US` | `anthropic-egress` |
+| `gemini-us-primary` | `11803` | `gemini` | `US` | `gemini-egress` |
+| `region-us-primary` | `11901` | 空 | `US` | `region-us` |
+| `region-jp-primary` | `11981` | 空 | `JP` | `region-jp` |
+
+### 6.3 生成的 Xray inbound
+
+每个 profile 生成一个本地 SOCKS inbound：
+
+```json
+{
+  "tag": "gateway-openai-us-primary",
+  "listen": "127.0.0.1",
+  "port": 11801,
+  "protocol": "socks",
+  "settings": {
+    "auth": "noauth",
+    "accounts": [],
+    "udp": false,
+    "ip": "127.0.0.1"
+  }
+}
+```
+
+### 6.4 生成的 placeholder outbound
+
+每个 profile 会确保存在对应 outbound；默认是 `freedom` 占位，必须在生产使用前替换成真实 VPN/代理出站：
+
+```json
+{
+  "tag": "openai-egress",
+  "protocol": "freedom",
+  "settings": {},
+  "_gatewayEgressMvp": {
+    "profile": "openai-us-primary",
+    "expectedCountryCode": "US",
+    "note": "Replace this placeholder with the real VPN/proxy outbound before production use."
+  }
+}
+```
+
+### 6.5 生成的 routing
+
+平台 profile 会生成域名规则：
+
+| platform | domains |
+|---|---|
+| `openai` | `domain:api.openai.com`、`domain:chatgpt.com`、`domain:chat.openai.com` |
+| `anthropic` | `domain:api.anthropic.com`、`domain:claude.ai` |
+| `gemini` | `domain:generativelanguage.googleapis.com`、`domain:cloudcode-pa.googleapis.com`、`domain:aiplatform.googleapis.com` |
+
+区域 profile 只按 inboundTag 绑定到对应 egress group。
+
+最后会添加一条保护规则，把所有 Gateway 生成 inbound 未匹配流量送到 `blocked`：
+
+```json
+{
+  "type": "field",
+  "inboundTag": [
+    "gateway-openai-us-primary",
+    "gateway-anthropic-us-primary",
+    "gateway-gemini-us-primary",
+    "gateway-region-us-primary",
+    "gateway-region-jp-primary"
+  ],
+  "outboundTag": "blocked",
+  "_gatewayEgressMvp": true
+}
+```
+
+### 6.6 CSV manifest
+
+前端可复制或下载 CSV：
+
+```csv
+name,protocol,host,port,platform,region_code,expected_country_code,egress_group,health_status,notes
+openai-us-primary,socks5h,127.0.0.1,11801,openai,US,US,openai-egress,manual-check,OpenAI MVP local exit (same-network)
+```
+
+CSV 只是登记清单，不是后端状态；`health_status` 固定为 `manual-check`。
+
+---
+
+## 7. 推荐部署步骤
+
+1. 备份数据库和当前 Xray 配置：
 
 ```bash
 cp -a /etc/x-ui/x-ui.db "/root/x-ui-db-$(date +%F-%H%M%S).db"
 cp -a /usr/local/x-ui/bin/config.json "/root/xray-config-$(date +%F-%H%M%S).json" 2>/dev/null || true
 ```
 
-2. 在 **Xray → Residential IP Pool** 添加一个或多个住宅 SOCKS5 出站，使用占位符对应的真实住宅 SOCKS 主机、端口、用户名和密码。
-3. 点击 **Apply AI Routing**，面板会生成 `ai-residential` balancer、AI TCP 路由规则和 AI UDP 阻断规则。
-4. 如需 DNS 精细控制，在 **Xray → DNS** 添加 AI 专用 DoH server，并启用 `skipFallback`。
-5. 如需健康探测，在 **Xray → Observatory** 写入健康检测 JSON，并手工把 balancer 策略改为 `leastPing`。
-6. 保存配置并重启 Xray。
-7. 在面板日志中确认 Xray Running，无 `failed to build`、`invalid`、`target`、`balancer` 等错误。
+2. 在 Xray 页添加或确认 `direct`、`blocked`、住宅 SOCKS outbound。
+3. 使用 Residential IP Pool 保存一个或多个 tag 包含 `residential` 的 socks outbound。
+4. 点击 Apply AI Routing，检查生成的 `ai-residential` balancer、TCP AI 域名规则和 UDP blocked 规则。
+5. 视需求添加 DNS server、DNS policy、Observatory。
+6. 保存 Xray 模板。
+7. 手动重启 Xray。
+8. 查看 Xray 日志，确认没有 `failed to build`、`invalid`、`target`、`balancer` 等错误。
+
+Gateway Egress MVP 的部署顺序：
+
+1. 在 Gateway Egress MVP 区域确认 `listenHost` 和 `manifestHost`。
+2. 点击生成配置。
+3. 把 placeholder outbound 替换为真实出口。
+4. 复制或下载 CSV manifest，交给 Gateway 登记。
+5. 保存模板并重启 Xray。
 
 ---
 
 ## 8. 验证清单
 
-在服务器上验证基础状态：
+基础状态：
 
 ```bash
 x-ui status
 systemctl is-active x-ui
 journalctl -u x-ui -n 100 --no-pager
-ss -tulpen | grep -E 'x-ui|xray|:2096|:443'
+ss -tulpen | grep -E 'x-ui|xray|:2096|:443|:11801|:11802|:11803'
 ```
 
-验证 Xray 配置包含预期对象：
+Xray 配置对象：
 
 ```bash
 jq '.outbounds[] | select(.tag=="us-residential-socks")' /usr/local/x-ui/bin/config.json
 jq '.routing.balancers[] | select(.tag=="ai-residential")' /usr/local/x-ui/bin/config.json
 jq '.routing.rules[] | select(.balancerTag=="ai-residential")' /usr/local/x-ui/bin/config.json
-jq '.observatory' /usr/local/x-ui/bin/config.json
+jq '.routing.rules[] | select(._gatewayEgressMvp==true)' /usr/local/x-ui/bin/config.json
 ```
 
-验证订阅服务：
+订阅状态：
 
 ```bash
 curl -kI "https://<SUB_HOST>:2096/sub/<SUB_ID>"
+curl -kI "https://<SUB_HOST>:2096/json/<SUB_ID>"
 curl -kI "https://<SUB_HOST>:2096/clash/<SUB_ID>"
 ```
 
-验证原则：
+操作判定：
 
-- `direct` 出站测试应能访问 `https://www.google.com/generate_204`，用于判断服务器基础网络。
-- `us-residential-socks` 出站测试应返回 HTTP `204` 或可接受的 2xx/3xx 状态，并记录延迟。
-- AI 域名访问慢时，先比较 `direct` 与住宅出站延迟，再判断是住宅出口质量、远端平台、DNS、客户端链路还是入站 Reality 质量问题。
-- 如果命中 AI 域名后住宅出口不可用，请求应失败关闭，而不是自动直连。
-
----
-
-## 9. 终端侧泄漏防护建议
-
-面板侧配置只能约束服务器上的 Xray 行为。终端侧仍需按客户端能力配置：
-
-- 浏览器禁用或限制 WebRTC 本地 IP 暴露。
-- 优先使用支持远端解析的代理模式，例如 SOCKS5H 或 TUN/FakeDNS。
-- 避免同一浏览器会话在直连和住宅出口之间频繁切换。
-- 保持系统时间、时区、语言、DNS 和出口区域策略一致，减少账号侧异常信号。
-- 不在客户端日志、订阅导入记录或截图中暴露 `subId`、UUID、Reality 私钥、公钥和住宅出口凭据。
+- `direct` 测试可用于判断服务器基础网络。
+- residential outbound 测试可用于判断住宅出口是否可用。
+- AI 域名命中后如果住宅出口不可用，应失败关闭，不应自动直连。
+- Gateway MVP 的 `freedom` placeholder 必须替换后才算真实出口配置。
 
 ---
 
-## 10. 常见故障
+## 9. 常见故障
 
 | 现象 | 直接排查点 | 处理方式 |
-|------|------------|----------|
-| AI 平台仍走直连 | 路由规则未命中、sniffing 未开启、域名缺失 | 开启 TLS/HTTP/QUIC sniffing，补充域名，确认规则在兜底规则之前 |
-| 所有流量都走住宅出口 | 存在 `inboundTag -> us-residential-socks` 全量规则 | 删除全量规则，仅保留 AI 域名规则 |
-| Xray 启动失败 | JSON 语法、Reality `target`、Balancer tag、出站 tag、当前 Xray 不支持的 balancer 字段 | 查看面板 Xray 日志，按首个 `failed to build` 错误修复；如出现依赖解析失败，先移除 balancer `fallbackTag` |
-| Google 或 ChatGPT 很慢 | 住宅出口延迟高、供应商限速、客户端到服务器链路抖动 | 用 Outbound Test 对比 `direct` 与住宅出口；更换住宅节点或降低并发 |
-| 订阅导出为空 | 订阅开关未启用、客户端无 `subId`、公开 URI 为空 | 在设置页填充默认订阅 URI，确认客户端启用并存在 `subId` |
-| Clash/Mihomo 导入失败 | 协议或传输不被 Clash 输出覆盖 | 改用 `/json/<subId>` 或客户端手动配置，优先使用 TCP/WS/gRPC 主路径 |
-| DNS 泄漏 | 终端本地解析、客户端未使用远端 DNS | 使用 SOCKS5H/TUN/FakeDNS，浏览器和客户端侧关闭本地 DNS 泄漏路径 |
+|---|---|---|
+| AI 平台仍走直连 | 域名未命中、sniffing 未启用、规则顺序在兜底之后 | 补域名，启用 TLS/HTTP/QUIC sniffing，移动规则到普通兜底之前 |
+| 所有流量都走住宅出口 | 存在全量 inboundTag 或 domain 规则 | 删除全量规则，只保留 AI 域名规则 |
+| Xray 启动失败 | JSON 语法、outbound tag、balancer tag、Reality target、当前 Xray 不支持字段 | 查看 Xray 日志第一条 `failed to build` 错误 |
+| Residential IP Pool 为空 | outbound tag 不含 `residential` 或 protocol 不是 `socks` | 调整 tag 或协议 |
+| Outbound Test 失败 | 住宅代理不可达、认证错误、测试 URL 不通 | 用服务端日志和供应商控制台核对 |
+| Gateway 端口不可连 | `listenHost` 为 127.0.0.1 但 Gateway 不在同主机 | 保持同主机，或改为受信任内网主机并理解暴露风险 |
+| Gateway 流量被 blocked | platform 域名清单未覆盖目标 | 补充 routing rule 或使用区域 profile |
+| 订阅为空 | `subEnable`、`subId`、公开 URI、协议能力不匹配 | 用 `/sub/:subid/diagnose`、`/json/:subid/diagnose`、`/clash/:subid/diagnose` 排查 |
+| DNS 泄漏 | 终端本地解析、客户端未使用远端 DNS | 使用 SOCKS5H/TUN/FakeDNS，限制浏览器本地 DNS 路径 |
 
 ---
 
-## 11. 回滚方案
+## 10. 回滚
 
-出现不可接受的延迟、平台失败或 Xray 启动问题时：
+最小回滚：
 
-1. 在面板中停用 AI 域名路由规则，保留住宅 SOCKS 出站配置。
-2. 或将 `ai-residential` 的 selector 临时改为空，并观察 Xray 是否启动。
-3. 如需完全回滚，删除住宅 SOCKS 出站、AI 路由规则、`ai-residential`、对应 Observatory 和 AI 专用 DNS server。
-4. 恢复备份的 `/usr/local/x-ui/bin/config.json` 或数据库后重启：
+1. 禁用或删除 AI 域名路由规则。
+2. 保留 residential outbound，以便后续排查。
+3. 保存模板并重启 Xray。
+
+完全回滚：
+
+1. 删除 residential socks outbound。
+2. 删除 `ai-residential` balancer。
+3. 删除 AI TCP/UDP 规则。
+4. 删除 Gateway Egress MVP 生成的 inbound、placeholder outbound 和 `_gatewayEgressMvp` rules。
+5. 删除相关 Observatory 和 DNS server。
+6. 恢复备份配置或数据库。
+7. 重启：
 
 ```bash
 systemctl restart x-ui
@@ -351,4 +439,9 @@ x-ui restart-xray
 journalctl -u x-ui -n 100 --no-pager
 ```
 
-回滚后必须重新验证：Xray Running、普通客户端可连通、非 AI 流量未误走住宅出口、订阅链接仍可访问。
+回滚后确认：
+
+- Xray Running。
+- 普通客户端可连通。
+- 非 AI 流量未误走住宅出口。
+- 订阅链接仍可访问。

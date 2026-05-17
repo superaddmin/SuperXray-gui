@@ -1,636 +1,540 @@
 # 核心模块解析
 
-> **目标读者**：开发者
+> **目标读者**：后端 / 前端维护者
 > **适用版本**：`v3.0.16`
+> **事实来源**：`main.go`、`config/`、`database/`、`web/`、`sub/`、`core/`、`frontend/src`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md)
 
 ---
 
-## 1. 程序入口（main.go）
+## 1. `main.go`
 
-[`main.go`](../main.go) 是整个应用的入口点，负责 CLI 命令解析和服务启动。
+`main.go` 是进程入口，负责 CLI 分发、环境加载、数据库初始化和服务生命周期。
 
-### 1.1 CLI 命令解析
+### 1.1 CLI
 
-使用 Go 标准库 `flag` 包实现命令行参数解析：
+| 命令 | 行为 |
+|---|---|
+| 无参数 / `run` | 启动 Web Server 和 Sub Server |
+| `setting` | 修改面板端口、路径、用户、密码、TG Bot 等设置 |
+| `migrate` | 执行数据库迁移相关命令 |
+| `cert` | 管理证书 |
+| `-v` | 输出 `config.GetVersion()` |
 
-```go
-// 全局参数
--v          // 显示版本号
+### 1.2 服务启动
 
-// 子命令
-run         // 运行 Web 服务器（默认行为）
-setting     // 管理面板设置
-migrate     // 数据库迁移
-cert        // SSL 证书管理
-```
+`runWebServer` 的关键链路：
 
-### 1.2 启动流程
-
-[`runWebServer()`](../main.go) 函数的执行步骤：
-
-1. 打印版本信息（`config.GetName()` + `config.GetVersion()`）
-2. 根据日志级别初始化日志系统
-3. 加载 `.env` 文件（通过 `godotenv`）
-4. 初始化 SQLite 数据库（`database.InitDB()`）
-5. 创建并启动 `web.Server`（Web 管理面板）
-6. 创建并启动 `sub.Server`（订阅服务）
-7. 监听系统信号
-
-### 1.3 信号处理
-
-```go
-signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGTERM, sys.SIGUSR1)
-```
-
-| 信号 | 行为 |
-|------|------|
-| `SIGHUP` | 重启 Web Server 和 Sub Server（先停止 TG Bot 防止 409 冲突） |
-| `SIGTERM` | 优雅关闭所有服务 |
-| `SIGUSR1` | 仅重启 Xray 进程 |
+1. 读取 `.env`。
+2. 根据 `XUI_DEBUG` / `XUI_LOG_LEVEL` 初始化日志级别。
+3. 调用 `database.InitDB(config.GetDBPath())`。
+4. 创建并启动 `web.Server`。
+5. 创建并启动 `sub.Server`；如果 `subEnable=false`，订阅服务直接不监听。
+6. 监听 `SIGHUP`、`SIGTERM`、`SIGUSR1`。
 
 ---
 
-## 2. 配置管理（config/）
+## 2. `config/`
 
-[`config/config.go`](../config/config.go) 提供全局配置管理。
+`config/config.go` 只负责本地路径、版本和日志级别，不读取数据库设置。
 
-### 2.1 配置加载机制
+| 函数 | 环境变量 | 默认行为 |
+|---|---|---|
+| `GetVersion()` | 无 | 读取 `config/version`，当前 `3.0.16` |
+| `GetAssetVersion()` | 构建注入 `buildHash` | `version.buildHash`，未注入时使用启动时间戳 |
+| `GetName()` | 无 | 读取 `config/name`，当前 `x-ui` |
+| `IsDebug()` | `XUI_DEBUG` | 值为 `true` 时启用 debug |
+| `GetLogLevel()` | `XUI_LOG_LEVEL` | debug 模式固定 `debug`，否则默认 `info` |
+| `GetBinFolderPath()` | `XUI_BIN_FOLDER` | 默认 `bin` |
+| `GetDBFolderPath()` | `XUI_DB_FOLDER` | Windows 默认可执行文件目录，其他平台默认 `/etc/x-ui` |
+| `GetDBPath()` | `XUI_DB_FOLDER` | `<DBFolder>/<name>.db` |
+| `GetLogFolder()` | `XUI_LOG_FOLDER` | Windows 默认 `./log`，其他平台默认 `/var/log/x-ui` |
 
-配置通过环境变量和文件读取：
-
-```go
-// 版本信息（编译时嵌入）
-//go:embed version
-var version string
-
-//go:embed name
-var name string
-```
-
-### 2.2 环境变量映射
-
-| 函数 | 环境变量 | 默认值 | 说明 |
-|------|---------|--------|------|
-| `IsDebug()` | `XUI_DEBUG` | `false` | 调试模式 |
-| `GetLogLevel()` | `XUI_LOG_LEVEL` | `info` | 日志级别 |
-| `GetDBPath()` | `XUI_DB_FOLDER` | `x-ui` | 数据库路径 |
-| `GetLogPath()` | `XUI_LOG_FOLDER` | `x-ui` | 日志路径 |
-| `GetBinPath()` | `XUI_BIN_FOLDER` | `x-ui` | 二进制路径 |
-
-### 2.3 版本管理
-
-- [`config/version`](../config/version)：存储版本号 `3.0.16`
-- [`config/name`](../config/name)：存储应用名 `x-ui`
+代码中没有旧版的 bin/log path getter；文档和代码应统一使用上表中的目录函数。
 
 ---
 
-## 3. 数据库层（database/）
+## 3. `database/`
 
-### 3.1 初始化与迁移
+### 3.1 初始化
 
-[`database/db.go`](../database/db.go) 负责数据库初始化：
+`database.InitDB(dbPath string)`：
 
-```go
-func InitDB(dbPath string) error
-```
+1. 创建数据库目录，权限 `0750`。
+2. 按 `config.IsDebug()` 决定 GORM logger。
+3. 使用 SQLite driver 打开数据库。
+4. 调用 `initModels()` 执行 `AutoMigrate`。
+5. 如果 `users` 表为空，创建默认 `admin/admin`，密码以 bcrypt 保存。
+6. 执行 `runSeeders`，把历史明文用户密码迁移到 bcrypt，并记录 `HistoryOfSeeders`。
 
-**初始化流程**：
-1. 创建数据库目录
-2. 打开 SQLite 连接（通过 GORM）
-3. `AutoMigrate` 所有模型表
-4. 创建默认 admin 用户（用户名/密码：`admin`/`admin`）
-5. 运行种子数据迁移
+### 3.2 迁移模型
 
-### 3.2 数据模型详解
-
-所有模型定义在 [`database/model/model.go`](../database/model/model.go)：
-
-#### User（用户）
+`initModels()` 当前迁移：
 
 ```go
-type User struct {
-    Id       int    // 主键，自增
-    Username string // 用户名
-    Password string // bcrypt 加密密码
-}
+&model.User{}
+&model.Inbound{}
+&model.OutboundTraffics{}
+&model.Setting{}
+&model.InboundClientIps{}
+&xray.ClientTraffic{}
+&model.HistoryOfSeeders{}
+&model.CustomGeoResource{}
 ```
 
-#### Inbound（入站配置）
+### 3.3 核心模型
+
+`database/model/model.go` 定义：
+
+| 模型 | 作用 |
+|---|---|
+| `User` | 面板账户 |
+| `Inbound` | 当前唯一活跃 Xray 入站写模型 |
+| `OutboundTraffics` | outbound tag 流量统计 |
+| `InboundClientIps` | 客户端 IP 记录 |
+| `HistoryOfSeeders` | 种子历史 |
+| `Setting` | 数据库键值设置 |
+| `CustomGeoResource` | 自定义 Geo 资源 |
+| `Client` | 嵌入 `Inbound.Settings` JSON 的客户端结构，不是独立表 |
+
+支持的 `Protocol` 常量：
 
 ```go
-type Inbound struct {
-    Id                   int      // 主键
-    UserId               int      // 关联用户 ID
-    Up                   int64    // 上传流量（字节）
-    Down                 int64    // 下载流量（字节）
-    Total                int64    // 总流量限制（字节）
-    AllTime              int64    // 历史总流量
-    Remark               string   // 备注
-    Enable               bool     // 是否启用
-    ExpiryTime           int64    // 过期时间戳
-    TrafficReset         string   // 流量重置周期（never/hourly/daily/weekly/monthly）
-    LastTrafficResetTime int64    // 上次重置时间
-    Listen               string   // 监听地址
-    Port                 int      // 监听端口
-    Protocol             Protocol // 协议类型
-    Settings             string   // 协议设置（JSON）
-    StreamSettings       string   // 传输层设置（JSON）
-    Tag                  string   // 唯一标签
-    Sniffing             string   // 嗅探设置（JSON）
-}
+vmess, vless, tunnel, http, trojan, shadowsocks,
+mixed, wireguard, tun, hysteria, hysteria2
 ```
 
-#### Client（客户端配置）
-
-```go
-type Client struct {
-    ID         string // 客户端唯一标识（UUID）
-    Security   string // 加密方式
-    Password   string // 密码
-    Flow       string // 流控（XTLS）
-    Auth       string // 认证密码（Hysteria）
-    Email      string // 客户端标识邮箱
-    LimitIP    int    // IP 限制数
-    TotalGB    int64  // 流量限制（GB）
-    ExpiryTime int64  // 过期时间戳
-    Enable     bool   // 是否启用
-    TgID       int64  // Telegram 用户 ID
-    SubID      string // 订阅 ID
-    Comment    string // 备注
-    Reset      int    // 重置周期（天）
-}
-```
-
-> **重要**：`Client` 不是独立的数据库表，而是嵌入在 `Inbound.Settings` JSON 字段中。
-
-#### 支持的协议
-
-```go
-const (
-    VMESS       Protocol = "vmess"
-    VLESS       Protocol = "vless"
-    Tunnel      Protocol = "tunnel"
-    HTTP        Protocol = "http"
-    Trojan      Protocol = "trojan"
-    Shadowsocks Protocol = "shadowsocks"
-    Mixed       Protocol = "mixed"
-    WireGuard   Protocol = "wireguard"
-    Hysteria    Protocol = "hysteria"
-    Hysteria2   Protocol = "hysteria2"
-)
-```
+`IsHysteria` 同时接受 `hysteria` 和 `hysteria2`，因为 UI 默认把 Hysteria v2 存为 `hysteria`，外部导入可能携带 `hysteria2`。
 
 ---
 
-## 4. Web 服务器（web/）
+## 4. `web/` Server
 
-### 4.1 服务器启动流程
+### 4.1 服务器职责
 
-[`web/web.go`](../web/web.go) 中的 [`Server.Start()`](../web/web.go) 方法：
+`web.Server` 负责：
 
-```mermaid
-flowchart TD
-    A[Start] --> B[获取时区配置]
-    B --> C[创建 Cron 调度器]
-    C --> D[初始化 CustomGeoService]
-    D --> E[初始化 Gin 路由 initRouter]
-    E --> F[配置 HTTP/HTTPS 监听]
-    F --> G[启动 HTTP 服务器 goroutine]
-    G --> H[启动后台任务 startTask]
-    H --> I{TG Bot 启用?}
-    I -->|是| J[启动 Telegram Bot]
-    I -->|否| K[完成]
-    J --> K
-```
+- Web 面板 HTTP/HTTPS 监听。
+- 新 Vue UI 和 legacy UI 托管。
+- 面板 API、WebSocket 和静态资源。
+- Cron 后台任务。
+- Telegram Bot 启停。
+- 自定义 Geo 启动检查。
 
-### 4.2 路由注册
+### 4.2 路由组织
 
-[`initRouter()`](../web/web.go) 方法注册所有路由和中间件：
+主要路由入口：
+
+| 文件 | 作用 |
+|---|---|
+| `web/web.go` | 创建 Gin engine、注册中间件、控制器、WebSocket、legacy 静态资源 |
+| `web/ui.go` | 注册新 UI `/panel/*`、`/panel/ui/*` 和 `/panel/assets/*path` |
+| `web/controller/xui.go` | 注册 legacy UI `/panel/legacy/*` |
+| `web/controller/api.go` | 注册 `/panel/api/*` |
+| `web/controller/setting.go` | 注册 `/panel/setting/*` |
+| `web/controller/xray_setting.go` | 注册 `/panel/xray/*` |
+
+### 4.3 中间件
+
+`web/web.go` 和相关中间件组合提供：
+
+| 中间件 | 作用 |
+|---|---|
+| `SecurityHeadersMiddleware` | CSP、frame、content-type、referrer 安全头 |
+| `DomainValidatorMiddleware` | 可选 Host 白名单 |
+| `gzip.Gzip` | HTTP 压缩 |
+| `sessions.Sessions("SuperXray", store)` | Cookie Session |
+| base path 注入 | 给模板和控制器提供 `base_path` |
+| 静态资源缓存 | 构建产物长缓存，入口 HTML no-store/no-cache |
+| `locale.LocalizerMiddleware` | Web 国际化 |
+| `RedirectMiddleware` | 兼容旧路径重定向 |
+| `CSRFMiddleware` | API 状态变更防护 |
+
+---
+
+## 5. Controller 层
+
+### 5.1 `BaseController`
+
+`web/controller/base.go` 当前只提供：
+
+- `checkLogin(c)`：页面鉴权中间件。Ajax 未登录返回 `401` JSON，普通页面重定向到 `base_path`。
+- `I18nWeb(c, key, params...)`：从 Gin context 取 `I18n` 函数。
+
+没有 `isLogin` 或 `getI18nWebFunc` 方法。
+
+### 5.2 `IndexController`
+
+| 方法 | 路由 | 说明 |
+|---|---|---|
+| `index` | `GET /` | 根页面；按登录状态跳转 |
+| `login` | `POST /login` | 登录并写 Session/CSRF |
+| `logout` | `GET /logout` | 清除 Session |
+| `getTwoFactorEnable` | `POST /getTwoFactorEnable` | 返回 2FA 开关 |
+
+### 5.3 `XUIController`
+
+负责 legacy 页面和旧设置/Xray 控制器初始化：
+
+| 路由 | 说明 |
+|---|---|
+| `/panel/legacy` | 重定向到 `/panel/legacy/` |
+| `/panel/legacy/` | legacy Dashboard |
+| `/panel/legacy/inbounds` | legacy Inbounds |
+| `/panel/legacy/settings` | legacy Settings |
+| `/panel/legacy/xray` | legacy Xray |
+
+`/panel/setting/*` 和 `/panel/xray/*` 仍在该控制器初始化链路中挂载。
+
+### 5.4 `APIController`
+
+`web/controller/api.go` 创建 `/panel/api` 分组：
 
 ```go
-func (s *Server) initRouter() (*gin.Engine, error) {
-    engine := gin.Default()
-
-    // 中间件注册顺序
-    engine.Use(middleware.SecurityHeadersMiddleware())          // 安全响应头
-    engine.Use(middleware.DomainValidatorMiddleware(webDomain))  // 域名验证（可选）
-    engine.Use(gzip.Gzip(gzip.DefaultCompression))              // Gzip 压缩
-    engine.Use(sessions.Sessions("SuperXray", store))               // Session 管理
-    engine.Use(locale.LocalizerMiddleware())                     // 国际化
-
-    // 控制器注册
-    s.index = controller.NewIndexController(g)       // 首页/登录
-    s.panel = controller.NewXUIController(g)          // 面板页面
-    s.api = controller.NewAPIController(g, ...)       // API 接口
-
-    // WebSocket
-    s.wsHub = websocket.NewHub()
-    g.GET("/ws", s.ws.HandleWebSocket)
-}
+api := g.Group("/panel/api")
+api.Use(a.checkAPIAuth)
+api.Use(middleware.CSRFMiddleware())
 ```
 
-### 4.3 中间件链
+`checkAPIAuth` 未登录返回 `404`，再执行 CSRF。子控制器：
 
-请求经过的中间件顺序：
+- `InboundController`：`/panel/api/inbounds`
+- `ServerController`：`/panel/api/server`
+- `CoreController`：`/panel/api/cores`
+- `CustomGeoController`：`/panel/api/custom-geo`
+- `BackuptoTgbot`：`POST /panel/api/backuptotgbot`
 
-```
-HTTP 请求
-  → SecurityHeadersMiddleware（安全响应头：CSP/HSTS/X-Frame-Options 等）
-  → DomainValidatorMiddleware（域名验证，可选）
-  → Gzip（压缩）
-  → Sessions（Cookie Session）
-  → basePath 注入
-  → 静态资源缓存（Cache-Control: max-age=31536000）
-  → LocalizerMiddleware（国际化语言检测）
-  → RedirectMiddleware（/xui → /panel 重定向）
-```
+### 5.5 `InboundController`
 
-### 4.4 模板渲染
+职责：
 
-- **开发模式**（`XUI_DEBUG=true`）：从本地文件系统加载 HTML 模板
-- **生产模式**：从嵌入的 `//go:embed html/*` 加载模板
+- Inbound CRUD。
+- 客户端添加、更新、删除、按 email 删除。
+- 跨入站复制客户端。
+- 客户端流量和 IP 记录。
+- 在线客户端和最后在线时间。
+- 单个 Inbound JSON 导入。
+- 变更后按需设置 Xray 重启标记并广播 WebSocket。
 
-### 4.5 后台任务调度
+特别注意：
 
-[`startTask()`](../web/web.go) 注册所有 Cron 任务，详见 [系统架构设计 - 后台任务层](architecture.md#34-后台任务层)。
+- `/import` 只解析表单字段 `data` 中的单个 `model.Inbound` JSON。
+- `/updateClientTraffic/:email` 使用 JSON Body `{upload, download}`。
+- `copyClients` 读取 `sourceInboundId`、重复表单字段 `clientEmails` 和 `flow`，路径 `:id` 是目标 Inbound。
+
+### 5.6 `SettingController`
+
+路径前缀 `/panel/setting`，使用 CSRF：
+
+| 路由 | 方法 | 说明 |
+|---|---|---|
+| `/all` | POST | 返回 `entity.AllSetting` |
+| `/defaultSettings` | POST | 根据 Host 计算默认设置 |
+| `/update` | POST | `ShouldBind(entity.AllSetting)` 后调用 `UpdateAllSetting` |
+| `/updateUser` | POST | 字段为 `oldUsername`、`oldPassword`、`newUsername`、`newPassword` |
+| `/restartPanel` | POST | 延迟重启面板 |
+| `/getDefaultJsonConfig` | GET | 默认 Xray JSON |
+
+服务层保存入口是 `UpdateAllSetting`。
+
+### 5.7 `XraySettingController`
+
+路径前缀 `/panel/xray`，使用 CSRF：
+
+- 读取和保存 Xray JSON 模板。
+- 读取 outbound 流量。
+- 重置 outbound 流量。
+- 使用服务端保存的测试 URL 测试 outbound。
+- 操作 WARP 和 NordVPN。
+
+`POST /panel/xray/` 的 `obj` 是字符串化 JSON，其中包含 `xraySetting`、`inboundTags` 和 `outboundTestUrl`。
+
+### 5.8 `ServerController`
+
+职责：
+
+- 状态缓存与 CPU 历史。
+- Xray 版本列表、安装、停止、重启。
+- 配置和数据库下载。
+- 面板日志、Xray 日志读取。
+- Geo 文件更新。
+- 数据库导入。
+- UUID、X25519、ML-DSA-65、ML-KEM-768、VLESS enc、ECH 生成。
+
+`NewServerController` 会调用 `startTask()`，向全局 Cron 注册每 2 秒状态刷新任务，并通过 WebSocket 广播 `status`。
+
+### 5.9 `CoreController`
+
+路径前缀 `/panel/api/cores`：
+
+| 路由 | 说明 |
+|---|---|
+| `GET /instances` | 列出实例 |
+| `GET /instances/:id` | 获取实例详情 |
+| `GET /instances/:id/status` | 获取状态 |
+| `POST /instances/:id/validate` | 校验配置 |
+| `POST /instances/:id/start` | 启动 |
+| `POST /instances/:id/stop` | 停止 |
+| `POST /instances/:id/restart` | 重启 |
+
+`default-xray` 是只读 legacy 实例；`experimental-sing-box` 是实验性外部二进制实例。
+
+### 5.10 `CustomGeoController`
+
+提供自定义 Geo 资源列表、别名、添加、更新、删除、单项下载和全部更新。写操作继续走 `/panel/api` 的登录和 CSRF 链。
 
 ---
 
-## 5. 控制器层（web/controller/）
+## 6. Service 层
 
-### 5.1 BaseController
+### 6.1 `SettingService`
 
-[`base.go`](../web/controller/base.go) 提供所有控制器的公共方法：
+`web/service/setting.go` 以 `settings` 表为存储。核心职责：
 
-- `isLogin(c)` - 检查用户是否已登录
-- `getI18nWebFunc(c)` - 获取 Web 国际化函数
+- 聚合数据库键值为 `entity.AllSetting`。
+- 提供 Web/Sub/TG/LDAP/订阅/Xray 相关 getter。
+- `GetDefaultSettings(host)` 生成默认设置和订阅 URI。
+- `UpdateAllSetting(allSetting)` 保存设置并做格式校验。
+- `GetXrayConfigTemplate()`、`GetDefaultXrayConfig()`、`SetXrayOutboundTestUrl()` 等 Xray 设置辅助。
 
-### 5.2 IndexController
+### 6.2 `InboundService`
 
-[`index.go`](../web/controller/index.go) 处理首页和认证：
+项目中最大的业务服务之一。职责：
 
-| 方法 | 路由 | 功能 |
-|------|------|------|
-| `index` | `GET /` | 首页（已登录重定向到 panel） |
-| `login` | `POST /login` | 用户登录 |
-| `logout` | `GET /logout` | 用户登出 |
-| `getTwoFactorEnable` | `POST /getTwoFactorEnable` | 获取 2FA 状态 |
+- Inbound CRUD、导入和克隆所需基础操作。
+- 客户端增删改、批量复制和流量重置。
+- 与 Xray API 协同更新运行时 inbound。
+- 客户端 IP 记录、在线状态和最后在线时间。
+- 分享链接和订阅辅助数据。
 
-### 5.3 XUIController
+该服务仍以 `model.Inbound` 和嵌入式 clients JSON 为核心。
 
-[`xui.go`](../web/controller/xui.go) 处理旧版 HTML 面板页面路由。当前源码将旧版页面显式挂载到 `/panel/legacy/*`，并保留 `/panel/legacy` 到 `/panel/legacy/` 的临时重定向，作为新版面板阶段的兼容和回滚边界。
+### 6.3 `XrayService`
 
-| 方法 | 路由 | 功能 |
-|------|------|------|
-| `redirect` | `GET /panel/legacy` | 重定向到 `/panel/legacy/` |
-| `index` | `GET /panel/legacy/` | 旧版面板首页 |
-| `inbounds` | `GET /panel/legacy/inbounds` | 旧版 Inbounds 管理页 |
-| `settings` | `GET /panel/legacy/settings` | 旧版设置页 |
-| `xraySettings` | `GET /panel/legacy/xray` | 旧版 Xray 配置页 |
+legacy Xray 进程生命周期服务：
 
-`XUIController` 仍负责在 `/panel` 组下初始化 `SettingController` 和 `XraySettingController`，因此 `/panel/setting/*` 与 `/panel/xray/*` API 路径保持不变。
+- `RestartXray()`
+- `StopXray()`
+- `GetXrayTraffic()`
+- `GetXrayResult()`
+- `SetToNeedRestart()`
+- `IsNeedRestartAndSetFalse()`
 
-### 5.4 InboundController
+CoreManager 当前没有接管这些 legacy lifecycle API。
 
-[`inbound.go`](../web/controller/inbound.go) 处理 Inbound CRUD 和客户端管理（493 行），详见 [API 接口说明 - Inbound 管理](api.md#6-inbound-管理-api)。
+### 6.4 `ServerService`
 
-### 5.5 SettingController
+提供服务器状态和运维能力：
 
-[`setting.go`](../web/controller/setting.go) 处理面板设置管理：
+- CPU、内存、磁盘、网络 IO 采集。
+- CPU 历史聚合。
+- Xray 版本查询与安装。
+- 日志读取。
+- 数据库导入、导出和安全校验。
+- Geo 文件更新。
+- 密钥和证书生成工具。
 
-| 方法 | 路由 | 功能 |
-|------|------|------|
-| `getAllSetting` | `POST /panel/setting/all` | 获取所有设置 |
-| `getDefaultSetting` | `POST /panel/setting/defaultSettings` | 获取默认设置 |
-| `updateSetting` | `POST /panel/setting/update` | 更新设置 |
-| `updateUser` | `POST /panel/setting/updateUser` | 更新用户名/密码 |
-| `restartPanel` | `POST /panel/setting/restartPanel` | 重启面板 |
+### 6.5 `OutboundService`
 
-### 5.6 XraySettingController
+负责 outbound 流量统计和连通性测试。`TestOutbound` 会：
 
-[`xray_setting.go`](../web/controller/xray_setting.go) 处理 Xray 配置管理，包括 WARP 和 NordVPN 操作。
+1. 解析待测试 outbound。
+2. 创建临时 Xray config。
+3. 启动临时 Xray 进程。
+4. 通过本地测试 inbound 访问服务端保存的测试 URL。
+5. 返回 `success`、`delay`、`statusCode` 或 `error`。
 
-### 5.7 ServerController
+### 6.6 `UserService`
 
-[`server.go`](../web/controller/server.go) 处理服务器状态、Xray 管理、日志查询等（391 行）。
+提供本地 bcrypt 密码校验、LDAP 登录、TOTP 2FA 和用户更新。
 
-**特殊机制**：ServerController 自带后台任务，每 2 秒刷新服务器状态并通过 WebSocket 广播：
+### 6.7 `TgbotService`
 
-```go
-func (a *ServerController) startTask() {
-    c.AddFunc("@every 2s", func() {
-        a.refreshStatus()
-    })
-}
-```
+实现 Telegram Bot 命令、登录通知、统计报告、数据库备份、回调哈希防重放和二维码相关功能。
 
-### 5.8 APIController
+### 6.8 `WarpService` / `NordService`
 
-[`api.go`](../web/controller/api.go) 作为 API 路由组的入口：
+- `warp.go`：WARP 数据、配置、注册和 license。
+- `nord.go`：国家、服务器、凭据和 key 管理。
 
-```go
-func (a *APIController) initRouter(g *gin.RouterGroup, customGeo *service.CustomGeoService) {
-    api := g.Group("/panel/api")
-    api.Use(a.checkAPIAuth)
-    api.Use(middleware.CSRFMiddleware())
+新 UI 的 WARP Matrix 会在 Xray JSON 模板层生成多个 WARP outbound 和规则，不新增数据库模型。
 
-    inbounds := api.Group("/inbounds")
-    a.inboundController = NewInboundController(inbounds)
+### 6.9 `CustomGeoService`
 
-    server := api.Group("/server")
-    a.serverController = NewServerController(server)
+负责 Geo 资源验证、下载、本地缓存、别名规范化、保留别名、防 SSRF 和路径安全。
 
-    cores := api.Group("/cores")
-    a.coreController = NewCoreController(cores)
+### 6.10 `CoreService`
 
-    NewCustomGeoController(api.Group("/custom-geo"), customGeo)
+`web/service/core_service.go` 是 `/panel/api/cores` 与 `core/` 包之间的适配层。初始化时注册：
 
-    api.POST("/backuptotgbot", a.BackuptoTgbot)
-}
-```
+| 实例 | 适配器 | 能力 |
+|---|---|---|
+| `default-xray` | `defaultXrayAdapter` | read only，生命周期不走 CoreManager |
+| `experimental-sing-box` | `core/singbox.Adapter` | external binary，validate/start/stop/restart |
 
-该控制器会先对 `/panel/api/*` 请求执行登录检查，未登录时返回 `404`，再执行 CSRF 检查。
-
-### 5.9 WebSocketController
-
-[`websocket.go`](../web/controller/websocket.go) 处理 WebSocket 连接升级和消息分发。
-
-### 5.10 CustomGeoController
-
-[`custom_geo.go`](../web/controller/custom_geo.go) 处理自定义 GeoIP/GeoSite 资源管理，包括列表、别名查询、添加、更新、删除、单项下载和全部更新。
-
-### 5.11 CoreController
-
-[`core.go`](../web/controller/core.go) 暴露多核心管理 API，路径前缀为 `/panel/api/cores`。该控制器通过 `CoreService` 读取核心实例列表与状态，并对支持生命周期操作的实例执行校验、启动、停止、重启。
-
-| 方法 | 路由 | 功能 |
-|------|------|------|
-| `listInstances` | `GET /panel/api/cores/instances` | 列出核心实例及状态 |
-| `getInstance` | `GET /panel/api/cores/instances/:id` | 获取指定核心实例 |
-| `getStatus` | `GET /panel/api/cores/instances/:id/status` | 获取指定核心状态 |
-| `validate` | `POST /panel/api/cores/instances/:id/validate` | 校验核心配置 |
-| `start` | `POST /panel/api/cores/instances/:id/start` | 启动核心实例 |
-| `stop` | `POST /panel/api/cores/instances/:id/stop` | 停止核心实例 |
-| `restart` | `POST /panel/api/cores/instances/:id/restart` | 重启核心实例 |
+sing-box 默认路径来自 `SUPERXRAY_SING_BOX_*` 环境变量，未设置时回退到 `config.GetBinFolderPath()` 和 `config.GetLogFolder()`。
 
 ---
 
-## 6. 服务层（web/service/）
+## 7. `core/`
 
-### 6.1 SettingService
+`core/types.go` 定义：
 
-[`setting.go`](../web/service/setting.go)（858 行）管理所有面板配置。配置以键值对形式存储在 `settings` 表中。
+| 类型 | 说明 |
+|---|---|
+| `CoreType` | `xray`、`sing-box` 等核心类型 |
+| `State` | `unknown`、`running`、`stopped`、`error`、`not-installed`、`not-configured` |
+| `Capabilities` | read/write/validate/start/stop/restart/lifecycleViaCoreManager |
+| `Status` | 核心运行状态 |
+| `Instance` | API 返回的核心实例视图 |
+| `Adapter` | Manager 调用的核心适配接口 |
 
-**核心方法**：
+`core/manager.go` 负责注册 Adapter、列出实例、查状态和分发生命周期操作。它拒绝重复 ID，找不到实例或能力不支持时返回明确错误。
 
-| 方法 | 功能 |
-|------|------|
-| `GetAllSetting()` | 获取所有设置（合并为 `AllSetting` 结构体） |
-| `SaveSetting(setting)` | 保存所有设置 |
-| `GetPort()` / `GetListen()` | 获取端口/监听地址 |
-| `GetCertFile()` / `GetKeyFile()` | 获取证书路径 |
-| `GetTgbotEnabled()` | 获取 TG Bot 启用状态 |
-| `GetLdapEnable()` | 获取 LDAP 启用状态 |
-
-### 6.2 InboundService
-
-[`inbound.go`](../web/service/inbound.go)（3003 行，最大服务文件之一）处理所有 Inbound 和客户端业务逻辑：
-
-- Inbound CRUD 操作
-- 客户端管理（添加/删除/更新/复制）
-- 流量统计和重置
-- 客户端 IP 追踪
-- 在线状态检测
-- 数据导入导出
-- 订阅链接生成辅助
-
-### 6.3 XrayService
-
-[`xray.go`](../web/service/xray.go) 管理 Xray-core 进程生命周期：
-
-| 方法 | 功能 |
-|------|------|
-| `RestartXray()` | 重启 Xray 进程 |
-| `StopXray()` | 停止 Xray 进程 |
-| `GetXrayTraffic()` | 通过 gRPC 获取流量统计 |
-| `IsNeedRestartAndSetFalse()` | 检查是否需要重启 |
-
-### 6.4 ServerService
-
-[`server.go`](../web/service/server.go)（1407 行）提供服务器状态监控：
-
-- CPU、内存、磁盘、网络 IO 采集（通过 `gopsutil`）
-- Xray 版本查询和安装
-- 日志查询
-- 数据库导入导出
-- CPU 历史数据聚合
-
-### 6.5 UserService
-
-[`user.go`](../web/service/user.go) 处理用户认证：
-
-- 本地密码验证（bcrypt）
-- LDAP 认证
-- TOTP 双因素认证
-- 用户名/密码更新
-
-### 6.6 TgbotService
-
-[`tgbot.go`](../web/service/tgbot.go)（4002 行，项目最大文件）实现 Telegram Bot 功能：
-
-- Bot 命令处理（状态查询、流量统计、Inbound 管理）
-- 登录通知
-- 定期统计报告
-- 数据库备份发送
-- 回调查询处理（使用 HashStorage 防重放）
-- 二维码生成
-
-### 6.7 OutboundService
-
-[`outbound.go`](../web/service/outbound.go) 管理出站流量统计和连通性测试。
-
-### 6.8 WarpService / NordService
-
-- [`warp.go`](../web/service/warp.go)：Cloudflare WARP 集成（注册、配置、密钥管理）
-- [`nord.go`](../web/service/nord.go)：NordVPN 集成（国家/服务器查询、注册、密钥管理）
-
-Xray 设置页的 WARP 模态框支持将同一份 WARP WireGuard 配置展开为 `warp`、`warp-ipv4`、`warp-ipv6`、`warp-openai` 等可选出站矩阵，并同步生成对应路由规则。
-
-### 6.9 Protocol Tools
-
-Xray 设置页提供 `Protocol Tools` 标签页，用于生成 Argo Tunnel 命令、Xray 兼容协议组合配置和 sing-box 外部协议配置。TUIC 与 AnyTLS 标记为 external-only，不会写入 Xray 入站协议或 Xray 模板，避免生成当前 Xray-core 无法启动的配置。
-
-### 6.10 CustomGeoService
-
-[`custom_geo.go`](../web/service/custom_geo.go) 管理自定义 GeoIP/GeoSite 资源：
-
-- 资源验证和下载
-- 本地缓存管理
-- 启动时自动检查更新
-- URL 协议、Host 与 SSRF 防护
-- 别名规范化和保留别名校验
-
-### 6.11 CoreService
-
-[`core_service.go`](../web/service/core_service.go) 是 Web API 与 [`core/`](../core/) 多核心管理器之间的适配层。服务初始化时注册两个实例：
-
-| 实例 ID | Core 类型 | 来源 | 生命周期能力 |
-|---------|-----------|------|--------------|
-| `default-xray` | `xray` | 既有 Inbound 表与 XrayService | 只读状态；不通过 CoreManager 启停 |
-| `experimental-sing-box` | `sing-box` | 外部 sing-box 二进制与配置文件 | 支持 validate/start/stop/restart |
-
-sing-box 适配器默认读取以下环境变量：`SUPERXRAY_SING_BOX_BINARY`、`SUPERXRAY_SING_BOX_CONFIG`、`SUPERXRAY_SING_BOX_LOG_FOLDER`；未设置时分别回退到 `config.GetBinFolderPath()` 下的 sing-box 二进制、`sing-box-config.json` 和面板日志目录。
+`core/singbox/adapter.go` 是当前唯一外部核心适配器：通过 `sing-box check -c <config>` 校验配置，并用外部进程执行 start/stop/restart。
 
 ---
 
-## 7. 后台任务（web/job/）
+## 8. `web/websocket/`
 
-### 7.1 Cron 调度系统
+### 8.1 Hub
 
-使用 [`robfig/cron/v3`](https://github.com/robfig/cron) 库，支持秒级精度的 Cron 表达式。
-
-### 7.2 各 Job 详解
-
-| Job 文件 | 任务名 | 频率 | 功能 |
-|----------|--------|------|------|
-| [`check_xray_running_job.go`](../web/job/check_xray_running_job.go) | `CheckXrayRunningJob` | `@every 1s` | 检查 Xray 进程状态，异常时自动重启 |
-| `web.go` `startTask()` | Xray 重启检查 | `@every 30s` | 检查 Xray 是否需要重启标记，按需重启 |
-| [`xray_traffic_job.go`](../web/job/xray_traffic_job.go) | `XrayTrafficJob` | `@every 10s` | 通过 gRPC 采集流量数据，更新数据库并 WebSocket 推送 |
-| [`check_client_ip_job.go`](../web/job/check_client_ip_job.go) | `CheckClientIpJob` | `@every 10s` | 解析 Xray 访问日志，检查 IP 限制，触发 fail2ban |
-| [`clear_logs_job.go`](../web/job/clear_logs_job.go) | `ClearLogsJob` | `@daily` | 清理过期的日志文件 |
-| [`periodic_traffic_reset_job.go`](../web/job/periodic_traffic_reset_job.go) | `PeriodicTrafficResetJob` | hourly/daily/weekly/monthly | 根据配置周期重置 Inbound 流量 |
-| [`ldap_sync_job.go`](../web/job/ldap_sync_job.go) | `LdapSyncJob` | 可配置 | 同步 LDAP 用户，自动创建/删除 |
-| [`stats_notify_job.go`](../web/job/stats_notify_job.go) | `StatsNotifyJob` | 可配置 | 通过 TG Bot 发送统计报告 |
-| [`check_cpu_usage.go`](../web/job/check_cpu_usage.go) | `CheckCpuJob` | `@every 10s` | CPU 超阈值时通过 TG Bot 告警 |
-| [`check_hash_storage.go`](../web/job/check_hash_storage.go) | `CheckHashStorageJob` | `@every 2m` | 清理过期的 TG Bot 回调查询哈希 |
-
----
-
-## 8. WebSocket 实时通信（web/websocket/）
-
-### 8.1 Hub 架构
-
-[`hub.go`](../web/websocket/hub.go) 实现 WebSocket 消息广播中心：
+真实结构：
 
 ```go
 type Hub struct {
-    clients    sync.Map           // 已注册的客户端连接
-    broadcast  chan *Message       // 广播消息通道（缓冲 2048）
-    register   chan *Client        // 注册通道（缓冲 100）
-    unregister chan *Client        // 注销通道（缓冲 100）
-    ctx        context.Context     // 上下文控制
-    cancel     context.CancelFunc  // 取消函数
+    clients    map[*Client]bool
+    broadcast  chan []byte
+    register   chan *Client
+    unregister chan *Client
+    mu         sync.RWMutex
+    ctx        context.Context
+    cancel     context.CancelFunc
+    workerPoolSize int
 }
 ```
 
-### 8.2 消息广播
+它使用普通 map 加读写锁；`broadcast` 传递的是已序列化字节。
 
-[`notifier.go`](../web/websocket/notifier.go) 提供广播通知函数：
+### 8.2 Notifier
 
-```go
-func BroadcastStatus(status any)     // 广播服务器状态
-func BroadcastTraffic(traffic any)   // 广播流量数据
-func BroadcastInbounds(inbounds any) // 广播 Inbound 列表
-func BroadcastNotification(msg string) // 广播通知
-```
+`notifier.go` 提供：
 
-### 8.3 并发控制
+| 函数 | payload |
+|---|---|
+| `BroadcastStatus(status any)` | `status` |
+| `BroadcastTraffic(traffic any)` | `traffic` |
+| `BroadcastInbounds(inbounds any)` | `inbounds` |
+| `BroadcastOutbounds(outbounds any)` | `outbounds` |
+| `BroadcastNotification(title, message, level string)` | `{title,message,level}` |
+| `BroadcastXrayState(state, errorMsg string)` | `{state,errorMsg}` |
+| `BroadcastInvalidate(dataType MessageType)` | `{type:<original>}` |
 
-- **Worker Pool**：广播任务分发到 Worker 池（`runtime.NumCPU() * 2`，最大 100）
-- **缓冲通道**：broadcast 缓冲 2048 条消息
-- **Panic 恢复**：每个 Worker 内置 `defer recover` 机制
-
----
-
-## 9. 订阅服务（sub/）
-
-### 9.1 订阅服务器架构
-
-[`sub/sub.go`](../sub/sub.go) 实现独立的订阅 HTTP 服务器，与 Web Server 共享数据库和模板资源。
-
-### 9.2 Base64 订阅
-
-[`sub/subService.go`](../sub/subService.go)（1538 行）生成标准协议链接：
-
-| 协议 | 链接格式 |
-|------|---------|
-| VMess | `vmess://base64(json)` |
-| VLESS | `vless://uuid@host:port?params` |
-| Trojan | `trojan://password@host:port?params` |
-| Shadowsocks | `ss://base64(method:password)@host:port` |
-| Hysteria | `hysteria://password@host:port?params` |
-
-### 9.3 JSON 订阅
-
-[`sub/subJsonService.go`](../sub/subJsonService.go) 生成完整的 Xray 客户端 JSON 配置，支持：
-
-- Fragment（分片）
-- Noises（噪声）
-- Mux（多路复用）
-- 自定义路由规则
-
-### 9.4 Clash/Mihomo 订阅
-
-[`sub/subClashService.go`](../sub/subClashService.go) 生成 YAML 格式的 Clash/Mihomo 代理配置。
+时间戳由 `time.Now().UnixMilli()` 生成。
 
 ---
 
-## 10. 工具包（util/）
+## 9. `sub/`
 
-### 10.1 crypto - 密码哈希
+`sub.Server` 是独立 HTTP 服务。它在 `subEnable=true` 时启动，按数据库设置读取：
 
-[`util/crypto/crypto.go`](../util/crypto/crypto.go) 提供 bcrypt 密码哈希功能：
+- `subPath`
+- `subJsonPath`
+- `subClashPath`
+- `subJsonEnable`
+- `subClashEnable`
+- `subEncrypt`
+- `subShowInfo`
+- JSON fragment/noises/mux/rules
+- 订阅标题、支持 URL、公告、Happ 路由规则
 
-```go
-func HashPassword(password string) (string, error)  // 哈希密码
-func CheckPassword(password, hash string) bool        // 验证密码
-```
+`SUBController` 注册：
 
-### 10.2 ldap - LDAP 认证
+| 路由 | 条件 | 说明 |
+|---|---|---|
+| `<subPath>:subid` | 始终 | URI/Base64 或 HTML 订阅页 |
+| `<subPath>:subid/diagnose` | 始终 | URI 订阅诊断 |
+| `<subJsonPath>:subid` | `subJsonEnable=true` | Xray JSON 订阅 |
+| `<subJsonPath>:subid/diagnose` | `subJsonEnable=true` | JSON 订阅诊断 |
+| `<subClashPath>:subid` | `subClashEnable=true` | Clash/Mihomo YAML |
+| `<subClashPath>:subid/diagnose` | `subClashEnable=true` | Clash 订阅诊断 |
 
-[`util/ldap/ldap.go`](../util/ldap/ldap.go) 封装 LDAP 认证逻辑：
-
-```go
-func Authenticate(host, port, bindDN, password, baseDN, userFilter, userAttr, username string) error
-```
-
-### 10.3 random - 随机数生成
-
-[`util/random/random.go`](../util/random/random.go) 生成随机字符串和数字。
-
-### 10.4 sys - 系统信息
-
-平台特定的系统信息采集：
-
-| 文件 | 平台 |
-|------|------|
-| [`sys_linux.go`](../util/sys/sys_linux.go) | Linux |
-| [`sys_darwin.go`](../util/sys/sys_darwin.go) | macOS |
-| [`sys_windows.go`](../util/sys/sys_windows.go) | Windows |
-| [`psutil.go`](../util/sys/psutil.go) | 跨平台进程工具 |
+`target` 查询参数可把 `/sub/:subid` 自动路由到 JSON 或 Clash 输出；目标格式未启用时回退 URI 输出。
 
 ---
 
-## 11. 日志系统（logger/）
+## 10. `frontend/src`
 
-[`logger/logger.go`](../logger/logger.go) 实现双后端日志系统：
+### 10.1 API
 
-### 11.1 双后端日志
+| 文件 | 职责 |
+|---|---|
+| `api/endpoints.ts` | 集中定义 legacy API 路径 |
+| `api/request.ts` | Axios client、CSRF token、通用响应 unwrap、登录过期跳转 |
+| `api/websocket.ts` | 打开 `basePath + "ws"` 并解析消息 |
+| `api/server.ts` / `inbounds.ts` / `xray.ts` / `settings.ts` / `core.ts` | 业务 API SDK |
 
-- **后端 1**：控制台输出（或 syslog，取决于平台）
-- **后端 2**：文件输出（`x-ui.log`）
+`requestLegacy` 只在 `success=false` 时抛出 `ApiError`；`401` 或 `/panel/api/*` 的 `404` 被视为 session expired。
 
-### 11.2 内存缓冲
+### 10.2 Stores
 
-日志系统支持内存缓冲，可以在需要时获取最近的日志记录（用于 API 查询）。
+| Store | 作用 |
+|---|---|
+| `app` | locale、侧边栏折叠、runtime config |
+| `server` | status、WebSocket、`status/xray_state/invalidate` 消息处理 |
+| `core` | core instances、选中实例和 lifecycle action 状态 |
 
-### 11.3 日志级别
+### 10.3 Views
 
-| 级别 | 常量 | 说明 |
-|------|------|------|
-| `DEBUG` | `logging.DEBUG` | 调试信息 |
-| `INFO` | `logging.INFO` | 常规信息 |
-| `NOTICE` | `logging.NOTICE` | 通知信息 |
-| `WARNING` | `logging.WARNING` | 警告信息 |
-| `ERROR` | `logging.ERROR` | 错误信息 |
+当前新 UI 页面：
+
+- `LoginView`
+- `DashboardView`
+- `LogsView`
+- `CoreInstancesView`
+- `XrayView`
+- `InboundsView`
+- `SettingsView`
+- `NotFoundView`
+
+### 10.4 Xray 兼容工具
+
+`frontend/src/utils/xrayCompat.ts` 和 `xrayProtocolTools.ts` 在前端结构化编辑 Xray JSON：
+
+- outbound CRUD。
+- Residential IP Pool，识别 tag 包含 `residential` 的 socks outbound。
+- AI residential routing，生成 `ai-residential` balancer、TCP 域名规则和 UDP blocked 规则。
+- routing、DNS server、FakeDNS、balancer、reverse。
+- DNS policy、runtime policy、observatory、burst observatory。
+- WARP Matrix 和协议工具输出。
+
+这些工具只修改模板 JSON；保存仍走 `/panel/xray/update`。
+
+### 10.5 Inbound 兼容工具
+
+`frontend/src/utils/inboundCompat.ts` 和 `schemas/protocolRegistry.ts` 提供：
+
+- 可编辑协议注册表：VMess、VLESS、Tunnel、HTTP、Trojan、Shadowsocks、Mixed、WireGuard、Tun、Hysteria、Hysteria2。
+- 协议能力：clients、stream、tls、sniffing、shareLink。
+- 分享链接生成：vmess、vless、trojan、shadowsocks、hysteria、wireguard。
+- 客户端订阅链接生成：`subURI`、可选 `subJsonURI`、可选 `subClashURI`。
+- 批量客户端生成，数量限制为 1 到 500。
+
+---
+
+## 11. `logger/` 与 `util/`
+
+`logger/logger.go` 提供控制台/syslog 与文件日志，并保留内存缓冲给日志 API 使用。
+
+常用工具包：
+
+| 目录 | 说明 |
+|---|---|
+| `util/crypto` | bcrypt 密码哈希 |
+| `util/ldap` | LDAP 认证 |
+| `util/random` | 随机字符串和数字 |
+| `util/json_util` | JSON raw message 辅助 |
+| `util/reflect_util` | 反射工具 |
+| `util/common` | 错误、格式化、多错误合并 |
+| `util/sys` | 跨平台系统和进程工具 |
+| `util/pathutil` | 受限路径打开和根路径保护 |

@@ -1,593 +1,372 @@
 # 开发者贡献指南
 
-> **目标读者**：贡献者
+> **目标读者**：贡献者 / 维护者 / 自动化 Agent
 > **适用版本**：`v3.0.16`
-> **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [部署指南](deployment.md)
+> **事实来源**：`go.mod`、`.env.example`、`frontend/package.json`、`.github/workflows/*`、`.codex/project.toml`
+> **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [部署指南](deployment.md)
 
 ---
 
-## 1. 项目简介
+## 1. 开发原则
 
-### 1.1 项目背景
+当前项目不是单一 Go 仓库，而是混合栈仓库：
 
-**SuperXray** 是 [X-UI](https://github.com/vaxilu/x-ui) 项目的增强分支，是一个基于 Web 的 Xray-core 代理服务器管理面板。项目使用 Go 语言开发，采用 Gin Web 框架，前端使用 Vue.js + Ant Design Vue。
+- Go/Gin/GORM/SQLite 后端。
+- Vue 3/Vite/TypeScript 新 UI。
+- Legacy HTML/JS UI。
+- 独立订阅服务。
+- Xray 进程、外部 sing-box 实验适配器、Geo 资源、Telegram Bot、LDAP、WARP/Nord 集成。
 
-### 1.2 贡献方式
+变更前必须先判断任务域。不要把 UI 迁移、CoreManager、多内核、订阅、发布脚本和数据库模型混成一次重构。
 
-欢迎通过以下方式贡献：
+当前硬边界：
 
-- 🐛 **提交 Bug**：[GitHub Issues](https://github.com/superaddmin/SuperXray-gui/issues)
-- 💡 **功能建议**：[GitHub Issues](https://github.com/superaddmin/SuperXray-gui/issues)
-- 🔧 **代码贡献**：提交 Pull Request
-- 🌍 **翻译贡献**：添加或改进翻译文件
-- 📖 **文档改进**：完善项目文档
+- `database/model.Inbound` 仍是 active Xray 写模型。
+- 不创建 `proxy_inbounds` / `proxy_clients` 活跃写路径。
+- legacy Xray 生命周期不通过 CoreManager 接管。
+- `/panel/legacy/*` 保留为回退入口。
+- 日志、配置、订阅和外部内容不得使用 `v-html` / `innerHTML` 渲染。
 
 ---
 
-## 2. 开发环境搭建
+## 2. 环境要求
 
-### 2.1 Go 环境配置
+### 2.1 Go
 
-本项目需要 Go 1.26 或更高版本（参见 `go.mod`）。Ubuntu 默认仓库中的 Go 版本可能过旧（Ubuntu 22.04 仅提供 Go 1.18，Ubuntu 24.04 仅提供 Go 1.22），建议通过以下方式安装：
+`go.mod` 声明：
 
-#### 方法一：使用官方二进制包安装（推荐）
-
-```bash
-# 下载 Go 1.26.3 Linux amd64 版本
-wget https://go.dev/dl/go1.26.3.linux-amd64.tar.gz
-
-# 解压到 /usr/local
-sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.26.3.linux-amd64.tar.gz
-
-# 将 Go 添加到 PATH
-echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-source ~/.bashrc
-
-# 验证安装
-go version
+```text
+go 1.26.3
 ```
 
-> **注意**：如果使用 ARM64（aarch64）架构，请将下载链接中的 `linux-amd64` 替换为 `linux-arm64`。
+本地构建需要 CGO，因为项目使用 SQLite。
 
-#### 方法二：使用 go install（需要预先安装旧版 Go）
-
-```bash
-# 如果系统已安装 Go 1.22+，可直接升级
-go install golang.org/dl/go1.26.3@latest
-go1.26.3 download
-```
-
-#### 方法三：使用 Homebrew（macOS）
+常用命令：
 
 ```bash
-brew install go
-```
-
-#### 验证
-
-安装完成后，运行以下命令确认版本：
-
-```bash
-go version
-# 应输出: go version go1.26.3 linux/amd64
-```
-
-### 2.2 克隆与构建
-
-```bash
-# 克隆仓库
-git clone https://github.com/superaddmin/SuperXray-gui.git
-cd SuperXray-gui
-
-# 安装依赖
 go mod download
-
-# 编译（需要 CGO，因为使用 SQLite）
-CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
+go test ./...
+go vet ./...
+go build -o bin/SuperXray.exe ./main.go
 ```
 
-### 2.3 本地运行与调试
+Linux 发布包由 GitHub Actions 使用交叉编译和对应交叉编译器构建；本地开发优先使用当前平台的正常 Go 工具链。
+
+### 2.2 Node / Frontend
+
+新 UI 在 `frontend/`，脚本来自 `frontend/package.json`：
+
+| 命令 | 作用 |
+|---|---|
+| `npm run dev` | Vite dev server |
+| `npm run build` | `vue-tsc -b && vite build` |
+| `npm run preview` | 预览构建产物 |
+| `npm run test` | 运行 TS 单测和 legacy JS 单测 |
+| `npm run typecheck` | `vue-tsc -b --noEmit` |
+| `npm run lint` | ESLint |
+| `npm run format` | Prettier check |
+| `npm run format:write` | Prettier write |
+
+`npm run test` 实际执行：
 
 ```bash
-# 1. 创建 x-ui 目录（存放数据库和日志）
-mkdir -p x-ui
+cd .. && node --test --experimental-strip-types frontend/tests/*.test.ts web/assets/js/model/*.test.js web/assets/js/util/*.test.js
+```
 
-# 2. 复制环境变量文件，并按本地开发覆盖路径
-cp .env.example .env
-cat >.env <<'EOF'
+### 2.3 环境变量
+
+`.env.example` 当前只包含：
+
+```text
+XUI_DEBUG=false
+XUI_LOG_LEVEL=info
+XUI_DB_FOLDER=/etc/x-ui
+XUI_LOG_FOLDER=/var/log/x-ui
+XUI_BIN_FOLDER=bin
+```
+
+本地开发可创建 `.env`：
+
+```bash
 XUI_DEBUG=true
 XUI_LOG_LEVEL=debug
 XUI_DB_FOLDER=x-ui
 XUI_LOG_FOLDER=x-ui
-XUI_BIN_FOLDER=x-ui
-EOF
-
-# 3. 以调试模式运行
-XUI_DEBUG=true go run main.go
+XUI_BIN_FOLDER=bin
 ```
 
-**调试模式特性**：
-- Gin 使用 `DebugMode`（输出详细路由信息）
-- HTML 模板从本地文件系统加载（支持热更新）
-- 静态资源从本地文件系统加载
-
-### 2.4 环境变量配置
-
-在项目根目录创建 `.env` 文件：
+实验 sing-box Core API 可额外设置：
 
 ```bash
-# .env
-XUI_DEBUG=true           # 本地开发启用调试模式；生产环境应为 false
-XUI_LOG_LEVEL=debug      # 本地调试日志级别；生产环境建议 info
-XUI_DB_FOLDER=x-ui       # 本地数据库目录；生产环境建议 /etc/x-ui
-XUI_LOG_FOLDER=x-ui      # 本地日志目录；生产环境建议 /var/log/x-ui
-XUI_BIN_FOLDER=x-ui      # 本地 Xray 二进制目录；生产环境建议 bin
-
-# 可选：实验性 sing-box Core API 使用；未设置时回退到 XUI_BIN_FOLDER 和日志目录
-SUPERXRAY_SING_BOX_BINARY=x-ui/sing-box
-SUPERXRAY_SING_BOX_CONFIG=x-ui/sing-box-config.json
+SUPERXRAY_SING_BOX_BINARY=bin/sing-box
+SUPERXRAY_SING_BOX_CONFIG=bin/sing-box-config.json
 SUPERXRAY_SING_BOX_LOG_FOLDER=x-ui
 ```
 
-**默认账号**：本地调试数据库首次初始化时会创建默认账号。生产部署请使用一键脚本生成随机用户名、密码、端口和 `webBasePath`；Docker 或源码直跑后也要立即手动修改默认安全配置。
+未设置时，sing-box 默认读取 `config.GetBinFolderPath()` 下的二进制和配置，并使用 `config.GetLogFolder()`。
 
 ---
 
-## 3. 项目结构说明
+## 3. 本地启动
 
-### 3.1 目录结构总览
+### 3.1 后端直跑
 
+```bash
+go run main.go
 ```
+
+首次数据库为空时会创建默认用户 `admin/admin`。生产部署必须立即修改默认账户、端口、base path 和 HTTPS 设置；一键安装脚本通常会生成随机安全值。
+
+### 3.2 前端开发
+
+新 UI 源码位于 `frontend/src`，构建产物嵌入到 `web/ui`。常规开发有两种路径：
+
+1. 改 Go/API/legacy UI：直接跑后端即可。
+2. 改 Vue 3 新 UI：在 `frontend/` 运行 `npm run dev` 或 `npm run build`，再由 Go 托管构建产物。
+
+如果改动影响后端注入 runtime config、base path、CSP 或静态资源缓存，需要同时验证 Go 托管路径：
+
+```bash
+go test ./web ./web/locale
+go build -o bin/SuperXray.exe ./main.go
+```
+
+---
+
+## 4. 目录拓扑
+
+```text
 SuperXray-gui/
-├── main.go                    # 程序入口，CLI 命令解析
-├── go.mod / go.sum            # Go 模块定义与依赖锁定
-├── Dockerfile                 # 多阶段 Docker 构建
-├── docker-compose.yml         # Docker Compose 编排
-├── install.sh                 # 一键安装脚本（约 1050 行）
-├── update.sh                  # 更新脚本
-├── .env.example               # 环境变量示例
-│
-├── core/                      # 多核心管理抽象
-│   ├── types.go               # CoreType、Status、Instance、Adapter 接口
-│   ├── manager.go             # CoreManager 注册、查询与生命周期分发
-│   └── singbox/
-│       └── adapter.go         # 实验性 sing-box 外部二进制适配器
-│
-├── config/                    # 配置管理
-│   ├── config.go              # 配置加载（版本/日志/路径）
-│   ├── version                # 版本号：3.0.16
-│   └── name                   # 应用名：x-ui
-│
-├── database/                  # 数据库层
-│   ├── db.go                  # SQLite 初始化、迁移、种子
-│   └── model/
-│       ├── model.go           # 数据模型定义
-│       └── model_test.go      # 模型测试
-│
-├── logger/                    # 日志系统
-│   └── logger.go              # 双后端日志（控制台+文件）
-│
-├── web/                       # Web 层（核心）
-│   ├── web.go                 # HTTP 服务器主体（549 行）
-│   ├── controller/            # 控制器层（含认证、旧版页面、API、Core、Geo 等）
-│   │   ├── base.go            # 基础控制器
-│   │   ├── index.go           # 首页/登录/登出
-│   │   ├── xui.go             # 面板页面路由
-│   │   ├── api.go             # API 路由组入口
-│   │   ├── core.go            # 多核心实例管理 API
-│   │   ├── inbound.go         # Inbound CRUD（493 行）
-│   │   ├── setting.go         # 面板设置
-│   │   ├── xray_setting.go    # Xray 配置管理
-│   │   ├── server.go          # 服务器管理（391 行）
-│   │   ├── websocket.go       # WebSocket 连接
-│   │   ├── custom_geo.go      # 自定义 Geo 资源
-│   │   └── util.go            # 工具函数
-│   ├── service/               # 业务逻辑层（设置、Inbound、服务器、Core、Xray、Bot、集成等）
-│   │   ├── setting.go         # 设置服务（858 行）
-│   │   ├── core_service.go    # 多核心管理服务
-│   │   ├── inbound.go         # Inbound 服务（3003 行）
-│   │   ├── server.go          # 服务器监控（1407 行）
-│   │   ├── tgbot.go           # Telegram Bot（4002 行）
-│   │   ├── xray.go            # Xray 进程管理
-│   │   ├── xray_setting.go    # Xray 配置模板
-│   │   ├── user.go            # 用户认证
-│   │   ├── outbound.go        # 出站流量
-│   │   ├── panel.go           # 面板重启
-│   │   ├── warp.go            # Cloudflare WARP
-│   │   ├── nord.go            # NordVPN
-│   │   ├── custom_geo.go      # 自定义 Geo
-│   │   └── config.json        # Xray 默认配置模板
-│   ├── job/                   # 后台定时任务（10 个 Job）
-│   ├── websocket/             # WebSocket Hub
-│   │   ├── hub.go             # 消息广播中心
-│   │   └── notifier.go        # 广播通知函数
-│   ├── middleware/            # 中间件
-│   │   ├── security.go        # 安全响应头 + CSRF
-│   │   ├── domainValidator.go # 域名验证
-│   │   └── redirect.go        # URL 重定向
-│   ├── network/               # 网络层
-│   │   ├── auto_https_listener.go  # HTTPS 自动重定向
-│   │   └── auto_https_conn.go
-│   ├── entity/                # Web 层实体
-│   │   └── entity.go          # Msg, AllSetting
-│   ├── session/               # 会话管理
-│   │   └── session.go         # Cookie Store
-│   ├── global/                # 全局变量
-│   │   ├── global.go          # WebServer/SubServer 接口
-│   │   └── hashStorage.go     # SHA-256 哈希存储
-│   ├── locale/                # 国际化系统
-│   │   └── locale.go          # go-i18n 集成
-│   ├── html/                  # HTML 模板
-│   │   ├── index.html         # 首页
-│   │   ├── inbounds.html      # Inbounds 管理页
-│   │   ├── login.html         # 登录页
-│   │   ├── settings.html      # 设置页
-│   │   ├── xray.html          # Xray 配置页
-│   │   ├── component/         # Vue 组件模板
-│   │   ├── form/              # 表单模板
-│   │   ├── modals/            # 模态框模板
-│   │   └── settings/          # 设置子页面
-│   ├── assets/                # 静态资源
-│   │   ├── js/                # JavaScript 文件
-│   │   │   ├── model/         # 前端数据模型
-│   │   │   ├── util/          # 前端工具
-│   │   │   ├── websocket.js   # WebSocket 客户端
-│   │   │   └── subscription.js # 订阅管理
-│   │   ├── vue/               # Vue.js
-│   │   ├── ant-design-vue/    # Ant Design Vue
-│   │   ├── codemirror/        # 代码编辑器
-│   │   └── ...                # 其他第三方库
-│   └── translation/           # 翻译文件（13 种语言 TOML）
-│
-├── sub/                       # 订阅服务
-│   ├── sub.go                 # 订阅服务器主体
-│   ├── subController.go       # 订阅控制器
-│   ├── subService.go         # Base64 订阅（1538 行）
-│   ├── subJsonService.go      # JSON 订阅
-│   ├── subClashService.go     # Clash 订阅
-│   └── default.json           # JSON 订阅默认配置
-│
-├── util/                      # 工具包
-│   ├── crypto/crypto.go       # bcrypt 密码哈希
-│   ├── ldap/ldap.go           # LDAP 认证
-│   ├── random/random.go       # 随机数生成
-│   ├── json_util/json.go      # 自定义 JSON 类型
-│   ├── reflect_util/reflect.go # 反射工具
-│   ├── common/                # 通用工具
-│   │   ├── err.go             # 错误处理
-│   │   ├── format.go          # 格式化
-│   │   └── multi_error.go     # 多错误合并
-│   └── sys/                   # 系统相关
-│       ├── psutil.go          # 进程工具
-│       ├── sys_linux.go       # Linux 特定
-│       ├── sys_darwin.go      # macOS 特定
-│       └── sys_windows.go     # Windows 特定
-│
-├── xray/                      # Xray 集成包
-├── media/                     # 截图与资源图片
-├── windows_files/             # Windows 支持文件
-├── .github/                   # CI/CD 配置
-│   ├── workflows/
-│   │   ├── release.yml        # 发布构建
-│   │   ├── docker.yml         # Docker 推送
-│   │   ├── codeql.yml         # 安全分析
-│   │   └── cleanup_caches.yml # 缓存清理
-│   ├── ISSUE_TEMPLATE/        # Issue 模板
-│   ├── dependabot.yml         # 依赖自动更新
-│   └── FUNDING.yml            # 资助配置
-│
-├── docs/                      # 技术文档
-│   ├── architecture.md        # 系统架构设计
-│   ├── deployment.md          # 部署指南
-│   ├── modules.md             # 核心模块解析
-│   ├── api.md                 # API 接口说明
-│   └── development.md         # 本文档
-│
-└── plans/                     # 规划文档
-    └── documentation-plan.md  # 文档体系规划
+├── main.go                         # CLI 与服务入口
+├── go.mod / go.sum                 # Go module 与依赖锁
+├── .env.example                    # 环境变量示例
+├── Dockerfile / docker-compose.yml # 容器构建与编排
+├── install.sh / update.sh          # 安装与更新脚本
+├── config/                         # 版本、名称、路径与日志级别
+├── core/                           # Core 类型、Manager、sing-box 实验适配器
+├── database/                       # SQLite 初始化与 GORM 模型
+├── frontend/                       # Vue 3/Vite/TypeScript 新 UI
+│   ├── package.json
+│   ├── src/
+│   │   ├── api/                    # API SDK、request、WebSocket
+│   │   ├── components/
+│   │   ├── layouts/
+│   │   ├── router/
+│   │   ├── schemas/                # 协议注册表
+│   │   ├── stores/                 # Pinia stores
+│   │   ├── types/
+│   │   ├── utils/                  # Xray/Inbound 兼容工具
+│   │   └── views/
+│   └── tests/
+├── logger/                         # 日志系统
+├── sub/                            # 独立订阅服务
+├── util/                           # crypto/ldap/path/sys/common 等工具
+├── web/                            # Web 面板主体
+│   ├── controller/                 # Index/API/Inbounds/Server/Xray/Settings/Core/Geo
+│   ├── service/                    # 业务服务
+│   ├── middleware/                 # 安全头、CSRF、域名校验、重定向
+│   ├── websocket/                  # Hub 与 notifier
+│   ├── html/                       # legacy Go templates
+│   ├── assets/                     # legacy 静态资源与 JS 测试
+│   ├── ui/                         # 新 UI build 输出
+│   ├── translation/                # go-i18n TOML
+│   └── service/config.json         # Xray 默认模板
+├── xray/                           # Xray API 和进程集成
+├── docs/                           # 技术文档
+├── plans/                          # 路线图、治理和架构规划
+│   ├── 00-governance/
+│   ├── 01-strategy/
+│   ├── 02-architecture/
+│   └── 03-ui-design/
+└── .github/workflows/              # release/docker/codeql/cache cleanup
 ```
+
+文档体系规划入口是 `plans/00-governance/documentation-system-plan.md`。`docs/superpowers/*` 是历史规格、计划和评审材料，除非任务明确要求，不应把它们改写成当前运行手册。
 
 ---
 
-## 4. 开发规范
+## 5. 代码规范
 
-### 4.1 代码风格
+### 5.1 Go
 
-- 遵循 [Effective Go](https://go.dev/doc/effective_go) 规范
-- 使用 `gofmt` 格式化代码
-- 每个包添加包注释
-- 导出函数添加文档注释
+- 使用 `gofmt`，不要引入新的格式化风格。
+- Controller 只做参数绑定、鉴权和响应，不承载长业务逻辑。
+- Service 复用现有模型和工具函数，不绕过 `model.Inbound` 兼容层。
+- 生成物和 runtime 文件不要手工打长期补丁，应回源到定义或生成入口。
+- 新增安全敏感 API 必须有认证、CSRF、输入校验和测试。
 
-### 4.2 命名规范
+### 5.2 Vue 3 / TypeScript
 
-| 类型 | 规范 | 示例 |
-|------|------|------|
-| 包名 | 小写，简短，无下划线 | `controller`, `service`, `model` |
-| 文件名 | 小写，下划线分隔 | `check_client_ip_job.go` |
-| 结构体 | 大驼峰 | `InboundController`, `XrayService` |
-| 方法 | 大驼峰（导出）/ 小驼峰（私有） | `GetInbound()`, `addTraffic()` |
-| 常量 | 大驼峰 / 全大写 | `Protocol`, `Hysteria` |
-| 接口 | 大驼峰，常以 `-er` 结尾或以 `Service` 结尾 | `Tgbot`, `XrayService` |
+- API 路径集中放在 `frontend/src/api/endpoints.ts`。
+- 通过 `request.ts` 发请求，让 CSRF、Cookie、错误处理和登录跳转统一。
+- 页面状态优先使用 Pinia store 或局部 reactive/ref，不在组件里散落全局变量。
+- 不使用 `v-html` 渲染日志、配置、订阅或外部内容。
+- Xray JSON 结构化编辑应复用 `frontend/src/utils/xrayCompat.ts` / `xrayProtocolTools.ts`。
+- Inbound 表单和分享链接应复用 `frontend/src/utils/inboundCompat.ts` 与协议注册表。
 
-### 4.3 错误处理
+### 5.3 文档
 
-```go
-// 推荐：检查错误并记录日志
-inbound, err := a.inboundService.GetInbound(id)
-if err != nil {
-    jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
-    return
-}
-
-// 推荐：使用 common.Combine 合并多个错误
-return common.Combine(err1, err2)
-```
-
-### 4.4 日志规范
-
-```go
-// 使用 logger 包
-logger.Info("Web server running HTTPS on", listener.Addr())
-logger.Warning("start xray failed:", err)
-logger.Error("restart xray failed:", err)
-logger.Debug("Error stopping web server:", err)
-```
+- 架构、API、模块职责必须以源码为准。
+- 变更 API 参数、响应体、环境变量、脚本或发布资产时，同步更新 `docs/`。
+- 历史计划文档保留历史语境；当前运行指南放在根级 `docs/*.md`。
 
 ---
 
-## 5. 测试指南
+## 6. 测试与验证
 
-### 5.1 运行测试
+### 6.1 最小后端验证
+
+按改动范围选择最小相关集：
 
 ```bash
-# 运行所有测试
+go test ./web/locale ./web
+go test ./web/controller ./web/middleware ./web/service
+go test ./database/model ./sub ./xray
+```
+
+大范围后端或发布前执行：
+
+```bash
 go test ./...
-
-# 运行指定包的测试
-go test ./database/model/...
-go test ./web/service/...
-go test ./web/job/...
-
-# 查看详细输出
-go test -v ./...
-
-# 运行指定测试函数
-go test -run TestIsHysteria ./database/model/...
+go vet ./...
+go build -o bin/SuperXray.exe ./main.go
 ```
 
-### 5.2 编写测试
+### 6.2 前端验证
 
-现有测试文件分布：
-
-| 文件 | 测试内容 |
-|------|---------|
-| [`database/model/model_test.go`](../database/model/model_test.go) | 数据模型测试 |
-| [`database/model/protocol_test.go`](../database/model/protocol_test.go) | 协议类型判断 |
-| [`web/service/inbound_test.go`](../web/service/inbound_test.go) | Inbound 服务测试 |
-| [`web/service/tgbot_state_test.go`](../web/service/tgbot_state_test.go) | TG Bot 状态测试 |
-| [`web/service/shadowsocks_credentials_test.go`](../web/service/shadowsocks_credentials_test.go) | Shadowsocks 凭证测试 |
-| [`web/service/protocol_validation_test.go`](../web/service/protocol_validation_test.go) | 协议验证测试 |
-| [`web/service/custom_geo_test.go`](../web/service/custom_geo_test.go) | Geo 资源验证/下载/修复 |
-| [`web/service/xray_setting_test.go`](../web/service/xray_setting_test.go) | Xray 配置模板解包 |
-| [`web/service/server_security_test.go`](../web/service/server_security_test.go) | 服务器安全测试 |
-| [`web/service/warp_security_test.go`](../web/service/warp_security_test.go) | WARP 安全测试 |
-| [`web/job/check_client_ip_job_test.go`](../web/job/check_client_ip_job_test.go) | IP 合并/过期/分区逻辑 |
-| [`web/job/check_client_ip_job_integration_test.go`](../web/job/check_client_ip_job_integration_test.go) | IP 限制集成测试 |
-| [`web/job/ldap_sync_job_security_test.go`](../web/job/ldap_sync_job_security_test.go) | LDAP 同步安全测试 |
-| [`web/middleware/security_test.go`](../web/middleware/security_test.go) | 安全中间件测试 |
-| [`web/global/hashStorage_test.go`](../web/global/hashStorage_test.go) | 哈希存储测试 |
-| [`web/cron_test.go`](../web/cron_test.go) | Cron 调度测试 |
-| [`web/sidebar_component_test.go`](../web/sidebar_component_test.go) | 侧边栏组件测试 |
-| [`web/server_security_test.go`](../web/server_security_test.go) | Web 服务器安全测试 |
-| [`web/controller/server_security_test.go`](../web/controller/server_security_test.go) | 控制器安全测试 |
-| [`xray/api_test.go`](../xray/api_test.go) | Xray API 测试 |
-| [`xray/process_test.go`](../xray/process_test.go) | Xray 进程测试 |
-| [`sub/shadowsocks_subscription_test.go`](../sub/shadowsocks_subscription_test.go) | SS 订阅测试 |
-| [`sub/protocol_capability_test.go`](../sub/protocol_capability_test.go) | 协议能力测试 |
-| [`sub/wireguard_subscription_test.go`](../sub/wireguard_subscription_test.go) | WireGuard 订阅测试 |
-| [`sub/server_security_test.go`](../sub/server_security_test.go) | 订阅服务器安全测试 |
-| [`util/common/format_test.go`](../util/common/format_test.go) | 格式化工具测试 |
-| [`util/pathutil/root_test.go`](../util/pathutil/root_test.go) | 路径工具测试 |
-
-**测试编写示例**：
-
-```go
-package model
-
-import "testing"
-
-func TestIsHysteria(t *testing.T) {
-    tests := []struct {
-        name     string
-        protocol Protocol
-        want     bool
-    }{
-        {"hysteria v1", Hysteria, true},
-        {"hysteria v2", Hysteria2, true},
-        {"vmess", VMESS, false},
-    }
-
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            if got := IsHysteria(tt.protocol); got != tt.want {
-                t.Errorf("IsHysteria(%v) = %v, want %v", tt.protocol, got, tt.want)
-            }
-        })
-    }
-}
-```
-
-### 5.3 测试覆盖率
+改动 `frontend/src`、`frontend/tests` 或 legacy JS 工具时执行：
 
 ```bash
-# 生成覆盖率报告
-go test -cover ./...
-
-# 生成详细覆盖率报告
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out -o coverage.html
+cd frontend
+npm run typecheck
+npm run lint
+npm run test
+npm run build
 ```
+
+### 6.3 安全相关验证
+
+涉及 CSRF、CSP、日志渲染、上传、下载、路径、URL 或凭据时，至少补/跑对应测试：
+
+- `web/middleware/security_test.go`
+- `web/server_security_test.go`
+- `web/controller/server_security_test.go`
+- `web/service/server_security_test.go`
+- `web/service/custom_geo_test.go`
+- `web/service/warp_security_test.go`
+- 前端日志/配置/订阅渲染相关测试
+
+### 6.4 常见测试文件
+
+| 区域 | 示例 |
+|---|---|
+| 模型 | `database/model/model_test.go`、`protocol_test.go` |
+| Web | `web/cron_test.go`、`web/sidebar_component_test.go`、`web/server_security_test.go` |
+| 中间件 | `web/middleware/security_test.go` |
+| 控制器 | `web/controller/server_security_test.go` |
+| 服务 | `web/service/*_test.go` |
+| 任务 | `web/job/*_test.go` |
+| 订阅 | `sub/*_test.go` |
+| Xray | `xray/*_test.go` |
+| 前端 | `frontend/tests/*.test.ts` |
+| legacy JS | `web/assets/js/model/*.test.js`、`web/assets/js/util/*.test.js` |
 
 ---
 
-## 6. 国际化贡献
+## 7. UI 与 Core 阶段门禁
 
-### 6.1 翻译文件格式
+当前允许的工作：
 
-翻译文件使用 TOML 格式，位于 [`web/translation/`](../web/translation/) 目录：
+- 新 UI 与 legacy UI 兼容维护。
+- Xray parity、Inbounds、Settings、Logs、Dashboard、订阅导出体验修复。
+- CSP/CSRF/XSS/上传下载安全收口。
+- `/panel/api/cores` 最小实例视图和 experimental sing-box 生命周期。
+- Xray JSON 模板层的 Gateway Egress MVP 和 AI residential routing。
 
-```toml
-# web/translation/translate.zh_CN.toml
+当前禁止的工作：
 
-[menu]
-"menu.dashboard" = "仪表盘"
-"menu.inbounds" = "入站列表"
-"menu.settings" = "面板设置"
-"menu.xray" = "Xray 配置"
-
-[pages]
-"pages.inbounds.toasts.obtain" = "获取入站信息"
-"pages.inbounds.toasts.add" = "添加入站"
-```
-
-### 6.2 添加新语言
-
-1. 复制 `translate.en_US.toml` 为新语言文件（如 `translate.fr_FR.toml`）
-2. 翻译所有键值对
-3. 在 [`web/locale/locale.go`](../web/locale/locale.go) 中注册新语言
-4. 提交 Pull Request
-
-### 6.3 更新翻译
-
-1. 修改对应的 TOML 文件
-2. 确保所有键与 `translate.en_US.toml` 保持一致
-3. 提交 Pull Request
+- 删除 legacy UI fallback。
+- 把 legacy Xray lifecycle 改由 CoreManager 控制。
+- 新建 active `proxy_inbounds` / `proxy_clients` 写路径。
+- 把新 UI 写成旧 UI 无法读取的数据格式。
+- 让 sing-box 成为生产默认核心。
 
 ---
 
-## 7. 提交规范
+## 8. 提交流程
 
-### 7.1 Commit Message 格式
+### 8.1 Commit message
 
-```
-<type>(<scope>): <subject>
+推荐中文说明或英文 conventional commit 均可，保持简洁：
 
-<body>
-```
-
-**Type 类型**：
-
-| 类型 | 说明 |
-|------|------|
-| `feat` | 新功能 |
-| `fix` | 修复 Bug |
-| `docs` | 文档变更 |
-| `style` | 代码格式（不影响功能） |
-| `refactor` | 重构 |
-| `perf` | 性能优化 |
-| `test` | 测试相关 |
-| `chore` | 构建工具/依赖变更 |
-
-**示例**：
-
-```
-feat(inbound): add support for Hysteria2 protocol
-fix(telegram): resolve bot 409 conflict on restart
-docs(api): update API documentation for inbound endpoints
+```text
+docs(api): 同步 CSRF 与 WebSocket API 文档
+fix(inbound): 修复客户端复制的表单字段处理
+feat(ui): 增加入站订阅导出入口
+test(security): 添加数据库导入文件名校验回归
 ```
 
-### 7.2 PR 提交流程
+### 8.2 PR 描述
 
-1. Fork 仓库
-2. 创建功能分支（`git checkout -b feat/my-feature`）
-3. 提交变更（遵循 Commit Message 格式）
-4. 推送到 Fork 仓库
-5. 创建 Pull Request 到 `main` 分支
-6. 等待 Code Review
+PR 至少包含：
 
-### 7.3 Code Review 要求
-
-- 代码风格符合项目规范
-- 新功能需要包含测试
-- 不引入新的 lint 警告
-- 文档同步更新
+- 背景/问题
+- 方案概述
+- 变更点
+- 影响范围
+- 验证方式与结果
+- 风险与回滚
 
 ---
 
-## 8. 发布流程
+## 9. 发布流程
 
-### 8.1 版本号规范
+当前 Release workflow：`.github/workflows/release.yml`。
 
-项目使用 [语义化版本](https://semver.org/lang/zh-CN/)：
+触发：
 
-```
-主版本号.次版本号.修订号
-3.0.16
-```
+- `main` 相关路径变更。
+- tag push。
 
-版本号存储在 [`config/version`](../config/version) 文件中。
+关键步骤：
 
-### 8.2 CI/CD 流程
+1. `release_gate.py --ci --metadata-only` 校验版本、CHANGELOG 和 release metadata。
+2. 设置 Go。
+3. 针对 Linux `amd64` / `arm64` 构建 `xui-release`。
+4. 下载 Xray release `v26.4.25`。
+5. 下载 Geo 数据文件。
+6. 打包：
+   - `x-ui-linux-amd64.tar.gz`
+   - `x-ui-linux-arm64.tar.gz`
+7. tag push 时上传 GitHub Release。
 
-项目使用 GitHub Actions 进行持续集成/部署：
-
-| 工作流 | 文件 | 触发条件 | 功能 |
-|--------|------|---------|------|
-| Release | [`release.yml`](../.github/workflows/release.yml) | Tag 推送 | 构建并发布 Linux `amd64` / `arm64` 二进制包 |
-| Docker | [`docker.yml`](../.github/workflows/docker.yml) | Tag 推送 / 手动触发 | 构建 `linux/amd64,linux/arm64` 镜像并推送到 GHCR |
-| CodeQL | [`codeql.yml`](../.github/workflows/codeql.yml) | PR/Push | 代码安全分析 |
-| Cache Cleanup | [`cleanup_caches.yml`](../.github/workflows/cleanup_caches.yml) | PR 关闭 | 清理 CI 缓存 |
-
-发布标签必须匹配 `vX.Y.Z`，并与 [`config/version`](../config/version) 保持一致。当前 Docker 发布目标是 `ghcr.io/superaddmin/superxray-gui`，未配置其他默认镜像仓库。
-
-Release 工作流在构建前执行 `.codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only`，用于约束以下元数据：
-
-- `config/version` 必须与 tag 去掉前缀 `v` 后一致。
-- `CHANGELOG.md` 必须存在对应版本标题，并能生成非空 release notes。
-- Release 资产命名保持 `x-ui-linux-amd64.tar.gz` 与 `x-ui-linux-arm64.tar.gz`，与 `install.sh` 下载逻辑一致。
-- 文档中的固定安装命令、GHCR 镜像标签和当前版本说明需要随版本同步更新。
-- 发布前应确认 `README.md`、`README.zh_CN.md`、`docs/deployment.md`、`docs/architecture.md` 与实际 Release 资产、支持架构和订阅路径一致。
-
-推荐发布顺序：
+发布前推荐：
 
 ```bash
 git status --short
 go test ./...
 go vet ./...
-cd frontend && npm run typecheck && npm run lint && npm run build
+go build -o bin/SuperXray.exe ./main.go
+cd frontend
+npm run typecheck
+npm run lint
+npm run test
+npm run build
 cd ..
 python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only
-git tag v3.0.16
-git push origin main v3.0.16
 ```
 
-如果安装脚本出现 `curl: (22) ... 404`，优先检查 GitHub Release 是否已经包含对应 tag 的 `x-ui-linux-<arch>.tar.gz`，再检查 `install.sh` 的仓库、tag 和资产命名是否与 Release 工作流一致。
+版本号必须与 `config/version` 和 tag `vX.Y.Z` 保持一致。
 
-### 8.3 Docker 镜像构建
+---
 
-[`Dockerfile`](../Dockerfile) 使用多阶段构建：
+## 10. 回滚思路
 
-```dockerfile
-# Stage 1: Builder
-FROM golang:1.26-alpine AS builder
-# 编译 Go 二进制 + 下载 Xray + GeoIP 数据
-
-# Stage 2: Final Image
-FROM alpine:3.22
-# 复制二进制 + 配置 fail2ban + 设置入口点
-```
-
-**构建命令**：
-
-```bash
-# 本地构建 Docker 镜像
-docker build -t superxray-gui .
-
-# 本地构建并打 GHCR 风格标签
-docker build -t ghcr.io/superaddmin/superxray-gui:dev .
-
-# 多架构构建；本地验证时可去掉 --push 并改用 --load 单架构加载
-docker buildx build --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/superaddmin/superxray-gui:dev \
-  --push .
-```
+| 变更类型 | 首选回滚 |
+|---|---|
+| 新 UI 页面问题 | 使用 `/panel/legacy/*` 回退 |
+| Xray JSON 模板问题 | 恢复数据库备份或旧模板，再重启 Xray |
+| Inbound 写入问题 | 保持 `model.Inbound` 兼容，必要时用 legacy UI 修正 |
+| sing-box 实验问题 | 停止 `experimental-sing-box`，不影响 `default-xray` |
+| 数据库导入失败 | 服务层应保持原 DB 不被破坏 |
+| Release 资产问题 | 检查 tag、`config/version`、CHANGELOG、资产名和 `install.sh` 下载路径 |
