@@ -11,6 +11,8 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
 )
 
+const defaultWebBasePath = "/super/"
+
 // Msg represents a standard API response message with success status, message text, and optional data object.
 type Msg struct {
 	Success bool   `json:"success"` // Indicates if the operation was successful
@@ -151,11 +153,16 @@ func (s *AllSetting) CheckValid() error {
 		}
 	}
 
-	if !strings.HasPrefix(s.WebBasePath, "/") {
-		s.WebBasePath = "/" + s.WebBasePath
-	}
-	if !strings.HasSuffix(s.WebBasePath, "/") {
-		s.WebBasePath += "/"
+	s.WebBasePath = strings.TrimSpace(s.WebBasePath)
+	if s.WebBasePath == "" || s.WebBasePath == "/" {
+		s.WebBasePath = defaultWebBasePath
+	} else {
+		if !strings.HasPrefix(s.WebBasePath, "/") {
+			s.WebBasePath = "/" + s.WebBasePath
+		}
+		if !strings.HasSuffix(s.WebBasePath, "/") {
+			s.WebBasePath += "/"
+		}
 	}
 	if !strings.HasPrefix(s.SubPath, "/") {
 		s.SubPath = "/" + s.SubPath

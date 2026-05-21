@@ -4,11 +4,14 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/superaddmin/SuperXray-gui/v2/database"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
+	"github.com/superaddmin/SuperXray-gui/v2/web/service"
 	"github.com/superaddmin/SuperXray-gui/v2/web/session"
 
 	"github.com/gin-contrib/sessions"
@@ -210,6 +213,74 @@ func TestNewUIRoutesServeImmutableAssetsForAnonymousUser(t *testing.T) {
 	if got := recorder.Header().Get("Cache-Control"); got != "public, max-age=31536000, immutable" {
 		t.Fatalf("Cache-Control = %q, want immutable asset cache", got)
 	}
+}
+
+func TestDefaultPanelEntryRequiresSuperBasePath(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "SuperXray.db")
+	if err := database.InitDB(dbPath); err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := database.CloseDB(); err != nil {
+			t.Fatalf("close db: %v", err)
+		}
+	})
+
+	settingService := &service.SettingService{}
+	basePath, err := settingService.GetBasePath()
+	if err != nil {
+		t.Fatalf("get base path: %v", err)
+	}
+	assertPanelEntryRequiresSuperBasePath(t, newTestPanelEntryRouter(basePath))
+
+	if err := settingService.SetBasePath("/"); err != nil {
+		t.Fatalf("set root base path: %v", err)
+	}
+	basePath, err = settingService.GetBasePath()
+	if err != nil {
+		t.Fatalf("get stored root base path: %v", err)
+	}
+	assertPanelEntryRequiresSuperBasePath(t, newTestPanelEntryRouter(basePath))
+}
+
+func assertPanelEntryRequiresSuperBasePath(t *testing.T, router *gin.Engine) {
+	t.Helper()
+	for _, blockedPath := range []string{"/", "/panel", "/xui", "/anything"} {
+		t.Run("blocked "+blockedPath, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "http://example.test"+blockedPath, nil)
+			router.ServeHTTP(recorder, req)
+
+			if recorder.Code != http.StatusNotFound {
+				t.Fatalf("%s status = %d, want %d; Location = %q", blockedPath, recorder.Code, http.StatusNotFound, recorder.Header().Get("Location"))
+			}
+		})
+	}
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://example.test/super", nil)
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusMovedPermanently {
+		t.Fatalf("/super status = %d, want %d", recorder.Code, http.StatusMovedPermanently)
+	}
+	if got := recorder.Header().Get("Location"); got != "http://example.test/super/" {
+		t.Fatalf("/super Location = %q, want http://example.test/super/", got)
+	}
+}
+
+func newTestPanelEntryRouter(basePath string) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(middleware.RedirectMiddleware(basePath))
+	group := router.Group(basePath)
+	group.GET("/", func(c *gin.Context) {
+		c.String(http.StatusOK, "login")
+	})
+	router.NoRoute(func(c *gin.Context) {
+		c.AbortWithStatus(http.StatusNotFound)
+	})
+	return router
 }
 
 func newTestNewUIRouter(authenticated bool) *gin.Engine {

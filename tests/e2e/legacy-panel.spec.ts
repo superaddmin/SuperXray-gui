@@ -426,7 +426,9 @@ test.describe("legacy Xray UI parity baseline", () => {
     await login(page);
     await page.goto(appUrl("panel/xray"));
 
-    await expect(page.getByText("Outbound Tools")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Outbound Tools" }),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Refresh Traffic" }),
     ).toBeVisible();
@@ -445,11 +447,12 @@ test.describe("legacy Xray UI parity baseline", () => {
     await login(page);
     await page.goto(appUrl("panel/inbounds"));
 
+    await page.getByRole("button", { name: "More actions" }).click();
     await expect(
-      page.getByRole("button", { name: "Import JSON" }),
+      page.getByRole("menuitem", { name: "Import JSON" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Reset All Traffic" }),
+      page.getByRole("menuitem", { name: "Reset All Traffic" }),
     ).toBeVisible();
   });
 
@@ -627,7 +630,7 @@ test.describe("legacy Xray UI parity baseline", () => {
     ).toContain("'unsafe-eval'");
 
     await page.goto(appUrl("panel/"));
-    await expect(page.getByRole("link", { name: "SuperXray" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Dashboard", exact: true }),
     ).toBeVisible();
@@ -680,7 +683,7 @@ test.describe("legacy Xray UI parity baseline", () => {
     await expect(
       page.getByRole("heading", { name: "Logs", exact: true }),
     ).toBeVisible();
-    await expect(page.getByText("Panel")).toBeVisible();
+    await expect(page.getByText("Panel", { exact: true })).toBeVisible();
 
     await page.goto(appUrl("panel/xray"));
     await expect(
@@ -688,8 +691,8 @@ test.describe("legacy Xray UI parity baseline", () => {
     ).toBeVisible();
     await expect(page.getByText("Xray Runtime Control")).toBeVisible();
     await expect(page.getByText("Xray Version Management")).toBeVisible();
-    await expect(page.locator(".code-preview")).toBeVisible();
-    await expect(page.locator(".json-editor")).toBeVisible();
+    await expect(page.locator(".code-preview").first()).toBeVisible();
+    await expect(page.locator(".json-editor").first()).toBeVisible();
 
     await page.goto(appUrl("panel/inbounds"));
     await expect(
@@ -698,7 +701,8 @@ test.describe("legacy Xray UI parity baseline", () => {
     await expect(
       page.getByRole("button", { name: /New Inbound/ }),
     ).toBeVisible();
-    await expect(page.getByText("All protocols")).toBeVisible();
+    await expect(page.getByLabel("Protocol filter")).toBeVisible();
+    await expect(page.getByLabel("Protocol filter")).toHaveValue("all");
     await expect(page.locator(".ant-table")).toBeVisible();
 
     await page.getByRole("button", { name: /New Inbound/ }).click();
@@ -721,8 +725,9 @@ test.describe("legacy Xray UI parity baseline", () => {
       protocolDropdown.getByText("WireGuard", { exact: true }),
     ).toBeVisible();
     await expect(
-      newInboundDialog.getByText("Stream Settings Form"),
+      newInboundDialog.getByText("Transport Settings"),
     ).toBeVisible();
+    await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     await expect(newInboundDialog).toBeHidden();
   });
@@ -777,6 +782,13 @@ test.describe("legacy Xray UI parity baseline", () => {
 
         await selectFormItemOption(page, dialog, "Protocol", protocol.label);
         await fillFormItemInput(dialog, "Remark", remark);
+        if (protocol.protocol !== "wireguard") {
+          await fillFormItemInput(
+            dialog,
+            "Email",
+            `e2e-${protocol.slug}-${stamp}@example.test`,
+          );
+        }
         await fillFormItemInput(dialog, "Listen", "127.0.0.1");
         await fillFormItemInput(dialog, "Port", String(port));
         await setFormItemSwitch(dialog, "Enable", false);

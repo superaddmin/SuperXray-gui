@@ -24,6 +24,8 @@ import (
 //go:embed config.json
 var xrayTemplateConfig string
 
+const defaultWebBasePath = "/super/"
+
 var defaultValueMap = map[string]string{
 	"xrayTemplateConfig":          xrayTemplateConfig,
 	"webListen":                   "",
@@ -32,7 +34,7 @@ var defaultValueMap = map[string]string{
 	"webCertFile":                 "",
 	"webKeyFile":                  "",
 	"secret":                      random.Seq(32),
-	"webBasePath":                 "/",
+	"webBasePath":                 defaultWebBasePath,
 	"sessionMaxAge":               "360",
 	"pageSize":                    "25",
 	"expireDiff":                  "0",
@@ -192,6 +194,8 @@ func (s *SettingService) GetAllSetting() (*entity.AllSetting, error) {
 			return nil, err
 		}
 	}
+
+	allSetting.WebBasePath = normalizePanelBasePath(allSetting.WebBasePath)
 
 	return allSetting, nil
 }
@@ -430,13 +434,7 @@ func (s *SettingService) GetSecret() ([]byte, error) {
 }
 
 func (s *SettingService) SetBasePath(basePath string) error {
-	if !strings.HasPrefix(basePath, "/") {
-		basePath = "/" + basePath
-	}
-	if !strings.HasSuffix(basePath, "/") {
-		basePath += "/"
-	}
-	return s.setString("webBasePath", basePath)
+	return s.setString("webBasePath", normalizePanelBasePath(basePath))
 }
 
 func (s *SettingService) GetBasePath() (string, error) {
@@ -444,13 +442,21 @@ func (s *SettingService) GetBasePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return normalizePanelBasePath(basePath), nil
+}
+
+func normalizePanelBasePath(basePath string) string {
+	basePath = strings.TrimSpace(basePath)
+	if basePath == "" || basePath == "/" {
+		return defaultWebBasePath
+	}
 	if !strings.HasPrefix(basePath, "/") {
 		basePath = "/" + basePath
 	}
 	if !strings.HasSuffix(basePath, "/") {
 		basePath += "/"
 	}
-	return basePath, nil
+	return basePath
 }
 
 func (s *SettingService) GetTimeLocation() (*time.Location, error) {
