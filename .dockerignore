@@ -1,0 +1,68 @@
+# Git and local tooling
+.git
+.gitignore
+.codex/
+.claude/
+.superpowers/
+.cache/
+.playwright-mcp/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Runtime databases and state
+*.db*
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+*.sql
+*.bak
+*.backup
+x-ui.db
+superxray.db
+backup/
+backups/
+tmp/
+
+# Local certificates and SSH material
+cert/
+certs/
+.ssh/
+id_rsa
+id_ed25519
+
+# Logs, reports, and test artifacts
+*.log
+logs/
+output/
+.reports/
+playwright-report/
+test-results/
+tests/e2e/.auth/
+superxray-*.png
+
+# Build artifacts and dependency caches
+bin/
+dist/
+release/
+node_modules/
+frontend/node_modules/
+*.tar.gz
+*.exe
+main
+x-ui
+SuperXray-gui
+
+# Local Docker overrides
+docker-compose.override.yml
