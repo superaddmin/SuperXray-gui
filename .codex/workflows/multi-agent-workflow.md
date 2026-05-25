@@ -5,7 +5,7 @@
 ```text
 任务进入
   -> superxray-ui-program-manager 判断阶段和范围
-  -> routing.toml 选择主责代理
+  -> routing.toml 按 priority 选择主责代理
   -> 主责代理实施或分析
   -> security/test/e2e/docs/release 按影响面审查
   -> 汇总验证、风险和回滚
@@ -17,6 +17,18 @@
 - 每次交接必须包含目标、阶段、路径、已读上下文、验证状态、风险与回滚。
 - 接收代理只补读自己职责相关的文件，不重复扫描全仓库。
 - 多个代理意见冲突时，由 `superxray-ui-program-manager` 根据阶段门禁裁决。
+- 遵守 `.codex/governance.toml` 的上下文预算：默认最多读取 8 个文件，每个文件优先控制在 240 行内，长日志只传首个错误和复现命令。
+
+## 状态机与退出条件
+
+```text
+triage -> owner -> review -> final_gate -> done
+```
+
+- 每个任务最多 2 次跨代理交接、1 轮审查返工。
+- `superxray-ui-program-manager` 每个任务最多做 1 次阶段裁决；后续由主责代理推进。
+- 同一阻塞点在 owner/reviewer 循环中第二次出现时，停止转交并输出 blocker、证据路径和下一步人工决策。
+- 不允许通过“再交给另一个代理看看”规避失败测试、阶段门禁或安全阻断。
 
 ## 并行协作
 
@@ -49,8 +61,9 @@
 
 1. 运行代码事实。
 2. 测试和 E2E 结果。
-3. `plans/STATUS.md` 和 phase gates。
+3. `.codex/governance.toml`、`plans/STATUS.md` 和 phase gates。
 4. 架构文档和 README。
-5. 代理假设。
+5. 历史 docs/superpowers 证据。
+6. 代理假设。
 
 如果任务越界，输出当前阶段可做的最小替代方案。

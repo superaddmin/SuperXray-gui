@@ -5,6 +5,7 @@
 !.codex/
 .codex/*
 !.codex/README.md
+!.codex/governance.toml
 !.codex/project.toml
 !.codex/routing.toml
 !.codex/agents/
@@ -71,6 +72,13 @@ docker-compose.override.yml
 
 # Ignore .env (Environment Variables) file
 .env
+
+# Ignore local operational audit artifacts containing real server/subscription/proxy details.
+docs/server-*-inbound-subscription-audit-*.txt
+docs/*subscription-audit*.txt
+docs/private-ops/
+*.secrets.*
+*.credentials.*
 
 # Ignore compiled binary (build output)
 SuperXray-gui

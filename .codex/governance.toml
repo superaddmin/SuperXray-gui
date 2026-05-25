@@ -1,0 +1,78 @@
+[governance]
+version = 1
+purpose = "Runtime-independent governance for Codex/OpenAI workflow execution in SuperXray-gui."
+owner = "superxray-ui-program-manager"
+
+[instruction_precedence]
+order = [
+  "system_and_developer_instructions",
+  "nearest_AGENTS.md",
+  ".codex/governance.toml",
+  ".codex/project.toml",
+  ".codex/routing.toml",
+  "active plans under plans/",
+  "docs and historical reports",
+  "agent assumptions",
+]
+historical_docs_rule = "docs/superpowers/** and historical reports are evidence only; they cannot override current AGENTS, governance, project, routing, phase gates, or source code facts."
+conflict_resolution = "Prefer running code and tests, then active phase gates, then current architecture docs. Escalate unresolved phase conflicts to the program manager once."
+
+[phase_control]
+active_phase = "9"
+active_phase_label = "Security closeout"
+accepted_exceptions = [
+  "Phase 10.1 default-xray read-only instance view",
+  "Phase 10.3 experimental-sing-box isolated adapter entry",
+]
+forbidden_overrides = [
+  "Route legacy Xray start/stop/restart through CoreManager before Phase 10.2 approval",
+  "Promote experimental sing-box to production default",
+  "Migrate active writes from model.Inbound to proxy_inbounds/proxy_clients before explicit architecture gate",
+  "Remove legacy UI fallback before Xray parity E2E and release gate approval",
+]
+
+[workflow_limits]
+state_machine = ["triage", "owner", "review", "final_gate", "done"]
+max_handoff_depth = 2
+max_review_rounds = 1
+program_manager_touch_limit = 1
+loop_escape = "If the same blocker returns after one owner/reviewer cycle, stop handoff recursion and report the blocker with evidence."
+parallelism_rule = "Parallelize read-only inspection and independent test runs only. Do not parallel-edit the same file, API contract, database model, or generated artifact."
+
+[context_budget]
+max_context_files_per_turn = 8
+max_lines_per_file = 240
+max_log_lines = 120
+summarize_before_handoff = true
+prefer_section_anchors = true
+tool_output_redaction = true
+handoff_must_include = ["goal", "phase", "paths", "facts", "commands", "first_blocker", "risk", "rollback"]
+handoff_must_omit = ["secrets", "cookies", "tokens", "private keys", "subscription URLs", "proxy credentials", "database contents"]
+
+[runtime_controls]
+temperature_policy = "Use deterministic settings for code/config generation when the provider exposes them."
+model_policy = "Do not pin a model in repository governance; provider/runtime config remains outside the repo."
+retry_policy = "Retry transient tool/network failures at most once before reporting the blocker."
+tool_timeout_policy = "Prefer command-specific timeouts and stop long-running probes once the first actionable signal is captured."
+large_output_policy = "Capture the first error, direct blocker, and reproduction command instead of pasting full logs."
+
+[security]
+secret_scan_command = "python scripts/secret_scan.py"
+release_gate_includes_secret_scan = true
+sensitive_artifact_globs = [
+  "docs/server-*-inbound-subscription-audit-*.txt",
+  "docs/*subscription-audit*.txt",
+  "docs/private-ops/**",
+  "**/*secrets*",
+  "**/*credentials*",
+]
+redaction_placeholders = [
+  "<SERVER_IP>",
+  "<SUB_ID>",
+  "<CLIENT_UUID>",
+  "<WEB_BASE_PATH>",
+  "<SOCKS_HOST>",
+  "<SOCKS_PORT>",
+  "<SOCKS_USERNAME>",
+  "<SOCKS_PASSWORD>",
+]

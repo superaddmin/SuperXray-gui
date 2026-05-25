@@ -7,6 +7,7 @@
 ```text
 .codex/
 ├── README.md
+├── governance.toml
 ├── project.toml
 ├── routing.toml
 ├── agents/
@@ -39,8 +40,8 @@
 
 ## 使用顺序
 
-1. 先读 `.codex/project.toml` 和 `.codex/context/project-map.md`。
-2. 按 `.codex/routing.toml` 找主责代理。
+1. 先读 `.codex/governance.toml`、`.codex/project.toml` 和 `.codex/context/project-map.md`。
+2. 按 `.codex/routing.toml` 找优先级最高的主责代理。
 3. 主责代理执行前读取对应 `required_context`。
 4. 跨代理交接使用 `.codex/context/handoff-template.md`。
 5. 完成前按 `.codex/workflows/verification-matrix.md` 选择验证命令。
@@ -50,3 +51,5 @@
 - 本目录不保存密钥、token、账号、数据库和运行状态。
 - 本目录不复制全局 sandbox、approval、MCP 或模型配置。
 - 项目级规则只记录 SuperXray-gui 的长期事实、阶段门禁和代理协作协议。
+- 历史 `docs/superpowers/**` 只能作为证据材料，不得覆盖 `.codex/governance.toml`、当前阶段门禁或源码事实。
+- 真实服务器审计、订阅 URL、代理账号、面板路径、UUID 和数据库内容不得落入仓库；提交前运行 `python scripts/secret_scan.py`。

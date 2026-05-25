@@ -8,6 +8,7 @@ current_version_file = "config/version"
 current_phase = "Phase 9 security closeout with forced/minimal Phase 10 core runtime entry"
 
 [source_of_truth]
+governance = [".codex/governance.toml"]
 architecture = ["docs/architecture.md", "docs/modules.md", "docs/development.md"]
 phase_status = ["plans/STATUS.md", "plans/01-strategy/ui-first-xray-stable-multi-core-roadmap.md"]
 phase_gates = [".codex/skills/superxray-ui-first-migration/references/phase-gates.md"]
@@ -55,6 +56,11 @@ security = [
   "State-changing API calls require CSRF protection",
   "Database/config/log downloads require authentication",
   "Database import must validate size, format, and rollback on failure",
+]
+repository_secrets = [
+  "Do not store real subscription URLs, subIds, client UUIDs, proxy credentials, panel base paths, cookies, tokens, private keys, or database contents in repository files",
+  "Run python scripts/secret_scan.py before committing operational docs, scripts, or release candidates",
+  "Keep full server audit artifacts outside the repository; commit only redacted templates or summaries",
 ]
 
 [agents]

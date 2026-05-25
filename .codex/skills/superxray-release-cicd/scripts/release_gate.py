@@ -67,6 +67,7 @@ class Gate:
             checks = [
                 self.check_clean_worktree,
                 self.check_release_metadata,
+                self.check_repository_secret_scan,
                 self.check_workflows,
                 self.check_actionlint,
                 self.check_go_mod_tidy,
@@ -278,6 +279,12 @@ class Gate:
         copilot = self._read(".github/copilot-instructions.md")
         if ".github/agentic-workflows/release.md" not in copilot:
             raise RuntimeError("copilot instructions must link to the release agentic workflow")
+
+    def check_repository_secret_scan(self) -> None:
+        scanner = self.root / "scripts" / "secret_scan.py"
+        if not scanner.exists():
+            raise RuntimeError("scripts/secret_scan.py is missing")
+        self.command([sys.executable, str(scanner)])
 
     def _read(self, relative: str) -> str:
         path = self.root / relative

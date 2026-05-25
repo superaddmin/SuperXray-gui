@@ -2,6 +2,22 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.18] - 2026-05-26
+
+### Added
+
+- 新增仓库敏感信息扫描脚本，并接入 release gate，阻止真实订阅链接、代理凭据、UUID、token、私钥和生产数据库内容进入发布流程。
+- 新增服务器入站与订阅审计脱敏模板，用于记录生产排障结论，同时保留真实服务器资料在本地私有目录。
+- 新增 Gateway 出口验证脚本和生图超时治理执行手册，覆盖 Xray Gateway-facing 端口、SOCKS5H 探测、防火墙证据和回滚检查。
+- 新增 `.codex/governance.toml`，明确多代理指令优先级、上下文预算、交接上限和敏感资料处理规则。
+
+### Changed
+
+- 更新 Codex 路由、交接模板、验证矩阵和 release gate，要求文档、治理配置和发布候选包先通过敏感信息扫描。
+- 扩展 `.gitignore`，忽略本地生产审计、订阅资料、凭据文件、数据库与运行状态，避免上传 GitHub。
+- 升级 `golang.org/x/net` 及相关 `x/*` 依赖，修复 release gate 中 `govulncheck` 报告的 `GO-2026-5026`。
+- 同步发布版本到 `3.0.18`。
+
 ## [3.0.17] - 2026-05-22
 
 ### Fixed

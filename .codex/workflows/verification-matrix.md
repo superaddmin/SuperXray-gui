@@ -15,7 +15,8 @@
 | Playwright 旅程 | `npm run e2e` | headed/UI 模式、截图/trace 分析 |
 | Docker/CI/脚本 | release gate metadata check | Docker build、CI dry-run、shellcheck 如可用 |
 | 发布 | `release_gate.py --install-tools` | Go 全量、frontend 全量、E2E、CodeQL/CI |
-| 文档/i18n | 文档链接和 key 对齐检查 | frontend i18n tests、release metadata check |
+| 文档/i18n | `python scripts/secret_scan.py`、文档链接和 key 对齐检查 | frontend i18n tests、release metadata check |
+| Codex 治理配置 | `python scripts/secret_scan.py`、governance/routing 手工一致性检查 | release metadata check、相关 agent workflow 演练 |
 
 ## 常用搜索
 
@@ -23,6 +24,7 @@
 rg "v-html|innerHTML|insertAdjacentHTML" web/html frontend/src -n
 rg "unsafe-inline|unsafe-eval" frontend/src web/ui -n
 rg "proxy_inbounds|proxy_clients" core web/controller web/middleware web/service database/model frontend/src web/ui -n
+python scripts/secret_scan.py
 ```
 
 ## 结果记录
