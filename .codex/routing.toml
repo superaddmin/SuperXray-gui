@@ -1,79 +1,226 @@
 # Path-based routing for SuperXray-gui project agents.
-
-[[routes]]
-name = "phase-planning"
-globs = ["plans/**", ".codex/**"]
-priority = 10
-primary = "superxray-ui-program-manager"
-reviewers = ["superxray-docs-i18n-maintainer"]
-manual_checks = ["markdown review", "phase gate check"]
-verification = []
+# Choose the highest-priority matching route. If two routes tie, prefer the
+# narrower path and add required reviewers from the broader affected domain.
 
 [[routes]]
 name = "codex-governance"
-globs = [".codex/**", "scripts/secret_scan.py"]
+globs = [
+  ".codex/*.toml",
+  ".codex/README.md",
+  ".codex/agents/**",
+  ".codex/context/**",
+  ".codex/prompts/**",
+  ".codex/workflows/**",
+]
 priority = 100
 exclusive = true
 primary = "superxray-ui-program-manager"
-reviewers = ["superxray-security-gate", "superxray-release-gate", "superxray-test-strategist"]
-manual_checks = ["governance consistency review", "instruction precedence review"]
-verification = ["python scripts/secret_scan.py", "python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only"]
+reviewers = ["superxray-security-gate", "superxray-test-strategist", "superxray-release-gate"]
+manual_checks = ["instruction precedence review", "agent boundary review", "encoding check"]
+verification = [
+  "python scripts/secret_scan.py",
+  "python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only",
+]
+
+[[routes]]
+name = "project-skills"
+globs = [".codex/skills/**"]
+priority = 95
+primary = "superxray-ui-program-manager"
+reviewers = ["superxray-test-strategist", "superxray-release-gate"]
+manual_checks = ["skill trigger review", "progressive disclosure review", "openai.yaml consistency"]
+verification = [
+  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-project-context",
+  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-ui-first-migration",
+  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-release-cicd",
+]
+
+[[routes]]
+name = "phase-planning"
+globs = ["plans/**", "docs/superpowers/**"]
+priority = 80
+primary = "superxray-ui-program-manager"
+reviewers = ["superxray-docs-i18n-maintainer", "superxray-test-strategist"]
+manual_checks = ["phase gate check", "historical evidence versus active plan check"]
+verification = ["python scripts/secret_scan.py"]
+
+[[routes]]
+name = "release"
+globs = [
+  "CHANGELOG.md",
+  "config/version",
+  ".github/workflows/release.yml",
+  ".github/workflows/docker.yml",
+  ".github/agentic-workflows/release.md",
+  ".codex/skills/superxray-release-cicd/**",
+]
+priority = 90
+primary = "superxray-release-gate"
+reviewers = ["superxray-devops-cicd-maintainer", "superxray-security-gate", "superxray-e2e-gate"]
+verification = ["python .codex/skills/superxray-release-cicd/scripts/release_gate.py --install-tools"]
+
+[[routes]]
+name = "core-runtime"
+globs = [
+  "core/**",
+  "web/service/core_service.go",
+  "web/controller/core.go",
+  "web/controller/core_test.go",
+  "frontend/src/api/cores.ts",
+  "frontend/src/types/core.ts",
+  "frontend/src/views/CoreInstancesView.vue",
+  "plans/04-ui-first-execution/phase-10*.md",
+]
+priority = 85
+primary = "superxray-core-runtime-architect"
+reviewers = ["superxray-ui-program-manager", "superxray-security-gate", "superxray-test-strategist"]
+verification = [
+  "go test ./core/... ./web/service ./web/controller",
+  "rg \"proxy_inbounds|proxy_clients\" core web/controller web/service database/model frontend/src -n",
+]
+
+[[routes]]
+name = "security"
+globs = [
+  "web/middleware/**",
+  "web/controller/server.go",
+  "web/service/server.go",
+  "web/service/custom_geo.go",
+  "web/service/http_client.go",
+  "web/service/warp.go",
+  "core/**",
+  "Dockerfile",
+  "install.sh",
+  "scripts/secret_scan.py",
+]
+priority = 78
+primary = "superxray-security-gate"
+reviewers = ["superxray-test-strategist"]
+verification = [
+  "go test ./web/middleware ./web/controller ./web/service ./sub ./core/...",
+  "rg \"v-html|innerHTML|insertAdjacentHTML\" web/html frontend/src -n",
+  "python scripts/secret_scan.py",
+]
+
+[[routes]]
+name = "database"
+globs = [
+  "database/**",
+  "database/model/**",
+  "web/service/setting.go",
+  "web/service/inbound.go",
+  "web/service/server.go",
+  "web/controller/server.go",
+  "superxray.db",
+  "x-ui.db",
+]
+priority = 75
+primary = "superxray-database-steward"
+reviewers = ["superxray-security-gate", "superxray-test-strategist", "superxray-subscription-protocol-specialist"]
+verification = ["go test ./database ./database/model", "go test ./web/service", "go test ./..."]
+
+[[routes]]
+name = "devops"
+globs = [
+  ".github/**",
+  "Dockerfile",
+  "docker-compose.yml",
+  "DockerEntrypoint.sh",
+  "DockerInit.sh",
+  "install.sh",
+  "update.sh",
+  "x-ui.sh",
+  "x-ui.service.*",
+  "package.json",
+  "frontend/package.json",
+]
+priority = 70
+primary = "superxray-devops-cicd-maintainer"
+reviewers = ["superxray-security-gate", "superxray-release-gate", "superxray-docs-i18n-maintainer"]
+verification = ["python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only"]
+
+[[routes]]
+name = "subscription-protocols"
+globs = [
+  "sub/**",
+  "web/service/protocol_validation.go",
+  "web/service/protocol_validation_test.go",
+  "web/service/config.json",
+  "frontend/src/utils/*Compat*",
+  "frontend/src/utils/gatewayEgressMvp.ts",
+  "frontend/src/schemas/protocolRegistry.ts",
+  "docs/inbound-creation-guide.md",
+  "docs/ai-routing-and-residential-egress.md",
+  "docs/SUPERXRAY_GUI_VPN_LAYER_HANDOFF_CN.md",
+]
+priority = 65
+primary = "superxray-subscription-protocol-specialist"
+reviewers = ["superxray-test-strategist", "superxray-e2e-gate", "superxray-docs-i18n-maintainer"]
+verification = ["go test ./sub ./web/service", "cd frontend; npm run test"]
 
 [[routes]]
 name = "vue-frontend"
-globs = ["frontend/src/**", "frontend/tests/**", "frontend/package.json", "frontend/vite.config.ts"]
-priority = 50
+globs = [
+  "frontend/src/**",
+  "frontend/tests/**",
+  "frontend/package.json",
+  "frontend/package-lock.json",
+  "frontend/vite.config.ts",
+  "frontend/tsconfig*.json",
+  "frontend/eslint.config.js",
+  "frontend/public/**",
+]
+priority = 60
 primary = "superxray-frontend-migrator"
 reviewers = ["superxray-security-gate", "superxray-test-strategist", "superxray-e2e-gate"]
-verification = ["cd frontend; npm run typecheck", "cd frontend; npm run lint", "cd frontend; npm run test", "cd frontend; npm run build"]
+verification = [
+  "cd frontend; npm run typecheck",
+  "cd frontend; npm run lint",
+  "cd frontend; npm run test",
+  "cd frontend; npm run build",
+]
+
+[[routes]]
+name = "frontend-build-output"
+globs = ["web/ui/**"]
+priority = 58
+primary = "superxray-frontend-migrator"
+reviewers = ["superxray-go-integration", "superxray-security-gate", "superxray-e2e-gate"]
+manual_checks = ["confirm generated output came from frontend build"]
+verification = ["cd frontend; npm run build", "go build -o bin/SuperXray.exe ./main.go"]
 
 [[routes]]
 name = "go-web-integration"
-globs = ["web/web.go", "web/controller/**", "web/middleware/**", "web/session/**", "web/locale/**"]
-priority = 50
+globs = [
+  "main.go",
+  "web/web.go",
+  "web/ui.go",
+  "web/controller/**",
+  "web/middleware/**",
+  "web/session/**",
+  "web/locale/**",
+  "web/entity/**",
+]
+priority = 55
 primary = "superxray-go-integration"
 reviewers = ["superxray-security-gate", "superxray-test-strategist"]
 verification = ["go test ./web ./web/controller ./web/middleware", "go vet ./...", "go build -o bin/SuperXray.exe ./main.go"]
 
 [[routes]]
 name = "backend-services"
-globs = ["web/service/**", "web/job/**", "web/websocket/**", "xray/**", "util/**", "config/**", "logger/**"]
-priority = 40
+globs = [
+  "web/service/**",
+  "web/job/**",
+  "web/websocket/**",
+  "xray/**",
+  "util/**",
+  "config/**",
+  "logger/**",
+]
+priority = 50
 primary = "superxray-backend-service-guardian"
 reviewers = ["superxray-security-gate", "superxray-test-strategist"]
 verification = ["go test ./web/service ./web/job ./xray ./util/...", "go test ./..."]
-
-[[routes]]
-name = "core-runtime"
-globs = ["core/**", "web/service/core_service.go", "web/controller/core.go", "frontend/src/api/cores.ts", "frontend/src/types/core.ts", "frontend/src/views/CoreInstancesView.vue"]
-priority = 80
-primary = "superxray-core-runtime-architect"
-reviewers = ["superxray-ui-program-manager", "superxray-security-gate", "superxray-test-strategist"]
-verification = ["go test ./core/... ./web/service ./web/controller", "rg \"proxy_inbounds|proxy_clients\" core web/controller web/service database/model frontend/src -n"]
-
-[[routes]]
-name = "database"
-globs = ["database/**", "database/model/**", "web/service/setting.go", "web/service/inbound.go", "web/service/server.go"]
-priority = 70
-primary = "superxray-database-steward"
-reviewers = ["superxray-security-gate", "superxray-test-strategist", "superxray-subscription-protocol-specialist"]
-verification = ["go test ./database ./database/model", "go test ./web/service", "go test ./..."]
-
-[[routes]]
-name = "subscription-protocols"
-globs = ["sub/**", "web/service/protocol_validation.go", "web/service/config.json", "frontend/src/utils/*Compat*", "frontend/src/utils/gatewayEgressMvp.ts", "frontend/src/schemas/protocolRegistry.ts"]
-priority = 60
-primary = "superxray-subscription-protocol-specialist"
-reviewers = ["superxray-test-strategist", "superxray-e2e-gate", "superxray-docs-i18n-maintainer"]
-verification = ["go test ./sub ./web/service", "cd frontend; npm run test"]
-
-[[routes]]
-name = "security"
-globs = ["web/middleware/**", "web/controller/server.go", "web/service/server.go", "web/service/custom_geo.go", "core/**", "Dockerfile", "install.sh"]
-priority = 75
-primary = "superxray-security-gate"
-reviewers = ["superxray-test-strategist"]
-verification = ["go test ./web/middleware ./web/controller ./web/service ./sub ./core/...", "rg \"v-html|innerHTML|insertAdjacentHTML\" web/html frontend/src -n"]
 
 [[routes]]
 name = "testing"
@@ -84,25 +231,30 @@ reviewers = ["superxray-e2e-gate"]
 verification = ["go test ./...", "cd frontend; npm run test", "npm run e2e"]
 
 [[routes]]
-name = "devops"
-globs = [".github/**", "Dockerfile", "docker-compose.yml", "DockerEntrypoint.sh", "DockerInit.sh", "install.sh", "update.sh", "x-ui.sh"]
-priority = 65
-primary = "superxray-devops-cicd-maintainer"
-reviewers = ["superxray-security-gate", "superxray-release-gate", "superxray-docs-i18n-maintainer"]
-verification = ["python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only"]
+name = "e2e"
+globs = ["tests/e2e/**", "playwright.config.ts", "playwright-report/**", "test-results/**"]
+priority = 44
+primary = "superxray-e2e-gate"
+reviewers = ["superxray-security-gate", "superxray-test-strategist"]
+verification = ["npm run e2e"]
 
 [[routes]]
-name = "release"
-globs = ["CHANGELOG.md", "config/version", ".github/workflows/release.yml", ".github/workflows/docker.yml"]
-priority = 90
-primary = "superxray-release-gate"
-reviewers = ["superxray-devops-cicd-maintainer", "superxray-security-gate", "superxray-e2e-gate"]
-verification = ["python .codex/skills/superxray-release-cicd/scripts/release_gate.py --install-tools"]
+name = "legacy-ui"
+globs = ["web/html/**", "web/assets/**"]
+priority = 42
+primary = "superxray-go-integration"
+reviewers = ["superxray-security-gate", "superxray-e2e-gate", "superxray-docs-i18n-maintainer"]
+manual_checks = ["legacy compatibility and CSP exception review"]
+verification = ["go test ./web", "rg \"v-html|innerHTML|insertAdjacentHTML\" web/html frontend/src -n"]
 
 [[routes]]
 name = "docs-i18n"
-globs = ["README*.md", "docs/**", "web/translation/**", "frontend/src/i18n/**"]
-priority = 30
+globs = ["README*.md", "docs/**", "plans/**", "web/translation/**", "frontend/src/i18n/**"]
+priority = 35
 primary = "superxray-docs-i18n-maintainer"
 reviewers = ["superxray-ui-program-manager", "superxray-subscription-protocol-specialist"]
-verification = ["python scripts/secret_scan.py", "cd frontend; npm run test", "go test ./web/locale ./web"]
+verification = [
+  "python scripts/secret_scan.py",
+  "cd frontend; npm run test",
+  "go test ./web/locale ./web",
+]

@@ -1,66 +1,113 @@
 [project]
 name = "SuperXray-gui"
 module = "github.com/superaddmin/SuperXray-gui/v2"
-product = "Xray-core web control panel with legacy UI, Vue 3 new UI, subscription server, and experimental multi-core runtime entry."
+product = "Xray-core web control panel with legacy UI fallback, Vue 3 operations UI, subscription server, gateway egress MVP, and guarded multi-core runtime entry."
 default_language = "zh-CN"
 license = "GPL-3.0"
 current_version_file = "config/version"
-current_phase = "Phase 9 security closeout with forced/minimal Phase 10 core runtime entry"
+current_phase = "Phase 9 security closeout plus risk-accepted Phase 10 minimal CoreManager/sing-box backend entry"
+repository_kind = "mixed Go backend, Vue frontend, legacy HTML UI, shell/Docker/CI, project-local Codex governance"
 
 [source_of_truth]
-governance = [".codex/governance.toml"]
-architecture = ["docs/architecture.md", "docs/modules.md", "docs/development.md"]
+governance = [".codex/governance.toml", ".codex/routing.toml"]
+project_context = [".codex/context/project-map.md", ".codex/skills/superxray-project-context/SKILL.md"]
+architecture = ["docs/architecture.md", "docs/modules.md", "docs/development.md", "docs/api.md"]
 phase_status = ["plans/STATUS.md", "plans/01-strategy/ui-first-xray-stable-multi-core-roadmap.md"]
 phase_gates = [".codex/skills/superxray-ui-first-migration/references/phase-gates.md"]
-release_policy = [".codex/skills/superxray-release-cicd/SKILL.md", ".codex/skills/superxray-release-cicd/references/release-policy.md"]
+phase_10_risk_acceptance = [
+  "plans/04-ui-first-execution/phase-10-entry-gate-assessment.md",
+  "plans/04-ui-first-execution/phase-10a-default-xray-readonly-adr.md",
+  "plans/04-ui-first-execution/phase-10-legacy-ui-retirement-analysis.md",
+]
+release_policy = [
+  ".github/agentic-workflows/release.md",
+  ".codex/skills/superxray-release-cicd/SKILL.md",
+  ".codex/skills/superxray-release-cicd/references/release-policy.md",
+]
 frontend_scope = ["frontend/README.md", "plans/03-ui-design/multi-core-ui-design-plan.md"]
+gateway_egress_scope = [
+  "docs/ai-routing-and-residential-egress.md",
+  "docs/SUPERXRAY_GUI_VPN_LAYER_HANDOFF_CN.md",
+  "docs/superpowers/plans/2026-05-16-vpn-egress-mvp-xray-compatible.md",
+]
 
 [stack.backend]
 language = "Go"
 version = "1.26.3"
-frameworks = ["Gin", "GORM", "SQLite", "robfig/cron", "gorilla/websocket", "go-i18n"]
-runtime_integrations = ["Xray-core gRPC", "Telegram Bot via telego", "LDAP", "TOTP", "WARP", "NordVPN", "Custom Geo"]
+frameworks = ["Gin 1.12", "GORM 1.31", "SQLite", "robfig/cron v3", "gorilla/websocket", "go-i18n v2"]
+runtime_integrations = ["Xray-core gRPC/API types", "Telegram Bot via telego", "LDAP", "TOTP", "WARP", "NordVPN", "Custom Geo", "external sing-box experimental adapter"]
+entrypoints = ["main.go", "web/web.go", "sub/sub.go"]
 
 [stack.frontend]
 language = "TypeScript"
-frameworks = ["Vue 3", "Vite", "Pinia", "Ant Design Vue 4", "Axios"]
+frameworks = ["Vue 3.5", "Vite 8", "Pinia 3", "Ant Design Vue 4", "Axios 1.16", "Vue Router 4"]
 source_dir = "frontend/src"
 build_output = "web/ui"
 legacy_ui_dirs = ["web/html", "web/assets"]
+test_entry = "frontend/tests/*.test.ts plus web/assets/js/**/*.test.js through node --test"
 
 [stack.database]
 engine = "SQLite"
 orm = "GORM"
 core_tables = ["users", "inbounds", "settings", "client_traffics", "inbound_client_ips", "custom_geo_resources", "history_of_seeders"]
-compatibility_contract = "model.Inbound with JSON settings/streamSettings/sniffing remains the active Xray write model."
+compatibility_contract = "database/model.Inbound with JSON settings/streamSettings/sniffing remains the active Xray write model; clients stay embedded in Inbound.Settings JSON."
+forbidden_active_models = ["proxy_inbounds", "proxy_clients", "SubscriptionNode", "egress_* production tables"]
+
+[stack.ci_release]
+workflows = [
+  ".github/workflows/release.yml",
+  ".github/workflows/docker.yml",
+  ".github/workflows/test-arm64.yml",
+  ".github/workflows/codeql.yml",
+]
+release_assets = ["x-ui-linux-amd64.tar.gz", "x-ui-linux-arm64.tar.gz"]
+container_image = "ghcr.io/superaddmin/superxray-gui"
+release_gate = ".codex/skills/superxray-release-cicd/scripts/release_gate.py"
 
 [stack.testing]
 go = ["go test ./...", "go vet ./...", "go build -o bin/SuperXray.exe ./main.go"]
 frontend = ["cd frontend; npm run typecheck", "cd frontend; npm run lint", "cd frontend; npm run test", "cd frontend; npm run build"]
 e2e = ["npm run e2e"]
+security = [
+  "rg \"v-html|innerHTML|insertAdjacentHTML\" web/html frontend/src -n",
+  "rg \"unsafe-inline|unsafe-eval\" frontend/src web/ui -n",
+  "python scripts/secret_scan.py",
+]
 release = ["python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only"]
+
+[business_domains]
+panel = "Authenticated web panel, login/session, runtime config, server status, settings, backup/restore."
+xray_runtime = "Legacy Xray lifecycle, template editor, version install, traffic stats, gRPC API integration."
+inbounds = "VMess/VLESS/Trojan/Shadowsocks/Hysteria2/WireGuard inbound and client management on the legacy model."
+subscriptions = "URI/Base64, Xray JSON, Clash/Mihomo, WireGuard config, target-aware links, diagnose output."
+gateway_egress_mvp = "Xray-compatible SOCKS5 inbound generation plus Gateway CSV manifest only; no egress database/API production model."
+core_runtime = "CoreManager registry, default-xray read-only view, experimental-sing-box external adapter under Phase 10 risk acceptance."
+security = "CSP nonce, CSRF, text-only rendering, authenticated downloads, safe imports, SSRF/path traversal/command execution checks."
+release = "Linux amd64/arm64 binary assets, GHCR multi-arch image, semantic version and CHANGELOG policy."
 
 [hard_gates]
 forbidden_before_phase_10_2 = [
   "Route old Xray startup/stop/restart through CoreManager",
-  "Remove legacy UI fallback",
+  "Remove legacy UI fallback or /panel/legacy routes",
   "Write new UI data that legacy UI cannot read",
 ]
 forbidden_until_explicit_architecture_gate = [
   "Migrate active model.Inbound writes to proxy_inbounds/proxy_clients",
   "Promote experimental sing-box to production default",
-  "Store secrets or runtime state in .codex",
+  "Create production egress governance database/API paths from the MVP docs",
+  "Store secrets, runtime databases, tokens, cookies, or audit artifacts in .codex",
 ]
 security = [
   "No v-html/innerHTML/insertAdjacentHTML for logs/config/subscription/external content",
   "State-changing API calls require CSRF protection",
   "Database/config/log downloads require authentication",
   "Database import must validate size, format, and rollback on failure",
+  "External URL, path, and binary execution inputs must be allowlisted or normalized before use",
 ]
 repository_secrets = [
-  "Do not store real subscription URLs, subIds, client UUIDs, proxy credentials, panel base paths, cookies, tokens, private keys, or database contents in repository files",
-  "Run python scripts/secret_scan.py before committing operational docs, scripts, or release candidates",
-  "Keep full server audit artifacts outside the repository; commit only redacted templates or summaries",
+  "Do not store real subscription URLs, subIds, client UUIDs, proxy credentials, panel base paths, cookies, tokens, private keys, database dumps, or full server audit artifacts in repository files",
+  "Run python scripts/secret_scan.py before committing operational docs, scripts, release candidates, or .codex governance changes",
+  "Commit only redacted templates or summaries for server audits",
 ]
 
 [agents]
@@ -77,3 +124,8 @@ e2e = "superxray-e2e-gate"
 devops = "superxray-devops-cicd-maintainer"
 release = "superxray-release-gate"
 docs_i18n = "superxray-docs-i18n-maintainer"
+
+[skills]
+project_context = ".codex/skills/superxray-project-context/SKILL.md"
+ui_first_migration = ".codex/skills/superxray-ui-first-migration/SKILL.md"
+release_cicd = ".codex/skills/superxray-release-cicd/SKILL.md"

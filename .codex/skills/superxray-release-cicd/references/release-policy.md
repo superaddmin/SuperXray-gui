@@ -16,6 +16,7 @@ Every releasable commit must satisfy:
 - Shell scripts parse with Bash.
 - `web/translation/*.toml` files parse successfully.
 - The built binary reports the same version as `config/version`.
+- `.github/agentic-workflows/release.md` remains aligned with workflow triggers, asset names, version policy, and rollback procedure.
 
 ## GitHub Actions Strategy
 

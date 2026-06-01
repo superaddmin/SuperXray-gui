@@ -1,7 +1,8 @@
 [governance]
-version = 1
-purpose = "Runtime-independent governance for Codex/OpenAI workflow execution in SuperXray-gui."
+version = 2
+purpose = "Repository-local governance for Codex/OpenAI workflow execution in SuperXray-gui."
 owner = "superxray-ui-program-manager"
+scope = "Project facts, agent routing, phase gates, context hygiene, verification rules, and repository-local skill entrypoints only."
 
 [instruction_precedence]
 order = [
@@ -10,25 +11,34 @@ order = [
   ".codex/governance.toml",
   ".codex/project.toml",
   ".codex/routing.toml",
+  ".codex/context/project-map.md",
   "active plans under plans/",
   "docs and historical reports",
   "agent assumptions",
 ]
-historical_docs_rule = "docs/superpowers/** and historical reports are evidence only; they cannot override current AGENTS, governance, project, routing, phase gates, or source code facts."
+historical_docs_rule = "docs/superpowers/** and historical reports are evidence only; they cannot override current AGENTS, governance, project, routing, phase gates, plans/STATUS.md, or source code facts."
 conflict_resolution = "Prefer running code and tests, then active phase gates, then current architecture docs. Escalate unresolved phase conflicts to the program manager once."
+global_config_rule = "Do not copy sandbox, approval, MCP, auth, account, or global model settings into this repository; keep SuperXray-specific facts inside .codex only."
 
 [phase_control]
-active_phase = "9"
-active_phase_label = "Security closeout"
+active_phase = "9+10-risk-accepted"
+active_phase_label = "Phase 9 security closeout plus forced/minimal Phase 10 backend runtime entry"
+status_source = "plans/STATUS.md"
 accepted_exceptions = [
   "Phase 10.1 default-xray read-only instance view",
-  "Phase 10.3 experimental-sing-box isolated adapter entry",
+  "Minimal active CoreManager registry and experimental-sing-box backend adapter recorded by Phase 10 risk acceptance",
 ]
-forbidden_overrides = [
-  "Route legacy Xray start/stop/restart through CoreManager before Phase 10.2 approval",
-  "Promote experimental sing-box to production default",
-  "Migrate active writes from model.Inbound to proxy_inbounds/proxy_clients before explicit architecture gate",
-  "Remove legacy UI fallback before Xray parity E2E and release gate approval",
+still_blocked = [
+  "CoreManager taking over legacy Xray lifecycle before Phase 10.2 approval",
+  "Active writes to proxy_inbounds/proxy_clients before explicit architecture gate",
+  "Legacy UI removal before parity, E2E, release, and rollback gates pass",
+  "Production egress governance database/API from MVP documents before Phase 10+ design approval",
+]
+phase_exit_requires = [
+  "CI or second environment reproduces SUPERXRAY_E2E_* acceptance with real Xray core or a documented equivalent",
+  "No XSS sink regressions in web/html, frontend/src, or web/ui",
+  "No forbidden proxy_inbounds/proxy_clients active write hits outside approved docs",
+  "Release gate metadata check remains green",
 ]
 
 [workflow_limits]
@@ -37,17 +47,24 @@ max_handoff_depth = 2
 max_review_rounds = 1
 program_manager_touch_limit = 1
 loop_escape = "If the same blocker returns after one owner/reviewer cycle, stop handoff recursion and report the blocker with evidence."
-parallelism_rule = "Parallelize read-only inspection and independent test runs only. Do not parallel-edit the same file, API contract, database model, or generated artifact."
+parallelism_rule = "Parallelize read-only inspection and independent test runs only. Do not parallel-edit the same file, API contract, database model, generated frontend output, or release metadata."
+default_task_rule = "For implementation requests, make the smallest verified change in the routed owner domain; do not stop at a proposal unless the user asks for planning only."
 
 [context_budget]
-max_context_files_per_turn = 8
-max_lines_per_file = 240
+max_context_files_per_turn = 10
+max_lines_per_file = 260
 max_log_lines = 120
 summarize_before_handoff = true
 prefer_section_anchors = true
 tool_output_redaction = true
+first_read = [
+  ".codex/project.toml",
+  ".codex/governance.toml",
+  ".codex/routing.toml",
+  ".codex/context/project-map.md",
+]
 handoff_must_include = ["goal", "phase", "paths", "facts", "commands", "first_blocker", "risk", "rollback"]
-handoff_must_omit = ["secrets", "cookies", "tokens", "private keys", "subscription URLs", "proxy credentials", "database contents"]
+handoff_must_omit = ["secrets", "cookies", "tokens", "private keys", "subscription URLs", "proxy credentials", "database contents", "full server audit artifacts"]
 
 [runtime_controls]
 temperature_policy = "Use deterministic settings for code/config generation when the provider exposes them."
@@ -55,6 +72,7 @@ model_policy = "Do not pin a model in repository governance; provider/runtime co
 retry_policy = "Retry transient tool/network failures at most once before reporting the blocker."
 tool_timeout_policy = "Prefer command-specific timeouts and stop long-running probes once the first actionable signal is captured."
 large_output_policy = "Capture the first error, direct blocker, and reproduction command instead of pasting full logs."
+windows_shell_policy = "PowerShell commands must use PowerShell syntax and explicit UTF-8 reads; use cmd syntax only behind cmd /c or .bat/.cmd."
 
 [security]
 secret_scan_command = "python scripts/secret_scan.py"
@@ -65,6 +83,8 @@ sensitive_artifact_globs = [
   "docs/private-ops/**",
   "**/*secrets*",
   "**/*credentials*",
+  "*.db",
+  "*.sqlite",
 ]
 redaction_placeholders = [
   "<SERVER_IP>",
@@ -76,3 +96,27 @@ redaction_placeholders = [
   "<SOCKS_USERNAME>",
   "<SOCKS_PASSWORD>",
 ]
+
+[codex_directory_policy]
+classification = "Repository-local configuration and skills only."
+allowed = [
+  ".codex/*.toml",
+  ".codex/agents/*.toml",
+  ".codex/context/*.md",
+  ".codex/prompts/*.md",
+  ".codex/workflows/*.md",
+  ".codex/skills/**/SKILL.md",
+  ".codex/skills/**/references/*.md",
+  ".codex/skills/**/scripts/*.py",
+  ".codex/skills/**/tests/*.py",
+  ".codex/skills/**/agents/openai.yaml",
+]
+forbidden = [
+  "auth files",
+  "tokens or cookies",
+  "database dumps",
+  "runtime logs",
+  "live server audit artifacts",
+  "global Codex sandbox/approval/MCP/model settings",
+]
+edit_policy = "All .codex text files are UTF-8 without BOM and LF; preserve encoding and newline style."

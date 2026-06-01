@@ -1,0 +1,4 @@
+interface:
+  display_name: "SuperXray Project Context"
+  short_description: "Map SuperXray stack, routes, and gates."
+  default_prompt: "Use $superxray-project-context to classify this SuperXray-gui task, identify the owner agent, required context, hard gates, and minimum verification commands."

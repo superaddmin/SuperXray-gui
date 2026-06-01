@@ -16,6 +16,8 @@
 !.codex/prompts/**
 !.codex/skills/
 .codex/skills/*
+!.codex/skills/superxray-project-context/
+!.codex/skills/superxray-project-context/**
 !.codex/skills/superxray-release-cicd/
 !.codex/skills/superxray-release-cicd/**
 !.codex/skills/superxray-ui-first-migration/
