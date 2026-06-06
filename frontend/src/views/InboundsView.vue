@@ -72,11 +72,7 @@
           class="toolbar-select"
           aria-label="Protocol filter"
         >
-          <option
-            v-for="option in protocolFilterOptions"
-            :key="option.value"
-            :value="option.value"
-          >
+          <option v-for="option in protocolFilterOptions" :key="option.value" :value="option.value">
             {{ option.label }}
           </option>
         </select>
@@ -1437,6 +1433,7 @@ import type { PanelSettings } from '@/types/settings';
 import { formatBytes, formatCount } from '@/utils/format';
 import {
   SHADOWSOCKS_METHOD_OPTIONS,
+  applyPanelDefaultTlsCertificate,
   buildClientShareLink,
   buildClientSubscriptionLinks,
   buildInboundShareLinks,
@@ -1461,6 +1458,7 @@ import {
   parseInboundStreamSettings,
   resolveInboundHost,
   stringifyJson,
+  type PanelDefaultTlsCertificate,
 } from '@/utils/inboundCompat';
 import {
   normalizeRealityServerSettings,
@@ -1690,6 +1688,7 @@ const clientIpsModalTitle = ref('Client IP Records');
 const clientIpsText = ref('');
 const clearingClientIpsEmail = ref('');
 const subscriptionSettings = ref<SubscriptionLinkSettings | null>(null);
+const panelDefaultTlsCertificate = ref<PanelDefaultTlsCertificate | null>(null);
 const clientAccessModalOpen = ref(false);
 const clientAccessTitle = ref('Client Access');
 const clientAccessClient = ref<ClientRow | null>(null);
@@ -2027,6 +2026,7 @@ watch(
       syncWireguardEditorFromSettings();
       syncStreamEditorFromSettings();
       syncInboundClientEditorFromSettings();
+      void applyPanelDefaultTlsCertificateToEditor();
     }
   },
 );
@@ -2223,6 +2223,7 @@ async function submitInbound() {
     applyWireguardEditorToSettings();
   } else if (protocolSupportsStream(inboundEditor.protocol)) {
     applyStreamEditorToSettings();
+    await applyPanelDefaultTlsCertificateToEditor();
   }
   if (inboundClientSectionVisible.value) {
     applyInboundClientEditorToSettings();
@@ -4260,9 +4261,7 @@ async function ensureSubscriptionSettingsLoaded(): Promise<SubscriptionLinkSetti
     const payload = await getAllSettings({ notifyOnError: false });
     let settings = pickSubscriptionSettings(payload);
     if (hasMissingEnabledSubscriptionEndpoint(settings)) {
-      const defaults = pickSubscriptionSettings(
-        await getDefaultSettings({ notifyOnError: false }),
-      );
+      const defaults = pickSubscriptionSettings(await getDefaultSettings({ notifyOnError: false }));
       settings = mergeSubscriptionEndpointDefaults(settings, defaults);
     }
     subscriptionSettings.value = settings;
@@ -4275,11 +4274,68 @@ async function ensureSubscriptionSettingsLoaded(): Promise<SubscriptionLinkSetti
   }
 }
 
+async function ensurePanelDefaultTlsCertificateLoaded(): Promise<PanelDefaultTlsCertificate | null> {
+  if (panelDefaultTlsCertificate.value) {
+    return panelDefaultTlsCertificate.value;
+  }
+  if (!hasInjectedRuntimeConfig()) {
+    return null;
+  }
+
+  try {
+    const defaults = await getDefaultSettings({ notifyOnError: false });
+    panelDefaultTlsCertificate.value = {
+      certFile: defaults.defaultCert || defaults.webCertFile || '',
+      keyFile: defaults.defaultKey || defaults.webKeyFile || '',
+    };
+    return panelDefaultTlsCertificate.value;
+  } catch {
+    return null;
+  }
+}
+
+async function applyPanelDefaultTlsCertificateToEditor() {
+  const protocolSnapshot = inboundEditor.protocol;
+  const streamSettingsSnapshot = inboundEditor.streamSettings;
+  if (!isHysteriaProtocol(protocolSnapshot)) {
+    return;
+  }
+
+  const defaults = await ensurePanelDefaultTlsCertificateLoaded();
+  if (!defaults) {
+    return;
+  }
+  if (protocolSnapshot !== inboundEditor.protocol) {
+    return;
+  }
+  if (streamSettingsSnapshot !== inboundEditor.streamSettings) {
+    return;
+  }
+  if (streamEditor.tlsCertificateFile.trim() || streamEditor.tlsKeyFile.trim()) {
+    return;
+  }
+
+  const stream = parseInboundStreamSettingsText(inboundEditor.streamSettings);
+  const nextStream = applyPanelDefaultTlsCertificate(stream, defaults);
+  if (nextStream === stream) {
+    return;
+  }
+
+  inboundEditor.streamSettings = stringifyJson(nextStream);
+  const nextTlsSettings = objectField(nextStream.tlsSettings);
+  const nextCertificates = Array.isArray(nextTlsSettings.certificates)
+    ? nextTlsSettings.certificates
+    : [];
+  const nextCertificate = objectField(nextCertificates[0]);
+  streamEditor.tlsCertificateFile = stringField(nextCertificate.certificateFile);
+  streamEditor.tlsKeyFile = stringField(nextCertificate.keyFile);
+}
+
 function hasMissingEnabledSubscriptionEndpoint(settings: SubscriptionLinkSettings): boolean {
   return Boolean(
     (settings.subEnable && !settings.subURI.trim()) ||
-      (settings.subJsonEnable && !settings.subJsonURI.trim()) ||
-      (settings.subClashEnable && !settings.subClashURI.trim()),
+    (settings.subJsonEnable && !settings.subJsonURI.trim()) ||
+    (settings.subClashEnable && !settings.subClashURI.trim()),
   );
 }
 

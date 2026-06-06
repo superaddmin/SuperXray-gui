@@ -4,6 +4,8 @@ export interface PanelSettings {
   webPort: number;
   webCertFile: string;
   webKeyFile: string;
+  defaultCert?: string;
+  defaultKey?: string;
   webBasePath: string;
   sessionMaxAge: number;
   pageSize: number;

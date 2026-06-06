@@ -87,6 +87,23 @@ test('inbound form validates and normalizes Reality server settings before savin
   assert.match(source, /return realityValidationError/);
 });
 
+test('hysteria inbound form applies panel default TLS certificate paths before validation', () => {
+  assert.match(source, /applyPanelDefaultTlsCertificate/);
+  assert.match(source, /const panelDefaultTlsCertificate/);
+  assert.match(source, /defaults\.defaultCert/);
+  assert.match(source, /defaults\.defaultKey/);
+  assert.match(source, /await applyPanelDefaultTlsCertificateToEditor\(\)/);
+});
+
+test('hysteria default TLS async fill does not overwrite user-entered certificate fields', () => {
+  assert.match(source, /const protocolSnapshot = inboundEditor\.protocol/);
+  assert.match(source, /const streamSettingsSnapshot = inboundEditor\.streamSettings/);
+  assert.match(source, /protocolSnapshot !== inboundEditor\.protocol/);
+  assert.match(source, /streamSettingsSnapshot !== inboundEditor\.streamSettings/);
+  assert.match(source, /streamEditor\.tlsCertificateFile\.trim\(\)/);
+  assert.match(source, /streamEditor\.tlsKeyFile\.trim\(\)/);
+});
+
 test('inbounds detail keeps visible share and subscription export actions', () => {
   assert.match(source, /Export Share Links/);
   assert.match(source, /Export Subscription Links/);

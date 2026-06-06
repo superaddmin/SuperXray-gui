@@ -23,6 +23,11 @@ export interface SubscriptionEndpointSettings {
   subClashURI: string;
 }
 
+export interface PanelDefaultTlsCertificate {
+  certFile?: string;
+  keyFile?: string;
+}
+
 export interface SubscriptionLinkItem {
   label: string;
   url: string;
@@ -234,6 +239,39 @@ export function defaultStreamSettings(
       header: {
         type: 'none',
       },
+    },
+  };
+}
+
+export function applyPanelDefaultTlsCertificate(
+  stream: InboundStreamSettings,
+  defaults: PanelDefaultTlsCertificate,
+): InboundStreamSettings {
+  const certFile = (defaults.certFile || '').trim();
+  const keyFile = (defaults.keyFile || '').trim();
+  if (!certFile || !keyFile) {
+    return stream;
+  }
+
+  const tlsSettings = asRecord(stream.tlsSettings);
+  const certificates = Array.isArray(tlsSettings.certificates) ? tlsSettings.certificates : [];
+  if (certificates.some(hasUsableTlsCertificateEntry)) {
+    return stream;
+  }
+
+  return {
+    ...stream,
+    tlsSettings: {
+      ...tlsSettings,
+      certificates: [
+        {
+          certificateFile: certFile,
+          keyFile,
+          oneTimeLoading: false,
+          usage: 'encipherment',
+          buildChain: false,
+        },
+      ],
     },
   };
 }
@@ -857,6 +895,23 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function hasUsableTlsCertificateEntry(value: unknown): boolean {
+  const certificate = asRecord(value);
+  const certificateFile = stringValue(certificate.certificateFile).trim();
+  const keyFile = stringValue(certificate.keyFile).trim();
+  if (certificateFile && keyFile) {
+    return true;
+  }
+
+  const inlineCertificate = Array.isArray(certificate.certificate)
+    ? certificate.certificate.some((line) => typeof line === 'string' && line.trim().length > 0)
+    : stringValue(certificate.certificate).trim().length > 0;
+  const inlineKey = Array.isArray(certificate.key)
+    ? certificate.key.some((line) => typeof line === 'string' && line.trim().length > 0)
+    : stringValue(certificate.key).trim().length > 0;
+  return inlineCertificate && inlineKey;
 }
 
 function stringValue(value: unknown): string {

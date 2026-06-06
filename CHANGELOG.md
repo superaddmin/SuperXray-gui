@@ -2,6 +2,17 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.19] - 2026-06-06
+
+### Fixed
+
+- 修复新 Vue UI 创建 Hysteria2/HY2 入站时不会自动复用面板默认证书路径的问题，提交前从 `/panel/setting/defaultSettings` 读取 `defaultCert/defaultKey` 并写入 legacy-compatible `streamSettings.tlsSettings.certificates`。
+- 增加异步回填保护，避免 HY2 默认证书路径加载完成后覆盖用户已输入的自定义证书路径或 inline PEM 证书内容。
+
+### Changed
+
+- 同步发布版本到 `3.0.19`。
+
 ## [3.0.18] - 2026-05-26
 
 ### Added

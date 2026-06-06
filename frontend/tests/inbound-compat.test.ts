@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  applyPanelDefaultTlsCertificate,
   buildClientSubscriptionLinks,
   buildInboundShareLinks,
   generateBulkClientProfiles,
@@ -101,6 +102,84 @@ test('mergeSubscriptionEndpointDefaults fills enabled blank subscription URIs', 
     subJsonURI: '',
     subClashURI: 'https://example.com/clash/',
   });
+});
+
+test('applyPanelDefaultTlsCertificate fills empty HY2 TLS certificate file paths', () => {
+  const stream = applyPanelDefaultTlsCertificate(
+    {
+      network: 'hysteria',
+      security: 'tls',
+      tlsSettings: {
+        certificates: [],
+      },
+    },
+    {
+      certFile: '/etc/superxray/cert.pem',
+      keyFile: '/etc/superxray/key.pem',
+    },
+  );
+
+  assert.deepEqual(stream.tlsSettings?.certificates, [
+    {
+      certificateFile: '/etc/superxray/cert.pem',
+      keyFile: '/etc/superxray/key.pem',
+      oneTimeLoading: false,
+      usage: 'encipherment',
+      buildChain: false,
+    },
+  ]);
+});
+
+test('applyPanelDefaultTlsCertificate preserves existing TLS certificates', () => {
+  const stream = applyPanelDefaultTlsCertificate(
+    {
+      tlsSettings: {
+        certificates: [
+          {
+            certificateFile: '/custom/cert.pem',
+            keyFile: '/custom/key.pem',
+          },
+        ],
+      },
+    },
+    {
+      certFile: '/etc/superxray/cert.pem',
+      keyFile: '/etc/superxray/key.pem',
+    },
+  );
+
+  assert.deepEqual(stream.tlsSettings?.certificates, [
+    {
+      certificateFile: '/custom/cert.pem',
+      keyFile: '/custom/key.pem',
+    },
+  ]);
+});
+
+test('applyPanelDefaultTlsCertificate preserves existing inline TLS certificate content', () => {
+  const stream = applyPanelDefaultTlsCertificate(
+    {
+      tlsSettings: {
+        certificates: [
+          {
+            certificate: ['-----BEGIN CERTIFICATE-----', 'MIIB', '-----END CERTIFICATE-----'],
+            key: ['-----BEGIN PRIVATE KEY-----', 'MIIB', '-----END PRIVATE KEY-----'],
+          },
+        ],
+      },
+    },
+    {
+      certFile: '/etc/superxray/cert.pem',
+      keyFile: '/etc/superxray/key.pem',
+    },
+  );
+
+  assert.deepEqual(stream.tlsSettings?.certificates, [
+    {
+      certificate: ['-----BEGIN CERTIFICATE-----', 'MIIB', '-----END CERTIFICATE-----'],
+      key: ['-----BEGIN PRIVATE KEY-----', 'MIIB', '-----END PRIVATE KEY-----'],
+    },
+  ]);
 });
 
 test('buildInboundShareLinks exports single-user Shadowsocks links like legacy UI', () => {
