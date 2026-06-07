@@ -4,6 +4,7 @@
 .codex/
 !.codex/
 .codex/*
+!.codex/configuration-update.md
 !.codex/README.md
 !.codex/governance.toml
 !.codex/project.toml
@@ -39,6 +40,8 @@ superxray-*.png
 # Ignore temporary files
 tmp/
 *.tar.gz
+__pycache__/
+*.pyc
 
 # Ignore build and distribution directories
 backup/
