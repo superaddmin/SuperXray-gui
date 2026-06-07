@@ -27,6 +27,7 @@
 
 验证命令与结果：
 - `命令`：未运行/通过/失败
+- `.codex` 变更需包含 `validate_codex_config.py` 与技能验证结果
 
 风险与回滚：
 - 风险：
@@ -47,3 +48,13 @@
 - 若已达到 `.codex/governance.toml` 的最大交接深度，必须输出 blocker 而不是继续转交。
 - 跨前端/后端/数据库/订阅边界时，必须写清旧 UI、新 UI、旧 API、订阅输出是否受影响。
 - 交接后接收代理必须先确认路径归属，再执行改动。
+
+## 配置交接附加规则
+
+涉及 `.codex`、agent、skill、routing、governance、context map 的交接必须额外说明：
+
+- 是否更新 `.codex/configuration-update.md`。
+- 是否同步 `dependency-map.md`、`business-flow-map.md`、`codex-config-map.md`。
+- 是否新增或修改 agent 契约字段。
+- 是否运行 `validate_codex_config.py`、验证单测与 `quick_validate.py`。
+- 效率指标中是否出现路由误判、上下文过量读取或验证缺口。

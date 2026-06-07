@@ -39,6 +39,31 @@ verification_commands = [
   "cd frontend; npm run build",
 ]
 
+knowledge_inputs = [
+  ".codex/workflows/verification-matrix.md",
+  ".codex/workflows/config-validation-and-efficiency.md",
+  ".codex/context/dependency-map.md",
+]
+
+handoff_outputs = [
+  ".codex/context/handoff-template.md",
+  ".codex/context/project-map.md",
+]
+
+collaboration_rules = [
+  "先按 .codex/routing.toml 确认路径归属和主责边界。",
+  "跨职责变更必须用 .codex/context/handoff-template.md 传递目标、路径、事实、验证和风险。",
+  "只读取 knowledge_inputs 与 required_context 中和当前任务直接相关的文件。",
+  "输出结论必须包含已运行验证、未运行原因、风险和回滚。",
+]
+
+efficiency_metrics = [
+  "first_route_accuracy",
+  "context_files_read_count",
+  "verification_commands_executed",
+  "handoff_blocker_clarity",
+]
+
 developer_instructions = """
 你负责 SuperXray-gui 的测试策略和回归覆盖。
 

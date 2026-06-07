@@ -4,7 +4,7 @@
 
 ## 项目事实
 
-- 后端主栈：Go 1.26.3、Gin、GORM、SQLite、robfig/cron、gorilla/websocket、go-i18n、Xray-core gRPC/API。
+- 后端主栈：Go 1.26.4、Gin、GORM、SQLite、robfig/cron、gorilla/websocket、go-i18n、Xray-core gRPC/API。
 - 前端主栈：Vue 3.5、Vite 8、TypeScript 6、Pinia、Ant Design Vue 4、Axios、Vue Router。
 - 旧 UI：`web/html` 与 `web/assets` 仍是受控回退边界，不得在退场门禁前删除。
 - 新 UI：`frontend/` 构建输出到 `web/ui`，由 Go 通过嵌入式静态资源托管。
@@ -36,6 +36,17 @@
 3. 涉及安全、测试、发布的任务必须分别交给 `superxray-security-gate`、`superxray-test-strategist`/`superxray-e2e-gate`、`superxray-release-gate` 做门禁。
 4. 每次交接必须使用 `.codex/context/handoff-template.md`，写清目标、触碰路径、验证命令、风险、回滚。
 5. 冲突裁决顺序：运行代码事实 > 测试结果 > `.codex/governance.toml` / `plans/STATUS.md` > 阶段计划 > README/文档 > 代理假设。
+
+## 统一代理契约字段
+
+每个 `.codex/agents/*.toml` 必须包含下列字段：
+
+- `knowledge_inputs`：该角色优先读取的项目索引与关键源码。
+- `handoff_outputs`：交接时必须输出或引用的上下文模板，固定包含 `.codex/context/handoff-template.md` 与 `.codex/context/project-map.md`。
+- `collaboration_rules`：路由确认、跨职责交接、上下文读取预算、验证输出规则。
+- `efficiency_metrics`：至少包含 `first_route_accuracy`、`context_files_read_count`、`verification_commands_executed`、`handoff_blocker_clarity`。
+
+角色执行时先读取 `required_context` 与当前任务相关的 `knowledge_inputs`，不得为了“更稳妥”无差别扫描全仓库。
 
 ## 硬边界
 

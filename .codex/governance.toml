@@ -1,5 +1,5 @@
 [governance]
-version = 2
+version = 3
 purpose = "Repository-local governance for Codex/OpenAI workflow execution in SuperXray-gui."
 owner = "superxray-ui-program-manager"
 scope = "Project facts, agent routing, phase gates, context hygiene, verification rules, and repository-local skill entrypoints only."
@@ -62,9 +62,25 @@ first_read = [
   ".codex/governance.toml",
   ".codex/routing.toml",
   ".codex/context/project-map.md",
+  ".codex/context/dependency-map.md",
+  ".codex/context/business-flow-map.md",
+  ".codex/context/codex-config-map.md",
 ]
 handoff_must_include = ["goal", "phase", "paths", "facts", "commands", "first_blocker", "risk", "rollback"]
 handoff_must_omit = ["secrets", "cookies", "tokens", "private keys", "subscription URLs", "proxy credentials", "database contents", "full server audit artifacts"]
+
+[codex_validation]
+script = ".codex/skills/superxray-project-context/scripts/validate_codex_config.py"
+test = ".codex/skills/superxray-project-context/tests/test_validate_codex_config.py"
+skill_validation = [
+  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-project-context",
+  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-ui-first-migration",
+  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-release-cicd",
+]
+text_policy = "All .codex .md/.toml/.yaml/.yml/.py files must be UTF-8 without BOM and LF."
+agent_contract_required = ["knowledge_inputs", "handoff_outputs", "collaboration_rules", "efficiency_metrics"]
+efficiency_metrics = ["first_route_accuracy", "context_files_read_count", "verification_commands_executed", "handoff_blocker_clarity", "forbidden_scope_hits", "secret_scan_findings"]
+update_policy = "When stack, phase gates, routes, or agent contracts change, update project/context maps and rerun codex validation before claiming completion."
 
 [runtime_controls]
 temperature_policy = "Use deterministic settings for code/config generation when the provider exposes them."
@@ -101,6 +117,7 @@ redaction_placeholders = [
 classification = "Repository-local configuration and skills only."
 allowed = [
   ".codex/*.toml",
+  ".codex/configuration-update.md",
   ".codex/agents/*.toml",
   ".codex/context/*.md",
   ".codex/prompts/*.md",

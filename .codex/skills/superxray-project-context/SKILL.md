@@ -21,7 +21,7 @@ Use this skill as the first local orientation pass for SuperXray-gui tasks that 
 
 - Go module: `github.com/superaddmin/SuperXray-gui/v2`.
 - Product: Xray-core web panel with new Vue UI, legacy UI fallback, subscription server, Gateway Egress MVP, and guarded multi-core runtime entry.
-- Backend: Go 1.26.3, Gin, GORM, SQLite, Xray-core gRPC/API, robfig/cron, gorilla/websocket.
+- Backend: Go 1.26.4, Gin, GORM, SQLite, Xray-core gRPC/API, robfig/cron, gorilla/websocket.
 - Frontend: Vue 3.5, Vite 8, TypeScript 6, Pinia, Ant Design Vue 4, Axios.
 - Legacy UI: `web/html` and `web/assets`, currently mounted under `/panel/legacy/`.
 - New UI: `frontend/src`, built into `web/ui`, mounted at `/panel/` and compatible `/panel/ui/`.
@@ -88,3 +88,14 @@ python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metad
 ## References
 
 Read `.codex/context/project-map.md` for the compact map. Read `references/current-stack.md` only when a task needs a denser stack/dependency/business-domain summary without opening multiple docs.
+
+## Codex Configuration Validation
+
+For `.codex` governance, agent, routing, workflow, or skill changes, run:
+
+```powershell
+python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py
+python .codex/skills/superxray-project-context/scripts/validate_codex_config.py
+```
+
+Read `.codex/context/dependency-map.md`, `.codex/context/business-flow-map.md`, `.codex/context/codex-config-map.md`, and `.codex/workflows/config-validation-and-efficiency.md` when the task needs dependency analysis, business-flow mapping, configuration validation, agent contract checks, or efficiency metrics.

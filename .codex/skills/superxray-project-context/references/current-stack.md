@@ -56,3 +56,12 @@ Release:
 - Client data remains embedded in `Inbound.Settings` JSON.
 - Subscription output reads the legacy model.
 - Gateway Egress MVP writes Xray config template data and CSV manifest only.
+
+## Codex Governance Assets
+
+- `.codex/configuration-update.md`：方案 B 重构说明、配置应用指南、验证和回滚。
+- `.codex/context/dependency-map.md`：依赖树、工具链、验证入口。
+- `.codex/context/business-flow-map.md`：业务链路、源码路径、主责代理、验证命令。
+- `.codex/context/codex-config-map.md`：配置职责、agent 契约字段和必跑验证。
+- `.codex/workflows/config-validation-and-efficiency.md`：配置验证、技能验证、效率指标与迭代机制。
+- `.codex/skills/superxray-project-context/scripts/validate_codex_config.py`：项目级 Codex 配置验证器。

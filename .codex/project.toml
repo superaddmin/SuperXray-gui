@@ -11,6 +11,9 @@ repository_kind = "mixed Go backend, Vue frontend, legacy HTML UI, shell/Docker/
 [source_of_truth]
 governance = [".codex/governance.toml", ".codex/routing.toml"]
 project_context = [".codex/context/project-map.md", ".codex/skills/superxray-project-context/SKILL.md"]
+codex_config = [".codex/context/codex-config-map.md", ".codex/configuration-update.md"]
+dependency_context = [".codex/context/dependency-map.md"]
+business_flow_context = [".codex/context/business-flow-map.md"]
 architecture = ["docs/architecture.md", "docs/modules.md", "docs/development.md", "docs/api.md"]
 phase_status = ["plans/STATUS.md", "plans/01-strategy/ui-first-xray-stable-multi-core-roadmap.md"]
 phase_gates = [".codex/skills/superxray-ui-first-migration/references/phase-gates.md"]
@@ -46,6 +49,14 @@ build_output = "web/ui"
 legacy_ui_dirs = ["web/html", "web/assets"]
 test_entry = "frontend/tests/*.test.ts plus web/assets/js/**/*.test.js through node --test"
 
+[stack.ai_config]
+configuration_system = "repository-local .codex governance, routing, agents, skills, context indexes, workflows, validation scripts"
+agent_contract_fields = ["knowledge_inputs", "handoff_outputs", "collaboration_rules", "efficiency_metrics"]
+skill_update_policy = "Update project context maps, routing, validation script, and skill references together when the stack or phase gates change."
+context_matching = "Route by .codex/routing.toml first, then load the selected agent required_context plus task-relevant knowledge_inputs only."
+efficiency_metrics = ["first_route_accuracy", "context_files_read_count", "verification_commands_executed", "handoff_blocker_clarity", "forbidden_scope_hits", "secret_scan_findings"]
+validation_entry = ".codex/skills/superxray-project-context/scripts/validate_codex_config.py"
+
 [stack.database]
 engine = "SQLite"
 orm = "GORM"
@@ -74,6 +85,13 @@ security = [
   "python scripts/secret_scan.py",
 ]
 release = ["python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only"]
+codex = [
+  "python .codex/skills/superxray-project-context/scripts/validate_codex_config.py",
+  "python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py",
+  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-project-context",
+  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-ui-first-migration",
+  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-release-cicd",
+]
 
 [business_domains]
 panel = "Authenticated web panel, login/session, runtime config, server status, settings, backup/restore."
@@ -129,3 +147,4 @@ docs_i18n = "superxray-docs-i18n-maintainer"
 project_context = ".codex/skills/superxray-project-context/SKILL.md"
 ui_first_migration = ".codex/skills/superxray-ui-first-migration/SKILL.md"
 release_cicd = ".codex/skills/superxray-release-cicd/SKILL.md"
+project_context_validator = ".codex/skills/superxray-project-context/scripts/validate_codex_config.py"

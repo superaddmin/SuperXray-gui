@@ -102,3 +102,20 @@ npm run e2e
 python scripts/secret_scan.py
 python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only
 ```
+
+## AI 配置上下文索引
+
+- `.codex/context/dependency-map.md`：依赖树、技术栈、构建工具、验证入口。
+- `.codex/context/business-flow-map.md`：核心业务链路到源码、代理、验证命令的映射。
+- `.codex/context/codex-config-map.md`：`.codex` 文件职责、agent 契约字段、必跑验证。
+- `.codex/workflows/config-validation-and-efficiency.md`：配置验证、技能验证、效率指标和迭代机制。
+- `.codex/configuration-update.md`：方案 B 重构说明、应用指南和回滚方式。
+
+## Codex 配置验证命令
+
+```powershell
+python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py
+python .codex/skills/superxray-project-context/scripts/validate_codex_config.py
+python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-project-context
+python scripts/secret_scan.py
+```

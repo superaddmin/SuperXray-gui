@@ -34,3 +34,14 @@
 - 在日志、配置、订阅或外部内容中使用 HTML 注入式渲染。
 - 绕过 CSRF、鉴权、secret scan 或 release gate。
 - 把真实订阅 URL、subId、UUID、代理账号密码、cookie、token、私钥、面板路径或数据库内容写入仓库文件或交接记录。
+
+## `.codex` 配置变更要求
+
+修改 `.codex` 时必须同步检查 `.codex/context/codex-config-map.md`、`.codex/workflows/config-validation-and-efficiency.md` 和 `.codex/configuration-update.md`。完成前运行：
+
+```powershell
+python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py
+python .codex/skills/superxray-project-context/scripts/validate_codex_config.py
+```
+
+代理输出需记录效率指标：首次路由是否准确、读取上下文数量、执行验证数量、交接阻塞点是否清晰。

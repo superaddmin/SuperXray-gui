@@ -80,3 +80,14 @@ triage -> owner -> review -> final_gate -> done
 6. 代理假设。
 
 如果任务越界，输出当前阶段可做的最小替代方案。
+
+## 配置治理闭环
+
+`.codex/**` 变更执行闭环：
+
+1. `superxray-ui-program-manager` 判断变更是否属于治理、路由、agent、skill、context 或 workflow。
+2. 读取 `.codex/context/codex-config-map.md` 与 `.codex/workflows/config-validation-and-efficiency.md`。
+3. 若新增上下文或规则，更新 `.codex/configuration-update.md` 与相关 context map。
+4. 若修改 agent，确认 4 个契约字段仍完整。
+5. 运行 `validate_codex_config.py`、验证单测、相关 `quick_validate.py`、secret scan。
+6. 交付说明记录效率指标、未运行命令原因、风险与回滚。

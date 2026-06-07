@@ -4,7 +4,7 @@
 
 ## 当前项目画像
 
-- 后端：Go 1.26.3、Gin、GORM、SQLite、robfig/cron、gorilla/websocket、go-i18n、Xray-core gRPC/API。
+- 后端：Go 1.26.4、Gin、GORM、SQLite、robfig/cron、gorilla/websocket、go-i18n、Xray-core gRPC/API。
 - 前端：Vue 3.5、Vite 8、TypeScript 6、Pinia、Ant Design Vue 4、Axios、Vue Router。
 - 旧 UI：`web/html` 与 `web/assets` 仍是 `/panel/legacy/` 回退边界。
 - 新 UI：`frontend/src` 构建到 `web/ui`，由 Go embed 托管，默认入口为 `/panel/`。
@@ -23,12 +23,16 @@
 ├── agents/
 ├── context/
 │   ├── project-map.md
+│   ├── dependency-map.md
+│   ├── business-flow-map.md
+│   ├── codex-config-map.md
 │   └── handoff-template.md
 ├── prompts/
 │   └── shared-system-prompt.md
 ├── workflows/
 │   ├── multi-agent-workflow.md
-│   └── verification-matrix.md
+│   ├── verification-matrix.md
+│   └── config-validation-and-efficiency.md
 └── skills/
     ├── superxray-project-context/
     ├── superxray-ui-first-migration/
@@ -44,6 +48,16 @@
 5. 按 `.codex/routing.toml` 找优先级最高的主责代理。
 6. 主责代理执行前读取对应 `required_context`，交接时使用 `.codex/context/handoff-template.md`。
 7. 完成前按 `.codex/workflows/verification-matrix.md` 选择最小相关验证命令。
+
+## 配置验证入口
+
+- 方案说明：`.codex/configuration-update.md`。
+- 依赖索引：`.codex/context/dependency-map.md`。
+- 业务流程索引：`.codex/context/business-flow-map.md`。
+- Codex 配置索引：`.codex/context/codex-config-map.md`。
+- 配置验证脚本：`python .codex/skills/superxray-project-context/scripts/validate_codex_config.py`。
+- 配置验证单测：`python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py`。
+- 效率指标与迭代规则：`.codex/workflows/config-validation-and-efficiency.md`。
 
 ## 配置边界
 

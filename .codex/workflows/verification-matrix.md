@@ -18,7 +18,7 @@
 | Docker/CI/脚本 | release gate metadata check | Docker build、CI dry-run、shellcheck 如可用 |
 | 发布 | `release_gate.py --install-tools` | Go 全量、frontend 全量、E2E、CodeQL/CI |
 | 文档/i18n | `python scripts/secret_scan.py`、文档链接和 key 对齐检查 | frontend i18n tests、release metadata check |
-| Codex 治理配置 | skill validate、secret scan、governance/routing 手工一致性检查 | release metadata check、相关 agent workflow 演练 |
+| Codex 治理配置 | `python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py`, `python .codex/skills/superxray-project-context/scripts/validate_codex_config.py`, skill validate | `python scripts/secret_scan.py`, release metadata check、相关 agent workflow 演练 |
 
 ## 常用搜索
 
@@ -52,3 +52,13 @@ $env:SUPERXRAY_E2E_SUB_URL = "<redacted-subscription-url>"
 - 通过/失败结果。
 - 未运行原因。
 - 失败时的首个错误和下一步动作。
+
+## Codex 配置验证
+
+```powershell
+python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py
+python .codex/skills/superxray-project-context/scripts/validate_codex_config.py
+python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-project-context
+python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-ui-first-migration
+python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-release-cicd
+```

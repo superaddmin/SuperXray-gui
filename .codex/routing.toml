@@ -7,6 +7,7 @@ name = "codex-governance"
 globs = [
   ".codex/*.toml",
   ".codex/README.md",
+  ".codex/configuration-update.md",
   ".codex/agents/**",
   ".codex/context/**",
   ".codex/prompts/**",
@@ -18,6 +19,8 @@ primary = "superxray-ui-program-manager"
 reviewers = ["superxray-security-gate", "superxray-test-strategist", "superxray-release-gate"]
 manual_checks = ["instruction precedence review", "agent boundary review", "encoding check"]
 verification = [
+  "python .codex/skills/superxray-project-context/scripts/validate_codex_config.py",
+  "python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py",
   "python scripts/secret_scan.py",
   "python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only",
 ]
@@ -30,6 +33,8 @@ primary = "superxray-ui-program-manager"
 reviewers = ["superxray-test-strategist", "superxray-release-gate"]
 manual_checks = ["skill trigger review", "progressive disclosure review", "openai.yaml consistency"]
 verification = [
+  "python .codex/skills/superxray-project-context/scripts/validate_codex_config.py",
+  "python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py",
   "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-project-context",
   "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-ui-first-migration",
   "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-release-cicd",

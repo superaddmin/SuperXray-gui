@@ -37,6 +37,32 @@ verification_commands = [
   "python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only",
 ]
 
+knowledge_inputs = [
+  ".codex/context/codex-config-map.md",
+  ".codex/context/business-flow-map.md",
+  ".codex/context/dependency-map.md",
+  ".codex/workflows/config-validation-and-efficiency.md",
+]
+
+handoff_outputs = [
+  ".codex/context/handoff-template.md",
+  ".codex/context/project-map.md",
+]
+
+collaboration_rules = [
+  "先按 .codex/routing.toml 确认路径归属和主责边界。",
+  "跨职责变更必须用 .codex/context/handoff-template.md 传递目标、路径、事实、验证和风险。",
+  "只读取 knowledge_inputs 与 required_context 中和当前任务直接相关的文件。",
+  "输出结论必须包含已运行验证、未运行原因、风险和回滚。",
+]
+
+efficiency_metrics = [
+  "first_route_accuracy",
+  "context_files_read_count",
+  "verification_commands_executed",
+  "handoff_blocker_clarity",
+]
+
 developer_instructions = """
 你是 SuperXray-gui 的 UI-first 迁移与项目治理总协调代理。
 
