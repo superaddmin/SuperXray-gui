@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1346,8 +1347,13 @@ func normalizedFinalMaskTCPMasks(value any) []any {
 			continue
 		}
 
+		settings, hasSettings := mask["settings"].(map[string]any)
+		if maskType == "fragment" && !validFinalMaskFragmentLength(settings) {
+			continue
+		}
+
 		normalizedMask := map[string]any{"type": maskType}
-		if settings, ok := mask["settings"].(map[string]any); ok && len(settings) > 0 {
+		if hasSettings && len(settings) > 0 {
 			normalizedMask["settings"] = settings
 		}
 		normalized = append(normalized, normalizedMask)
@@ -1357,6 +1363,24 @@ func normalizedFinalMaskTCPMasks(value any) []any {
 		return nil
 	}
 	return normalized
+}
+
+func validFinalMaskFragmentLength(settings map[string]any) bool {
+	if settings == nil {
+		return false
+	}
+	raw, _ := settings["length"].(string)
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return false
+	}
+	minPart, _, _ := strings.Cut(raw, "-")
+	minPart = strings.TrimSpace(minPart)
+	if minPart == "" {
+		return false
+	}
+	min, err := strconv.Atoi(minPart)
+	return err == nil && min > 0
 }
 
 func normalizedFinalMaskUDPMasks(value any) []any {

@@ -281,6 +281,15 @@ test('protocol settings include edited client email in save payload', () => {
     }
 });
 
+test('new TCP finalmask fragment defaults to a non-zero length range', () => {
+    const { Inbound } = loadInboundModel();
+
+    const inbound = new Inbound();
+    inbound.stream.addTcpMask('fragment');
+
+    assert.equal(inbound.stream.finalmask.tcp[0].settings.length, '100-200');
+});
+
 test('WireGuard peers preserve subscription metadata', () => {
     const { Inbound } = loadInboundModel();
 

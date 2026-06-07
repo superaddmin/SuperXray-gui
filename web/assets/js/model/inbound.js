@@ -1148,7 +1148,7 @@ class TcpMask extends XrayCommonClass {
             case 'fragment':
                 return {
                     packets: settings.packets ?? 'tlshello',
-                    length: settings.length ?? '',
+                    length: settings.length ?? '100-200',
                     delay: settings.delay ?? '',
                     maxSplit: settings.maxSplit ?? '',
                 };
