@@ -73,6 +73,82 @@ func (s *InboundService) GetInbounds(userId int) ([]*model.Inbound, error) {
 	return inbounds, nil
 }
 
+type InboundOption struct {
+	Id             int    `json:"id" example:"1"`
+	Remark         string `json:"remark" example:"VLESS-443"`
+	Tag            string `json:"tag" example:"in-443-tcp"`
+	Protocol       string `json:"protocol" example:"vless"`
+	Port           int    `json:"port" example:"443"`
+	TlsFlowCapable bool   `json:"tlsFlowCapable" example:"true"`
+	SsMethod       string `json:"ssMethod"`
+}
+
+func (s *InboundService) GetInboundOptions(userId int) ([]InboundOption, error) {
+	db := database.GetDB()
+	var rows []struct {
+		Id             int    `gorm:"column:id"`
+		Remark         string `gorm:"column:remark"`
+		Tag            string `gorm:"column:tag"`
+		Protocol       string `gorm:"column:protocol"`
+		Port           int    `gorm:"column:port"`
+		StreamSettings string `gorm:"column:stream_settings"`
+		Settings       string `gorm:"column:settings"`
+	}
+	err := db.Table("inbounds").
+		Select("id, remark, tag, protocol, port, stream_settings, settings").
+		Where("user_id = ?", userId).
+		Order("id ASC").
+		Scan(&rows).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	out := make([]InboundOption, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, InboundOption{
+			Id:             r.Id,
+			Remark:         r.Remark,
+			Tag:            r.Tag,
+			Protocol:       r.Protocol,
+			Port:           r.Port,
+			TlsFlowCapable: inboundCanEnableTlsFlow(r.Protocol, r.StreamSettings),
+			SsMethod:       inboundShadowsocksMethod(r.Protocol, r.Settings),
+		})
+	}
+	return out, nil
+}
+
+// inboundShadowsocksMethod extracts settings.method for Shadowsocks inbounds so
+// clients can generate a valid Shadowsocks 2022 PSK from the method key length.
+// Returns "" for non-Shadowsocks inbounds.
+func inboundShadowsocksMethod(protocol, settings string) string {
+	if protocol != string(model.Shadowsocks) || settings == "" {
+		return ""
+	}
+	var s struct {
+		Method string `json:"method"`
+	}
+	if err := json.Unmarshal([]byte(settings), &s); err != nil {
+		return ""
+	}
+	return s.Method
+}
+
+// inboundCanEnableTlsFlow mirrors the frontend flow gate: XTLS Vision is only
+// valid for VLESS over TCP with TLS or Reality.
+func inboundCanEnableTlsFlow(protocol, streamSettings string) bool {
+	if protocol != string(model.VLESS) || streamSettings == "" {
+		return false
+	}
+	var stream struct {
+		Network  string `json:"network"`
+		Security string `json:"security"`
+	}
+	if err := json.Unmarshal([]byte(streamSettings), &stream); err != nil {
+		return false
+	}
+	return stream.Network == "tcp" && (stream.Security == "tls" || stream.Security == "reality")
+}
+
 // GetAllInbounds retrieves all inbounds from the database.
 // Returns a slice of all inbound models with their associated client statistics.
 func (s *InboundService) GetAllInbounds() ([]*model.Inbound, error) {

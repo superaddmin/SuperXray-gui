@@ -1,0 +1,1 @@
+import{d as e,h as t}from"./index-CP77BdSL.js";function n(n){return t(e.settings.all,{},n)}function r(n){return t(e.settings.defaultSettings,{},n)}function i(n,r){return t(e.settings.update,s(n),r)}function a(n,r){return t(e.settings.updateUser,{...n},r)}function o(n){return t(e.settings.restartPanel,{},n)}function s(e){return{...e}}export{a,i,r as n,o as r,n as t};

@@ -13,10 +13,12 @@ import (
 // APIController handles the main API routes for the SuperXray panel, including inbounds and server management.
 type APIController struct {
 	BaseController
-	inboundController *InboundController
-	serverController  *ServerController
-	coreController    *CoreController
-	Tgbot             service.Tgbot
+	inboundController     *InboundController
+	serverController      *ServerController
+	coreController        *CoreController
+	settingController     *SettingController
+	xraySettingController *XraySettingController
+	Tgbot                 service.Tgbot
 }
 
 // NewAPIController creates a new APIController instance and initializes its routes.
@@ -27,7 +29,7 @@ func NewAPIController(g *gin.RouterGroup, customGeo *service.CustomGeoService) *
 }
 
 // checkAPIAuth is a middleware that returns 404 for unauthenticated API requests
-// to hide the existence of API endpoints from unauthorized users
+// to hide the existence of API endpoints from unauthorized users.
 func (a *APIController) checkAPIAuth(c *gin.Context) {
 	if !session.IsLogin(c) {
 		c.AbortWithStatus(http.StatusNotFound)
@@ -56,6 +58,11 @@ func (a *APIController) initRouter(g *gin.RouterGroup, customGeo *service.Custom
 	a.coreController = NewCoreController(cores)
 
 	NewCustomGeoController(api.Group("/custom-geo"), customGeo)
+
+	// Settings + Xray config management live under the API surface too.
+	// Paths are /panel/api/setting/* and /panel/api/xray/*.
+	a.settingController = NewSettingController(api)
+	a.xraySettingController = NewXraySettingController(api)
 
 	// Extra routes
 	api.POST("/backuptotgbot", a.BackuptoTgbot)

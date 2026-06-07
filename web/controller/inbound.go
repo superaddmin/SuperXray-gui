@@ -31,6 +31,7 @@ func NewInboundController(g *gin.RouterGroup) *InboundController {
 func (a *InboundController) initRouter(g *gin.RouterGroup) {
 
 	g.GET("/list", a.getInbounds)
+	g.GET("/options", a.getInboundOptions)
 	g.GET("/get/:id", a.getInbound)
 	g.GET("/getClientTraffics/:email", a.getClientTraffics)
 	g.GET("/getClientTrafficsById/:id", a.getClientTrafficsById)
@@ -70,6 +71,17 @@ func (a *InboundController) getInbounds(c *gin.Context) {
 		return
 	}
 	jsonObj(c, inbounds, nil)
+}
+
+// getInboundOptions returns a lightweight projection of the user's inbounds for selectors/API clients.
+func (a *InboundController) getInboundOptions(c *gin.Context) {
+	user := session.GetLoginUser(c)
+	options, err := a.inboundService.GetInboundOptions(user.Id)
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "pages.inbounds.toasts.obtain"), err)
+		return
+	}
+	jsonObj(c, options, nil)
 }
 
 // getInbound retrieves a specific inbound by its ID.

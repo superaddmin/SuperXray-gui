@@ -3,6 +3,8 @@ package controller
 import (
 	"net/http"
 
+	"github.com/superaddmin/SuperXray-gui/v2/web/session"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -29,6 +31,11 @@ func (a *XUIController) initRouter(g *gin.RouterGroup) {
 	a.settingController = NewSettingController(panel)
 	a.xraySettingController = NewXraySettingController(panel)
 
+	// SPA pages can fetch the current session CSRF token when they do not have a
+	// server-rendered token available. New Vue UI normally receives it through
+	// runtime config; this endpoint keeps parity with upstream SPA behavior.
+	panel.GET("/csrf-token", a.csrfToken)
+
 	// Phase 10 keeps the old HTML UI as an explicit rollback and compatibility boundary.
 	g.GET("/panel/legacy", a.checkLogin, func(c *gin.Context) {
 		c.Redirect(http.StatusTemporaryRedirect, c.GetString("base_path")+"panel/legacy/")
@@ -41,6 +48,11 @@ func (a *XUIController) initRouter(g *gin.RouterGroup) {
 	legacy.GET("/inbounds", a.inbounds)
 	legacy.GET("/settings", a.settings)
 	legacy.GET("/xray", a.xraySettings)
+}
+
+// csrfToken returns the session CSRF token to authenticated SPA clients.
+func (a *XUIController) csrfToken(c *gin.Context) {
+	jsonObj(c, session.EnsureCSRFToken(c), nil)
 }
 
 // index renders the main panel index page.
