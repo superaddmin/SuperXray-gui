@@ -110,6 +110,42 @@ var defaultValueMap = map[string]string{
 	"ldapDefaultLimitIP":    "0",
 }
 
+var emptyValueFallbackKeys = map[string]struct{}{
+	"secret":           {},
+	"webPort":          {},
+	"sessionMaxAge":    {},
+	"pageSize":         {},
+	"expireDiff":       {},
+	"trafficDiff":      {},
+	"remarkModel":      {},
+	"timeLocation":     {},
+	"tgRunTime":        {},
+	"tgCpu":            {},
+	"tgLang":           {},
+	"subPort":          {},
+	"subUpdates":       {},
+	"datepicker":       {},
+	"ldapPort":         {},
+	"ldapUserFilter":   {},
+	"ldapUserAttr":     {},
+	"ldapSyncCron":     {},
+	"ldapTruthyValues": {},
+}
+
+func defaultForEmptySetting(key string, value string) (string, bool) {
+	if strings.TrimSpace(value) != "" {
+		return "", false
+	}
+	if _, ok := emptyValueFallbackKeys[key]; !ok {
+		return "", false
+	}
+	defaultValue, ok := defaultValueMap[key]
+	if !ok || defaultValue == "" {
+		return "", false
+	}
+	return defaultValue, true
+}
+
 // SettingService provides business logic for application settings management.
 // It handles configuration storage, retrieval, and validation for all system settings.
 type SettingService struct{}
@@ -178,7 +214,11 @@ func (s *SettingService) GetAllSetting() (*entity.AllSetting, error) {
 
 	keyMap := map[string]bool{}
 	for _, setting := range settings {
-		err := setSetting(setting.Key, setting.Value)
+		value := setting.Value
+		if fallback, ok := defaultForEmptySetting(setting.Key, setting.Value); ok {
+			value = fallback
+		}
+		err := setSetting(setting.Key, value)
 		if err != nil {
 			return nil, err
 		}
@@ -246,6 +286,9 @@ func (s *SettingService) getString(key string) (string, error) {
 		return value, nil
 	} else if err != nil {
 		return "", err
+	}
+	if value, ok := defaultForEmptySetting(key, setting.Value); ok {
+		return value, nil
 	}
 	return setting.Value, nil
 }

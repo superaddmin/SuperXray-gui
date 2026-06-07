@@ -74,7 +74,7 @@ func NewSUBController(
 
 		subService:      sub,
 		subJsonService:  NewSubJsonService(jsonFragment, jsonNoise, jsonMux, jsonRules, sub),
-		subClashService: NewSubClashService(sub),
+		subClashService: NewSubClashService(sub).WithRoutingSettings(subEnableRouting, subRoutingRules),
 	}
 	a.initRouter(g)
 	return a

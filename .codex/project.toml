@@ -33,7 +33,7 @@ gateway_egress_scope = [
 
 [stack.backend]
 language = "Go"
-version = "1.26.3"
+version = "1.26.4"
 frameworks = ["Gin 1.12", "GORM 1.31", "SQLite", "robfig/cron v3", "gorilla/websocket", "go-i18n v2"]
 runtime_integrations = ["Xray-core gRPC/API types", "Telegram Bot via telego", "LDAP", "TOTP", "WARP", "NordVPN", "Custom Geo", "external sing-box experimental adapter"]
 entrypoints = ["main.go", "web/web.go", "sub/sub.go"]

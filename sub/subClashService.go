@@ -15,6 +15,8 @@ import (
 type SubClashService struct {
 	inboundService service.InboundService
 	SubService     *SubService
+	routingEnabled bool
+	routingRules   string
 }
 
 type ClashConfig struct {
@@ -25,6 +27,16 @@ type ClashConfig struct {
 
 func NewSubClashService(subService *SubService) *SubClashService {
 	return &SubClashService{SubService: subService}
+}
+
+func (s *SubClashService) WithRoutingRules(rules string) *SubClashService {
+	return s.WithRoutingSettings(true, rules)
+}
+
+func (s *SubClashService) WithRoutingSettings(enabled bool, rules string) *SubClashService {
+	s.routingEnabled = enabled
+	s.routingRules = rules
+	return s
 }
 
 func (s *SubClashService) GetClash(subId string, host string) (string, string, error) {
@@ -124,7 +136,7 @@ func (s *SubClashService) GetClash(subId string, host string) (string, string, e
 			"type":    "select",
 			"proxies": proxyNames,
 		}},
-		Rules: []string{"MATCH,PROXY"},
+		Rules: s.buildClashRules(),
 	}
 
 	finalYAML, err := yaml.Marshal(config)
@@ -134,6 +146,28 @@ func (s *SubClashService) GetClash(subId string, host string) (string, string, e
 
 	header := fmt.Sprintf("upload=%d; download=%d; total=%d; expire=%d", traffic.Up, traffic.Down, traffic.Total, traffic.ExpiryTime/1000)
 	return string(finalYAML), header, nil
+}
+
+func (s *SubClashService) buildClashRules() []string {
+	if !s.routingEnabled {
+		return []string{"MATCH,PROXY"}
+	}
+	rules := make([]string, 0)
+	hasMatchProxy := false
+	for _, line := range strings.Split(s.routingRules, "\n") {
+		rule := strings.TrimSpace(line)
+		if rule == "" || strings.HasPrefix(rule, "#") || !strings.Contains(rule, ",") {
+			continue
+		}
+		if rule == "MATCH,PROXY" {
+			hasMatchProxy = true
+		}
+		rules = append(rules, rule)
+	}
+	if !hasMatchProxy {
+		rules = append(rules, "MATCH,PROXY")
+	}
+	return rules
 }
 
 func (s *SubClashService) getProxies(inbound *model.Inbound, client model.Client, host string) []map[string]any {

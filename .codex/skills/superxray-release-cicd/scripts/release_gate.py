@@ -62,11 +62,12 @@ class Gate:
 
     def run(self) -> int:
         if self.args.metadata_only:
-            checks = [self.check_release_metadata]
+            checks = [self.check_release_metadata, self.check_project_go_version_metadata]
         else:
             checks = [
                 self.check_clean_worktree,
                 self.check_release_metadata,
+                self.check_project_go_version_metadata,
                 self.check_repository_secret_scan,
                 self.check_workflows,
                 self.check_actionlint,
@@ -203,6 +204,32 @@ class Gate:
             if tag.removeprefix("v") != version:
                 raise RuntimeError(f"tag {tag} does not match config/version {version}")
 
+    def check_project_go_version_metadata(self) -> None:
+        go_mod = self.root / "go.mod"
+        project_toml = self.root / ".codex" / "project.toml"
+        if not go_mod.exists():
+            raise RuntimeError("go.mod is missing")
+        if not project_toml.exists():
+            raise RuntimeError(".codex/project.toml is missing")
+
+        go_mod_text = go_mod.read_text(encoding="utf-8")
+        match = re.search(r"(?m)^go\s+([0-9]+(?:\.[0-9]+){1,2})\s*$", go_mod_text)
+        if not match:
+            raise RuntimeError("go.mod missing go directive")
+        go_mod_version = match.group(1)
+
+        project = tomllib.loads(project_toml.read_text(encoding="utf-8"))
+        project_version = (
+            project.get("stack", {})
+            .get("backend", {})
+            .get("version")
+        )
+        if project_version != go_mod_version:
+            raise RuntimeError(
+                f"Go version drift: go.mod uses {go_mod_version}, "
+                f".codex/project.toml stack.backend.version uses {project_version!r}"
+            )
+
     def check_workflows(self) -> None:
         release = self._read(".github/workflows/release.yml")
         docker = self._read(".github/workflows/docker.yml")
@@ -215,6 +242,7 @@ class Gate:
             '$0 ~ "^## \\\\[" version "\\\\]([[:space:]]|$)"',
             "id: release_notes",
             "body: ${{ steps.release_notes.outputs.body }}",
+            ".codex/**",
             ".github/agentic-workflows/**",
             "release_gate.py --ci --metadata-only",
             "actions/setup-go",

@@ -130,6 +130,55 @@ func TestSubClashVlessEncryptionNoneDoesNotEmitPacketEncoding(t *testing.T) {
 	}
 }
 
+func TestSubClashBuildRulesUsesConfiguredRoutingRules(t *testing.T) {
+	service := NewSubClashService(&SubService{}).WithRoutingRules(`
+# comments and empty lines are ignored
+DOMAIN-SUFFIX,example.com,DIRECT
+IP-CIDR,10.0.0.0/8,DIRECT
+invalid-without-comma
+`)
+
+	rules := service.buildClashRules()
+
+	want := []string{
+		"DOMAIN-SUFFIX,example.com,DIRECT",
+		"IP-CIDR,10.0.0.0/8,DIRECT",
+		"MATCH,PROXY",
+	}
+	if strings.Join(rules, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("rules = %#v, want %#v", rules, want)
+	}
+}
+
+func TestSubClashBuildRulesIgnoresConfiguredRoutingRulesWhenDisabled(t *testing.T) {
+	service := NewSubClashService(&SubService{}).WithRoutingSettings(false, `
+DOMAIN-SUFFIX,example.com,DIRECT
+IP-CIDR,10.0.0.0/8,DIRECT
+`)
+
+	rules := service.buildClashRules()
+
+	want := []string{"MATCH,PROXY"}
+	if strings.Join(rules, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("rules = %#v, want %#v", rules, want)
+	}
+}
+
+func TestSubClashBuildRulesAlwaysKeepsMatchProxyFallback(t *testing.T) {
+	service := NewSubClashService(&SubService{}).WithRoutingRules("MATCH,DIRECT\r\nmatch,proxy")
+
+	rules := service.buildClashRules()
+
+	want := []string{
+		"MATCH,DIRECT",
+		"match,proxy",
+		"MATCH,PROXY",
+	}
+	if strings.Join(rules, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("rules = %#v, want %#v", rules, want)
+	}
+}
+
 func TestSubClashVlessRealityEmitsClientFingerprint(t *testing.T) {
 	client := matrixClient("matrix-vless-reality@example")
 	client.Flow = "xtls-rprx-vision"

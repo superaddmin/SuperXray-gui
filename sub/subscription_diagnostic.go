@@ -8,14 +8,16 @@ import (
 
 // SubscriptionDiagnostic 表示订阅诊断接口返回的节点生成统计和可读提示。
 type SubscriptionDiagnostic struct {
-	SubID         string                       `json:"subId"`
-	Target        string                       `json:"target"`
-	Format        string                       `json:"format"`
-	TotalInbounds int                          `json:"totalInbounds"`
-	OutputNodes   int                          `json:"outputNodes"`
-	SkippedNodes  int                          `json:"skippedNodes"`
-	Warnings      []string                     `json:"warnings"`
-	SkipReasons   []SubscriptionDiagnosticSkip `json:"skipReasons"`
+	SubID              string                       `json:"subId"`
+	Target             string                       `json:"target"`
+	Format             string                       `json:"format"`
+	SupportedFormats   []string                     `json:"supportedFormats"`
+	SupportedProtocols []string                     `json:"supportedProtocols"`
+	TotalInbounds      int                          `json:"totalInbounds"`
+	OutputNodes        int                          `json:"outputNodes"`
+	SkippedNodes       int                          `json:"skippedNodes"`
+	Warnings           []string                     `json:"warnings"`
+	SkipReasons        []SubscriptionDiagnosticSkip `json:"skipReasons"`
 }
 
 // SubscriptionDiagnosticSkip 表示单个入站在订阅诊断中被跳过的协议和原因。
@@ -28,9 +30,11 @@ type SubscriptionDiagnosticSkip struct {
 // diagnoseSubscriptionInbounds 根据订阅格式统计入站可输出节点数、跳过数量和可读原因。
 func diagnoseSubscriptionInbounds(inbounds []*model.Inbound, subId string, format subscriptionFormat) SubscriptionDiagnostic {
 	diagnostic := SubscriptionDiagnostic{
-		SubID:         subId,
-		Format:        string(format),
-		TotalInbounds: len(inbounds),
+		SubID:              subId,
+		Format:             string(format),
+		SupportedFormats:   supportedSubscriptionFormats(),
+		SupportedProtocols: supportedSubscriptionProtocols(),
+		TotalInbounds:      len(inbounds),
 	}
 	if len(inbounds) == 0 {
 		diagnostic.Warnings = append(diagnostic.Warnings, fmt.Sprintf("No enabled subscription inbounds found for subId %q", subId))
@@ -105,6 +109,29 @@ func diagnoseSubscriptionInbounds(inbounds []*model.Inbound, subId string, forma
 		diagnostic.Warnings = append(diagnostic.Warnings, fmt.Sprintf("%d inbound(s) were skipped during subscription generation", diagnostic.SkippedNodes))
 	}
 	return diagnostic
+}
+
+func supportedSubscriptionFormats() []string {
+	return []string{
+		string(subscriptionFormatURI),
+		string(subscriptionFormatJSON),
+		string(subscriptionFormatClash),
+		string(subscriptionFormatWireGuard),
+	}
+}
+
+func supportedSubscriptionProtocols() []string {
+	protocols := make([]string, 0, len(subscriptionClientProtocols())+len(subscriptionPeerProtocols()))
+	seen := make(map[string]bool)
+	for _, protocol := range append(subscriptionClientProtocols(), subscriptionPeerProtocols()...) {
+		value := string(protocol)
+		if seen[value] {
+			continue
+		}
+		seen[value] = true
+		protocols = append(protocols, value)
+	}
+	return protocols
 }
 
 func slicesContainsProtocol(protocols []model.Protocol, protocol model.Protocol) bool {

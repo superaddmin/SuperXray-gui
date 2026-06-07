@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -48,6 +49,20 @@ func TestDiagnoseSubscriptionInboundsReportsEmptySubscription(t *testing.T) {
 	}
 	if len(diagnostic.Warnings) != 1 {
 		t.Fatalf("empty diagnostic warnings = %#v, want one readable warning", diagnostic.Warnings)
+	}
+}
+
+func TestDiagnoseSubscriptionInboundsReportsSupportedFormatsAndProtocols(t *testing.T) {
+	diagnostic := diagnoseSubscriptionInbounds(nil, "matrix-sub", subscriptionFormatClash)
+
+	wantFormats := []string{"uri", "json", "clash", "wireguard"}
+	if strings.Join(diagnostic.SupportedFormats, ",") != strings.Join(wantFormats, ",") {
+		t.Fatalf("supported formats = %#v, want %#v", diagnostic.SupportedFormats, wantFormats)
+	}
+
+	wantProtocols := []string{"vmess", "vless", "trojan", "shadowsocks", "hysteria", "hysteria2", "wireguard"}
+	if strings.Join(diagnostic.SupportedProtocols, ",") != strings.Join(wantProtocols, ",") {
+		t.Fatalf("supported protocols = %#v, want %#v", diagnostic.SupportedProtocols, wantProtocols)
 	}
 }
 

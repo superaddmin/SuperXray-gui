@@ -33,6 +33,10 @@ class ReleaseMetadataTests(unittest.TestCase):
         args = argparse.Namespace(tag=tag, install_tools=False, allow_dirty=True, ci=False)
         return release_gate.Gate(root, args)
 
+    def make_metadata_gate(self, root: pathlib.Path, tag: str = "v3.0.8"):
+        args = argparse.Namespace(tag=tag, install_tools=False, allow_dirty=True, ci=True, metadata_only=True)
+        return release_gate.Gate(root, args)
+
     def base_files(self) -> dict[str, str]:
         return {
             "CHANGELOG.md": (
@@ -44,6 +48,63 @@ class ReleaseMetadataTests(unittest.TestCase):
             "config/version": "3.0.8\n",
             "README.md": "Install v3.0.8.\n",
         }
+
+    def workflow_files(self, release_workflow: str) -> dict[str, str]:
+        files = self.base_files()
+        files.update(
+            {
+                ".github/workflows/release.yml": release_workflow,
+                ".github/workflows/docker.yml": (
+                    "platforms: linux/amd64,linux/arm64\n"
+                    "image: ghcr.io/superaddmin/superxray-gui\n"
+                ),
+                ".github/workflows/test-arm64.yml": (
+                    "platform linux/arm64\n"
+                    "gcc-aarch64-linux-gnu\n"
+                ),
+                ".github/workflows/codeql.yml": "github/codeql-action/analyze\n",
+                ".github/agentic-workflows/release.md": (
+                    "GitHub Agentic Workflow: Release\n"
+                    "release_gate.py\n"
+                    "vX.Y.Z\n"
+                    "x-ui-linux-amd64.tar.gz\n"
+                    "x-ui-linux-arm64.tar.gz\n"
+                    "ghcr.io/superaddmin/superxray-gui\n"
+                    "--force-with-lease\n"
+                ),
+                ".github/copilot-instructions.md": ".github/agentic-workflows/release.md\n",
+                "Dockerfile": 'RUN chmod +x DockerInit.sh && ./DockerInit.sh "$TARGETARCH"\n',
+            }
+        )
+        return files
+
+    def valid_release_workflow(self) -> str:
+        return "\n".join(
+            [
+                "on:",
+                "  push:",
+                "    tags:",
+                '      - "v*.*.*"',
+                "    paths:",
+                '      - ".codex/**"',
+                '      - ".github/agentic-workflows/**"',
+                "jobs:",
+                "  analyze:",
+                "    steps:",
+                "      - name: Validate release metadata",
+                "        run: python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only",
+                "      - uses: actions/setup-go@v6",
+                "      - run: sudo apt-get install -y gcc-aarch64-linux-gnu",
+                "      - run: GOARCH=\"$goarch\" go build",
+                "      - run: echo x-ui-linux-${{ matrix.platform }}.tar.gz",
+                "      - run: echo '- amd64'",
+                "      - run: echo '- arm64'",
+                "      - run: echo 'Generate release notes'",
+                "      - run: echo '$0 ~ \"^## \\\\[\" version \"\\\\]([[:space:]]|$)\"'",
+                "      - run: echo 'id: release_notes'",
+                "      - run: echo 'body: ${{ steps.release_notes.outputs.body }}'",
+            ]
+        )
 
     def test_release_metadata_ignores_historical_superpowers_reports(self) -> None:
         files = self.base_files()
@@ -76,6 +137,46 @@ class ReleaseMetadataTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("release_gate.py --ci --metadata-only", release_workflow)
+
+    def test_release_workflow_includes_codex_paths_for_metadata_changes(self) -> None:
+        release_workflow = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('".codex/**"', release_workflow)
+
+    def test_release_workflow_rejects_missing_codex_path_filter(self) -> None:
+        release_workflow = self.valid_release_workflow().replace('      - ".codex/**"\n', "")
+
+        with self.assertRaisesRegex(RuntimeError, r"\.codex/\*\*"):
+            self.make_gate(self.make_repo(self.workflow_files(release_workflow))).check_workflows()
+
+    def test_project_go_version_metadata_rejects_drift(self) -> None:
+        files = self.base_files()
+        files["go.mod"] = "module example.test/superxray\n\ngo 1.26.4\n"
+        files[".codex/project.toml"] = '[stack.backend]\nversion = "1.26.3"\n'
+
+        with self.assertRaisesRegex(RuntimeError, "Go version drift"):
+            self.make_gate(self.make_repo(files)).check_project_go_version_metadata()
+
+    def test_metadata_only_run_rejects_project_go_version_drift(self) -> None:
+        files = self.base_files()
+        files["go.mod"] = "module example.test/superxray\n\ngo 1.26.4\n"
+        files[".codex/project.toml"] = '[stack.backend]\nversion = "1.26.3"\n'
+
+        gate = self.make_metadata_gate(self.make_repo(files))
+
+        self.assertEqual(gate.run(), 1)
+        self.assertTrue(
+            any("project_go_version_metadata" in failure for failure in gate.failures),
+            gate.failures,
+        )
+
+    def test_project_go_version_metadata_accepts_matching_versions(self) -> None:
+        files = self.base_files()
+        files["go.mod"] = "module example.test/superxray\n\ngo 1.26.4\n"
+        files[".codex/project.toml"] = '[stack.backend]\nversion = "1.26.4"\n'
+
+        self.make_gate(self.make_repo(files)).check_project_go_version_metadata()
 
 
 if __name__ == "__main__":
