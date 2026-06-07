@@ -66,7 +66,7 @@ flowchart TB
 `main.go` 启动两个 HTTP 服务：
 
 | 服务 | 默认端口 | 是否独立 Gin Engine | 职责 |
-|---|---:|---|---|
+|:---|:------:|:------------------|:---|
 | `web.Server` | `2053` | 是 | 面板页面、API、WebSocket、静态资源、后台任务、TG Bot |
 | `sub.Server` | `2096` | 是 | URI/Base64、JSON、Clash/Mihomo 订阅输出和诊断 |
 

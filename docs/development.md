@@ -149,11 +149,14 @@ SuperXray-gui/
 │   ├── package.json
 │   ├── src/
 │   │   ├── api/                    # API SDK、request、WebSocket
+│   │   ├── assets/                 # 静态资源（logo、字体等）
 │   │   ├── components/
+│   │   ├── i18n/                   # DOM 翻译器与国际化消息
 │   │   ├── layouts/
 │   │   ├── router/
 │   │   ├── schemas/                # 协议注册表
 │   │   ├── stores/                 # Pinia stores
+│   │   ├── styles/                 # 全局样式
 │   │   ├── types/
 │   │   ├── utils/                  # Xray/Inbound 兼容工具
 │   │   └── views/
@@ -163,13 +166,25 @@ SuperXray-gui/
 ├── util/                           # crypto/ldap/path/sys/common 等工具
 ├── web/                            # Web 面板主体
 │   ├── controller/                 # Index/API/Inbounds/Server/Xray/Settings/Core/Geo
-│   ├── service/                    # 业务服务
+│   ├── service/                    # 业务服务（inbound/xray/server/setting/core/tgbot/nord/warp/custom_geo）
 │   ├── middleware/                 # 安全头、CSRF、域名校验、重定向
 │   ├── websocket/                  # Hub 与 notifier
-│   ├── html/                       # legacy Go templates
-│   ├── assets/                     # legacy 静态资源与 JS 测试
+│   ├── html/                       # Legacy Go templates
+│   ├── assets/                     # Legacy 静态资源与 JS 测试
 │   ├── ui/                         # 新 UI build 输出
-│   ├── translation/                # go-i18n TOML
+│   ├── translation/                # go-i18n TOML 翻译文件
+│   ├── locale/                     # 国际化中间件
+│   ├── session/                    # Cookie Session 管理
+│   ├── job/                        # Cron 后台任务
+│   ├── network/                    # 自动 HTTPS 监听与连接
+│   ├── entity/                     # API 响应实体
+│   ├── global/                     # 全局变量与接口
+│   ├── web.go                      # Gin engine、中间件、路由注册
+│   ├── ui.go                       # 新 UI 托管与 runtime config 注入
+│   ├── cron_test.go
+│   ├── server_security_test.go
+│   ├── sidebar_component_test.go
+│   ├── ui_test.go
 │   └── service/config.json         # Xray 默认模板
 ├── xray/                           # Xray API 和进程集成
 ├── docs/                           # 技术文档

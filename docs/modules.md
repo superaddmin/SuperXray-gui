@@ -472,7 +472,7 @@ type Hub struct {
 | `api/endpoints.ts` | 集中定义 legacy API 路径 |
 | `api/request.ts` | Axios client、CSRF token、通用响应 unwrap、登录过期跳转 |
 | `api/websocket.ts` | 打开 `basePath + "ws"` 并解析消息 |
-| `api/server.ts` / `inbounds.ts` / `xray.ts` / `settings.ts` / `core.ts` | 业务 API SDK |
+| `api/server.ts` / `inbounds.ts` / `xray.ts` / `settings.ts` / `cores.ts` / `auth.ts` / `customGeo.ts` | 业务 API SDK |
 
 `requestLegacy` 只在 `success=false` 时抛出 `ApiError`；`401` 或 `/panel/api/*` 的 `404` 被视为 session expired。
 
