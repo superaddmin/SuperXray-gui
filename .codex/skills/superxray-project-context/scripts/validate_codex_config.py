@@ -29,10 +29,13 @@ REQUIRED_CODEX_FILES = [
     ".codex/context/dependency-map.md",
     ".codex/context/business-flow-map.md",
     ".codex/context/codex-config-map.md",
+    ".codex/context/conversation-retrospective-map.md",
+    ".codex/context/runtime-network-debug-map.md",
     ".codex/prompts/shared-system-prompt.md",
     ".codex/workflows/multi-agent-workflow.md",
     ".codex/workflows/verification-matrix.md",
     ".codex/workflows/config-validation-and-efficiency.md",
+    ".codex/workflows/network-routing-debug-checklist.md",
     ".codex/skills/superxray-project-context/SKILL.md",
     ".codex/skills/superxray-project-context/agents/openai.yaml",
     ".codex/skills/superxray-project-context/references/current-stack.md",
@@ -48,6 +51,8 @@ REQUIRED_CONTEXT_INDEXES = [
     ".codex/context/dependency-map.md",
     ".codex/context/business-flow-map.md",
     ".codex/context/codex-config-map.md",
+    ".codex/context/conversation-retrospective-map.md",
+    ".codex/context/runtime-network-debug-map.md",
 ]
 VALIDATOR_COMMAND = "python .codex/skills/superxray-project-context/scripts/validate_codex_config.py"
 
@@ -180,14 +185,22 @@ def validate_project_references(root: Path, report: Report, agents: dict[str, di
         report.add_error("project_source_of_truth_invalid", ".codex/project.toml", "source_of_truth must be a table")
         source_of_truth = {}
     required_source_keys = {
-        "codex_config": ".codex/context/codex-config-map.md",
-        "dependency_context": ".codex/context/dependency-map.md",
-        "business_flow_context": ".codex/context/business-flow-map.md",
+        "codex_config": [".codex/context/codex-config-map.md"],
+        "dependency_context": [".codex/context/dependency-map.md"],
+        "business_flow_context": [".codex/context/business-flow-map.md"],
+        "operational_context": [
+            ".codex/context/conversation-retrospective-map.md",
+            ".codex/context/runtime-network-debug-map.md",
+        ],
+        "operational_workflows": [
+            ".codex/workflows/network-routing-debug-checklist.md",
+        ],
     }
-    for key, expected in required_source_keys.items():
+    for key, expected_items in required_source_keys.items():
         values = as_list(source_of_truth.get(key))
-        if expected not in values:
-            report.add_error("project_context_index_missing", ".codex/project.toml", f"source_of_truth.{key} must include {expected}")
+        for expected in expected_items:
+            if expected not in values:
+                report.add_error("project_context_index_missing", ".codex/project.toml", f"source_of_truth.{key} must include {expected}")
     stack = project.get("stack", {})
     if not isinstance(stack, dict) or not isinstance(stack.get("ai_config"), dict):
         report.add_error("project_ai_config_missing", ".codex/project.toml", "missing [stack.ai_config]")

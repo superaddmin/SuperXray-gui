@@ -50,6 +50,20 @@ manual_checks = ["phase gate check", "historical evidence versus active plan che
 verification = ["python scripts/secret_scan.py"]
 
 [[routes]]
+name = "operational-network-docs"
+globs = [
+  "docs/ai-routing-and-residential-egress.md",
+  "docs/passwall-openwrt-ai-routing-playbook.md",
+  "docs/deployment.md",
+  "docs/superpowers/retrospectives/*network-routing*.md",
+]
+priority = 41
+primary = "superxray-docs-i18n-maintainer"
+reviewers = ["superxray-subscription-protocol-specialist", "superxray-security-gate", "superxray-ui-program-manager"]
+manual_checks = ["runtime evidence chain review", "proxy path terminology review", "redaction and secret scan review"]
+verification = ["python scripts/secret_scan.py"]
+
+[[routes]]
 name = "release"
 globs = [
   "CHANGELOG.md",
@@ -258,6 +272,7 @@ globs = ["README*.md", "docs/**", "plans/**", "web/translation/**", "frontend/sr
 priority = 35
 primary = "superxray-docs-i18n-maintainer"
 reviewers = ["superxray-ui-program-manager", "superxray-subscription-protocol-specialist"]
+manual_checks = ["historical evidence vs current source-of-truth review", "runtime docs must distinguish intended config and observed path"]
 verification = [
   "python scripts/secret_scan.py",
   "cd frontend; npm run test",

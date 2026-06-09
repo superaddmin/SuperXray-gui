@@ -20,6 +20,16 @@ historical_docs_rule = "docs/superpowers/** and historical reports are evidence 
 conflict_resolution = "Prefer running code and tests, then active phase gates, then current architecture docs. Escalate unresolved phase conflicts to the program manager once."
 global_config_rule = "Do not copy sandbox, approval, MCP, auth, account, or global model settings into this repository; keep SuperXray-specific facts inside .codex only."
 
+[task_domain_control]
+classification_rule = "Classify broad tasks into the smallest active work domain before acting. Typical domains here are release/build, server deployment, server runtime, OpenWrt/Passwall routing, code changes, and docs/governance."
+transition_rule = "When a request crosses domains, restate the current primary problem, explicitly park non-primary follow-ups, and do not mix conclusions across domains without fresh evidence."
+primary_problem_rule = "Do not treat a downstream symptom as the main problem until the current domain confirms the effective path, owner, and rollback boundary."
+domain_switch_red_flags = [
+  "Using deployment evidence to conclude OpenWrt routing health",
+  "Using static config diffs to conclude runtime path or出口 IP",
+  "Treating UI reachability as proof that model/API interfaces work",
+]
+
 [phase_control]
 active_phase = "9+10-risk-accepted"
 active_phase_label = "Phase 9 security closeout plus forced/minimal Phase 10 backend runtime entry"
@@ -65,9 +75,28 @@ first_read = [
   ".codex/context/dependency-map.md",
   ".codex/context/business-flow-map.md",
   ".codex/context/codex-config-map.md",
+  ".codex/context/conversation-retrospective-map.md",
+  ".codex/context/runtime-network-debug-map.md",
 ]
 handoff_must_include = ["goal", "phase", "paths", "facts", "commands", "first_blocker", "risk", "rollback"]
 handoff_must_omit = ["secrets", "cookies", "tokens", "private keys", "subscription URLs", "proxy credentials", "database contents", "full server audit artifacts"]
+
+[runtime_evidence]
+priority = [
+  "Client-observed effective path or出口 behavior",
+  "Middlebox ACL/routing/DNS/runtime process evidence",
+  "Server-side process/port/egress evidence",
+  "Static config files and intended design",
+]
+double_sided_verification = [
+  "For network and routing problems, verify from at least client+middlebox or middlebox+server before claiming root cause.",
+  "Treat generated runtime files under /tmp, iptables counters, and process args as higher-confidence than UI screenshots or remembered settings.",
+]
+network_change_bans = [
+  "Do not conclude node quality before confirming the effective出口 IP.",
+  "Do not equate explicit SOCKS egress, transparent REDIRECT, and TPROXY paths.",
+  "Do not claim a rule is active before counters or runtime vars show it is in use.",
+]
 
 [codex_validation]
 script = ".codex/skills/superxray-project-context/scripts/validate_codex_config.py"

@@ -50,6 +50,8 @@ name = "demo"
 codex_config = [".codex/context/codex-config-map.md"]
 dependency_context = [".codex/context/dependency-map.md"]
 business_flow_context = [".codex/context/business-flow-map.md"]
+operational_context = [".codex/context/conversation-retrospective-map.md", ".codex/context/runtime-network-debug-map.md"]
+operational_workflows = [".codex/workflows/network-routing-debug-checklist.md"]
 
 [stack.testing]
 codex = ["python .codex/skills/superxray-project-context/scripts/validate_codex_config.py"]
@@ -80,6 +82,8 @@ first_read = [
   ".codex/context/dependency-map.md",
   ".codex/context/business-flow-map.md",
   ".codex/context/codex-config-map.md",
+  ".codex/context/conversation-retrospective-map.md",
+  ".codex/context/runtime-network-debug-map.md",
 ]
 
 [codex_validation]
@@ -121,10 +125,13 @@ efficiency_metrics = ["first_route_accuracy"]
             ".codex/context/dependency-map.md",
             ".codex/context/business-flow-map.md",
             ".codex/context/codex-config-map.md",
+            ".codex/context/conversation-retrospective-map.md",
+            ".codex/context/runtime-network-debug-map.md",
             ".codex/prompts/shared-system-prompt.md",
             ".codex/workflows/multi-agent-workflow.md",
             ".codex/workflows/verification-matrix.md",
             ".codex/workflows/config-validation-and-efficiency.md",
+            ".codex/workflows/network-routing-debug-checklist.md",
             ".codex/skills/superxray-project-context/references/current-stack.md",
         ]:
             self.write(relative, "# ok\n")

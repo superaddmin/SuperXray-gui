@@ -86,6 +86,14 @@ Browser/API Client
 - 多核心入口：只读 `default-xray` 和实验 `sing-box`，不替代 Xray 主路径。
 - 发布部署：Linux 二进制、GHCR 镜像、install/update/x-ui 脚本、Docker。
 
+## 运行态网络/代理排障要点
+
+- 先区分任务域：发布/部署、服务器运行态、OpenWrt/Passwall 路由、客户端体验、文档复盘不能混为一个问题。
+- 代理链路至少区分四类：显式 SOCKS、透明 REDIRECT、TPROXY、DNS 劫持。它们的“出口 IP”“命中方式”“验证命令”不同。
+- 对网络与分流问题，优先读取：客户端出口行为 -> OpenWrt/中间设备 ACL 计数与运行缓存 -> 服务器进程/出口 -> 静态配置文件。
+- 当 `ipify`、`uci`、`iptables -vnL`、`/tmp/etc/passwall/var`、`ps`、`iwinfo` 之间有冲突时，优先相信运行态计数和进程参数。
+- “页面能打开”不等于“模型接口可用”；AI 平台需要单独验证主站、API、静态资源、控制台和 IDE 插件域名。
+
 ## 常用验证命令
 
 ```powershell
@@ -108,7 +116,10 @@ python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metad
 - `.codex/context/dependency-map.md`：依赖树、技术栈、构建工具、验证入口。
 - `.codex/context/business-flow-map.md`：核心业务链路到源码、代理、验证命令的映射。
 - `.codex/context/codex-config-map.md`：`.codex` 文件职责、agent 契约字段、必跑验证。
+- `.codex/context/conversation-retrospective-map.md`：近期对话暴露的典型陷阱、误判模式和修正策略。
+- `.codex/context/runtime-network-debug-map.md`：客户端/中间设备/服务器三视角的网络排障证据地图。
 - `.codex/workflows/config-validation-and-efficiency.md`：配置验证、技能验证、效率指标和迭代机制。
+- `.codex/workflows/network-routing-debug-checklist.md`：网络/路由/代理问题的标准检查顺序与禁忌。
 - `.codex/configuration-update.md`：方案 B 重构说明、应用指南和回滚方式。
 
 ## Codex 配置验证命令

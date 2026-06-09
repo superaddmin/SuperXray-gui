@@ -14,6 +14,14 @@ project_context = [".codex/context/project-map.md", ".codex/skills/superxray-pro
 codex_config = [".codex/context/codex-config-map.md", ".codex/configuration-update.md"]
 dependency_context = [".codex/context/dependency-map.md"]
 business_flow_context = [".codex/context/business-flow-map.md"]
+operational_context = [
+  ".codex/context/conversation-retrospective-map.md",
+  ".codex/context/runtime-network-debug-map.md",
+]
+operational_workflows = [
+  ".codex/workflows/network-routing-debug-checklist.md",
+  ".codex/workflows/config-validation-and-efficiency.md",
+]
 architecture = ["docs/architecture.md", "docs/modules.md", "docs/development.md", "docs/api.md"]
 phase_status = ["plans/STATUS.md", "plans/01-strategy/ui-first-xray-stable-multi-core-roadmap.md"]
 phase_gates = [".codex/skills/superxray-ui-first-migration/references/phase-gates.md"]
@@ -56,6 +64,11 @@ skill_update_policy = "Update project context maps, routing, validation script, 
 context_matching = "Route by .codex/routing.toml first, then load the selected agent required_context plus task-relevant knowledge_inputs only."
 efficiency_metrics = ["first_route_accuracy", "context_files_read_count", "verification_commands_executed", "handoff_blocker_clarity", "forbidden_scope_hits", "secret_scan_findings"]
 validation_entry = ".codex/skills/superxray-project-context/scripts/validate_codex_config.py"
+runtime_debugging_principles = [
+  "Separate task domains before acting: release, deployment, server runtime, OpenWrt routing, code changes, and docs are different workstreams.",
+  "Prefer runtime evidence over static configuration when diagnosing network, routing, deployment, and proxy issues.",
+  "Use at least two viewpoints before claiming a node, route, or ACL is the bottleneck.",
+]
 
 [stack.database]
 engine = "SQLite"
