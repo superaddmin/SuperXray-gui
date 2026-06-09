@@ -2,7 +2,7 @@
 
 > **目标读者**：准备在 VPS、云服务器或自建 Linux 主机上部署 SuperXray 的运维人员 / 开发者
 > **适用版本**：`v3.0.22`
-> **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md)
+> **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md) | [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
 ---
 
@@ -1136,3 +1136,63 @@ docker compose restart 3xui
 9. 备份 `/etc/x-ui/x-ui.db` 并记录恢复步骤。
 
 做到这里，服务器部署就算稳稳落地了。后续变更端口、证书、反向代理或入站协议时，按“先备份、再改动、后验证”的顺序执行。
+
+---
+
+## 15. 线上配置与网络/路由变更验证模板
+
+当任务涉及节点切换、OpenWrt/Passwall 分流、AI 平台出口治理、订阅路径调整或反向代理变更时，建议把验证拆成三个视角：
+
+### 15.1 客户端视角
+
+```bash
+curl https://api.ipify.org
+curl -I https://api.openai.com/v1/models
+curl -I https://chatgpt.com/cdn-cgi/trace
+nslookup api.openai.com <gateway-ip>
+```
+
+用途：
+
+- 确认当前默认出口
+- 区分普通网页与模型接口是否分化
+- 快速判断 DNS 是否超时
+
+### 15.2 中间设备视角（OpenWrt / Passwall / Nginx / Docker Host）
+
+```bash
+uci show passwall
+iptables -t nat -vnL PSW
+iptables -t mangle -vnL PSW
+cat /tmp/etc/passwall/var
+ss -lntp
+```
+
+用途：
+
+- 确认 ACL 是否真实生效
+- 判断命中的是显式 SOCKS、透明 REDIRECT 还是 TPROXY 链
+- 核对运行时生成配置与静态配置是否一致
+
+### 15.3 服务器视角
+
+```bash
+docker exec <container> /app/x-ui -v
+docker logs <container> --tail 100
+curl https://api.ipify.org
+```
+
+用途：
+
+- 确认服务器节点本身可用
+- 确认面板/Xray 进程与监听正常
+- 避免把客户端/路由问题误判成服务器问题
+
+### 15.4 结论要求
+
+网络与路由问题至少要满足“双视角证据”再下结论：
+
+- 客户端 + 中间设备，或
+- 中间设备 + 服务器
+
+不要仅凭 UI 截图、单次 `curl -x socks5h://...` 或静态配置 diff 宣称“规则已生效”或“节点更优”。如需回滚，先恢复配置备份，再重启相关服务，最后重复上述三视角验证。

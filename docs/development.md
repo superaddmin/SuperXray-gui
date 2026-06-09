@@ -286,6 +286,17 @@ npm run build
 | 前端 | `frontend/tests/*.test.ts` |
 | legacy JS | `web/assets/js/model/*.test.js`、`web/assets/js/util/*.test.js` |
 
+### 6.5 运行态系统任务的证据优先级
+
+当任务涉及服务器部署、OpenWrt/Passwall、代理分流、订阅出口、AI 平台接口或线上“可访问但功能异常”问题时，代码阅读不能替代运行态取证。建议遵循以下顺序：
+
+1. **客户端视角**：确认当前网段、默认网关、实际出口与目标接口是否可访问。
+2. **中间设备视角**：确认 ACL、`iptables -vnL` 计数、`/tmp/etc/passwall/var`、Passwall/Xray 运行进程。
+3. **服务器视角**：确认容器/进程、端口监听、真实出口和最近日志。
+4. **静态配置**：最后再核对 `uci`、模板 JSON、部署脚本和文档预期。
+
+网络类任务至少保留双视角证据（客户端 + 中间设备，或中间设备 + 服务器）再下结论。不要在未确认实际出口前评价节点优劣，也不要把显式 SOCKS 与透明代理/TPROXY 路径混为一谈。
+
 ---
 
 ## 7. UI 与 Core 阶段门禁

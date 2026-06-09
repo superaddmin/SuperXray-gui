@@ -3,7 +3,7 @@
 > **目标读者**：需要在 SuperXray 中为 OpenAI/ChatGPT、Anthropic/Claude、Google/Gemini 等 AI 平台配置专用出口的运维人员
 > **适用版本**：`v3.0.22`
 > **事实来源**：`frontend/src/views/XrayView.vue`、`frontend/src/utils/xrayCompat.ts`、`frontend/src/utils/gatewayEgressMvp.ts`、`web/controller/xray_setting.go`
-> **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [入站创建教程](inbound-creation-guide.md)
+> **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [入站创建教程](inbound-creation-guide.md) | [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
 ---
 
@@ -445,3 +445,52 @@ journalctl -u x-ui -n 100 --no-pager
 - 普通客户端可连通。
 - 非 AI 流量未误走住宅出口。
 - 订阅链接仍可访问。
+
+---
+
+## 11. OpenWrt / Passwall 场景的分流职责拆分
+
+当 SuperXray 节点被接入 OpenWrt / Passwall 这类中间设备时，建议把“主 WiFi”和“专用代理 WiFi”职责彻底拆开：
+
+### 11.1 推荐结构
+
+- **主 WiFi / `lan`**：默认直连，只把 AI / GFW 域名送入稳定出口（例如 `85.155.178.115`）。
+- **USA WiFi / `us`**：继续全代理，作为独立美国出口网络（例如 `35.87.239.230`）。
+
+这种结构的好处是：
+
+- 普通网页和下载不会被无谓代理拖慢。
+- AI / 模型接口路径更稳定，便于统一治理。
+- 日常工作网络与专用美国网络互不干扰。
+
+### 11.2 不要混淆三条路径
+
+1. **显式 SOCKS 出口**：通过 `curl -x socks5h://...` 验证，只代表应用主动走代理。
+2. **透明 REDIRECT / TPROXY**：由 `iptables` 和 Passwall 运行态接管，必须看 ACL 命中计数。
+3. **DNS 劫持 / 分流**：决定域名是否会被视为代理目标。若 DNS 与代理列表脱节，就会出现“首页能开、模型接口失败”。
+
+### 11.3 模型接口域名为什么要单独维护
+
+AI 平台通常不止一个首页域名，还会拆分为：
+
+- API 域名
+- 控制台域名
+- 静态资源域名
+- IDE 插件/代理域名
+- 账户系统域名
+
+如果只代理首页域名，常见问题是：
+
+- 页面可访问，但模型请求超时
+- Cursor / Copilot 登录正常，但补全失败
+- OpenRouter 控制台正常，但 API 不稳定
+
+因此建议优先维护“高价值、低副作用”的模型接口域名列表，而不是把 `github.com`、`x.com` 这类大域名整站代理。
+
+### 11.4 运行态验证优先级
+
+1. 客户端确认当前 SSID、网段和默认出口。
+2. OpenWrt 确认 `iptables -vnL` 计数、`/tmp/etc/passwall/var`、Passwall 运行进程。
+3. 服务器确认节点本身可用和真实出口。
+
+如果三者不一致，优先相信运行态计数和进程参数，而不是 UI 设置页的静态显示。更多实战排障步骤见 [OpenWrt / Passwall AI 路由实战手册](passwall-openwrt-ai-routing-playbook.md)。
