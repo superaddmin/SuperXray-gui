@@ -19,7 +19,11 @@ import (
 
 // GetBinaryName returns the Xray binary filename for the current OS and architecture.
 func GetBinaryName() string {
-	name := fmt.Sprintf("xray-%s-%s", runtime.GOOS, runtime.GOARCH)
+	arch := runtime.GOARCH
+	if arch == "arm" {
+		arch = "arm32"
+	}
+	name := fmt.Sprintf("xray-%s-%s", runtime.GOOS, arch)
 	if runtime.GOOS == "windows" {
 		return name + ".exe"
 	}
