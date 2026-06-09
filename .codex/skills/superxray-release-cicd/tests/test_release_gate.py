@@ -178,6 +178,73 @@ class ReleaseMetadataTests(unittest.TestCase):
 
         self.make_gate(self.make_repo(files)).check_project_go_version_metadata()
 
+    def openapi_files(self, committed_json: str) -> dict[str, str]:
+        files = self.base_files()
+        files.update(
+            {
+                "go.mod": "module example.test/superxray\n\ngo 1.26.4\n",
+                ".codex/project.toml": '[stack.backend]\nversion = "1.26.4"\n',
+                "docs/openapi/panel-api.yaml": "openapi: 3.1.0\ninfo:\n  title: Test\npaths: {}\n",
+                "frontend/public/openapi.json": committed_json,
+                "tools/openapiexport/main.go": "package main\n",
+            }
+        )
+        return files
+
+    def install_fake_openapi_export(self, gate: release_gate.Gate, generated_json: str) -> None:
+        def fake_command(command: list[str], *, capture: bool = False) -> str:
+            self.assertEqual(command[:3], ["go", "run", "./tools/openapiexport"])
+            self.assertIn("-out", command)
+            out_path = pathlib.Path(command[command.index("-out") + 1])
+            out_path.write_text(generated_json, encoding="utf-8")
+            return ""
+
+        gate.command = fake_command
+
+    def test_openapi_generated_metadata_accepts_matching_normalized_json(self) -> None:
+        gate = self.make_gate(
+            self.make_repo(
+                self.openapi_files('{"paths":{},"info":{"version":"3.0.8"},"openapi":"3.1.0"}\n')
+            )
+        )
+        self.install_fake_openapi_export(
+            gate,
+            '{\n  "openapi": "3.1.0",\n  "info": {"version": "3.0.8"},\n  "paths": {}\n}\n',
+        )
+
+        gate.check_openapi_generated_metadata()
+
+    def test_openapi_generated_metadata_rejects_stale_committed_json(self) -> None:
+        gate = self.make_gate(
+            self.make_repo(
+                self.openapi_files('{"openapi":"3.1.0","info":{"version":"3.0.7"},"paths":{}}\n')
+            )
+        )
+        self.install_fake_openapi_export(
+            gate,
+            '{"openapi":"3.1.0","info":{"version":"3.0.8"},"paths":{}}\n',
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "frontend/public/openapi.json is stale"):
+            gate.check_openapi_generated_metadata()
+
+    def test_metadata_only_run_rejects_openapi_generated_drift(self) -> None:
+        gate = self.make_metadata_gate(
+            self.make_repo(
+                self.openapi_files('{"openapi":"3.1.0","info":{"version":"3.0.7"},"paths":{}}\n')
+            )
+        )
+        self.install_fake_openapi_export(
+            gate,
+            '{"openapi":"3.1.0","info":{"version":"3.0.8"},"paths":{}}\n',
+        )
+
+        self.assertEqual(gate.run(), 1)
+        self.assertTrue(
+            any("openapi_generated_metadata" in failure for failure in gate.failures),
+            gate.failures,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

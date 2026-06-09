@@ -1,11 +1,14 @@
 package service
 
 import (
+	"net/http"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
+	"github.com/superaddmin/SuperXray-gui/v2/web/entity"
 )
 
 func TestSettingServiceFallsBackToDefaultForEmptyRequiredSetting(t *testing.T) {
@@ -64,6 +67,52 @@ func TestSettingServiceGetAllSettingFallsBackForEmptyRequiredSetting(t *testing.
 	}
 }
 
+func TestSettingServicePanelProxyDefaultsPersistsAndBuildsClient(t *testing.T) {
+	setupSettingServiceTestDB(t)
+	settingSvc := &SettingService{}
+
+	proxyURL, err := settingSvc.GetPanelProxy()
+	if err != nil {
+		t.Fatalf("GetPanelProxy default returned error: %v", err)
+	}
+	if proxyURL != "" {
+		t.Fatalf("GetPanelProxy default = %q, want empty", proxyURL)
+	}
+
+	if err := settingSvc.SetPanelProxy("http://127.0.0.1:18080"); err != nil {
+		t.Fatalf("SetPanelProxy returned error: %v", err)
+	}
+	allSetting, err := settingSvc.GetAllSetting()
+	if err != nil {
+		t.Fatalf("GetAllSetting returned error: %v", err)
+	}
+	if allSetting.PanelProxy != "http://127.0.0.1:18080" {
+		t.Fatalf("AllSetting.PanelProxy = %q", allSetting.PanelProxy)
+	}
+
+	client := settingSvc.NewProxiedHTTPClient(9 * time.Second)
+	if client.Timeout != 9*time.Second {
+		t.Fatalf("NewProxiedHTTPClient timeout = %v, want 9s", client.Timeout)
+	}
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("NewProxiedHTTPClient transport = %T, want *http.Transport", client.Transport)
+	}
+	if transport.Proxy == nil {
+		t.Fatal("NewProxiedHTTPClient did not configure HTTP proxy transport")
+	}
+}
+
+func TestSettingServiceUpdateAllSettingRejectsInvalidPanelProxy(t *testing.T) {
+	setupSettingServiceTestDB(t)
+	settings := validAllSettingForServiceTest()
+	settings.PanelProxy = "socks5://"
+
+	if err := (&SettingService{}).UpdateAllSetting(settings); err == nil {
+		t.Fatal("UpdateAllSetting accepted invalid panelProxy")
+	}
+}
+
 func setupSettingServiceTestDB(t *testing.T) {
 	t.Helper()
 	dbDir := t.TempDir()
@@ -75,4 +124,16 @@ func setupSettingServiceTestDB(t *testing.T) {
 			t.Logf("database.CloseDB warning: %v", err)
 		}
 	})
+}
+
+func validAllSettingForServiceTest() *entity.AllSetting {
+	return &entity.AllSetting{
+		WebPort:      2053,
+		SubPort:      2096,
+		WebBasePath:  "/super/",
+		SubPath:      "/sub/",
+		SubJsonPath:  "/json/",
+		SubClashPath: "/clash/",
+		TimeLocation: "Local",
+	}
 }

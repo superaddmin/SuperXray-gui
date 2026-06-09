@@ -65,6 +65,20 @@
               </div>
             </FormSection>
 
+            <FormSection
+              eyebrow="Panel"
+              title="Panel Outbound Proxy"
+              description="Optional HTTP/HTTPS/SOCKS5 proxy used by panel-owned outbound requests such as WARP API calls. Leave blank for direct connections."
+            >
+              <AFormItem label="Proxy URL">
+                <AInput
+                  v-model:value="settings.panelProxy"
+                  aria-label="Panel outbound proxy URL"
+                  placeholder="socks5://127.0.0.1:1080"
+                />
+              </AFormItem>
+            </FormSection>
+
             <FormSection eyebrow="Panel" title="Session and Display">
               <div class="form-grid">
                 <AFormItem label="Session Max Age">
@@ -1061,6 +1075,7 @@ function createEmptySettings(): PanelSettings {
     webKeyFile: '',
     webBasePath: '/',
     sessionMaxAge: 360,
+    panelProxy: '',
     pageSize: 25,
     expireDiff: 0,
     trafficDiff: 0,

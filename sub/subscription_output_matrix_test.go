@@ -130,6 +130,60 @@ func TestSubClashVlessEncryptionNoneDoesNotEmitPacketEncoding(t *testing.T) {
 	}
 }
 
+func TestSubClashVlessPacketEncodingsEmitPacketEncoding(t *testing.T) {
+	for _, encryption := range []string{"packetaddr", "xudp"} {
+		t.Run(encryption, func(t *testing.T) {
+			client := matrixClient("matrix-vless-" + encryption + "@example")
+			inbound := matrixInboundWithSettings(model.VLESS, 12010, map[string]any{
+				"decryption": "none",
+				"encryption": encryption,
+				"clients":    []model.Client{client},
+			}, matrixTCPStream())
+			service := &SubClashService{SubService: &SubService{remarkModel: "-ieo"}}
+
+			proxy := service.buildProxy(inbound, client, matrixTCPStream(), "")
+			if proxy == nil {
+				t.Fatal("buildProxy returned nil")
+			}
+			if proxy["packet-encoding"] != encryption {
+				t.Fatalf("packet-encoding = %v, want %s", proxy["packet-encoding"], encryption)
+			}
+		})
+	}
+}
+
+func TestPublicInboundDoesNotUseFallbackMaster(t *testing.T) {
+	setupSubscriptionDiagnosticDB(t)
+	client := matrixClient("matrix-public@example")
+	master := matrixInboundWithSettings(model.VLESS, 443, matrixSettingsWithFallback(client, "@fallback"), map[string]any{
+		"network":  "tcp",
+		"security": "tls",
+		"tlsSettings": map[string]any{
+			"serverName": "master.example",
+		},
+	})
+	master.Listen = "master.example"
+	if err := database.GetDB().Create(master).Error; err != nil {
+		t.Fatalf("create fallback master failed: %v", err)
+	}
+
+	publicInbound := matrixInboundWithSettings(model.VLESS, 12010, matrixSettingsWithFallback(client, "@fallback"), map[string]any{
+		"network":  "tcp",
+		"security": "none",
+	})
+	publicInbound.Listen = "203.0.113.10"
+	service := &SubService{address: "panel.example", remarkModel: "-ieo"}
+
+	link := service.genVlessLink(publicInbound, client.Email)
+
+	if !strings.Contains(link, "@203.0.113.10:12010") {
+		t.Fatalf("public inbound link should use its own listen/port, got %q", link)
+	}
+	if strings.Contains(link, "master.example") || strings.Contains(link, ":443") || strings.Contains(link, "security=tls") {
+		t.Fatalf("public inbound link leaked fallback master settings: %q", link)
+	}
+}
+
 func TestSubClashBuildRulesUsesConfiguredRoutingRules(t *testing.T) {
 	service := NewSubClashService(&SubService{}).WithRoutingRules(`
 # comments and empty lines are ignored
@@ -317,14 +371,22 @@ func matrixHysteriaClient(email string) model.Client {
 }
 
 func matrixInbound(protocol model.Protocol, port int, client model.Client) *model.Inbound {
-	settings := map[string]any{
-		"clients": []model.Client{client},
-	}
+	settings := matrixSettingsWithFallback(client, "")
 	if protocol == model.VLESS {
 		settings["decryption"] = "none"
 		settings["encryption"] = "none"
 	}
 	return matrixInboundWithSettings(protocol, port, settings, matrixTCPStream())
+}
+
+func matrixSettingsWithFallback(client model.Client, fallbackDest string) map[string]any {
+	settings := map[string]any{
+		"clients": []model.Client{client},
+	}
+	if fallbackDest != "" {
+		settings["fallbacks"] = []map[string]any{{"dest": fallbackDest}}
+	}
+	return settings
 }
 
 func matrixShadowsocksInbound(port int, client model.Client) *model.Inbound {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
+	"github.com/superaddmin/SuperXray-gui/v2/util/netproxy"
 )
 
 const defaultWebBasePath = "/super/"
@@ -30,6 +31,7 @@ type AllSetting struct {
 	WebKeyFile    string `json:"webKeyFile" form:"webKeyFile"`       // Path to SSL private key file for web server
 	WebBasePath   string `json:"webBasePath" form:"webBasePath"`     // Base path for web panel URLs
 	SessionMaxAge int    `json:"sessionMaxAge" form:"sessionMaxAge"` // Session maximum age in minutes
+	PanelProxy    string `json:"panelProxy" form:"panelProxy"`       // Proxy URL for the panel's own outbound requests
 
 	// UI settings
 	PageSize    int    `json:"pageSize" form:"pageSize"`       // Number of items per page in lists
@@ -150,6 +152,13 @@ func (s *AllSetting) CheckValid() error {
 		_, err := tls.LoadX509KeyPair(s.SubCertFile, s.SubKeyFile)
 		if err != nil {
 			return common.NewErrorf("cert file <%v> or key file <%v> invalid: %v", s.SubCertFile, s.SubKeyFile, err)
+		}
+	}
+
+	s.PanelProxy = strings.TrimSpace(s.PanelProxy)
+	if s.PanelProxy != "" {
+		if _, err := netproxy.ParseProxyURL(s.PanelProxy); err != nil {
+			return common.NewError("panel proxy is invalid:", err)
 		}
 	}
 

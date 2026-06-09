@@ -8,7 +8,7 @@
     "gen:openapi": "cd .. && go run ./tools/openapiexport",
     "build": "npm run gen:openapi && vue-tsc -b && vite build",
     "preview": "vite preview",
-    "test": "cd .. && node --test --experimental-strip-types frontend/tests/*.test.ts web/assets/js/model/*.test.js web/assets/js/util/*.test.js",
+    "test": "cd .. && node --test --experimental-strip-types frontend/tests/*.test.ts web/assets/js/*.test.js web/assets/js/model/*.test.js web/assets/js/util/*.test.js",
     "typecheck": "vue-tsc -b --noEmit",
     "lint": "eslint .",
     "format": "prettier --check .",

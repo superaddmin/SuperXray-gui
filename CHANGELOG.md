@@ -2,6 +2,24 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.22] - 2026-06-09
+
+### Added
+
+- 新增 `panelProxy` 面板出站代理设置，支持 HTTP/HTTPS/SOCKS5/SOCKS5H，并让 WARP API 请求通过该代理出站。
+- Vue Settings 页面新增 `Panel Outbound Proxy` 字段，保持新 UI 与 legacy 设置表单兼容。
+- Release metadata gate 新增 OpenAPI 生成物陈旧检查，确保 `docs/openapi/panel-api.yaml` 与 `frontend/public/openapi.json` 同步。
+
+### Fixed
+
+- 对 `panelProxy` 增加保存期 URL 校验，拒绝缺少 host 或不支持 scheme 的代理配置。
+- 脱敏无效代理配置日志，避免代理用户名或密码进入面板日志。
+
+### Changed
+
+- 更新上游同步策略基线到 `MHSanaei/3x-ui v3.3.0`，记录本轮 P0-P2 已落地项与仍暂缓项。
+- 同步发布版本到 `3.0.22`。
+
 ## [3.0.21] - 2026-06-09
 
 ### Fixed

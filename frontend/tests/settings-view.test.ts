@@ -14,6 +14,7 @@ test('settings view uses form sections for each settings workflow', () => {
   for (const title of [
     'Web Endpoint',
     'TLS Files',
+    'Panel Outbound Proxy',
     'Session and Display',
     'Thresholds and Naming',
     'Two Factor',
@@ -69,6 +70,7 @@ test('settings view keeps representative field bindings from every tab', () => {
     'settings.webBasePath',
     'settings.webCertFile',
     'settings.webKeyFile',
+    'settings.panelProxy',
     'settings.sessionMaxAge',
     'settings.pageSize',
     'settings.expireDiff',

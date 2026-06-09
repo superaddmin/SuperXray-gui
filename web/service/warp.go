@@ -18,6 +18,10 @@ type WarpService struct {
 	SettingService
 }
 
+var newWarpHTTPClient = func(settingService *SettingService, timeout time.Duration) *http.Client {
+	return settingService.NewProxiedHTTPClient(timeout)
+}
+
 type warpRegistrationPayload struct {
 	Key   string `json:"key"`
 	TOS   string `json:"tos"`
@@ -104,7 +108,7 @@ func (s *WarpService) GetWarpConfig() (string, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+warpData["access_token"])
 
-	resp, err := serviceHTTPClient.Do(req)
+	resp, err := newWarpHTTPClient(&s.SettingService, 15*time.Second).Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -138,7 +142,7 @@ func (s *WarpService) RegWarp(secretKey string, publicKey string) (string, error
 	req.Header.Add("CF-Client-Version", "a-7.21-0721")
 	req.Header.Add("Content-Type", "application/json")
 
-	resp, err := serviceHTTPClient.Do(req)
+	resp, err := newWarpHTTPClient(&s.SettingService, 15*time.Second).Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -215,7 +219,7 @@ func (s *WarpService) SetWarpLicense(license string) (string, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+warpData["access_token"])
 
-	resp, err := serviceHTTPClient.Do(req)
+	resp, err := newWarpHTTPClient(&s.SettingService, 15*time.Second).Do(req)
 	if err != nil {
 		return "", err
 	}

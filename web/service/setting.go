@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"reflect"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
+	"github.com/superaddmin/SuperXray-gui/v2/util/netproxy"
 	"github.com/superaddmin/SuperXray-gui/v2/util/random"
 	"github.com/superaddmin/SuperXray-gui/v2/util/reflect_util"
 	"github.com/superaddmin/SuperXray-gui/v2/web/entity"
@@ -86,6 +88,7 @@ var defaultValueMap = map[string]string{
 	"externalTrafficInformEnable": "false",
 	"externalTrafficInformURI":    "",
 	"xrayOutboundTestUrl":         "https://www.google.com/generate_204",
+	"panelProxy":                  "",
 
 	// LDAP defaults
 	"ldapEnable":            "false",
@@ -359,6 +362,31 @@ func (s *SettingService) GetTgBotProxy() (string, error) {
 
 func (s *SettingService) SetTgBotProxy(token string) error {
 	return s.setString("tgBotProxy", token)
+}
+
+func (s *SettingService) GetPanelProxy() (string, error) {
+	return s.getString("panelProxy")
+}
+
+func (s *SettingService) SetPanelProxy(proxyURL string) error {
+	return s.setString("panelProxy", proxyURL)
+}
+
+// NewProxiedHTTPClient returns an HTTP client for the panel's own outbound
+// requests. Invalid panelProxy settings fall back to direct connections to
+// preserve existing behavior.
+func (s *SettingService) NewProxiedHTTPClient(timeout time.Duration) *http.Client {
+	proxyURL, err := s.GetPanelProxy()
+	if err != nil {
+		logger.Warning("Failed to read panel proxy setting:", err)
+		proxyURL = ""
+	}
+	client, err := netproxy.NewHTTPClient(proxyURL, timeout)
+	if err != nil {
+		logger.Warningf("Invalid panel proxy %q, using direct connection: %v", netproxy.RedactProxyURL(proxyURL), err)
+		return &http.Client{Timeout: timeout}
+	}
+	return client
 }
 
 func (s *SettingService) GetTgBotAPIServer() (string, error) {

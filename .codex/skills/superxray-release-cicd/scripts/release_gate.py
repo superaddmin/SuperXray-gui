@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import pathlib
 import re
@@ -62,12 +63,17 @@ class Gate:
 
     def run(self) -> int:
         if self.args.metadata_only:
-            checks = [self.check_release_metadata, self.check_project_go_version_metadata]
+            checks = [
+                self.check_release_metadata,
+                self.check_project_go_version_metadata,
+                self.check_openapi_generated_metadata,
+            ]
         else:
             checks = [
                 self.check_clean_worktree,
                 self.check_release_metadata,
                 self.check_project_go_version_metadata,
+                self.check_openapi_generated_metadata,
                 self.check_repository_secret_scan,
                 self.check_workflows,
                 self.check_actionlint,
@@ -228,6 +234,38 @@ class Gate:
             raise RuntimeError(
                 f"Go version drift: go.mod uses {go_mod_version}, "
                 f".codex/project.toml stack.backend.version uses {project_version!r}"
+            )
+
+    def check_openapi_generated_metadata(self) -> None:
+        source = self.root / "docs" / "openapi" / "panel-api.yaml"
+        committed = self.root / "frontend" / "public" / "openapi.json"
+        tool = self.root / "tools" / "openapiexport" / "main.go"
+        for path in (source, committed, tool):
+            if not path.exists():
+                raise RuntimeError(f"{path.relative_to(self.root)} is missing")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            generated = pathlib.Path(temp_dir) / "openapi.json"
+            self.command(
+                [
+                    "go",
+                    "run",
+                    "./tools/openapiexport",
+                    "-in",
+                    str(source.relative_to(self.root)),
+                    "-out",
+                    str(generated),
+                    "-version-file",
+                    "config/version",
+                ]
+            )
+            committed_doc = json.loads(committed.read_text(encoding="utf-8"))
+            generated_doc = json.loads(generated.read_text(encoding="utf-8"))
+
+        if committed_doc != generated_doc:
+            raise RuntimeError(
+                "frontend/public/openapi.json is stale; run "
+                "`cd frontend; npm run gen:openapi` and commit the generated file"
             )
 
     def check_workflows(self) -> None:

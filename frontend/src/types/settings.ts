@@ -8,6 +8,7 @@ export interface PanelSettings {
   defaultKey?: string;
   webBasePath: string;
   sessionMaxAge: number;
+  panelProxy: string;
   pageSize: number;
   expireDiff: number;
   trafficDiff: number;
