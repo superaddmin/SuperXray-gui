@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const layoutSource = readFileSync('frontend/src/layouts/MainLayout.vue', 'utf8');
+const routerSource = readFileSync('frontend/src/router/index.ts', 'utf8');
 const statusBarSource = readFileSync('frontend/src/components/AppStatusBar.vue', 'utf8');
 
 test('main layout exposes mobile drawer navigation without removing desktop sider', () => {
@@ -28,4 +29,12 @@ test('mobile drawer provides explicit close control and manages focus after open
   assert.match(layoutSource, /mobileNavFirstItemRef/);
   assert.match(layoutSource, /function handleMobileDrawerOpenChange/);
   assert.match(layoutSource, /focus\(\)/);
+});
+
+test('main layout and router expose Vue-owned API documentation navigation', () => {
+  assert.match(routerSource, /path: 'docs'/);
+  assert.match(routerSource, /name: 'docs'/);
+  assert.match(routerSource, /ApiDocsView\.vue/);
+  assert.match(layoutSource, /key: 'docs'/);
+  assert.match(layoutSource, /nav\.docs/);
 });

@@ -3,7 +3,7 @@ import { translateDomText } from './messages';
 
 const translatableAttributes = ['aria-label', 'alt', 'placeholder', 'title'] as const;
 const skippedSelector =
-  'script, style, pre, code, textarea, .log-viewport, .code-preview, .json-editor';
+  'script, style, pre, code, textarea, .log-viewport, .code-preview, .api-docs-code, .json-editor';
 
 export function applyLocaleToDocument(locale: AppLocale, root: ParentNode = document.body) {
   document.documentElement.lang = locale;

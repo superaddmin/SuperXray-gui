@@ -2,6 +2,19 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.20] - 2026-06-09
+
+### Added
+
+- 新增 Vue 面板内置 OpenAPI 文档页 `/panel/docs`，通过登录保护的 `/panel/api/openapi.json` 展示当前面板 API 契约。
+- 新增 `docs/openapi/panel-api.yaml` 与 `tools/openapiexport`，在前端构建时生成 `frontend/public/openapi.json` 并同步到 `web/ui/openapi.json`。
+
+### Changed
+
+- 同步上游 MHSanaei/3x-ui v3.3.0 的可兼容依赖与后端修复，同时保留 SuperXray Vue UI、legacy UI fallback 与 Phase 9/10 边界。
+- 强化 OpenAPI 路由漂移测试、运行时 basePath 注入、参数 `$ref` 展示、会话过期跳转、双语文案和无障碍筛选控件。
+- 同步发布版本到 `3.0.20`。
+
 ## [3.0.19] - 2026-06-06
 
 ### Fixed

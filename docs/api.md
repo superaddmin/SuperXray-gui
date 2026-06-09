@@ -1,9 +1,11 @@
 # API 接口说明
 
 > **目标读者**：集成开发者 / 前端维护者
-> **适用版本**：`v3.0.19`
+> **适用版本**：`v3.0.20`
 > **事实来源**：`web/controller/*`、`web/ui.go`、`web/middleware/security.go`、`web/websocket/*`、`sub/*`、`frontend/src/api/*`
-> **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [部署指南](deployment.md)
+> **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [部署指南](deployment.md) | [Panel OpenAPI](openapi/panel-api.yaml)
+
+> **文档职责**：本文保留为面向维护者的人类说明；`docs/openapi/panel-api.yaml` 是 Vue 面板 API 的机器契约，用于路由漂移测试，并通过 `tools/openapiexport` 生成 `frontend/public/openapi.json`，再由 Vite 输出到 `web/ui/openapi.json`。
 
 ---
 
@@ -28,7 +30,7 @@ window.__SUPERXRAY_UI_CONFIG__ = {
   uiBasePath: "/panel/",
   csrfToken: "<session csrf token>",
   cspNonce: "<request nonce>",
-  version: "3.0.19.<asset-hash>"
+  version: "3.0.20.<asset-hash>"
 }
 ```
 
@@ -115,6 +117,7 @@ HTTP 状态码为 `403`。
 | `GET` | `/panel/xray` | Xray 配置与工具页 |
 | `GET` | `/panel/inbounds` | Inbounds 管理页 |
 | `GET` | `/panel/settings` | 设置页 |
+| `GET` | `/panel/docs` | API 文档页 |
 | `GET` | `/panel/assets/*path` | 新 UI 构建资源 |
 | `GET` | `/panel/ui` | 兼容入口，重定向到 `/panel/ui/` |
 | `GET` | `/panel/ui/*path` | 新 UI 兼容入口 |

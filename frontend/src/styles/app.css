@@ -513,8 +513,7 @@ a,
   border-radius: 8px !important;
   background:
     linear-gradient(145deg, rgba(0, 102, 255, 0.08), transparent 46%),
-    linear-gradient(320deg, rgba(54, 179, 126, 0.045), transparent 56%),
-    var(--brand-card) !important;
+    linear-gradient(320deg, rgba(54, 179, 126, 0.045), transparent 56%), var(--brand-card) !important;
   box-shadow: 0 18px 42px var(--brand-shadow);
   backdrop-filter: blur(20px);
 }
@@ -524,8 +523,7 @@ a,
   border-color: rgba(0, 102, 255, 0.38) !important;
   background:
     linear-gradient(145deg, rgba(0, 102, 255, 0.12), transparent 46%),
-    linear-gradient(320deg, rgba(54, 179, 126, 0.065), transparent 56%),
-    var(--brand-card-hover) !important;
+    linear-gradient(320deg, rgba(54, 179, 126, 0.065), transparent 56%), var(--brand-card-hover) !important;
 }
 
 .status-tile .ant-card-body {
@@ -830,8 +828,7 @@ a,
   border-radius: 8px;
   background:
     linear-gradient(145deg, rgba(0, 102, 255, 0.1), transparent 50%),
-    linear-gradient(320deg, rgba(54, 179, 126, 0.055), transparent 56%),
-    rgba(255, 255, 255, 0.045);
+    linear-gradient(320deg, rgba(54, 179, 126, 0.055), transparent 56%), rgba(255, 255, 255, 0.045);
 }
 
 .compact-panel-header {
@@ -1029,6 +1026,60 @@ a,
   max-height: 220px;
 }
 
+.api-docs-page code,
+.api-docs-code {
+  font-family: var(--font-code);
+}
+
+.api-docs-toolbar {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.api-docs-search {
+  width: min(360px, 72vw);
+}
+
+.api-docs-filter {
+  min-width: 150px;
+}
+
+.api-docs-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--brand-muted-strong);
+}
+
+.api-docs-operation-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.api-docs-operation-header code {
+  overflow: hidden;
+  color: var(--brand-code);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.api-docs-operation-body {
+  display: grid;
+  gap: 18px;
+}
+
+.api-docs-block {
+  display: grid;
+  gap: 10px;
+}
+
+.api-docs-code {
+  max-width: 100%;
+  overflow: auto;
+  white-space: pre;
+}
 .json-editor {
   width: 100%;
   min-height: min(58vh, 560px);

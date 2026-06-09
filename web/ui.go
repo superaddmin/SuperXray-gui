@@ -35,6 +35,7 @@ func (s *Server) registerNewUIRoutes(g *gin.RouterGroup, basePath string) {
 
 	g.GET("/panel/login", s.serveNewUIIndex(basePath, basePath+"panel/"))
 	g.GET("/panel/assets/*path", s.serveNewUIAsset())
+	g.GET("/panel/api/openapi.json", newUIAPICheckLogin(), s.serveNewUIOpenAPISpec(basePath))
 
 	g.GET("/panel", auth, func(c *gin.Context) {
 		c.Redirect(http.StatusTemporaryRedirect, basePath+"panel/")
@@ -47,6 +48,7 @@ func (s *Server) registerNewUIRoutes(g *gin.RouterGroup, basePath string) {
 		"/panel/xray",
 		"/panel/inbounds",
 		"/panel/settings",
+		"/panel/docs",
 	} {
 		g.GET(route, auth, s.serveNewUIIndex(basePath, basePath+"panel/"))
 	}
@@ -72,6 +74,17 @@ func newUICheckLogin() gin.HandlerFunc {
 	}
 }
 
+func newUIAPICheckLogin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if session.IsLogin(c) {
+			c.Next()
+			return
+		}
+
+		c.AbortWithStatus(http.StatusNotFound)
+	}
+}
+
 func (s *Server) serveNewUI(basePath string, uiBasePath string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestedPath, ok := cleanNewUIPath(c.Param("path"))
@@ -85,6 +98,19 @@ func (s *Server) serveNewUI(basePath string, uiBasePath string) gin.HandlerFunc 
 		}
 
 		s.serveNewUIIndex(basePath, uiBasePath)(c)
+	}
+}
+
+func (s *Server) serveNewUIOpenAPISpec(basePath string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		data, err := newUIFS.ReadFile("ui/openapi.json")
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "msg": "openapi.json not found"})
+			return
+		}
+
+		c.Header("Cache-Control", "no-store")
+		c.Data(http.StatusOK, "application/json; charset=utf-8", injectOpenAPIServerBasePath(data, basePath))
 	}
 }
 
@@ -173,6 +199,42 @@ func injectNewUIRuntimeConfig(indexHTML []byte, runtime newUIRuntimeConfig) []by
 	}
 
 	return append(injection, indexHTML...)
+}
+
+func injectOpenAPIServerBasePath(openAPIJSON []byte, basePath string) []byte {
+	var document map[string]any
+	if err := json.Unmarshal(openAPIJSON, &document); err != nil {
+		return openAPIJSON
+	}
+
+	server := map[string]any{
+		"url":         openAPIServerURL(basePath),
+		"description": "Runtime panel base path.",
+	}
+	servers, ok := document["servers"].([]any)
+	if !ok || len(servers) == 0 {
+		document["servers"] = []any{server}
+	} else {
+		servers[0] = server
+		document["servers"] = servers
+	}
+
+	out, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return openAPIJSON
+	}
+	return append(out, '\n')
+}
+
+func openAPIServerURL(basePath string) string {
+	normalized := strings.TrimSpace(basePath)
+	if normalized == "" || normalized == "/" {
+		return "/"
+	}
+	if !strings.HasPrefix(normalized, "/") {
+		normalized = "/" + normalized
+	}
+	return strings.TrimRight(normalized, "/")
 }
 
 func cleanNewUIPath(rawPath string) (string, bool) {

@@ -1,0 +1,2794 @@
+{
+  "components": {
+    "parameters": {
+      "ActionPath": {
+        "in": "path",
+        "name": "action",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "BucketPath": {
+        "in": "path",
+        "name": "bucket",
+        "required": true,
+        "schema": {
+          "enum": [
+            2,
+            30,
+            60,
+            120,
+            180,
+            300
+          ],
+          "type": "integer"
+        }
+      },
+      "ClientIDPath": {
+        "in": "path",
+        "name": "clientId",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "CountPath": {
+        "in": "path",
+        "name": "count",
+        "required": true,
+        "schema": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "EmailPath": {
+        "in": "path",
+        "name": "email",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "FileNamePath": {
+        "in": "path",
+        "name": "fileName",
+        "required": true,
+        "schema": {
+          "pattern": "^[a-zA-Z0-9_\\\\-.]+$",
+          "type": "string"
+        }
+      },
+      "IDPath": {
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "VersionPath": {
+        "in": "path",
+        "name": "version",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "type": "string"
+        }
+      }
+    },
+    "requestBodies": {
+      "AllSettingFormOrJson": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/AllSetting"
+            }
+          },
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "$ref": "#/components/schemas/AllSetting"
+            }
+          }
+        },
+        "required": true
+      },
+      "CopyInboundClients": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/CopyInboundClientsRequest"
+            }
+          },
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "$ref": "#/components/schemas/CopyInboundClientsRequest"
+            }
+          }
+        },
+        "required": true
+      },
+      "CustomGeoForm": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/CustomGeoForm"
+            }
+          },
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "$ref": "#/components/schemas/CustomGeoForm"
+            }
+          }
+        },
+        "required": true
+      },
+      "EchCertForm": {
+        "content": {
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "properties": {
+                "sni": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "required": false
+      },
+      "ImportDatabaseMultipart": {
+        "content": {
+          "multipart/form-data": {
+            "schema": {
+              "properties": {
+                "db": {
+                  "description": ".db, .sqlite, or .sqlite3 backup file within the server size limit.",
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "db"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "required": true
+      },
+      "ImportInboundForm": {
+        "content": {
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "properties": {
+                "data": {
+                  "description": "Serialized legacy inbound JSON object.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "data"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "required": true
+      },
+      "InboundFormOrJson": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Inbound"
+            }
+          },
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "$ref": "#/components/schemas/Inbound"
+            }
+          }
+        },
+        "required": false
+      },
+      "LegacyForm": {
+        "content": {
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "$ref": "#/components/schemas/LegacyFormRecord"
+            }
+          }
+        },
+        "required": false
+      },
+      "LogsFilterForm": {
+        "content": {
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "properties": {
+                "level": {
+                  "type": "string"
+                },
+                "syslog": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "required": false
+      },
+      "NordActionForm": {
+        "content": {
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "properties": {
+                "countryId": {
+                  "type": "string"
+                },
+                "key": {
+                  "type": "string"
+                },
+                "token": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "required": false
+      },
+      "OutboundTagForm": {
+        "content": {
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "properties": {
+                "tag": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tag"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "required": true
+      },
+      "TestOutboundForm": {
+        "content": {
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "properties": {
+                "allOutbounds": {
+                  "description": "Optional serialized outbound array for dialerProxy resolution.",
+                  "type": "string"
+                },
+                "outbound": {
+                  "description": "Serialized outbound JSON fragment.",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "outbound"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "required": true
+      },
+      "TrafficUpdateJson": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/TrafficUpdateRequest"
+            }
+          }
+        },
+        "required": true
+      },
+      "UpdateUserForm": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/UpdateUserForm"
+            }
+          },
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "$ref": "#/components/schemas/UpdateUserForm"
+            }
+          }
+        },
+        "required": true
+      },
+      "WarpActionForm": {
+        "content": {
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "properties": {
+                "license": {
+                  "type": "string"
+                },
+                "privateKey": {
+                  "type": "string"
+                },
+                "publicKey": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "required": false
+      },
+      "XrayLogsFilterForm": {
+        "content": {
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "properties": {
+                "filter": {
+                  "type": "string"
+                },
+                "showBlocked": {
+                  "type": "string"
+                },
+                "showDirect": {
+                  "type": "string"
+                },
+                "showProxy": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "required": false
+      },
+      "XrayUpdateForm": {
+        "content": {
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "properties": {
+                "outboundTestUrl": {
+                  "format": "uri",
+                  "type": "string"
+                },
+                "xraySetting": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "xraySetting"
+              ],
+              "type": "object"
+            }
+          }
+        },
+        "required": true
+      }
+    },
+    "responses": {
+      "AuthNotFound": {
+        "description": "Unauthenticated /panel/api requests intentionally return 404 to hide API existence."
+      },
+      "BinaryFile": {
+        "content": {
+          "application/octet-stream": {
+            "schema": {
+              "format": "binary",
+              "type": "string"
+            }
+          }
+        },
+        "description": "Authenticated binary file download."
+      },
+      "ForbiddenCSRF": {
+        "content": {
+          "application/json": {
+            "examples": {
+              "csrfFailed": {
+                "value": {
+                  "msg": "CSRF validation failed",
+                  "obj": null,
+                  "success": false
+                }
+              }
+            },
+            "schema": {
+              "$ref": "#/components/schemas/LegacyResponse"
+            }
+          }
+        },
+        "description": "CSRF validation failed for a state-changing request."
+      },
+      "LegacyMsg": {
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/LegacyResponse"
+            }
+          }
+        },
+        "description": "Legacy JSON response envelope used by web/entity.Msg."
+      }
+    },
+    "schemas": {
+      "AllSetting": {
+        "additionalProperties": true,
+        "description": "Legacy panel settings payload mirrored by web/entity.AllSetting.",
+        "type": "object"
+      },
+      "ClientTraffic": {
+        "additionalProperties": true,
+        "properties": {
+          "down": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "email": {
+            "type": "string"
+          },
+          "enable": {
+            "type": "boolean"
+          },
+          "expiryTime": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "inboundId": {
+            "type": "integer"
+          },
+          "reset": {
+            "type": "integer"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "up": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "CopyInboundClientsRequest": {
+        "properties": {
+          "clientEmails": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "flow": {
+            "type": "string"
+          },
+          "sourceInboundId": {
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sourceInboundId"
+        ],
+        "type": "object"
+      },
+      "CustomGeoForm": {
+        "properties": {
+          "alias": {
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "geoip",
+              "geosite"
+            ],
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "alias",
+          "url"
+        ],
+        "type": "object"
+      },
+      "Inbound": {
+        "additionalProperties": true,
+        "properties": {
+          "clientStats": {
+            "items": {
+              "$ref": "#/components/schemas/ClientTraffic"
+            },
+            "type": "array"
+          },
+          "down": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "enable": {
+            "type": "boolean"
+          },
+          "expiryTime": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "listen": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer"
+          },
+          "protocol": {
+            "enum": [
+              "vmess",
+              "vless",
+              "trojan",
+              "shadowsocks",
+              "dokodemo-door",
+              "socks",
+              "http",
+              "hysteria2",
+              "wireguard"
+            ],
+            "type": "string"
+          },
+          "remark": {
+            "type": "string"
+          },
+          "settings": {
+            "description": "Legacy JSON string stored on database/model.Inbound.",
+            "type": "string"
+          },
+          "sniffing": {
+            "description": "Legacy JSON string stored on database/model.Inbound.",
+            "type": "string"
+          },
+          "streamSettings": {
+            "description": "Legacy JSON string stored on database/model.Inbound.",
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "up": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "userId": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "LegacyFormRecord": {
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "type": "object"
+      },
+      "LegacyResponse": {
+        "properties": {
+          "msg": {
+            "type": "string"
+          },
+          "obj": {
+            "description": "Endpoint-specific payload. Existing clients unwrap this field."
+          },
+          "success": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "msg",
+          "obj"
+        ],
+        "type": "object"
+      },
+      "OpenAPIDocument": {
+        "additionalProperties": true,
+        "properties": {
+          "info": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "openapi": {
+            "type": "string"
+          },
+          "paths": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "servers": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "openapi",
+          "info",
+          "paths"
+        ],
+        "type": "object"
+      },
+      "TrafficUpdateRequest": {
+        "properties": {
+          "download": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "upload": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "upload",
+          "download"
+        ],
+        "type": "object"
+      },
+      "UpdateUserForm": {
+        "properties": {
+          "newPassword": {
+            "type": "string"
+          },
+          "newUsername": {
+            "type": "string"
+          },
+          "oldPassword": {
+            "type": "string"
+          },
+          "oldUsername": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "oldUsername",
+          "oldPassword",
+          "newUsername",
+          "newPassword"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "cookieAuth": {
+        "description": "HttpOnly SameSite=Lax panel session cookie issued by POST /login.",
+        "in": "cookie",
+        "name": "SuperXray",
+        "type": "apiKey"
+      },
+      "csrfToken": {
+        "description": "Session-bound CSRF token injected into the Vue runtime config; X-XSRF-Token is accepted as a compatibility alias.",
+        "in": "header",
+        "name": "X-CSRF-Token",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "description": "Machine-readable contract for the Vue panel API implemented by the local Go/Gin backend.\nRuntime deployments may prepend the configured webBasePath before these paths.\nThe legacy response envelope is web/entity.Msg: success, msg, obj.\n",
+    "title": "SuperXray Panel API",
+    "version": "3.0.20"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/panel/api/backuptotgbot": {
+      "post": {
+        "operationId": "backupToTelegram",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Send a panel database backup to configured Telegram bot administrators.",
+        "tags": [
+          "Telegram"
+        ]
+      }
+    },
+    "/panel/api/cores/instances": {
+      "get": {
+        "operationId": "listCoreInstances",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "List guarded core instances visible to the panel.",
+        "tags": [
+          "Cores"
+        ]
+      }
+    },
+    "/panel/api/cores/instances/{id}": {
+      "get": {
+        "operationId": "getCoreInstance",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get one core instance by id.",
+        "tags": [
+          "Cores"
+        ]
+      }
+    },
+    "/panel/api/cores/instances/{id}/restart": {
+      "post": {
+        "operationId": "restartCoreInstance",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Restart one guarded core instance when allowed by the current phase gates.",
+        "tags": [
+          "Cores"
+        ]
+      }
+    },
+    "/panel/api/cores/instances/{id}/start": {
+      "post": {
+        "operationId": "startCoreInstance",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Start one guarded core instance when allowed by the current phase gates.",
+        "tags": [
+          "Cores"
+        ]
+      }
+    },
+    "/panel/api/cores/instances/{id}/status": {
+      "get": {
+        "operationId": "getCoreStatus",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get one core instance status by id.",
+        "tags": [
+          "Cores"
+        ]
+      }
+    },
+    "/panel/api/cores/instances/{id}/stop": {
+      "post": {
+        "operationId": "stopCoreInstance",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Stop one guarded core instance when allowed by the current phase gates.",
+        "tags": [
+          "Cores"
+        ]
+      }
+    },
+    "/panel/api/cores/instances/{id}/validate": {
+      "post": {
+        "operationId": "validateCoreInstance",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Validate one core instance without broadening the legacy lifecycle boundary.",
+        "tags": [
+          "Cores"
+        ]
+      }
+    },
+    "/panel/api/custom-geo/add": {
+      "post": {
+        "operationId": "addCustomGeoResource",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/CustomGeoForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Add a custom geo resource. URL inputs are validated server-side.",
+        "tags": [
+          "CustomGeo"
+        ]
+      }
+    },
+    "/panel/api/custom-geo/aliases": {
+      "get": {
+        "operationId": "listCustomGeoAliases",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "List custom geo aliases for UI selectors.",
+        "tags": [
+          "CustomGeo"
+        ]
+      }
+    },
+    "/panel/api/custom-geo/delete/{id}": {
+      "post": {
+        "operationId": "deleteCustomGeoResource",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Delete one custom geo resource.",
+        "tags": [
+          "CustomGeo"
+        ]
+      }
+    },
+    "/panel/api/custom-geo/download/{id}": {
+      "post": {
+        "operationId": "downloadCustomGeoResource",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Trigger update/download for one custom geo resource.",
+        "tags": [
+          "CustomGeo"
+        ]
+      }
+    },
+    "/panel/api/custom-geo/list": {
+      "get": {
+        "operationId": "listCustomGeoResources",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "List configured custom geo resources.",
+        "tags": [
+          "CustomGeo"
+        ]
+      }
+    },
+    "/panel/api/custom-geo/update-all": {
+      "post": {
+        "operationId": "updateAllCustomGeoResources",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Trigger updates for all custom geo resources.",
+        "tags": [
+          "CustomGeo"
+        ]
+      }
+    },
+    "/panel/api/custom-geo/update/{id}": {
+      "post": {
+        "operationId": "updateCustomGeoResource",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/CustomGeoForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Update one custom geo resource.",
+        "tags": [
+          "CustomGeo"
+        ]
+      }
+    },
+    "/panel/api/inbounds/add": {
+      "post": {
+        "operationId": "addInbound",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/InboundFormOrJson"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Create a legacy Xray inbound. Accepts form or JSON fields matching database/model.Inbound.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/addClient": {
+      "post": {
+        "operationId": "addInboundClient",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/InboundFormOrJson"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Add a client to an inbound using legacy Inbound payload fields.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/clearClientIps/{email}": {
+      "post": {
+        "operationId": "clearInboundClientIps",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EmailPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Clear saved client IP records by email.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/clientIps/{email}": {
+      "post": {
+        "operationId": "getInboundClientIps",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EmailPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Get saved client IP records by email.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/del/{id}": {
+      "post": {
+        "operationId": "deleteInbound",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Delete an inbound by id.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/delDepletedClients/{id}": {
+      "post": {
+        "operationId": "deleteDepletedClients",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Delete depleted clients in one inbound.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/get/{id}": {
+      "get": {
+        "operationId": "getInbound",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get one inbound by id.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/getClientTraffics/{email}": {
+      "get": {
+        "operationId": "getClientTraffics",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EmailPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get client traffic records by email.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/getClientTrafficsById/{id}": {
+      "get": {
+        "operationId": "getClientTrafficsById",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get client traffic records by inbound id.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/import": {
+      "post": {
+        "operationId": "importInbound",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/ImportInboundForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Import one legacy inbound JSON object through the existing Xray API path.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/lastOnline": {
+      "post": {
+        "operationId": "listClientsLastOnline",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "List last-online timestamps for clients.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/list": {
+      "get": {
+        "operationId": "listInbounds",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "List inbounds for the logged-in user.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/onlines": {
+      "post": {
+        "operationId": "listOnlineClients",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "List online clients observed by the Xray runtime.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/options": {
+      "get": {
+        "operationId": "listInboundOptions",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "List lightweight inbound options for selectors and API clients.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/resetAllClientTraffics/{id}": {
+      "post": {
+        "operationId": "resetAllClientTraffics",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Reset all client traffic counters in one inbound.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/resetAllTraffics": {
+      "post": {
+        "operationId": "resetAllTraffics",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Reset all inbound traffic counters.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/update/{id}": {
+      "post": {
+        "operationId": "updateInbound",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/InboundFormOrJson"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Update a legacy Xray inbound. Accepts form or JSON fields matching database/model.Inbound.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/updateClient/{clientId}": {
+      "post": {
+        "operationId": "updateInboundClient",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ClientIDPath"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/InboundFormOrJson"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Update one client inside an inbound using legacy Inbound payload fields.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/updateClientTraffic/{email}": {
+      "post": {
+        "operationId": "updateClientTraffic",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/EmailPath"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/TrafficUpdateJson"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Manually update upload/download traffic for a client email.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/{id}/copyClients": {
+      "post": {
+        "operationId": "copyInboundClients",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/CopyInboundClients"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Copy selected clients from a source inbound to a target inbound.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/{id}/delClient/{clientId}": {
+      "post": {
+        "operationId": "deleteInboundClient",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          },
+          {
+            "$ref": "#/components/parameters/ClientIDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Delete one client from an inbound by client UUID/id.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/{id}/delClientByEmail/{email}": {
+      "post": {
+        "operationId": "deleteInboundClientByEmail",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          },
+          {
+            "$ref": "#/components/parameters/EmailPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Delete one client from an inbound by email address.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/{id}/resetClientTraffic/{email}": {
+      "post": {
+        "operationId": "resetClientTraffic",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          },
+          {
+            "$ref": "#/components/parameters/EmailPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Reset traffic for one client email in an inbound.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/openapi.json": {
+      "get": {
+        "operationId": "getPanelOpenAPI",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAPIDocument"
+                }
+              }
+            },
+            "description": "Runtime OpenAPI 3.1 JSON document with servers rewritten for the active webBasePath."
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get the authenticated runtime OpenAPI document for the Vue panel.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/cpuHistory/{bucket}": {
+      "get": {
+        "operationId": "getCpuHistory",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/BucketPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get aggregated CPU history for an allowed bucket size.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/getConfigJson": {
+      "get": {
+        "operationId": "getConfigJson",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get the generated Xray configuration JSON.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/getDb": {
+      "get": {
+        "operationId": "downloadDatabase",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/BinaryFile"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Download the authenticated panel database backup.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/getNewEchCert": {
+      "post": {
+        "operationId": "getNewEchCert",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/EchCertForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Generate an ECH certificate helper value for the provided SNI.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/getNewUUID": {
+      "get": {
+        "operationId": "getNewUUID",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Generate a new UUID helper value.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/getNewVlessEnc": {
+      "get": {
+        "operationId": "getNewVlessEnc",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Generate a new VLESS encryption helper value.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/getNewX25519Cert": {
+      "get": {
+        "operationId": "getNewX25519Cert",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Generate a new X25519 helper value.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/getNewmldsa65": {
+      "get": {
+        "operationId": "getNewMldsa65",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Generate a new ML-DSA-65 helper value.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/getNewmlkem768": {
+      "get": {
+        "operationId": "getNewMlkem768",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Generate a new ML-KEM-768 helper value.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/getXrayVersion": {
+      "get": {
+        "operationId": "getXrayVersions",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get available Xray versions with controller-side caching.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/importDB": {
+      "post": {
+        "operationId": "importDatabase",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/ImportDatabaseMultipart"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Import a database backup file after size/name/extension validation.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/installXray/{version}": {
+      "post": {
+        "operationId": "installXray",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/VersionPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Install or update Xray to a selected version.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/logs/{count}": {
+      "post": {
+        "operationId": "getPanelLogs",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CountPath"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/LogsFilterForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Read panel logs with optional form filters.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/restartXrayService": {
+      "post": {
+        "operationId": "restartXrayService",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Restart the legacy Xray service path. This is not routed through CoreManager.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/status": {
+      "get": {
+        "operationId": "getServerStatus",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get cached panel, host, network, and Xray runtime status.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/stopXrayService": {
+      "post": {
+        "operationId": "stopXrayService",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Stop the legacy Xray service path. This is not routed through CoreManager.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/updateGeofile": {
+      "post": {
+        "operationId": "updateAllGeofiles",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Update default geofiles.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/updateGeofile/{fileName}": {
+      "post": {
+        "operationId": "updateGeofile",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FileNamePath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Update one allowlisted geofile by filename.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/xraylogs/{count}": {
+      "post": {
+        "operationId": "getXrayLogs",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CountPath"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/XrayLogsFilterForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Read Xray logs with optional form filters.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/setting/all": {
+      "post": {
+        "operationId": "getAllSettings",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Get all panel settings.",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/panel/api/setting/defaultSettings": {
+      "post": {
+        "operationId": "getDefaultSettings",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Get default panel settings based on the request host.",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/panel/api/setting/getDefaultJsonConfig": {
+      "get": {
+        "operationId": "getSettingDefaultXrayConfig",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get the default Xray JSON configuration from settings.",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/panel/api/setting/restartPanel": {
+      "post": {
+        "operationId": "restartPanel",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Restart the panel service after a short delay.",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/panel/api/setting/update": {
+      "post": {
+        "operationId": "updateSettings",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/AllSettingFormOrJson"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Update panel settings with legacy-compatible fields.",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/panel/api/setting/updateUser": {
+      "post": {
+        "operationId": "updateUser",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/UpdateUserForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Update the current login username/password after verifying old credentials.",
+        "tags": [
+          "Settings"
+        ]
+      }
+    },
+    "/panel/api/xray/": {
+      "post": {
+        "operationId": "getXraySetting",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Get the Xray template, inbound tags, and outbound test URL.",
+        "tags": [
+          "Xray"
+        ]
+      }
+    },
+    "/panel/api/xray/getDefaultJsonConfig": {
+      "get": {
+        "operationId": "getXrayDefaultJsonConfig",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get the default Xray JSON configuration.",
+        "tags": [
+          "Xray"
+        ]
+      }
+    },
+    "/panel/api/xray/getOutboundsTraffic": {
+      "get": {
+        "operationId": "getOutboundsTraffic",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get outbound traffic counters.",
+        "tags": [
+          "Xray"
+        ]
+      }
+    },
+    "/panel/api/xray/getXrayResult": {
+      "get": {
+        "operationId": "getXrayResult",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Get the current Xray service result/state payload.",
+        "tags": [
+          "Xray"
+        ]
+      }
+    },
+    "/panel/api/xray/nord/{action}": {
+      "post": {
+        "operationId": "runNordAction",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ActionPath"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/NordActionForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Run an allowlisted NordVPN helper action.",
+        "tags": [
+          "Xray"
+        ]
+      }
+    },
+    "/panel/api/xray/resetOutboundsTraffic": {
+      "post": {
+        "operationId": "resetOutboundsTraffic",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/OutboundTagForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Reset traffic for one outbound tag.",
+        "tags": [
+          "Xray"
+        ]
+      }
+    },
+    "/panel/api/xray/testOutbound": {
+      "post": {
+        "operationId": "testOutbound",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/TestOutboundForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Test an outbound configuration against the server-configured test URL.",
+        "tags": [
+          "Xray"
+        ]
+      }
+    },
+    "/panel/api/xray/update": {
+      "post": {
+        "operationId": "updateXraySetting",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/XrayUpdateForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Save the Xray configuration template and outbound test URL.",
+        "tags": [
+          "Xray"
+        ]
+      }
+    },
+    "/panel/api/xray/warp/{action}": {
+      "post": {
+        "operationId": "runWarpAction",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ActionPath"
+          }
+        ],
+        "requestBody": {
+          "$ref": "#/components/requestBodies/WarpActionForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Run an allowlisted Warp helper action.",
+        "tags": [
+          "Xray"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "cookieAuth": []
+    }
+  ],
+  "servers": [
+    {
+      "description": "Runtime panel base path. Use / for the source default; deployments may use /xui/ or another configured prefix.",
+      "url": "{webBasePath}",
+      "variables": {
+        "webBasePath": {
+          "default": "/"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "description": "Legacy Xray inbound and client management backed by database/model.Inbound.",
+      "name": "Inbounds"
+    },
+    {
+      "description": "Panel status, logs, backups, geofile updates, and Xray service actions.",
+      "name": "Server"
+    },
+    {
+      "description": "Phase 10 read-only/minimal core instance registry and guarded lifecycle endpoints.",
+      "name": "Cores"
+    },
+    {
+      "description": "Authenticated custom geoip/geosite resource management.",
+      "name": "CustomGeo"
+    },
+    {
+      "description": "Panel settings and current user settings.",
+      "name": "Settings"
+    },
+    {
+      "description": "Xray template, outbound tools, Warp, and NordVPN helpers.",
+      "name": "Xray"
+    },
+    {
+      "description": "Telegram backup trigger.",
+      "name": "Telegram"
+    }
+  ]
+}

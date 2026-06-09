@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
@@ -148,6 +149,7 @@ func TestNewUIRoutesServeTopLevelVuePagesForLoggedInUser(t *testing.T) {
 		"/panel/xray",
 		"/panel/inbounds",
 		"/panel/settings",
+		"/panel/docs",
 	} {
 		t.Run(route, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
@@ -161,6 +163,55 @@ func TestNewUIRoutesServeTopLevelVuePagesForLoggedInUser(t *testing.T) {
 				t.Fatalf("expected top-level route to return injected Vue index, got %s", recorder.Body.String())
 			}
 		})
+	}
+}
+
+func TestOpenAPISpecRequiresAPILogin404(t *testing.T) {
+	router := newTestNewUIRouter(false)
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://example.test/panel/api/openapi.json", nil)
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func TestOpenAPISpecInjectsRuntimeBasePath(t *testing.T) {
+	router := newTestNewUIRouterWithBasePath(true, "/xui/")
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://example.test/xui/panel/api/openapi.json", nil)
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d: %s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+	if got := recorder.Header().Get("Content-Type"); got != "application/json; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want application/json; charset=utf-8", got)
+	}
+
+	var doc struct {
+		Servers []struct {
+			URL       string         `json:"url"`
+			Variables map[string]any `json:"variables"`
+		} `json:"servers"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &doc); err != nil {
+		t.Fatalf("OpenAPI response must be valid JSON: %v", err)
+	}
+	if len(doc.Servers) == 0 {
+		t.Fatalf("OpenAPI response must include servers")
+	}
+	if doc.Servers[0].URL != "/xui" {
+		t.Fatalf("servers[0].url = %q, want /xui", doc.Servers[0].URL)
+	}
+	if len(doc.Servers[0].Variables) != 0 {
+		t.Fatalf("runtime OpenAPI server must not keep template variables: %#v", doc.Servers[0].Variables)
 	}
 }
 
@@ -284,19 +335,23 @@ func newTestPanelEntryRouter(basePath string) *gin.Engine {
 }
 
 func newTestNewUIRouter(authenticated bool) *gin.Engine {
+	return newTestNewUIRouterWithBasePath(authenticated, "/")
+}
+
+func newTestNewUIRouterWithBasePath(authenticated bool, basePath string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(middleware.SecurityHeadersMiddleware())
 	router.Use(sessions.Sessions("SuperXray", cookie.NewStore([]byte("secret"))))
 	router.Use(func(c *gin.Context) {
-		c.Set("base_path", "/")
+		c.Set("base_path", basePath)
 		if authenticated {
 			session.SetLoginUser(c, &model.User{Id: 1, Username: "admin"})
 		}
 		c.Next()
 	})
 
-	(&Server{}).registerNewUIRoutes(router.Group("/"), "/")
+	(&Server{}).registerNewUIRoutes(router.Group(basePath), basePath)
 	return router
 }
 

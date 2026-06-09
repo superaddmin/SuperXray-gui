@@ -135,6 +135,7 @@ func isNewUIPanelPath(path string) bool {
 		"/panel/xray",
 		"/panel/inbounds",
 		"/panel/settings",
+		"/panel/docs",
 	} {
 		if normalized == route || strings.HasSuffix(normalized, route) {
 			return true

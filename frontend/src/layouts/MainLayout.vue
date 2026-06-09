@@ -67,7 +67,12 @@
       >
         <template #icon><CloseOutlined /></template>
       </AButton>
-      <RouterLink :aria-label="translate('nav.dashboard', appStore.locale)" class="brand" to="/" @click="closeMobileNav">
+      <RouterLink
+        :aria-label="translate('nav.dashboard', appStore.locale)"
+        class="brand"
+        to="/"
+        @click="closeMobileNav"
+      >
         <!-- eslint-disable vue/html-self-closing -->
         <img class="brand-logo" :src="logoDarkUrl" alt="SuperXray" />
         <!-- eslint-enable vue/html-self-closing -->
@@ -140,6 +145,11 @@ const menuItems = computed<ItemType[]>(() => [
     key: 'settings',
     icon: () => h(SettingOutlined),
     label: translate('nav.settings', appStore.locale),
+  },
+  {
+    key: 'docs',
+    icon: () => h(ApiOutlined),
+    label: translate('nav.docs', appStore.locale),
   },
 ]);
 

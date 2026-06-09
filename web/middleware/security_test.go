@@ -153,6 +153,30 @@ func TestSecurityHeadersMiddlewareKeepsCompatibilityNewUIStrict(t *testing.T) {
 	}
 }
 
+func TestSecurityHeadersMiddlewareUsesStrictCSPForDocsPage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(SecurityHeadersMiddleware())
+	router.GET("/panel/docs", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok")
+	})
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "http://example.test/panel/docs", nil)
+	router.ServeHTTP(recorder, req)
+
+	csp := recorder.Header().Get("Content-Security-Policy")
+	if strings.Contains(cspDirective(csp, "script-src"), "'unsafe-eval'") {
+		t.Fatalf("docs page CSP must not allow unsafe-eval: %q", csp)
+	}
+	if strings.Contains(cspDirective(csp, "script-src"), "'unsafe-inline'") {
+		t.Fatalf("docs page CSP must not allow unsafe-inline scripts: %q", csp)
+	}
+	if !strings.Contains(cspDirective(csp, "script-src"), "'nonce-") {
+		t.Fatalf("docs page script-src nonce missing: %q", csp)
+	}
+}
+
 func TestSecurityHeadersMiddlewareRecognizesNewUIUnderBasePath(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

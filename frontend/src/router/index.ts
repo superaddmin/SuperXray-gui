@@ -56,6 +56,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/SettingsView.vue'),
         meta: { title: 'Settings' },
       },
+      {
+        path: 'docs',
+        name: 'docs',
+        component: () => import('@/views/ApiDocsView.vue'),
+        meta: { title: 'API Docs' },
+      },
     ],
   },
   {
