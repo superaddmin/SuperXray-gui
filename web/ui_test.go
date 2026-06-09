@@ -176,6 +176,9 @@ func TestOpenAPISpecRequiresAPILogin404(t *testing.T) {
 	if recorder.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
 	}
+	if got := recorder.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
 }
 
 func TestOpenAPISpecInjectsRuntimeBasePath(t *testing.T) {

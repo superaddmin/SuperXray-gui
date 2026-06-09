@@ -2,6 +2,17 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.0.21] - 2026-06-09
+
+### Fixed
+
+- 完善 Vue 面板 OpenAPI 文档页的 `$ref` 展开逻辑，递归解析 requestBody、responses 与 schemas，避免文档页展示未解析的引用对象。
+- 未登录访问 `/panel/api/openapi.json` 的隐藏式 404 响应补充 `Cache-Control: no-store`，避免会话恢复后命中旧缓存。
+
+### Changed
+
+- 同步发布版本到 `3.0.21`。
+
 ## [3.0.20] - 2026-06-09
 
 ### Added

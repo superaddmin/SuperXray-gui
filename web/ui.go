@@ -81,6 +81,7 @@ func newUIAPICheckLogin() gin.HandlerFunc {
 			return
 		}
 
+		c.Header("Cache-Control", "no-store")
 		c.AbortWithStatus(http.StatusNotFound)
 	}
 }

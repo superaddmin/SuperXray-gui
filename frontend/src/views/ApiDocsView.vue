@@ -163,6 +163,13 @@
                   ><code>{{ stringify(operation.requestBody) }}</code></pre>
                 </div>
 
+                <div v-if="operation.responses" class="api-docs-block">
+                  <h3>{{ translateText('apiDocs.responses') }}</h3>
+                  <pre
+                    class="code-preview compact-preview api-docs-code"
+                  ><code>{{ stringify(operation.responses) }}</code></pre>
+                </div>
+
                 <div class="api-docs-block">
                   <h3>{{ translateText('apiDocs.rawOperation') }}</h3>
                   <pre
@@ -235,6 +242,7 @@ interface OperationRow {
   path: string;
   raw: OpenAPIOperation;
   requestBody?: unknown;
+  responses?: unknown;
   responseCodes: string[];
   security: string[];
   summary: string;
@@ -312,7 +320,8 @@ const operations = computed<OperationRow[]>(() => {
           parameters,
           path,
           raw: operation,
-          requestBody: operation.requestBody,
+          requestBody: resolveOpenAPIValue(operation.requestBody),
+          responses: resolveOpenAPIValue(operation.responses || {}),
           responseCodes: Object.keys(operation.responses || {}),
           security: operationSecurity(operation),
           summary: operation.summary || '',
@@ -422,12 +431,7 @@ function resolveParameter(parameter: OpenAPIParameterOrRef): OpenAPIParameter | 
   if (!('$ref' in parameter)) {
     return parameter;
   }
-  const prefix = '#/components/parameters/';
-  if (!parameter.$ref.startsWith(prefix)) {
-    return undefined;
-  }
-  const key = parameter.$ref.slice(prefix.length);
-  return document.value?.components?.parameters?.[key];
+  return resolveReference<OpenAPIParameter>(parameter.$ref);
 }
 
 function referenceName(parameter: OpenAPIParameterOrRef): string {
@@ -435,6 +439,47 @@ function referenceName(parameter: OpenAPIParameterOrRef): string {
     return parameter.name || '-';
   }
   return parameter.$ref.split('/').pop() || parameter.$ref;
+}
+
+function resolveOpenAPIValue(value: unknown, seenRefs = new Set<string>()): unknown {
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveOpenAPIValue(item, new Set(seenRefs)));
+  }
+  if ('$ref' in value && typeof value.$ref === 'string') {
+    const ref = value.$ref;
+    if (seenRefs.has(ref)) {
+      return value;
+    }
+    const resolved = resolveReference<unknown>(ref);
+    if (resolved === undefined) {
+      return value;
+    }
+    return resolveOpenAPIValue(resolved, new Set([...seenRefs, ref]));
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, resolveOpenAPIValue(item, new Set(seenRefs))]),
+  );
+}
+
+function resolveReference<T>(ref: string): T | undefined {
+  if (!ref.startsWith('#/')) {
+    return undefined;
+  }
+  const resolved = ref
+    .slice(2)
+    .split('/')
+    .reduce<unknown>((node, token) => {
+      if (!node || typeof node !== 'object') {
+        return undefined;
+      }
+      const key = token.replaceAll('~1', '/').replaceAll('~0', '~');
+      return (node as Record<string, unknown>)[key];
+    }, document.value);
+  return resolved as T | undefined;
 }
 
 function operationSecurity(operation: OpenAPIOperation): string[] {
