@@ -824,6 +824,38 @@
                 class="full-width"
               />
             </AFormItem>
+            <AFormItem v-if="isHysteriaProtocol(inboundEditor.protocol)" label="QUIC Params">
+              <ASwitch v-model:checked="streamEditor.hysteriaQuicParamsEnabled" />
+            </AFormItem>
+            <AFormItem
+              v-if="isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled"
+              label="UDP Hop"
+            >
+              <ASwitch v-model:checked="streamEditor.hysteriaUdpHopEnabled" />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) &&
+                  streamEditor.hysteriaQuicParamsEnabled &&
+                  streamEditor.hysteriaUdpHopEnabled
+              "
+              label="Hop Ports"
+            >
+              <AInput
+                v-model:value="streamEditor.hysteriaUdpHopPorts"
+                placeholder="40000-45000"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) &&
+                  streamEditor.hysteriaQuicParamsEnabled &&
+                  streamEditor.hysteriaUdpHopEnabled
+              "
+              label="Hop Interval"
+            >
+              <AInput v-model:value="streamEditor.hysteriaUdpHopInterval" placeholder="5-10" />
+            </AFormItem>
             <AFormItem label="Sockopt Enabled">
               <ASwitch v-model:checked="streamEditor.sockoptEnabled" />
             </AFormItem>
@@ -1433,6 +1465,7 @@ import type { PanelSettings } from '@/types/settings';
 import { formatBytes, formatCount } from '@/utils/format';
 import {
   SHADOWSOCKS_METHOD_OPTIONS,
+  applyHysteriaFinalmaskUdpHop,
   applyPanelDefaultTlsCertificate,
   buildClientShareLink,
   buildClientSubscriptionLinks,
@@ -1563,6 +1596,10 @@ interface StreamEditorState {
   realityMldsa65Verify: string;
   hysteriaAuth: string;
   hysteriaUdpIdleTimeout: number;
+  hysteriaQuicParamsEnabled: boolean;
+  hysteriaUdpHopEnabled: boolean;
+  hysteriaUdpHopPorts: string;
+  hysteriaUdpHopInterval: string;
   sockoptEnabled: boolean;
   sockoptAcceptProxyProtocol: boolean;
   sockoptTcpFastOpen: boolean;
@@ -3339,6 +3376,10 @@ function createStreamEditor(): StreamEditorState {
     realityMldsa65Verify: '',
     hysteriaAuth: '',
     hysteriaUdpIdleTimeout: 60,
+    hysteriaQuicParamsEnabled: false,
+    hysteriaUdpHopEnabled: false,
+    hysteriaUdpHopPorts: '',
+    hysteriaUdpHopInterval: '',
     sockoptEnabled: false,
     sockoptAcceptProxyProtocol: false,
     sockoptTcpFastOpen: false,
@@ -3430,6 +3471,9 @@ function syncStreamEditorFromSettings() {
   const tcpSettings = objectField(stream.tcpSettings);
   const tcpHeader = objectField(tcpSettings.header);
   const hysteriaSettings = objectField(stream.hysteriaSettings);
+  const finalmask = objectField(stream.finalmask);
+  const quicParams = objectField(finalmask.quicParams);
+  const udpHop = objectField(quicParams.udpHop);
 
   Object.assign(streamEditor, {
     network: stringField(stream.network) || defaultNetworkForProtocol(inboundEditor.protocol),
@@ -3490,6 +3534,10 @@ function syncStreamEditorFromSettings() {
     realityMldsa65Verify: stringField(realityClientSettings.mldsa65Verify),
     hysteriaAuth: stringField(hysteriaSettings.auth),
     hysteriaUdpIdleTimeout: Number(hysteriaSettings.udpIdleTimeout || 60),
+    hysteriaQuicParamsEnabled: Object.keys(quicParams).length > 0,
+    hysteriaUdpHopEnabled: Object.keys(udpHop).length > 0,
+    hysteriaUdpHopPorts: stringField(udpHop.ports),
+    hysteriaUdpHopInterval: stringField(udpHop.interval),
     sockoptEnabled: Object.keys(sockopt).length > 0,
     sockoptAcceptProxyProtocol: Boolean(sockopt.acceptProxyProtocol),
     sockoptTcpFastOpen: Boolean(sockopt.tcpFastOpen),
@@ -3596,6 +3644,16 @@ function applyStreamEditorToSettings() {
       auth: streamEditor.hysteriaAuth,
       udpIdleTimeout: Math.max(0, Number(streamEditor.hysteriaUdpIdleTimeout || 0)),
     };
+    const streamWithUdpHop = applyHysteriaFinalmaskUdpHop(stream, {
+      quicParamsEnabled: streamEditor.hysteriaQuicParamsEnabled,
+      udpHopEnabled: streamEditor.hysteriaUdpHopEnabled,
+      ports: streamEditor.hysteriaUdpHopPorts,
+      interval: streamEditor.hysteriaUdpHopInterval,
+    });
+    Object.assign(stream, streamWithUdpHop);
+    if (!streamWithUdpHop.finalmask) {
+      delete stream.finalmask;
+    }
   }
 
   if (security === 'tls') {

@@ -3,7 +3,7 @@
 > 更新日期：2026-06-09
 > 上游仓库：`MHSanaei/3x-ui`
 > 当前上游基线：`3x-ui upstream tag v3_3_0` / `upstream/main` = `f8e89cc84`（tag object `02edec359`）
-> 当前项目版本：`3.3.1`
+> 当前项目版本：`3.3.2`
 
 ## 1. 同步原则
 

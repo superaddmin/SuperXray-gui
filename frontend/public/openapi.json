@@ -711,7 +711,7 @@
   "info": {
     "description": "Machine-readable contract for the Vue panel API implemented by the local Go/Gin backend.\nRuntime deployments may prepend the configured webBasePath before these paths.\nThe legacy response envelope is web/entity.Msg: success, msg, obj.\n",
     "title": "SuperXray Panel API",
-    "version": "3.3.1"
+    "version": "3.3.2"
   },
   "openapi": "3.1.0",
   "paths": {

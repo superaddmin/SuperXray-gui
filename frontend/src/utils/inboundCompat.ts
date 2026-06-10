@@ -33,6 +33,13 @@ export interface SubscriptionLinkItem {
   url: string;
 }
 
+export interface HysteriaUdpHopFormInput {
+  quicParamsEnabled: boolean;
+  udpHopEnabled: boolean;
+  ports: string;
+  interval: string;
+}
+
 export function mergeSubscriptionEndpointDefaults(
   settings: SubscriptionEndpointSettings,
   defaults: Partial<SubscriptionEndpointSettings>,
@@ -274,6 +281,47 @@ export function applyPanelDefaultTlsCertificate(
       ],
     },
   };
+}
+
+export function applyHysteriaFinalmaskUdpHop(
+  stream: InboundStreamSettings,
+  input: HysteriaUdpHopFormInput,
+): InboundStreamSettings {
+  const next: InboundStreamSettings = { ...stream };
+  const finalmask: Record<string, unknown> = { ...asRecord(stream.finalmask) };
+  const quicParams: Record<string, unknown> = { ...asRecord(finalmask.quicParams) };
+  const ports = normalizeHopRange(input.ports);
+  const interval = normalizeHopRange(input.interval);
+
+  if (!input.quicParamsEnabled) {
+    delete finalmask.quicParams;
+    if (Object.keys(finalmask).length > 0) {
+      next.finalmask = finalmask;
+    } else {
+      delete next.finalmask;
+    }
+    return next;
+  }
+
+  if (input.quicParamsEnabled && input.udpHopEnabled && ports) {
+    quicParams.udpHop = interval ? { ports, interval } : { ports };
+    finalmask.quicParams = quicParams;
+    next.finalmask = finalmask;
+    return next;
+  }
+
+  delete quicParams.udpHop;
+  if (Object.keys(quicParams).length > 0) {
+    finalmask.quicParams = quicParams;
+  } else {
+    delete finalmask.quicParams;
+  }
+  if (Object.keys(finalmask).length > 0) {
+    next.finalmask = finalmask;
+  } else {
+    delete next.finalmask;
+  }
+  return next;
 }
 
 export function defaultSniffingSettings(): InboundSniffingSettings {
@@ -939,6 +987,10 @@ function hysteriaHopPorts(finalmask: unknown): string {
   const quicParams = asRecord(asRecord(finalmask).quicParams);
   const udpHop = asRecord(quicParams.udpHop);
   return stringValue(udpHop.ports).trim();
+}
+
+function normalizeHopRange(value: string): string {
+  return value.trim().replace(/^(\d+)\s*:\s*(\d+)$/, '$1-$2');
 }
 
 function serializeShareableFinalMask(finalmask: unknown): string {

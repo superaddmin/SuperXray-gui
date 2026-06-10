@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   applyPanelDefaultTlsCertificate,
+  applyHysteriaFinalmaskUdpHop,
   buildClientSubscriptionLinks,
   buildInboundShareLinks,
   defaultStreamSettings,
@@ -192,6 +193,88 @@ test('defaultStreamSettings keeps Hysteria2 on h3 without uTLS fingerprint', () 
   assert.equal(tlsClientSettings.fingerprint, '');
 });
 
+
+test('applyHysteriaFinalmaskUdpHop writes UDP Hop without dropping salamander obfs', () => {
+  const stream = applyHysteriaFinalmaskUdpHop(
+    {
+      finalmask: {
+        udp: [
+          {
+            type: 'salamander',
+            settings: { password: 'obfs-pass' },
+          },
+        ],
+      },
+    },
+    {
+      quicParamsEnabled: true,
+      udpHopEnabled: true,
+      ports: '40000:45000',
+      interval: '5:10',
+    },
+  );
+
+  assert.deepEqual(stream.finalmask, {
+    udp: [
+      {
+        type: 'salamander',
+        settings: { password: 'obfs-pass' },
+      },
+    ],
+    quicParams: {
+      udpHop: { ports: '40000-45000', interval: '5-10' },
+    },
+  });
+});
+
+test('applyHysteriaFinalmaskUdpHop removes only udpHop when disabled', () => {
+  const stream = applyHysteriaFinalmaskUdpHop(
+    {
+      finalmask: {
+        udp: [{ type: 'salamander', settings: { password: 'obfs-pass' } }],
+        quicParams: {
+          congestion: 'bbr',
+          udpHop: { ports: '40000-45000', interval: '5-10' },
+        },
+      },
+    },
+    {
+      quicParamsEnabled: true,
+      udpHopEnabled: false,
+      ports: '40000-45000',
+      interval: '5-10',
+    },
+  );
+
+  assert.deepEqual(stream.finalmask, {
+    udp: [{ type: 'salamander', settings: { password: 'obfs-pass' } }],
+    quicParams: { congestion: 'bbr' },
+  });
+});
+
+test('applyHysteriaFinalmaskUdpHop removes all quicParams when QUIC Params is disabled', () => {
+  const stream = applyHysteriaFinalmaskUdpHop(
+    {
+      finalmask: {
+        udp: [{ type: 'salamander', settings: { password: 'obfs-pass' } }],
+        quicParams: {
+          congestion: 'bbr',
+          udpHop: { ports: '40000-45000', interval: '5-10' },
+        },
+      },
+    },
+    {
+      quicParamsEnabled: false,
+      udpHopEnabled: true,
+      ports: '40000-45000',
+      interval: '5-10',
+    },
+  );
+
+  assert.deepEqual(stream.finalmask, {
+    udp: [{ type: 'salamander', settings: { password: 'obfs-pass' } }],
+  });
+});
 test('buildInboundShareLinks exports Hysteria2 UDP hop ports without default fp', () => {
   const links = buildInboundShareLinks({
     protocol: 'hysteria',

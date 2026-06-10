@@ -2,6 +2,13 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.3.2] - 2026-06-10
+
+### Fixed
+
+- 在新 Vue UI 的 Hysteria2 入站表单中补齐 `QUIC Params`、`UDP Hop`、`Hop Ports` 与 `Hop Interval` 结构化字段，并写回 `streamSettings.finalmask.quicParams.udpHop`。
+- UDP Hop 写回时保留 `finalmask.udp` 中的 Salamander 混淆配置、其他 `quicParams` 参数与分享链接 `fm`/`mport` 兼容输出，同时兼容用户输入的 `40000:45000` 端口范围并规范为上游 dash-range `40000-45000`。
+
 ## [3.3.1] - 2026-06-10
 
 ### Fixed

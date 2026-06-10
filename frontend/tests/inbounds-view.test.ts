@@ -186,3 +186,23 @@ test('inbounds view exposes bulk add clients flow', () => {
   assert.match(source, /v-model:value="bulkClientForm\.firstIndex"/);
   assert.match(source, /v-model:value="bulkClientForm\.emailPostfix"/);
 });
+test('hysteria inbound form exposes QUIC Params UDP Hop controls and syncs finalmask JSON', () => {
+  assert.match(source, /label="QUIC Params"/);
+  assert.match(source, /v-model:checked="streamEditor\.hysteriaQuicParamsEnabled"/);
+  assert.match(source, /label="UDP Hop"/);
+  assert.match(source, /v-model:checked="streamEditor\.hysteriaUdpHopEnabled"/);
+  assert.match(source, /label="Hop Ports"/);
+  assert.match(source, /placeholder="40000-45000"/);
+  assert.match(source, /label="Hop Interval"/);
+  assert.match(source, /placeholder="5-10"/);
+  assert.match(source, /hysteriaUdpHopPorts: string/);
+  assert.match(source, /hysteriaUdpHopInterval: string/);
+  assert.match(source, /const finalmask = objectField\(stream\.finalmask\)/);
+  assert.match(source, /const quicParams = objectField\(finalmask\.quicParams\)/);
+  assert.match(source, /const udpHop = objectField\(quicParams\.udpHop\)/);
+  assert.match(source, /hysteriaUdpHopPorts:\s*stringField\(udpHop\.ports\)/);
+  assert.match(source, /applyHysteriaFinalmaskUdpHop/);
+  assert.match(source, /const streamWithUdpHop = applyHysteriaFinalmaskUdpHop\(stream, \{/);
+  assert.match(source, /Object\.assign\(stream, streamWithUdpHop\)/);
+  assert.match(source, /delete stream\.finalmask/);
+});
