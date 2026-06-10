@@ -36,6 +36,10 @@ func withXrayAPISyncLock(fn func()) {
 	fn()
 }
 
+func xrayRuntimeProtocol(protocol model.Protocol) string {
+	return string(protocol.XrayProtocol())
+}
+
 type CopyClientsResult struct {
 	Added   []string `json:"added"`
 	Skipped []string `json:"skipped"`
@@ -904,7 +908,7 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 					if oldInbound.Protocol == "shadowsocks" {
 						cipher, _ = oldSettings["method"].(string)
 					}
-					err1 := s.xrayApi.AddUser(string(oldInbound.Protocol), oldInbound.Tag, map[string]any{
+					err1 := s.xrayApi.AddUser(xrayRuntimeProtocol(oldInbound.Protocol), oldInbound.Tag, map[string]any{
 						"email":    client.Email,
 						"id":       client.ID,
 						"auth":     client.Auth,
@@ -938,11 +942,20 @@ func (s *InboundService) getClientPrimaryKey(protocol model.Protocol, client mod
 		return client.Password
 	case model.Shadowsocks:
 		return client.Email
-	case model.Hysteria:
+	case model.Hysteria, model.Hysteria2:
 		return client.Auth
 	default:
 		return client.ID
 	}
+}
+
+func (s *InboundService) getClientPrimaryKeyByEmail(protocol model.Protocol, clients []model.Client, email string) string {
+	for _, client := range clients {
+		if client.Email == email {
+			return s.getClientPrimaryKey(protocol, client)
+		}
+	}
+	return ""
 }
 
 func (s *InboundService) writeBackClientSubID(sourceInboundID int, sourceProtocol model.Protocol, client model.Client, subID string) (bool, error) {
@@ -1011,7 +1024,7 @@ func (s *InboundService) buildTargetClientFromSource(source model.Client, target
 		if !isShadowsocks2022Method(method) {
 			target.Method = method
 		}
-	case model.Hysteria:
+	case model.Hysteria, model.Hysteria2:
 		target.Auth = s.generateRandomCredential(targetProtocol)
 	default:
 		target.ID = s.generateRandomCredential(targetProtocol)
@@ -1421,7 +1434,7 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 				if oldInbound.Protocol == "shadowsocks" {
 					cipher, _ = oldSettings["method"].(string)
 				}
-				err1 := s.xrayApi.AddUser(string(oldInbound.Protocol), oldInbound.Tag, map[string]any{
+				err1 := s.xrayApi.AddUser(xrayRuntimeProtocol(oldInbound.Protocol), oldInbound.Tag, map[string]any{
 					"email":    clients[0].Email,
 					"id":       clients[0].ID,
 					"security": clients[0].Security,
@@ -1688,7 +1701,7 @@ func (s *InboundService) autoRenewClients(tx *gorm.DB) (bool, int64, error) {
 								tag      string
 								client   map[string]any
 							}{
-								protocol: string(inbounds[inbound_index].Protocol),
+								protocol: xrayRuntimeProtocol(inbounds[inbound_index].Protocol),
 								tag:      inbounds[inbound_index].Tag,
 								client:   c,
 							})
@@ -1951,21 +1964,7 @@ func (s *InboundService) SetClientTelegramUserID(trafficId int, tgId int64) (boo
 		return false, err
 	}
 
-	clientId := ""
-
-	for _, oldClient := range oldClients {
-		if oldClient.Email == clientEmail {
-			switch inbound.Protocol {
-			case "trojan":
-				clientId = oldClient.Password
-			case "shadowsocks":
-				clientId = oldClient.Email
-			default:
-				clientId = oldClient.ID
-			}
-			break
-		}
-	}
+	clientId := s.getClientPrimaryKeyByEmail(inbound.Protocol, oldClients, clientEmail)
 
 	if len(clientId) == 0 {
 		return false, common.NewError("Client Not Found For Email:", clientEmail)
@@ -2036,19 +2035,11 @@ func (s *InboundService) ToggleClientEnableByEmail(clientEmail string) (bool, bo
 		return false, false, err
 	}
 
-	clientId := ""
+	clientId := s.getClientPrimaryKeyByEmail(inbound.Protocol, oldClients, clientEmail)
 	clientOldEnabled := false
 
 	for _, oldClient := range oldClients {
 		if oldClient.Email == clientEmail {
-			switch inbound.Protocol {
-			case "trojan":
-				clientId = oldClient.Password
-			case "shadowsocks":
-				clientId = oldClient.Email
-			default:
-				clientId = oldClient.ID
-			}
 			clientOldEnabled = oldClient.Enable
 			break
 		}
@@ -2118,21 +2109,7 @@ func (s *InboundService) ResetClientIpLimitByEmail(clientEmail string, count int
 		return false, err
 	}
 
-	clientId := ""
-
-	for _, oldClient := range oldClients {
-		if oldClient.Email == clientEmail {
-			switch inbound.Protocol {
-			case "trojan":
-				clientId = oldClient.Password
-			case "shadowsocks":
-				clientId = oldClient.Email
-			default:
-				clientId = oldClient.ID
-			}
-			break
-		}
-	}
+	clientId := s.getClientPrimaryKeyByEmail(inbound.Protocol, oldClients, clientEmail)
 
 	if len(clientId) == 0 {
 		return false, common.NewError("Client Not Found For Email:", clientEmail)
@@ -2177,21 +2154,7 @@ func (s *InboundService) ResetClientExpiryTimeByEmail(clientEmail string, expiry
 		return false, err
 	}
 
-	clientId := ""
-
-	for _, oldClient := range oldClients {
-		if oldClient.Email == clientEmail {
-			switch inbound.Protocol {
-			case "trojan":
-				clientId = oldClient.Password
-			case "shadowsocks":
-				clientId = oldClient.Email
-			default:
-				clientId = oldClient.ID
-			}
-			break
-		}
-	}
+	clientId := s.getClientPrimaryKeyByEmail(inbound.Protocol, oldClients, clientEmail)
 
 	if len(clientId) == 0 {
 		return false, common.NewError("Client Not Found For Email:", clientEmail)
@@ -2239,21 +2202,7 @@ func (s *InboundService) ResetClientTrafficLimitByEmail(clientEmail string, tota
 		return false, err
 	}
 
-	clientId := ""
-
-	for _, oldClient := range oldClients {
-		if oldClient.Email == clientEmail {
-			switch inbound.Protocol {
-			case "trojan":
-				clientId = oldClient.Password
-			case "shadowsocks":
-				clientId = oldClient.Email
-			default:
-				clientId = oldClient.ID
-			}
-			break
-		}
-	}
+	clientId := s.getClientPrimaryKeyByEmail(inbound.Protocol, oldClients, clientEmail)
 
 	if len(clientId) == 0 {
 		return false, common.NewError("Client Not Found For Email:", clientEmail)
@@ -2335,7 +2284,7 @@ func (s *InboundService) ResetClientTraffic(id int, clientEmail string) (bool, e
 							}
 							cipher, _ = oldSettings["method"].(string)
 						}
-						err1 := s.xrayApi.AddUser(string(inbound.Protocol), inbound.Tag, map[string]any{
+						err1 := s.xrayApi.AddUser(xrayRuntimeProtocol(inbound.Protocol), inbound.Tag, map[string]any{
 							"email":    client.Email,
 							"id":       client.ID,
 							"auth":     client.Auth,

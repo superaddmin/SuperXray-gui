@@ -20,3 +20,21 @@ func TestIsHysteria(t *testing.T) {
 		}
 	}
 }
+
+func TestGenXrayInboundConfigNormalizesLiteralHysteria2Protocol(t *testing.T) {
+	inbound := &Inbound{
+		Listen:         "127.0.0.1",
+		Port:           443,
+		Protocol:       Hysteria2,
+		Settings:       `{"version":2,"clients":[{"auth":"secret","email":"hy2@example"}]}`,
+		StreamSettings: `{"network":"hysteria","security":"tls"}`,
+		Tag:            "literal-hy2",
+		Sniffing:       `{}`,
+	}
+
+	config := inbound.GenXrayInboundConfig()
+
+	if config.Protocol != string(Hysteria) {
+		t.Fatalf("GenXrayInboundConfig protocol = %q, want %q", config.Protocol, Hysteria)
+	}
+}

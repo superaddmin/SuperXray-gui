@@ -2,6 +2,12 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.3.1] - 2026-06-10
+
+### Fixed
+
+- 修复 literal `protocol="hysteria2"` 入站在 Xray runtime 与 Xray JSON 订阅中未规范化为 `hysteria` 的问题，避免 Xray-core unsupported protocol、JSON 订阅导入失败，以及 HY2 客户端复制/续期/流量重置路径使用错误凭据字段。
+
 ## [3.3.0] - 2026-06-10
 
 ### Fixed

@@ -140,6 +140,62 @@ func TestBuildTargetClientFromSourceShadowsocks2022UsesClientKey(t *testing.T) {
 	}
 }
 
+func TestBuildTargetClientFromSourceLiteralHysteria2UsesAuthCredential(t *testing.T) {
+	targetInbound := &model.Inbound{
+		Protocol: model.Hysteria2,
+		Settings: `{"version":2,"clients":[]}`,
+	}
+
+	client, err := (&InboundService{}).buildTargetClientFromSource(
+		model.Client{ID: "source-id", Password: "source-pass", Auth: "source-auth", Email: "source@example"},
+		targetInbound,
+		"copied@example",
+		"",
+	)
+	if err != nil {
+		t.Fatalf("buildTargetClientFromSource returned error: %v", err)
+	}
+
+	if client.Auth == "" {
+		t.Fatalf("literal hysteria2 copied client auth is empty: %#v", client)
+	}
+	if client.ID != "" || client.Password != "" {
+		t.Fatalf("literal hysteria2 copied client kept non-HY2 credentials: id=%q password=%q", client.ID, client.Password)
+	}
+}
+
+func TestGetClientPrimaryKeyLiteralHysteria2UsesAuth(t *testing.T) {
+	client := model.Client{ID: "id-value", Auth: "auth-value", Password: "password-value"}
+
+	got := (&InboundService{}).getClientPrimaryKey(model.Hysteria2, client)
+
+	if got != client.Auth {
+		t.Fatalf("literal hysteria2 primary key = %q, want auth %q", got, client.Auth)
+	}
+}
+
+func TestGetClientPrimaryKeyByEmailLiteralHysteria2UsesAuth(t *testing.T) {
+	clients := []model.Client{
+		{Email: "other@example", ID: "other-id", Auth: "other-auth", Password: "other-password"},
+		{Email: "hy2@example", ID: "", Auth: "hy2-auth", Password: "hy2-password"},
+	}
+
+	got := (&InboundService{}).getClientPrimaryKeyByEmail(model.Hysteria2, clients, "hy2@example")
+
+	if got != "hy2-auth" {
+		t.Fatalf("literal hysteria2 primary key by email = %q, want auth", got)
+	}
+}
+
+func TestXrayRuntimeProtocolNormalizesLiteralHysteria2(t *testing.T) {
+	if got := xrayRuntimeProtocol(model.Hysteria2); got != string(model.Hysteria) {
+		t.Fatalf("xrayRuntimeProtocol(hysteria2) = %q, want %q", got, model.Hysteria)
+	}
+	if got := xrayRuntimeProtocol(model.VLESS); got != string(model.VLESS) {
+		t.Fatalf("xrayRuntimeProtocol(vless) = %q, want %q", got, model.VLESS)
+	}
+}
+
 func TestNormalizeShadowsocksSettingsFillsLegacyClientMethod(t *testing.T) {
 	settings, err := normalizeShadowsocksSettingsText(`{
 		"method":"chacha20-ietf-poly1305",

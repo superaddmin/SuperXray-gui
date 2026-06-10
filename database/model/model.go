@@ -37,6 +37,16 @@ func IsHysteria(p Protocol) bool {
 	return p == Hysteria || p == Hysteria2
 }
 
+// XrayProtocol returns the protocol name accepted by xray-core.
+// Hysteria2 is a panel/client-facing alias; xray-core still expects
+// "hysteria" in runtime and Xray JSON subscription configs.
+func (p Protocol) XrayProtocol() Protocol {
+	if p == Hysteria2 {
+		return Hysteria
+	}
+	return p
+}
+
 // User represents a user account in the SuperXray panel.
 type User struct {
 	Id       int    `json:"id" gorm:"primaryKey;autoIncrement"`
@@ -103,7 +113,7 @@ func (i *Inbound) GenXrayInboundConfig() *xray.InboundConfig {
 	return &xray.InboundConfig{
 		Listen:         json_util.RawMessage(listen),
 		Port:           i.Port,
-		Protocol:       string(i.Protocol),
+		Protocol:       string(i.Protocol.XrayProtocol()),
 		Settings:       json_util.RawMessage(i.Settings),
 		StreamSettings: json_util.RawMessage(i.StreamSettings),
 		Tag:            i.Tag,

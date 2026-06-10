@@ -529,6 +529,27 @@ func TestHysteriaLinkEncodesAuthUserinfo(t *testing.T) {
 	}
 }
 
+func TestHysteria2LiteralProtocolJSONNormalizesToXrayHysteria(t *testing.T) {
+	client := matrixHysteriaClient("matrix-literal-hy2@example")
+	inbound := matrixHysteriaInbound(12017, client)
+	inbound.Protocol = model.Hysteria2
+	service := &SubJsonService{
+		configJson:     map[string]any{},
+		inboundService: service.InboundService{},
+		SubService:     &SubService{address: "vpn.example", remarkModel: "-ieo"},
+	}
+
+	configs := service.getConfig(inbound, client, "vpn.example")
+	if len(configs) == 0 {
+		t.Fatal("literal hysteria2 JSON subscription returned no configs")
+	}
+	outbound := firstMatrixOutbound(t, configs[0])
+
+	if outbound["protocol"] != string(model.Hysteria) {
+		t.Fatalf("literal hysteria2 JSON outbound protocol = %v, want %s", outbound["protocol"], model.Hysteria)
+	}
+}
+
 func TestTrojanLinkEncodesPasswordUserinfo(t *testing.T) {
 	client := matrixPasswordClient("matrix-special-trojan@example")
 	client.Password = "tr/oj=an pass"

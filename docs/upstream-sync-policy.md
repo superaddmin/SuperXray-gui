@@ -2,8 +2,8 @@
 
 > 更新日期：2026-06-09
 > 上游仓库：`MHSanaei/3x-ui`
-> 当前上游基线：`v3.3.0` / `upstream/main` = `f8e89cc84`（tag object `02edec359`）
-> 当前项目版本：`3.3.0`
+> 当前上游基线：`3x-ui upstream tag v3_3_0` / `upstream/main` = `f8e89cc84`（tag object `02edec359`）
+> 当前项目版本：`3.3.1`
 
 ## 1. 同步原则
 
@@ -30,14 +30,14 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、legacy UI 回退
 6. 增强 Clash/Mihomo 订阅 routing rules，支持复用订阅设置中的行分隔规则并保留 `MATCH,PROXY` 兜底。
 7. 增强订阅 diagnose 输出，返回支持格式和协议能力元数据。
 8. 扩展 default-xray CoreManager lifecycle 拒绝回归测试，确保 `Validate/Start/Stop/Restart` 均不接管 legacy 生命周期。
-9. 针对上游 `v3.3.0` 的 WARP 出站修复，新增 `panelProxy` 设置、HTTP/HTTPS/SOCKS5 出站客户端构造器，并让 WARP API 请求使用面板代理。
+9. 针对上游 `3x-ui v3_3_0` 的 WARP 出站修复，新增 `panelProxy` 设置、HTTP/HTTPS/SOCKS5 出站客户端构造器，并让 WARP API 请求使用面板代理。
 10. 在 Vue Settings 页面暴露 `Panel Outbound Proxy`，保持新 UI 与 legacy setting form 的 `panelProxy` 字段一致。
 11. 增强 release metadata gate，加入 `docs/openapi/panel-api.yaml` -> `frontend/public/openapi.json` 生成物陈旧检查，避免 OpenAPI 文档和 Vite public 输入漂移。
 12. 对上游订阅相关修复执行本地回归确认：Clash rules、VLESS encryption、public/fallback、Shadowrocket、routing/IPLimit 相关聚焦测试通过。
 
 ## 3. 上游雷达清单
 
-当前 `v3.3.0` 最近重点包括：
+当前上游 `3x-ui v3_3_0` 最近重点包括：
 
 - `a32c6803d`：WARP API 请求走 `panelProxy`，解决受限网络下 Cloudflare WARP 注册/授权请求不可达问题。
 - `d9ccf157c`：新增手动/自动 WARP IP rotation；本项目只先落地低风险代理出站，不直接引入自动轮换 job。

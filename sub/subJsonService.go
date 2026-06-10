@@ -450,7 +450,7 @@ func (s *SubJsonService) genServer(inbound *model.Inbound, streamSettings json_u
 func (s *SubJsonService) genHy(inbound *model.Inbound, newStream map[string]any, client model.Client) json_util.RawMessage {
 	outbound := Outbound{}
 
-	outbound.Protocol = string(inbound.Protocol)
+	outbound.Protocol = string(inbound.Protocol.XrayProtocol())
 	outbound.Tag = "proxy"
 
 	if s.mux != "" {
