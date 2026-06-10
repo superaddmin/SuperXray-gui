@@ -40,30 +40,41 @@ func TestSecurityHeadersMiddlewareSetsBaselineHeaders(t *testing.T) {
 	}
 }
 
-func TestSecurityHeadersMiddlewareKeepsLegacyCSPForOldUI(t *testing.T) {
+func TestSecurityHeadersMiddlewareUsesStrictCSPForEveryRoute(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(SecurityHeadersMiddleware())
-	router.GET("/panel/legacy/", func(c *gin.Context) {
+	router.GET("/unmatched-path", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok")
 	})
 
 	recorder := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "http://example.test/panel/legacy/", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://example.test/unmatched-path", nil)
 	router.ServeHTTP(recorder, req)
 
 	csp := recorder.Header().Get("Content-Security-Policy")
-	if !strings.Contains(cspDirective(csp, "script-src"), "'unsafe-eval'") {
-		t.Fatalf("legacy UI CSP must keep unsafe-eval until Vue 2 templates are gone: %q", csp)
+	scriptSrc := cspDirective(csp, "script-src")
+	if scriptSrc == "" {
+		t.Fatalf("strict CSP must include a script-src directive: %q", csp)
 	}
-	if !strings.Contains(cspDirective(csp, "script-src"), "'unsafe-inline'") {
-		t.Fatalf("legacy UI CSP must keep unsafe-inline until inline scripts are gone: %q", csp)
+	if strings.Contains(scriptSrc, "'unsafe-eval'") {
+		t.Fatalf("strict CSP must not allow unsafe-eval: %q", csp)
 	}
-	if strings.Contains(cspDirective(csp, "script-src"), "'nonce-") {
-		t.Fatalf("legacy UI CSP must not mix nonce with unsafe-inline: %q", csp)
+	if strings.Contains(scriptSrc, "'unsafe-inline'") {
+		t.Fatalf("strict CSP must not allow unsafe-inline scripts: %q", csp)
 	}
-	if !strings.Contains(cspDirective(csp, "style-src"), "'unsafe-inline'") {
-		t.Fatalf("legacy UI CSP must keep unsafe-inline until inline styles are gone: %q", csp)
+	styleSrc := cspDirective(csp, "style-src")
+	if styleSrc == "" {
+		t.Fatalf("strict CSP must include a style-src directive: %q", csp)
+	}
+	if strings.Contains(styleSrc, "'unsafe-inline'") {
+		t.Fatalf("strict CSP must not allow unsafe-inline styles: %q", csp)
+	}
+	if !strings.Contains(scriptSrc, "'nonce-") {
+		t.Fatalf("strict CSP script-src nonce missing: %q", csp)
+	}
+	if !strings.Contains(styleSrc, "'nonce-") {
+		t.Fatalf("strict CSP style-src nonce missing: %q", csp)
 	}
 }
 

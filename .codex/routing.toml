@@ -35,9 +35,7 @@ manual_checks = ["skill trigger review", "progressive disclosure review", "opena
 verification = [
   "python .codex/skills/superxray-project-context/scripts/validate_codex_config.py",
   "python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py",
-  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-project-context",
-  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-ui-first-migration",
-  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-release-cicd",
+  "python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd",
 ]
 
 [[routes]]
@@ -54,7 +52,6 @@ name = "operational-network-docs"
 globs = [
   "docs/ai-routing-and-residential-egress.md",
   "docs/passwall-openwrt-ai-routing-playbook.md",
-  "docs/deployment.md",
   "docs/superpowers/retrospectives/*network-routing*.md",
 ]
 priority = 41
@@ -62,6 +59,18 @@ primary = "superxray-docs-i18n-maintainer"
 reviewers = ["superxray-subscription-protocol-specialist", "superxray-security-gate", "superxray-ui-program-manager"]
 manual_checks = ["runtime evidence chain review", "proxy path terminology review", "redaction and secret scan review"]
 verification = ["python scripts/secret_scan.py"]
+
+[[routes]]
+name = "deployment-docs"
+globs = ["docs/deployment.md"]
+priority = 43
+primary = "superxray-devops-cicd-maintainer"
+reviewers = ["superxray-docs-i18n-maintainer", "superxray-release-gate", "superxray-security-gate"]
+manual_checks = ["deployment command/version review", "secret and server artifact redaction review"]
+verification = [
+  "python scripts/secret_scan.py",
+  "python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only",
+]
 
 [[routes]]
 name = "release"
@@ -117,7 +126,7 @@ primary = "superxray-security-gate"
 reviewers = ["superxray-test-strategist"]
 verification = [
   "go test ./web/middleware ./web/controller ./web/service ./sub ./core/...",
-  "rg \"v-html|innerHTML|insertAdjacentHTML\" web/html frontend/src -n",
+  "rg \"v-html|innerHTML|insertAdjacentHTML\" frontend/src web/ui sub -n",
   "python scripts/secret_scan.py",
 ]
 
@@ -151,7 +160,6 @@ globs = [
   "x-ui.sh",
   "x-ui.service.*",
   "package.json",
-  "frontend/package.json",
 ]
 priority = 70
 primary = "superxray-devops-cicd-maintainer"
@@ -178,15 +186,30 @@ reviewers = ["superxray-test-strategist", "superxray-e2e-gate", "superxray-docs-
 verification = ["go test ./sub ./web/service", "cd frontend; npm run test"]
 
 [[routes]]
-name = "vue-frontend"
+name = "frontend-tooling"
 globs = [
-  "frontend/src/**",
-  "frontend/tests/**",
   "frontend/package.json",
   "frontend/package-lock.json",
   "frontend/vite.config.ts",
   "frontend/tsconfig*.json",
   "frontend/eslint.config.js",
+]
+priority = 72
+primary = "superxray-frontend-migrator"
+reviewers = ["superxray-devops-cicd-maintainer", "superxray-test-strategist", "superxray-security-gate"]
+manual_checks = ["frontend script/dependency ownership review", "build output generation boundary review"]
+verification = [
+  "cd frontend; npm run typecheck",
+  "cd frontend; npm run lint",
+  "cd frontend; npm run test",
+  "cd frontend; npm run build",
+]
+
+[[routes]]
+name = "vue-frontend"
+globs = [
+  "frontend/src/**",
+  "frontend/tests/**",
   "frontend/public/**",
 ]
 priority = 60
@@ -243,7 +266,7 @@ verification = ["go test ./web/service ./web/job ./xray ./util/...", "go test ./
 
 [[routes]]
 name = "testing"
-globs = ["**/*_test.go", "frontend/tests/**", "web/assets/**/*.test.js", "tests/e2e/**", "playwright.config.ts"]
+globs = ["**/*_test.go", "frontend/tests/**"]
 priority = 45
 primary = "superxray-test-strategist"
 reviewers = ["superxray-e2e-gate"]
@@ -252,19 +275,19 @@ verification = ["go test ./...", "cd frontend; npm run test", "npm run e2e"]
 [[routes]]
 name = "e2e"
 globs = ["tests/e2e/**", "playwright.config.ts", "playwright-report/**", "test-results/**"]
-priority = 44
+priority = 48
 primary = "superxray-e2e-gate"
 reviewers = ["superxray-security-gate", "superxray-test-strategist"]
 verification = ["npm run e2e"]
 
 [[routes]]
-name = "legacy-ui"
+name = "retired-legacy-ui"
 globs = ["web/html/**", "web/assets/**"]
 priority = 42
 primary = "superxray-go-integration"
 reviewers = ["superxray-security-gate", "superxray-e2e-gate", "superxray-docs-i18n-maintainer"]
-manual_checks = ["legacy compatibility and CSP exception review"]
-verification = ["go test ./web", "rg \"v-html|innerHTML|insertAdjacentHTML\" web/html frontend/src -n"]
+manual_checks = ["legacy retirement and no-reintroduction review"]
+verification = ["go test ./web", "rg \"v-html|innerHTML|insertAdjacentHTML\" frontend/src web/ui sub -n"]
 
 [[routes]]
 name = "docs-i18n"

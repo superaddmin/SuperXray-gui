@@ -41,7 +41,7 @@ The gate checks Git status, semantic versioning, `CHANGELOG.md`, workflow trigge
 
 1. Confirm `git status --porcelain` is clean or list unrelated local changes without reverting them.
 2. Confirm `config/version`, docs, README references, and `CHANGELOG.md` agree.
-3. Run `release_gate.py --install-tools`.
+3. Run `.codex/skills/superxray-release-cicd/scripts/release_gate.py --install-tools`.
 4. Push changes to `main`; wait for CI and CodeQL.
 5. Create an annotated semantic version tag:
 
@@ -76,4 +76,4 @@ git tag -d vX.Y.Z
 ## References
 
 - Read `.github/agentic-workflows/release.md` and `references/release-policy.md` before changing release workflow behavior.
-- Use `scripts/release_gate.py` as the deterministic check. Patch the script when project release policy changes instead of duplicating checks in ad hoc commands.
+- Use `.codex/skills/superxray-release-cicd/scripts/release_gate.py` as the deterministic check. Patch the script when project release policy changes instead of duplicating checks in ad hoc commands.

@@ -54,7 +54,7 @@ async function expectJsonSuccess(response: APIResponse) {
   const body = await response.json();
   expect(
     body.success,
-    body.msg ?? "legacy response should be successful",
+    body.msg ?? "API response should be successful",
   ).not.toBe(false);
   return body;
 }
@@ -194,12 +194,11 @@ async function fillFormItemTextarea(
     .fill(value);
 }
 
-async function waitForLegacyInbounds(
+async function waitForNewUIInbounds(
   page: Page,
   expected: Array<{ id: number; protocol: string; remark: string }>,
 ) {
-  await page.goto(appUrl("panel/legacy/inbounds"));
-  await expect(page.locator("#app")).toBeVisible();
+  await openNewUiInbounds(page);
   for (const record of expected) {
     await expect(page.getByText(record.remark, { exact: true })).toBeVisible({
       timeout: 15_000,
@@ -207,18 +206,19 @@ async function waitForLegacyInbounds(
   }
 }
 
-async function expectLegacySettingsValues(
+async function expectNewUISettingsValues(
   page: Page,
   values: { announce: string; title: string },
 ) {
-  await page.goto(appUrl("panel/legacy/settings"));
-  await expect(page.locator("#app")).toBeVisible();
+  await page.goto(appUrl("panel/settings"));
+  await expect(
+    page.getByRole("heading", { name: "Settings", exact: true }),
+  ).toBeVisible();
   await page.getByRole("tab", { name: "Subscription", exact: true }).click();
-  await page.getByRole("button", { name: "Information" }).click();
   await page.waitForFunction(
     (expected) => {
       const formValues = Array.from(
-        document.querySelectorAll("input, textarea"),
+        document.querySelectorAll("section.page-stack input, section.page-stack textarea"),
       ).map(
         (element) => (element as HTMLInputElement | HTMLTextAreaElement).value,
       );
@@ -232,7 +232,7 @@ async function expectLegacySettingsValues(
   );
 }
 
-type LegacyInboundSnapshot = {
+type APIInboundSnapshot = {
   id: number;
   enable?: boolean;
   listen?: string;
@@ -279,22 +279,22 @@ function newUiDrawerClientRow(drawer: Locator, email: string): Locator {
     .first();
 }
 
-async function getLegacyInbound(
+async function getAPIInbound(
   page: Page,
   inboundId: number,
-): Promise<LegacyInboundSnapshot> {
+): Promise<APIInboundSnapshot> {
   const list = await expectJsonSuccess(
     await page.request.get(appUrl("panel/api/inbounds/list")),
   );
-  const inbound = (list.obj as LegacyInboundSnapshot[]).find(
+  const inbound = (list.obj as APIInboundSnapshot[]).find(
     (item) => item.id === inboundId,
   );
-  expect(inbound, `legacy inbound ${inboundId} should exist`).toBeTruthy();
-  return inbound as LegacyInboundSnapshot;
+  expect(inbound, `API inbound ${inboundId} should exist`).toBeTruthy();
+  return inbound as APIInboundSnapshot;
 }
 
-function parseLegacySettings(
-  inbound: LegacyInboundSnapshot,
+function parseAPISettings(
+  inbound: APIInboundSnapshot,
 ): Record<string, unknown> {
   if (typeof inbound.settings === "string") {
     return JSON.parse(inbound.settings) as Record<string, unknown>;
@@ -302,11 +302,11 @@ function parseLegacySettings(
   return inbound.settings ?? {};
 }
 
-function legacySettingsArray(
-  inbound: LegacyInboundSnapshot,
+function apiSettingsArray(
+  inbound: APIInboundSnapshot,
   key: "clients" | "peers",
 ): Array<Record<string, unknown>> {
-  const value = parseLegacySettings(inbound)[key];
+  const value = parseAPISettings(inbound)[key];
   return Array.isArray(value)
     ? value.filter(
         (item): item is Record<string, unknown> =>
@@ -315,22 +315,13 @@ function legacySettingsArray(
     : [];
 }
 
-async function expectLegacyExpandedClientText(
+async function expectNewUIClientText(
   page: Page,
   inboundRemark: string,
   clientText: string,
 ) {
-  await page.goto(appUrl("panel/legacy/inbounds"));
-  await expect(page.locator("#app")).toBeVisible();
-  const inboundRow = page
-    .locator("tr")
-    .filter({ hasText: inboundRemark })
-    .first();
-  await expect(inboundRow).toBeVisible({ timeout: 15_000 });
-  await inboundRow.locator(".ant-table-row-expand-icon").first().click({
-    force: true,
-  });
-  await expect(page.getByText(clientText, { exact: true })).toBeVisible({
+  const drawer = await openNewUiInboundDetail(page, inboundRemark);
+  await expect(newUiDrawerClientRow(drawer, clientText)).toBeVisible({
     timeout: 15_000,
   });
 }
@@ -356,7 +347,7 @@ function cspDirective(csp: string | undefined, name: string): string {
   );
 }
 
-test.describe("legacy Xray UI parity baseline", () => {
+test.describe("new Vue UI and API baseline", () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem("superxray.locale", "en-US");
@@ -563,7 +554,7 @@ test.describe("legacy Xray UI parity baseline", () => {
     await expect(page.getByLabel("Subscription public links")).toBeVisible();
   });
 
-  test("can log in, navigate core legacy pages, and read status/log APIs", async ({
+  test("can log in, navigate core new Vue pages, and read status/log APIs", async ({
     page,
   }) => {
     await login(page);
@@ -573,22 +564,28 @@ test.describe("legacy Xray UI parity baseline", () => {
     );
     expect(status).toHaveProperty("obj");
 
-    await page.goto(appUrl("panel/legacy/inbounds"));
-    await expect(page.locator("#app")).toBeVisible();
+    await page.goto(appUrl("panel/inbounds"));
+    await expect(
+      page.getByRole("heading", { name: "Inbounds", exact: true }),
+    ).toBeVisible();
     await expectJsonSuccess(
       await page.request.get(appUrl("panel/api/inbounds/list")),
     );
 
-    await page.goto(appUrl("panel/legacy/xray"));
-    await expect(page.locator("#app")).toBeVisible();
+    await page.goto(appUrl("panel/xray"));
+    await expect(
+      page.getByRole("heading", { name: "Xray", exact: true }),
+    ).toBeVisible();
     await expectJsonSuccess(
       await page.request.post(appUrl("panel/xray/"), {
         headers: originHeader(page),
       }),
     );
 
-    await page.goto(appUrl("panel/legacy/settings"));
-    await expect(page.locator("#app")).toBeVisible();
+    await page.goto(appUrl("panel/settings"));
+    await expect(
+      page.getByRole("heading", { name: "Settings", exact: true }),
+    ).toBeVisible();
     await expectJsonSuccess(
       await page.request.post(appUrl("panel/setting/all"), {
         headers: originHeader(page),
@@ -621,13 +618,6 @@ test.describe("legacy Xray UI parity baseline", () => {
     expect(cspDirective(csp, "style-src")).toContain("'nonce-");
     expect(cspDirective(csp, "style-src-attr")).toBe("style-src-attr 'none'");
 
-    const legacyResponse = await page.goto(appUrl("panel/legacy/"));
-    expect(
-      cspDirective(
-        legacyResponse?.headers()["content-security-policy"],
-        "script-src",
-      ),
-    ).toContain("'unsafe-eval'");
 
     await page.goto(appUrl("panel/"));
     await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
@@ -732,12 +722,12 @@ test.describe("legacy Xray UI parity baseline", () => {
     await expect(newInboundDialog).toBeHidden();
   });
 
-  test("legacy UI can read protocol matrix inbounds created from the new Vue UI", async ({
+  test("new Vue UI and API can read protocol matrix inbounds created from the new Vue UI", async ({
     page,
   }) => {
     test.skip(
       process.env.SUPERXRAY_E2E_MUTATION !== "1",
-      "Set SUPERXRAY_E2E_MUTATION=1 to run new UI to legacy compatibility matrix",
+      "Set SUPERXRAY_E2E_MUTATION=1 to run new UI/API compatibility matrix",
     );
 
     await login(page);
@@ -815,7 +805,7 @@ test.describe("legacy Xray UI parity baseline", () => {
         await expect(page.getByText(remark)).toBeVisible();
       }
 
-      await waitForLegacyInbounds(page, created);
+      await waitForNewUIInbounds(page, created);
       const list = await expectJsonSuccess(
         await page.request.get(appUrl("panel/api/inbounds/list")),
       );
@@ -834,12 +824,12 @@ test.describe("legacy Xray UI parity baseline", () => {
     }
   });
 
-  test("legacy settings UI can read subscription settings saved from the new Vue UI", async ({
+  test("new Vue settings UI can read subscription settings saved from the new Vue UI", async ({
     page,
   }) => {
     test.skip(
       process.env.SUPERXRAY_E2E_MUTATION !== "1",
-      "Set SUPERXRAY_E2E_MUTATION=1 to run new UI settings compatibility baseline",
+      "Set SUPERXRAY_E2E_MUTATION=1 to run new UI settings baseline",
     );
 
     await login(page);
@@ -884,7 +874,7 @@ test.describe("legacy Xray UI parity baseline", () => {
       await confirmDialog.getByRole("button", { name: "Save" }).click();
       await expectJsonSuccess(await saveResponsePromise);
 
-      await expectLegacySettingsValues(page, { announce, title });
+      await expectNewUISettingsValues(page, { announce, title });
     } finally {
       if (originalSettings) {
         await postForm(page, "panel/setting/update", originalSettings);
@@ -892,12 +882,12 @@ test.describe("legacy Xray UI parity baseline", () => {
     }
   });
 
-  test("legacy UI can read inbounds, clients, and peers edited from the new Vue UI", async ({
+  test("new Vue UI and API can read inbounds, clients, and peers edited from the new Vue UI", async ({
     page,
   }) => {
     test.skip(
       process.env.SUPERXRAY_E2E_MUTATION !== "1",
-      "Set SUPERXRAY_E2E_MUTATION=1 to run new UI edit compatibility matrix",
+      "Set SUPERXRAY_E2E_MUTATION=1 to run new UI/API edit compatibility matrix",
     );
 
     await login(page);
@@ -1061,7 +1051,7 @@ test.describe("legacy Xray UI parity baseline", () => {
       await peerDialog.getByRole("button", { name: "OK" }).click();
       await expectJsonSuccess(await updatePeerPromise);
 
-      await waitForLegacyInbounds(page, [
+      await waitForNewUIInbounds(page, [
         {
           id: vlessId,
           protocol: "vless",
@@ -1073,16 +1063,16 @@ test.describe("legacy Xray UI parity baseline", () => {
           remark: wireguardRemark,
         },
       ]);
-      await expectLegacyExpandedClientText(
+      await expectNewUIClientText(
         page,
         vlessEditedRemark,
         vlessEditedEmail,
       );
 
-      const vlessLegacy = await getLegacyInbound(page, vlessId);
-      expect(vlessLegacy.remark).toBe(vlessEditedRemark);
-      expect(vlessLegacy.listen).toBe("127.0.0.2");
-      const vlessClients = legacySettingsArray(vlessLegacy, "clients");
+      const vlessAPIInbound = await getAPIInbound(page, vlessId);
+      expect(vlessAPIInbound.remark).toBe(vlessEditedRemark);
+      expect(vlessAPIInbound.listen).toBe("127.0.0.2");
+      const vlessClients = apiSettingsArray(vlessAPIInbound, "clients");
       const vlessClient = vlessClients.find(
         (client) => client.email === vlessEditedEmail,
       );
@@ -1091,9 +1081,9 @@ test.describe("legacy Xray UI parity baseline", () => {
       expect(vlessClient?.subId).toBe(vlessEditedSubId);
       expect(vlessClient?.enable).toBe(false);
 
-      const wireguardLegacy = await getLegacyInbound(page, wireguardId);
-      expect(wireguardLegacy.remark).toBe(wireguardRemark);
-      const peers = legacySettingsArray(wireguardLegacy, "peers");
+      const wireguardAPIInbound = await getAPIInbound(page, wireguardId);
+      expect(wireguardAPIInbound.remark).toBe(wireguardRemark);
+      const peers = apiSettingsArray(wireguardAPIInbound, "peers");
       const peer = peers.find((item) => item.email === wireguardEditedEmail);
       expect(peer?.publicKey).toBe(wireguardTestPeerPublic);
       expect(peer?.allowedIPs).toEqual(["10.0.0.42/32"]);
@@ -1109,12 +1099,12 @@ test.describe("legacy Xray UI parity baseline", () => {
     }
   });
 
-  test("legacy UI can read Trojan, Shadowsocks, and Hysteria2 clients edited from the new Vue UI", async ({
+  test("new Vue UI and API can read Trojan, Shadowsocks, and Hysteria2 clients edited from the new Vue UI", async ({
     page,
   }) => {
     test.skip(
       process.env.SUPERXRAY_E2E_MUTATION !== "1",
-      "Set SUPERXRAY_E2E_MUTATION=1 to run extended client edit compatibility matrix",
+      "Set SUPERXRAY_E2E_MUTATION=1 to run extended new UI/API client edit matrix",
     );
 
     await login(page);
@@ -1288,14 +1278,14 @@ test.describe("legacy Xray UI parity baseline", () => {
         await clientDialog.getByRole("button", { name: "OK" }).click();
         await expectJsonSuccess(await updateClientPromise);
 
-        await expectLegacyExpandedClientText(
+        await expectNewUIClientText(
           page,
           item.remark,
           item.editedEmail,
         );
 
-        const legacyInbound = await getLegacyInbound(page, inboundId as number);
-        const clients = legacySettingsArray(legacyInbound, "clients");
+        const apiInbound = await getAPIInbound(page, inboundId as number);
+        const clients = apiSettingsArray(apiInbound, "clients");
         const client = clients.find(
           (record) => record.email === item.editedEmail,
         );
@@ -1314,12 +1304,12 @@ test.describe("legacy Xray UI parity baseline", () => {
     }
   });
 
-  test("can create a disabled VLESS inbound and disabled client through legacy APIs", async ({
+  test("can create a disabled VLESS inbound and disabled client through existing APIs", async ({
     page,
   }) => {
     test.skip(
       process.env.SUPERXRAY_E2E_MUTATION !== "1",
-      "Set SUPERXRAY_E2E_MUTATION=1 to run legacy write-flow baseline",
+      "Set SUPERXRAY_E2E_MUTATION=1 to run existing API write-flow baseline",
     );
 
     await login(page);
@@ -1394,7 +1384,7 @@ test.describe("legacy Xray UI parity baseline", () => {
     }
   });
 
-  test("can create disabled Phase 6 protocol inbounds through legacy APIs", async ({
+  test("can create disabled Phase 6 protocol inbounds through existing APIs", async ({
     page,
   }) => {
     test.skip(
@@ -1776,7 +1766,7 @@ test.describe("legacy Xray UI parity baseline", () => {
     );
   });
 
-  test("can restart Xray through the legacy control path when explicitly enabled", async ({
+  test("can restart Xray through the existing control path when explicitly enabled", async ({
     page,
   }) => {
     test.skip(

@@ -68,7 +68,7 @@ developer_instructions = """
 - 维护 `database/model/model.go` 的 User、Inbound、Setting、CustomGeoResource、Client 等模型。
 - 维护数据库导出、导入、备份恢复路径的安全和可回滚。
 - 审核任何涉及 Inbound.Settings、StreamSettings、Sniffing、Client JSON 的变更。
-- 为模型变化补测试，确认旧 UI、新 UI、订阅服务和 Xray config 仍可读。
+- 为模型变化补测试，确认新 UI、旧 API、订阅服务和 Xray config 仍可读。
 
 工作流：
 1. 先判断是否真正需要 schema 变化；优先复用现有字段。

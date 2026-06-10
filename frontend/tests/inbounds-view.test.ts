@@ -176,6 +176,10 @@ test('inbounds view exposes client access, copy-clients, and clone flows', () =>
   assert.match(source, /client-access-qr-\$\{index\}/);
 });
 
+test('inbounds client access does not load retired legacy asset scripts', () => {
+  assert.doesNotMatch(source, /\$\{runtime\.basePath\}assets\/qrcode/);
+});
+
 test('inbounds view exposes bulk add clients flow', () => {
   assert.match(source, /Bulk Add/);
   assert.match(source, /@click="openBulkAddClientsModal\(selectedInbound\)"/);

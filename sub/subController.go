@@ -4,10 +4,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
-	"strings"
-
-	"github.com/superaddmin/SuperXray-gui/v2/config"
-	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -98,10 +94,10 @@ func (a *SUBController) initRouter(g *gin.RouterGroup) {
 	}
 }
 
-// subs handles HTTP requests for subscription links, returning either HTML page or base64-encoded subscription data.
+// subs handles HTTP requests for subscription links, returning subscription data.
 func (a *SUBController) subs(c *gin.Context) {
 	subId := c.Param("subid")
-	scheme, host, hostWithPort, hostHeader := a.subService.ResolveRequest(c)
+	scheme, host, hostWithPort, _ := a.subService.ResolveRequest(c)
 	profile := subscriptionTargetProfile(c.Query("target"))
 	switch resolveTargetSubscriptionFormat(profile, a.jsonEnabled, a.clashEnabled) {
 	case subscriptionFormatJSON:
@@ -111,66 +107,13 @@ func (a *SUBController) subs(c *gin.Context) {
 		a.renderClashSubscription(c, subId, scheme, host, hostWithPort)
 		return
 	}
-	subs, lastOnline, traffic, err := a.subService.GetSubs(subId, host)
+	subs, _, traffic, err := a.subService.GetSubs(subId, host)
 	if err != nil || len(subs) == 0 {
 		c.String(400, "Error!")
 	} else {
 		result := ""
 		for _, sub := range subs {
 			result += sub + "\n"
-		}
-
-		// If the request expects HTML (e.g., browser) or explicitly asked (?html=1 or ?view=html), render the info page here
-		accept := c.GetHeader("Accept")
-		if strings.Contains(strings.ToLower(accept), "text/html") || c.Query("html") == "1" || strings.EqualFold(c.Query("view"), "html") {
-			// Build page data in service
-			subURL, subJsonURL, subClashURL := a.subService.BuildURLs(scheme, hostWithPort, a.subPath, a.subJsonPath, a.subClashPath, subId)
-			if !a.jsonEnabled {
-				subJsonURL = ""
-			}
-			if !a.clashEnabled {
-				subClashURL = ""
-			}
-			// Get base_path from context (set by middleware). The subscription
-			// server mounts assets under the configured subscription path
-			// itself (for example /sub/assets), so the visual page must not
-			// add the dynamic subId into asset URLs.
-			basePath, exists := c.Get("base_path")
-			if !exists {
-				basePath = "/"
-			}
-			basePathStr := basePath.(string)
-			if basePathStr == "" {
-				basePathStr = "/"
-			}
-			if !strings.HasSuffix(basePathStr, "/") {
-				basePathStr += "/"
-			}
-			page := a.subService.BuildPageData(subId, hostHeader, traffic, lastOnline, subs, subURL, subJsonURL, subClashURL, basePathStr)
-			c.HTML(200, "subpage.html", gin.H{
-				"title":        "subscription.title",
-				"cur_ver":      config.GetAssetVersion(),
-				"host":         page.Host,
-				"base_path":    page.BasePath,
-				"csp_nonce":    middleware.CSPNonce(c),
-				"sId":          page.SId,
-				"download":     page.Download,
-				"upload":       page.Upload,
-				"total":        page.Total,
-				"used":         page.Used,
-				"remained":     page.Remained,
-				"expire":       page.Expire,
-				"lastOnline":   page.LastOnline,
-				"datepicker":   page.Datepicker,
-				"downloadByte": page.DownloadByte,
-				"uploadByte":   page.UploadByte,
-				"totalByte":    page.TotalByte,
-				"subUrl":       page.SubUrl,
-				"subJsonUrl":   page.SubJsonUrl,
-				"subClashUrl":  page.SubClashUrl,
-				"result":       page.Result,
-			})
-			return
 		}
 
 		// Add headers

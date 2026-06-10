@@ -18,7 +18,7 @@
 | 5 | Xray lifecycle/config | Old Xray APIs remain the lifecycle path |
 | 6 | Inbounds/clients | New UI writes remain legacy-readable |
 | 7 | Settings/subscription/backup | Old setting/server APIs remain compatible and CSRF-protected |
-| 8 | Default entry gray switch | `/panel/` new UI, `/panel/legacy/` fallback |
+| 8 | Default entry gray switch | `/panel/` new UI, `/panel/ui/` compatibility entry |
 | 9 | Security closeout | CSP/CSRF/download/import/XSS and compatibility checks |
 | 10.1 | default-xray read-only | Read-only CoreInstances view, no lifecycle takeover |
 | 10.2 | lifecycle gate | Requires explicit approval and old API behavior comparison |
@@ -30,7 +30,7 @@
 - Routing legacy Xray start/stop/restart through CoreManager before Phase 10.2.
 - Creating `proxy_inbounds` or `proxy_clients` as active write paths.
 - Migrating Client out of `Inbound.Settings` JSON.
-- Removing `/panel/legacy/`, `web/html`, or `web/assets`.
+- Reintroducing `/panel/legacy/`, `web/html`, or `web/assets` after legacy retirement.
 - Promoting `experimental-sing-box` to production default.
 - Creating production `egress_*` DB/API from Gateway MVP docs.
 - Rendering untrusted content with `v-html`, `innerHTML`, or `insertAdjacentHTML`.

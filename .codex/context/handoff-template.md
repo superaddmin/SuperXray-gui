@@ -46,7 +46,7 @@
 - 不传递密钥、cookie、token、证书、数据库内容或用户隐私。
 - 不传递真实订阅 URL、subId、客户端 UUID、代理账号密码、面板隐藏路径或生产数据库片段。
 - 若已达到 `.codex/governance.toml` 的最大交接深度，必须输出 blocker 而不是继续转交。
-- 跨前端/后端/数据库/订阅边界时，必须写清旧 UI、新 UI、旧 API、订阅输出是否受影响。
+- 跨前端/后端/数据库/订阅边界时，必须写清新 UI、旧 API、订阅输出、旧 UI 退役边界是否受影响。
 - 交接后接收代理必须先确认路径归属，再执行改动。
 
 ## 配置交接附加规则
@@ -56,5 +56,5 @@
 - 是否更新 `.codex/configuration-update.md`。
 - 是否同步 `dependency-map.md`、`business-flow-map.md`、`codex-config-map.md`。
 - 是否新增或修改 agent 契约字段。
-- 是否运行 `validate_codex_config.py`、验证单测与 `quick_validate.py`。
+- 是否运行 `validate_codex_config.py`、验证单测与 `validate_skill_formats.py` 包装脚本。
 - 效率指标中是否出现路由误判、上下文过量读取或验证缺口。

@@ -1,6 +1,6 @@
 ---
 name: superxray-ui-first-migration
-description: Use when working on SuperXray-gui UI-first migration, Xray parity, legacy UI fallback, CSP/CSRF hardening, Gateway Egress MVP, CoreManager/default-xray/sing-box Phase 10 gates, or plans under plans/01-strategy and plans/04-ui-first-execution.
+description: Use when working on SuperXray-gui UI-first migration, Xray parity, legacy UI retired boundary, CSP/CSRF hardening, Gateway Egress MVP, CoreManager/default-xray/sing-box Phase 10 gates, or plans under plans/01-strategy and plans/04-ui-first-execution.
 ---
 
 # SuperXray UI First Migration
@@ -10,7 +10,7 @@ Use this skill to keep SuperXray-gui work aligned with the approved route:
 ```text
 UI first
   -> Xray parity and stability
-  -> legacy UI fallback
+  -> legacy UI retired boundary
   -> Phase 9 security closeout
   -> risk-accepted minimal CoreManager/default-xray/sing-box backend entry
   -> Phase 10.2+ lifecycle and capability expansion only after gates pass
@@ -43,8 +43,8 @@ Read only the sections needed for the task:
 - Do not migrate active `model.Inbound` writes to `proxy_inbounds` or `proxy_clients`.
 - Do not route old Xray lifecycle through CoreManager before Phase 10.2 approval.
 - Do not promote experimental sing-box to production default.
-- Do not write data from the new UI that the legacy UI cannot read.
-- Do not remove legacy UI before the new UI passes parity, E2E, release, and rollback gates.
+- Do not write data from the new UI that old APIs, subscription output, or `database/model.Inbound` cannot read.
+- Do not reintroduce legacy HTML UI, `web/assets`, or `/panel/legacy*` after retirement unless an explicit rollback gate approves it.
 - Do not render logs, config previews, subscriptions, imports, or external content with `v-html`, `innerHTML`, or `insertAdjacentHTML`.
 - Do not turn Gateway Egress MVP docs into production `egress_*` database/API without Phase 10+ design approval.
 
@@ -100,7 +100,7 @@ npm run build
 Security searches:
 
 ```powershell
-rg "v-html|innerHTML|insertAdjacentHTML" web/html frontend/src -n
+rg "v-html|innerHTML|insertAdjacentHTML" frontend/src web/ui sub -n
 rg "unsafe-inline|unsafe-eval" frontend/src web/ui -n
 rg "proxy_inbounds|proxy_clients" core web/controller web/middleware web/service database/model frontend/src web/ui -n
 ```

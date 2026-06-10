@@ -31,7 +31,7 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 		header.Set("X-Content-Type-Options", "nosniff")
 		header.Set("X-Frame-Options", "DENY")
 		header.Set("Referrer-Policy", "same-origin")
-		header.Set("Content-Security-Policy", buildSecurityHeaderCSP(nonce, c.Request.URL.Path))
+		header.Set("Content-Security-Policy", buildSecurityHeaderCSP(nonce))
 		c.Next()
 	}
 }
@@ -79,29 +79,7 @@ func CSPNonce(c *gin.Context) string {
 	return value
 }
 
-func buildSecurityHeaderCSP(nonce string, requestPath string) string {
-	if isNewUIPanelPath(requestPath) {
-		return buildNewUICSP(nonce)
-	}
-	return buildLegacyUICSP()
-}
-
-func buildLegacyUICSP() string {
-	// Existing Vue 2 in-DOM templates still require unsafe-eval until they are precompiled.
-	return "default-src 'self'; " +
-		"script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-		"script-src-attr 'none'; " +
-		"style-src 'self' 'unsafe-inline'; " +
-		"img-src 'self' data: blob:; " +
-		"font-src 'self' data:; " +
-		"connect-src 'self' ws: wss:; " +
-		"object-src 'none'; " +
-		"base-uri 'self'; " +
-		"form-action 'self'; " +
-		"frame-ancestors 'none'"
-}
-
-func buildNewUICSP(nonce string) string {
+func buildSecurityHeaderCSP(nonce string) string {
 	return "default-src 'self'; " +
 		"script-src 'self' 'nonce-" + nonce + "'; " +
 		"script-src-attr 'none'; " +
@@ -114,35 +92,6 @@ func buildNewUICSP(nonce string) string {
 		"base-uri 'self'; " +
 		"form-action 'self'; " +
 		"frame-ancestors 'none'"
-}
-
-func isNewUIPanelPath(path string) bool {
-	normalized := "/" + strings.Trim(path, "/")
-	if normalized == "/panel" ||
-		strings.HasSuffix(normalized, "/panel") ||
-		normalized == "/panel/login" ||
-		strings.HasSuffix(normalized, "/panel/login") ||
-		strings.Contains(normalized, "/panel/assets/") ||
-		strings.Contains(normalized, "/panel/ui/") ||
-		normalized == "/panel/ui" ||
-		strings.HasSuffix(normalized, "/panel/ui") {
-		return !strings.Contains(normalized, "/panel/legacy")
-	}
-
-	for _, route := range []string{
-		"/panel/dashboard",
-		"/panel/logs",
-		"/panel/xray",
-		"/panel/inbounds",
-		"/panel/settings",
-		"/panel/docs",
-	} {
-		if normalized == route || strings.HasSuffix(normalized, route) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func generateCSPNonce() (string, error) {

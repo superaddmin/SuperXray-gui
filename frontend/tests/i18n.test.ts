@@ -40,7 +40,10 @@ test('translates xray workspace and gateway mvp actions without dom fallback', (
   assert.equal(translate('xray.status.currentVersion', 'zh-CN'), '当前版本');
   assert.equal(translate('xray.status.invalidJson', 'zh-CN'), 'JSON 无效');
   assert.equal(translate('xray.status.legacyCompatible', 'zh-CN'), '旧版兼容');
-  assert.equal(translate('xray.gateway.validStrategyRequired', 'zh-CN'), '请选择有效网络策略后再导出登记清单。');
+  assert.equal(
+    translate('xray.gateway.validStrategyRequired', 'zh-CN'),
+    '请选择有效网络策略后再导出登记清单。',
+  );
 });
 
 test('translates dashboard generated labels and dynamic hints', () => {
@@ -178,9 +181,9 @@ test('translates inbound subpage actions, beginner hints, and advanced transport
     ['Sub ID', '订阅 ID', 'Sub ID'],
     ['Comment', '注释', 'Comment'],
     [
-      'Paste a legacy inbound JSON object. It will be imported through the existing Xray API so old UI remains readable.',
-      '粘贴旧版入站 JSON 对象。系统会通过现有 Xray API 导入，确保旧 UI 仍可读取。',
-      'Paste a legacy inbound JSON object. It will be imported through the existing Xray API so old UI remains readable.',
+      'Paste a legacy inbound JSON object. It will be imported through the existing Xray API and data model.',
+      '粘贴旧版入站 JSON 对象。系统会通过现有 Xray API 和数据模型导入。',
+      'Paste a legacy inbound JSON object. It will be imported through the existing Xray API and data model.',
     ],
   ] as const;
 

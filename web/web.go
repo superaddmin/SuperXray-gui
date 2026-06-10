@@ -1,5 +1,5 @@
 // Package web provides the main web server implementation for the SuperXray panel,
-// including HTTP/HTTPS serving, routing, templates, and background job scheduling.
+// including HTTP/HTTPS serving, routing, the Vue UI, and background job scheduling.
 package web
 
 import (
@@ -7,12 +7,9 @@ import (
 	"crypto/tls"
 	"embed"
 	"errors"
-	"html/template"
 	"io"
-	"io/fs"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -35,34 +32,8 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-//go:embed assets
-var assetsFS embed.FS
-
-//go:embed html/*
-var htmlFS embed.FS
-
 //go:embed translation/*
 var i18nFS embed.FS
-
-var startTime = time.Now()
-
-type wrapAssetsFS struct {
-	embed.FS
-}
-
-func (f *wrapAssetsFS) Open(name string) (fs.File, error) {
-	file, err := f.FS.Open("assets/" + name)
-	if err != nil {
-		return nil, err
-	}
-	return &wrapAssetsFile{
-		File: file,
-	}, nil
-}
-
-type wrapAssetsFile struct {
-	fs.File
-}
 
 func newHTTPServer(handler http.Handler) *http.Server {
 	return &http.Server{
@@ -81,34 +52,6 @@ func newCronScheduler(loc *time.Location) *cron.Cron {
 		cron.WithSeconds(),
 		cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)),
 	)
-}
-
-func (f *wrapAssetsFile) Stat() (fs.FileInfo, error) {
-	info, err := f.File.Stat()
-	if err != nil {
-		return nil, err
-	}
-	return &wrapAssetsFileInfo{
-		FileInfo: info,
-	}, nil
-}
-
-type wrapAssetsFileInfo struct {
-	fs.FileInfo
-}
-
-func (f *wrapAssetsFileInfo) ModTime() time.Time {
-	return startTime
-}
-
-// EmbeddedHTML returns the embedded HTML templates filesystem for reuse by other servers.
-func EmbeddedHTML() embed.FS {
-	return htmlFS
-}
-
-// EmbeddedAssets returns the embedded assets filesystem for reuse by other servers.
-func EmbeddedAssets() embed.FS {
-	return assetsFS
 }
 
 // Server represents the main web server for the SuperXray panel with controllers, services, and scheduled jobs.
@@ -143,55 +86,8 @@ func NewServer() *Server {
 	}
 }
 
-// getHtmlFiles walks the local `web/html` directory and returns a list of
-// template file paths. Used only in debug/development mode.
-func (s *Server) getHtmlFiles() ([]string, error) {
-	files := make([]string, 0)
-	dir, _ := os.Getwd()
-	err := fs.WalkDir(os.DirFS(dir), "web/html", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		files = append(files, path)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return files, nil
-}
-
-// getHtmlTemplate parses embedded HTML templates from the bundled `htmlFS`
-// using the provided template function map and returns the resulting
-// template set for production usage.
-func (s *Server) getHtmlTemplate(funcMap template.FuncMap) (*template.Template, error) {
-	t := template.New("").Funcs(funcMap)
-	err := fs.WalkDir(htmlFS, "html", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if d.IsDir() {
-			newT, err := t.ParseFS(htmlFS, path+"/*.html")
-			if err != nil {
-				// ignore
-				return nil
-			}
-			t = newT
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return t, nil
-}
-
-// initRouter initializes Gin, registers middleware, templates, static
-// assets, controllers and returns the configured engine.
+// initRouter initializes Gin, registers middleware, Vue UI routes,
+// controllers and returns the configured engine.
 func (s *Server) initRouter() (*gin.Engine, error) {
 	if config.IsDebug() {
 		gin.SetMode(gin.DebugMode)
@@ -223,7 +119,6 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 		return nil, err
 	}
 	engine.Use(gzip.Gzip(gzip.DefaultCompression))
-	assetsBasePath := basePath + "assets/"
 
 	store := cookie.NewStore(secret)
 	// Configure default session cookie options, including expiration (MaxAge)
@@ -245,12 +140,6 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	engine.Use(func(c *gin.Context) {
 		c.Set("base_path", basePath)
 	})
-	engine.Use(func(c *gin.Context) {
-		uri := c.Request.RequestURI
-		if strings.HasPrefix(uri, assetsBasePath) {
-			c.Header("Cache-Control", "max-age=31536000")
-		}
-	})
 
 	// init i18n
 	err = locale.InitLocalizer(i18nFS, &s.settingService)
@@ -259,35 +148,7 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	}
 
 	// Apply locale middleware for i18n
-	i18nWebFunc := func(key string, params ...string) string {
-		return locale.I18n(locale.Web, key, params...)
-	}
-	// Register template functions before loading templates
-	funcMap := template.FuncMap{
-		"i18n": i18nWebFunc,
-	}
-	engine.SetFuncMap(funcMap)
 	engine.Use(locale.LocalizerMiddleware())
-
-	// set static files and template
-	if config.IsDebug() {
-		// for development
-		files, err := s.getHtmlFiles()
-		if err != nil {
-			return nil, err
-		}
-		// Use the registered func map with the loaded templates
-		engine.LoadHTMLFiles(files...)
-		engine.StaticFS(basePath+"assets", http.FS(os.DirFS("web/assets")))
-	} else {
-		// for production
-		template, err := s.getHtmlTemplate(funcMap)
-		if err != nil {
-			return nil, err
-		}
-		engine.SetHTMLTemplate(template)
-		engine.StaticFS(basePath+"assets", http.FS(&wrapAssetsFS{FS: assetsFS}))
-	}
 
 	// Apply the redirect middleware (`/xui` to `/panel`)
 	engine.Use(middleware.RedirectMiddleware(basePath))

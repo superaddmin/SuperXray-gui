@@ -1473,29 +1473,6 @@ func searchHost(headers any) string {
 	return ""
 }
 
-// PageData is a view model for subpage.html
-// PageData contains data for rendering the subscription information page.
-type PageData struct {
-	Host         string
-	BasePath     string
-	SId          string
-	Download     string
-	Upload       string
-	Total        string
-	Used         string
-	Remained     string
-	Expire       int64
-	LastOnline   int64
-	Datepicker   string
-	DownloadByte int64
-	UploadByte   int64
-	TotalByte    int64
-	SubUrl       string
-	SubJsonUrl   string
-	SubClashUrl  string
-	Result       []string
-}
-
 // ResolveRequest extracts scheme and host info from request/headers consistently.
 // ResolveRequest extracts scheme, host, and header information from an HTTP request.
 func (s *SubService) ResolveRequest(c *gin.Context) (scheme string, host string, hostWithPort string, hostHeader string) {
@@ -1592,47 +1569,6 @@ func (s *SubService) joinPathWithID(basePath, subId string) string {
 		return basePath + subId
 	}
 	return basePath + "/" + subId
-}
-
-// BuildPageData parses header and prepares the template view model.
-// BuildPageData constructs page data for rendering the subscription information page.
-func (s *SubService) BuildPageData(subId string, hostHeader string, traffic xray.ClientTraffic, lastOnline int64, subs []string, subURL, subJsonURL, subClashURL string, basePath string) PageData {
-	download := common.FormatTraffic(traffic.Down)
-	upload := common.FormatTraffic(traffic.Up)
-	total := "∞"
-	used := common.FormatTraffic(traffic.Up + traffic.Down)
-	remained := ""
-	if traffic.Total > 0 {
-		total = common.FormatTraffic(traffic.Total)
-		left := max(traffic.Total-(traffic.Up+traffic.Down), 0)
-		remained = common.FormatTraffic(left)
-	}
-
-	datepicker := s.datepicker
-	if datepicker == "" {
-		datepicker = "gregorian"
-	}
-
-	return PageData{
-		Host:         hostHeader,
-		BasePath:     basePath,
-		SId:          subId,
-		Download:     download,
-		Upload:       upload,
-		Total:        total,
-		Used:         used,
-		Remained:     remained,
-		Expire:       traffic.ExpiryTime / 1000,
-		LastOnline:   lastOnline,
-		Datepicker:   datepicker,
-		DownloadByte: traffic.Down,
-		UploadByte:   traffic.Up,
-		TotalByte:    traffic.Total,
-		SubUrl:       subURL,
-		SubJsonUrl:   subJsonURL,
-		SubClashUrl:  subClashURL,
-		Result:       subs,
-	}
 }
 
 // parseSafeRequestHost 接受纯 host 或 host:port，并拒绝类似 URL 或不安全的请求头值。

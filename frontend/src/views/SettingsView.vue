@@ -376,7 +376,10 @@
             <FormSection eyebrow="Subscription" title="Announce and Routing">
               <div class="form-json-stack">
                 <AFormItem label="Announce">
-                  <textarea v-model="settings.subAnnounce" class="json-editor compact-json-editor" />
+                  <textarea
+                    v-model="settings.subAnnounce"
+                    class="json-editor compact-json-editor"
+                  />
                 </AFormItem>
                 <AFormItem label="Routing Rules">
                   <textarea
@@ -400,10 +403,16 @@
             <FormSection eyebrow="Formats" title="JSON Formats">
               <div class="form-json-stack">
                 <AFormItem label="JSON Fragment">
-                  <textarea v-model="settings.subJsonFragment" class="json-editor modal-json-editor" />
+                  <textarea
+                    v-model="settings.subJsonFragment"
+                    class="json-editor modal-json-editor"
+                  />
                 </AFormItem>
                 <AFormItem label="JSON Noises">
-                  <textarea v-model="settings.subJsonNoises" class="json-editor modal-json-editor" />
+                  <textarea
+                    v-model="settings.subJsonNoises"
+                    class="json-editor modal-json-editor"
+                  />
                 </AFormItem>
                 <AFormItem label="JSON Mux">
                   <textarea v-model="settings.subJsonMux" class="json-editor modal-json-editor" />
@@ -809,7 +818,7 @@ function confirmSave() {
   Modal.confirm({
     title: 'Save panel settings?',
     content:
-      'Settings are saved through the existing legacy endpoint and remain editable in old UI.',
+      'Settings are saved through the existing settings endpoint and legacy-compatible data model.',
     okText: 'Save',
     onOk: saveSettings,
   });

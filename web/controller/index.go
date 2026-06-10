@@ -52,7 +52,7 @@ func (a *IndexController) index(c *gin.Context) {
 		c.Redirect(http.StatusTemporaryRedirect, "panel/")
 		return
 	}
-	html(c, "login.html", "pages.login.title", nil)
+	c.Redirect(http.StatusTemporaryRedirect, c.GetString("base_path")+"panel/login")
 }
 
 // login handles user authentication and session creation.
@@ -75,18 +75,11 @@ func (a *IndexController) login(c *gin.Context) {
 	user, checkErr := a.userService.CheckUser(form.Username, form.Password, form.TwoFactorCode)
 	timeStr := time.Now().Format("2006-01-02 15:04:05")
 	safeUser := template.HTMLEscapeString(form.Username)
-	safePass := template.HTMLEscapeString(form.Password)
 
 	if user == nil {
-		logger.Warningf("wrong username: \"%s\", password: \"%s\", IP: \"%s\"", safeUser, safePass, getRemoteIp(c))
-
-		notifyPass := safePass
-
-		if checkErr != nil && checkErr.Error() == "invalid 2fa code" {
-			translatedError := a.tgbot.I18nBot("tgbot.messages.2faFailed")
-			notifyPass = fmt.Sprintf("*** (%s)", translatedError)
-		}
-
+		logger.Warningf("failed login username: \"%s\", IP: \"%s\"", safeUser, getRemoteIp(c))
+		translated2FAError := a.tgbot.I18nBot("tgbot.messages.2faFailed")
+		notifyPass := redactLoginFailurePassword(form.Password, checkErr, translated2FAError)
 		a.tgbot.UserLoginNotify(safeUser, notifyPass, getRemoteIp(c), timeStr, 0)
 		pureJsonMsg(c, http.StatusOK, false, I18nWeb(c, "pages.login.toasts.wrongUsernameOrPassword"))
 		return
@@ -117,6 +110,14 @@ func (a *IndexController) logout(c *gin.Context) {
 		logger.Warning("Unable to save session after clearing:", err)
 	}
 	c.Redirect(http.StatusTemporaryRedirect, c.GetString("base_path"))
+}
+
+func redactLoginFailurePassword(password string, err error, twoFactorError string) string {
+	redacted := "***"
+	if err != nil && err.Error() == "invalid 2fa code" && twoFactorError != "" {
+		return fmt.Sprintf("%s (%s)", redacted, twoFactorError)
+	}
+	return redacted
 }
 
 // getTwoFactorEnable retrieves the current status of two-factor authentication.

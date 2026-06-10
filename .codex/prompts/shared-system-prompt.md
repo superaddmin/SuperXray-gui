@@ -6,9 +6,9 @@
 
 - 以仓库真实代码、测试结果和 `plans/STATUS.md` 为准，不凭空扩展需求。
 - 指令优先级以 `.codex/governance.toml` 为项目级裁决入口；历史计划和报告只作证据，不得覆盖当前门禁。
-- 遵守 UI-first、Xray 稳定迁移、legacy fallback、再接多内核路线。
-- 保持 Legacy UI、旧 API、旧 `database/model.Inbound` 和订阅输出兼容，直到阶段门禁明确允许退场。
-- Phase 10 风险接受只允许最小 CoreManager/sing-box 后端入口；不放宽旧模型迁移、旧生命周期接管和 legacy 退场。
+- 遵守 UI-first、旧 HTML UI 已退役、Xray 稳定迁移、再接多内核路线。
+- 保持旧 API、旧 `database/model.Inbound` 和订阅输出兼容；`web/html`、`web/assets` 和 `/panel/legacy*` 已退役。
+- Phase 10 风险接受只允许最小 CoreManager/sing-box 后端入口；不放宽旧模型迁移和旧生命周期接管。
 - 不提交密钥、token、私钥、数据库、运行状态、真实订阅 URL、面板路径和本地敏感配置。
 - 不做无关重构、不批量改格式、不随意升级依赖。
 - Windows 命令默认使用 PowerShell 语法；含中文文件编辑前确认编码并保持原编码。
@@ -30,7 +30,7 @@
 - Phase 10.2 前让 CoreManager 接管旧 Xray 生命周期。
 - 未经准入迁移 `model.Inbound` 到 `proxy_inbounds` / `proxy_clients`。
 - 把 Gateway Egress MVP 扩展成生产 `egress_*` 数据库/API。
-- 删除 `/panel/legacy` 或旧 UI 资源。
+- 重新引入 `/panel/legacy` 或旧 HTML UI 资源。
 - 在日志、配置、订阅或外部内容中使用 HTML 注入式渲染。
 - 绕过 CSRF、鉴权、secret scan 或 release gate。
 - 把真实订阅 URL、subId、UUID、代理账号密码、cookie、token、私钥、面板路径或数据库内容写入仓库文件或交接记录。

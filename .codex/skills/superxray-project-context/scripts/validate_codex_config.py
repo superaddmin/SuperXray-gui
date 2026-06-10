@@ -39,6 +39,7 @@ REQUIRED_CODEX_FILES = [
     ".codex/skills/superxray-project-context/SKILL.md",
     ".codex/skills/superxray-project-context/agents/openai.yaml",
     ".codex/skills/superxray-project-context/references/current-stack.md",
+    ".codex/skills/superxray-project-context/scripts/validate_skill_formats.py",
     ".codex/skills/superxray-project-context/scripts/validate_codex_config.py",
     ".codex/skills/superxray-project-context/tests/test_validate_codex_config.py",
 ]
@@ -55,6 +56,8 @@ REQUIRED_CONTEXT_INDEXES = [
     ".codex/context/runtime-network-debug-map.md",
 ]
 VALIDATOR_COMMAND = "python .codex/skills/superxray-project-context/scripts/validate_codex_config.py"
+WINDOWS_ABSOLUTE_PATH_RE = re.compile(r"(?:^|\s|['\"])[A-Za-z]:[\\/]")
+PATH_PREFIXES = (".codex/", "scripts/", "frontend/", ".github/", "docs/", "plans/")
 
 
 @dataclass(slots=True)
@@ -226,9 +229,17 @@ def validate_governance(root: Path, report: Report) -> None:
     if version != 3:
         report.add_error("governance_version_outdated", ".codex/governance.toml", "governance.version must be 3")
     context_budget = governance.get("context_budget", {})
-    first_read = as_list(context_budget.get("first_read")) if isinstance(context_budget, dict) else []
+    if isinstance(context_budget, dict):
+        context_reads = [
+            *as_list(context_budget.get("first_read")),
+            *as_list(context_budget.get("bootstrap_read")),
+            *as_list(context_budget.get("extended_read")),
+            *as_list(context_budget.get("on_demand_read")),
+        ]
+    else:
+        context_reads = []
     for expected in REQUIRED_CONTEXT_INDEXES:
-        if expected not in first_read:
+        if expected not in context_reads:
             report.add_error("governance_first_read_missing", ".codex/governance.toml", f"context_budget.first_read must include {expected}")
     codex_validation = governance.get("codex_validation")
     if not isinstance(codex_validation, dict):
@@ -241,6 +252,69 @@ def validate_governance(root: Path, report: Report) -> None:
     allowed = as_list(policy.get("allowed")) if isinstance(policy, dict) else []
     if ".codex/configuration-update.md" not in allowed:
         report.add_error("governance_configuration_update_not_allowed", ".codex/governance.toml", "allowed list must include .codex/configuration-update.md")
+    validate_sensitive_globs_are_ignored(root, report, governance)
+
+
+def validate_agent_context_budget(root: Path, report: Report, agents: dict[str, dict[str, Any]]) -> None:
+    governance = read_toml(root / ".codex" / "governance.toml", root, report)
+    context_budget = governance.get("context_budget", {}) if isinstance(governance.get("context_budget"), dict) else {}
+    max_context = context_budget.get("max_context_files_per_turn", 10)
+    if not isinstance(max_context, int) or max_context <= 0:
+        return
+    for agent_name, data in sorted(agents.items()):
+        total = len(as_list(data.get("required_context"))) + len(as_list(data.get("knowledge_inputs")))
+        if total > max_context:
+            report.add_warning(
+                "agent_context_budget_exceeded",
+                agent_name,
+                f"declares {total} required_context + knowledge_inputs entries; budget is {max_context}",
+            )
+
+
+def normalized_ignore_patterns(root: Path) -> set[str]:
+    gitignore = root / ".gitignore"
+    if not gitignore.exists():
+        return set()
+    patterns: set[str] = set()
+    for raw in gitignore.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or line.startswith("!"):
+            continue
+        variants = {line}
+        stripped = line.lstrip("/")
+        variants.add(stripped)
+        variants.add(stripped.rstrip("/"))
+        if stripped.endswith("/"):
+            variants.add(stripped.rstrip("/") + "/**")
+        if stripped.endswith("/**"):
+            variants.add(stripped.removesuffix("/**"))
+            variants.add(stripped.removesuffix("/**") + "/")
+        patterns.update(variants)
+    return patterns
+
+
+def validate_sensitive_globs_are_ignored(root: Path, report: Report, governance: dict[str, Any]) -> None:
+    security = governance.get("security", {})
+    if not isinstance(security, dict):
+        return
+    sensitive_globs = [item for item in as_list(security.get("sensitive_artifact_globs")) if isinstance(item, str)]
+    if not sensitive_globs:
+        return
+    ignored = normalized_ignore_patterns(root)
+    for pattern in sensitive_globs:
+        normalized = pattern.lstrip("/")
+        accepted = {
+            normalized,
+            normalized.rstrip("/"),
+            normalized.rstrip("/") + "/",
+            normalized.rstrip("/") + "/**",
+        }
+        if not accepted.intersection(ignored):
+            report.add_warning(
+                "sensitive_glob_not_ignored",
+                ".codex/governance.toml",
+                f"security.sensitive_artifact_globs includes {pattern!r}, but .gitignore does not ignore it",
+            )
 
 
 def validate_routing(root: Path, report: Report, agents: dict[str, dict[str, Any]]) -> None:
@@ -254,12 +328,17 @@ def validate_routing(root: Path, report: Report, agents: dict[str, dict[str, Any
             report.add_error("routing_invalid", ".codex/routing.toml", f"route #{index} must be a table")
             continue
         name = route.get("name", f"#{index}")
+        globs = as_list(route.get("globs"))
+        if not globs or not all(isinstance(item, str) and item for item in globs):
+            report.add_error("route_globs_missing", ".codex/routing.toml", f"route {name} must define a non-empty globs string array")
         primary = route.get("primary")
         if isinstance(primary, str) and primary not in agents:
             report.add_error("route_unknown_agent", ".codex/routing.toml", f"route {name} primary references unknown agent {primary}")
         for reviewer in as_list(route.get("reviewers")):
             if isinstance(reviewer, str) and reviewer not in agents:
                 report.add_error("route_unknown_agent", ".codex/routing.toml", f"route {name} reviewer references unknown agent {reviewer}")
+        for command in as_list(route.get("verification")):
+            validate_command_portability(root, report, ".codex/routing.toml", command, f"route {name}")
     governance_routes = [r for r in routes if isinstance(r, dict) and r.get("name") == "codex-governance"]
     if governance_routes:
         route = governance_routes[0]
@@ -272,6 +351,22 @@ def validate_routing(root: Path, report: Report, agents: dict[str, dict[str, Any
     project_skill_routes = [r for r in routes if isinstance(r, dict) and r.get("name") == "project-skills"]
     if project_skill_routes and VALIDATOR_COMMAND not in as_list(project_skill_routes[0].get("verification")):
         report.add_error("routing_validator_missing", ".codex/routing.toml", "project-skills verification must include validate_codex_config.py")
+
+
+def validate_command_portability(root: Path, report: Report, path: str, command: Any, label: str) -> None:
+    if not isinstance(command, str):
+        return
+    if WINDOWS_ABSOLUTE_PATH_RE.search(command):
+        report.add_warning("non_portable_absolute_path", path, f"{label} verification command contains a machine-specific absolute path: {command}")
+    for raw_token in re.split(r"\s+", command):
+        token = raw_token.replace("\\", "/").strip("`'\";,)")
+        if not token.startswith(PATH_PREFIXES):
+            continue
+        if "*" in token or token.endswith("/..."):
+            continue
+        token = token.rstrip(":")
+        if not (root / token).exists():
+            report.add_warning("verification_path_missing", path, f"{label} verification command references missing path: {token}")
 
 
 FRONTMATTER_RE = re.compile(r"^---\n(?P<body>.*?)\n---\n", re.DOTALL)
@@ -314,6 +409,7 @@ def validate(root: str | Path = ".") -> Report:
     check_text_policy(root_path, report)
     agents = parse_agents(root_path, report)
     validate_project_references(root_path, report, agents)
+    validate_agent_context_budget(root_path, report, agents)
     validate_governance(root_path, report)
     validate_routing(root_path, report, agents)
     validate_skills(root_path, report)

@@ -49,7 +49,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 To pin the current release:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.3.2
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.3.3
 ```
 
 The installer prepares the required Linux packages (`cron`/`cronie`, `curl`, `tar`, `tzdata`, `socat`, `ca-certificates`, `openssl`), downloads the matching GitHub Release asset, and prints the generated username, password, panel port, and `webBasePath` at the end. Official binary assets are currently published for Linux `amd64` and `arm64`.
@@ -62,10 +62,10 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
   -v $PWD/cert:/root/cert \
   -e XRAY_VMESS_AEAD_FORCED=false \
   -e XUI_ENABLE_FAIL2BAN=true \
-  ghcr.io/superaddmin/superxray-gui:3.3.2
+  ghcr.io/superaddmin/superxray-gui:3.3.3
 ```
 
-The repository `docker-compose.yml` builds the image from local source. For image-based container deployment, you can switch Compose to `image: ghcr.io/superaddmin/superxray-gui:3.3.2`. Docker startup does not run the one-click installer's random security initialization, so change the default credentials, panel port, and `webBasePath` immediately after the first start.
+The repository `docker-compose.yml` builds the image from local source. For image-based container deployment, you can switch Compose to `image: ghcr.io/superaddmin/superxray-gui:3.3.3`. Docker startup does not run the one-click installer's random security initialization, so change the default credentials, panel port, and `webBasePath` immediately after the first start.
 
 For deployment details, see [docs/deployment.md](docs/deployment.md). For AI-platform routing through a dedicated residential egress, see [docs/ai-routing-and-residential-egress.md](docs/ai-routing-and-residential-egress.md). For the Xray-compatible Gateway egress MVP plan, see [docs/superpowers/plans/2026-05-16-vpn-egress-mvp-xray-compatible.md](docs/superpowers/plans/2026-05-16-vpn-egress-mvp-xray-compatible.md). For development and release workflow notes, see [docs/development.md](docs/development.md). The project Wiki remains available at <https://github.com/superaddmin/SuperXray-gui/wiki>.
 

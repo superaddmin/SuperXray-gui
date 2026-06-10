@@ -3,15 +3,15 @@
 > 更新日期：2026-06-09
 > 上游仓库：`MHSanaei/3x-ui`
 > 当前上游基线：`3x-ui upstream tag v3_3_0` / `upstream/main` = `f8e89cc84`（tag object `02edec359`）
-> 当前项目版本：`3.3.2`
+> 当前项目版本：`3.3.3`
 
 ## 1. 同步原则
 
-SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、legacy UI 回退、Phase 9 安全收口、Gateway Egress MVP 与风险接受的最小 CoreManager/sing-box 后端入口。后续同步上游时采用“基线记录 + 选择性移植 + 本地门禁验证”的策略，不直接用上游文件覆盖本项目。
+SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、旧 HTML UI 退役、Phase 9 安全收口、Gateway Egress MVP 与风险接受的最小 CoreManager/sing-box 后端入口。后续同步上游时采用“基线记录 + 选择性移植 + 本地门禁验证”的策略，不直接用上游文件覆盖本项目。
 
 必须保留的本地边界：
 
-- 不删除 `/panel/legacy/`、`web/html`、`web/assets`。
+- 不重新引入 `/panel/legacy/`、`web/html`、`web/assets` 作为生产 UI。
 - 不让 CoreManager 接管 legacy Xray 的 start/stop/restart。
 - 不把活跃写模型从 `database/model.Inbound` 迁移到 `proxy_inbounds` / `proxy_clients`。
 - 不新增生产 `egress_*` 数据库/API。
@@ -61,7 +61,7 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、legacy UI 回退
 ### P1：订阅与协议增强
 
 - Clash/Mihomo routing rules。
-- XHTTP/sockopt/Reality/ECH 等上游协议输出修复需先补本项目旧 UI/新 UI/订阅矩阵测试后再移植。
+- XHTTP/sockopt/Reality/ECH 等上游协议输出修复需先补本项目新 UI/旧 API/订阅矩阵测试后再移植。
 - Shadowrocket base64 行为需单独评估当前客户端兼容性，不能破坏已有 Generic URI 输出。
 - Settings UI 可以暴露与 legacy 设置兼容的低风险字段，但必须通过 `frontend/tests/settings-view.test.ts` 覆盖字段绑定。
 

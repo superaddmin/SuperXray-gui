@@ -6,7 +6,7 @@
 
 - 后端：Go 1.26.4、Gin、GORM、SQLite、robfig/cron、gorilla/websocket、go-i18n、Xray-core gRPC/API。
 - 前端：Vue 3.5、Vite 8、TypeScript 6、Pinia、Ant Design Vue 4、Axios、Vue Router。
-- 旧 UI：`web/html` 与 `web/assets` 仍是 `/panel/legacy/` 回退边界。
+- 旧 HTML UI：`web/html`、`web/assets` 和 `/panel/legacy*` 已退役；不要重新挂载。
 - 新 UI：`frontend/src` 构建到 `web/ui`，由 Go embed 托管，默认入口为 `/panel/`。
 - 订阅：`sub/` 输出 URI/Base64、Xray JSON、Clash/Mihomo、WireGuard 配置和 diagnose。
 - 多核心：`core/` 已有最小 CoreManager、`default-xray` 只读观察和 `experimental-sing-box` 外部适配器；仍禁止接管旧 Xray 生命周期。
@@ -26,12 +26,15 @@
 │   ├── dependency-map.md
 │   ├── business-flow-map.md
 │   ├── codex-config-map.md
+│   ├── conversation-retrospective-map.md
+│   ├── runtime-network-debug-map.md
 │   └── handoff-template.md
 ├── prompts/
 │   └── shared-system-prompt.md
 ├── workflows/
 │   ├── multi-agent-workflow.md
 │   ├── verification-matrix.md
+│   ├── network-routing-debug-checklist.md
 │   └── config-validation-and-efficiency.md
 └── skills/
     ├── superxray-project-context/
@@ -42,12 +45,13 @@
 ## 使用顺序
 
 1. 先读 `.codex/governance.toml`、`.codex/project.toml`、`.codex/routing.toml` 和 `.codex/context/project-map.md`。
-2. 需要快速建立项目画像时使用 `.codex/skills/superxray-project-context/SKILL.md`。
-3. 涉及 UI-first 阶段、Xray parity、legacy fallback、CoreManager 门禁时使用 `superxray-ui-first-migration` 技能。
-4. 涉及版本、CHANGELOG、GitHub Release、GHCR、release workflow 时使用 `superxray-release-cicd` 技能。
-5. 按 `.codex/routing.toml` 找优先级最高的主责代理。
-6. 主责代理执行前读取对应 `required_context`，交接时使用 `.codex/context/handoff-template.md`。
-7. 完成前按 `.codex/workflows/verification-matrix.md` 选择最小相关验证命令。
+2. 常规代码任务只按 `bootstrap_read` 建立项目画像；依赖/业务/配置治理再读取 `extended_read`；网络、代理、服务器运行态排障才读取 `on_demand_read`。
+3. 需要快速建立项目画像时使用 `.codex/skills/superxray-project-context/SKILL.md`。
+4. 涉及 UI-first 阶段、Xray parity、旧 UI 退场、CoreManager 门禁时使用 `superxray-ui-first-migration` 技能。
+5. 涉及版本、CHANGELOG、GitHub Release、GHCR、release workflow 时使用 `superxray-release-cicd` 技能。
+6. 按 `.codex/routing.toml` 找优先级最高的主责代理。
+7. 主责代理执行前读取对应 `required_context`，交接时使用 `.codex/context/handoff-template.md`。
+8. 完成前按 `.codex/workflows/verification-matrix.md` 选择最小相关验证命令。
 
 ## 配置验证入口
 
@@ -57,6 +61,7 @@
 - Codex 配置索引：`.codex/context/codex-config-map.md`。
 - 配置验证脚本：`python .codex/skills/superxray-project-context/scripts/validate_codex_config.py`。
 - 配置验证单测：`python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py`。
+- 技能格式验证包装：`python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd`。
 - 效率指标与迭代规则：`.codex/workflows/config-validation-and-efficiency.md`。
 
 ## 配置边界
@@ -72,7 +77,7 @@
 - Phase 10.2 前不得让 CoreManager 接管旧 Xray 启停重启。
 - 未经明确架构门禁，不得把活跃写路径从 `database/model.Inbound` 迁移到 `proxy_inbounds` / `proxy_clients`。
 - Gateway Egress MVP 只允许生成 Xray-compatible SOCKS5 inbound 与 CSV manifest；不得直接落地生产 `egress_*` 数据库/API。
-- 不删除 `/panel/legacy/`、`web/html` 或 `web/assets`，直到 legacy 退场门禁通过。
+- 不重新引入 `/panel/legacy/`、`web/html` 或 `web/assets`；旧 HTML UI 退场门禁已执行。
 - 日志、配置、订阅、外部内容和导入预览必须纯文本渲染，不使用 `v-html`、`innerHTML` 或 `insertAdjacentHTML`。
 
 ## 编码约定

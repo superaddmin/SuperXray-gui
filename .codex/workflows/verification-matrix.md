@@ -12,18 +12,18 @@
 | Gateway Egress MVP | `cd frontend; npm run test` | Xray config 与 CSV manifest 手工/浏览器抽检 |
 | Vue 新 UI | `cd frontend; npm run typecheck`, `cd frontend; npm run lint` | `cd frontend; npm run test`, `cd frontend; npm run build`, E2E |
 | `web/ui` 构建产物 | `cd frontend; npm run build` | `go build -o bin/SuperXray.exe ./main.go`, 浏览器冒烟 |
-| Legacy UI 或 Go embed | `go test ./web`, `go build -o bin/SuperXray.exe ./main.go` | 浏览器检查 `/panel/`, `/panel/ui/`, `/panel/legacy/` |
+| 新 UI Go embed / 旧 UI 退役 | `go test ./web`, `go build -o bin/SuperXray.exe ./main.go` | 浏览器检查 `/panel/`, `/panel/ui/`，并确认 `/panel/legacy*` 不再注册 |
 | 安全中间件/下载/导入 | `go test ./web/middleware ./web/controller ./web/service` | XSS/CSRF 搜索、E2E 安全路径 |
 | Playwright 旅程 | `npm run e2e` | headed/UI 模式、截图/trace 分析 |
 | Docker/CI/脚本 | release gate metadata check | Docker build、CI dry-run、shellcheck 如可用 |
 | 发布 | `release_gate.py --install-tools` | Go 全量、frontend 全量、E2E、CodeQL/CI |
 | 文档/i18n | `python scripts/secret_scan.py`、文档链接和 key 对齐检查 | frontend i18n tests、release metadata check |
-| Codex 治理配置 | `python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py`, `python .codex/skills/superxray-project-context/scripts/validate_codex_config.py`, skill validate | `python scripts/secret_scan.py`, release metadata check、相关 agent workflow 演练 |
+| Codex 治理配置 | `python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py`, `python .codex/skills/superxray-project-context/scripts/validate_codex_config.py`, portable skill validate wrapper | `python scripts/secret_scan.py`, release metadata check、相关 agent workflow 演练 |
 
 ## 常用搜索
 
 ```powershell
-rg "v-html|innerHTML|insertAdjacentHTML" web/html frontend/src -n
+rg "v-html|innerHTML|insertAdjacentHTML" frontend/src web/ui sub -n
 rg "unsafe-inline|unsafe-eval" frontend/src web/ui -n
 rg "proxy_inbounds|proxy_clients" core web/controller web/middleware web/service database/model frontend/src web/ui -n
 rg "egress_|Gateway Egress|gatewayEgressMvp" frontend/src docs plans -n
@@ -58,7 +58,5 @@ $env:SUPERXRAY_E2E_SUB_URL = "<redacted-subscription-url>"
 ```powershell
 python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py
 python .codex/skills/superxray-project-context/scripts/validate_codex_config.py
-python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-project-context
-python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-ui-first-migration
-python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-release-cicd
+python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd
 ```

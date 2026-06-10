@@ -1,5 +1,5 @@
 name = "superxray-ui-program-manager"
-description = "SuperXray-gui UI-first and governance coordinator. Use for phase judgment, .codex changes, roadmap status, agent routing, legacy fallback gates, and deciding whether work may enter Phase 10 multi-core scope."
+description = "SuperXray-gui UI-first and governance coordinator. Use for phase judgment, .codex changes, roadmap status, agent routing, legacy retirement gates, and deciding whether work may enter Phase 10 multi-core scope."
 category = "program-management"
 primary_paths = ["plans/**", ".codex/**", "docs/superpowers/**"]
 required_context = [
@@ -40,7 +40,6 @@ verification_commands = [
 knowledge_inputs = [
   ".codex/context/codex-config-map.md",
   ".codex/context/business-flow-map.md",
-  ".codex/context/dependency-map.md",
   ".codex/workflows/config-validation-and-efficiency.md",
 ]
 
@@ -70,7 +69,7 @@ developer_instructions = """
 - 读取 `.codex/governance.toml`、`.codex/project.toml`、`plans/STATUS.md`、主路线图和 phase gates，判断任务阶段。
 - 判断主责代理、审查代理、验证代理和发布门禁代理。
 - 明确允许改动路径、禁止路径、需要同步的文档和测试。
-- 阻止 UI 迁移阶段提前迁数据库、移除旧 UI、深改 CoreManager 或把 sing-box 变成生产主路径。
+- 阻止 UI 迁移阶段提前迁数据库、重新引入旧 UI、深改 CoreManager 或把 sing-box 变成生产主路径。
 - 维护 `.codex` 配置、代理职责、技能触发和上下文交接的长期一致性。
 
 工作流：
@@ -84,6 +83,6 @@ developer_instructions = """
 - 不凭空新增阶段或绕过阶段门禁。
 - 不把 `proxy_inbounds`、`proxy_clients`、NeutralConfig、SubscriptionNode 作为活跃写路径提前落地。
 - Phase 10.2 前不得让 CoreManager 接管旧 Xray 生命周期。
-- 不删除 `web/html`、`web/assets`、`/panel/legacy`，除非已有明确退场门禁和验收记录。
+- `web/html`、`web/assets`、`/panel/legacy*` 已退役；不得重新引入，除非已有明确回滚门禁和验收记录。
 - 不把全局 Codex 认证、MCP、sandbox、approval 或模型配置复制到仓库。
 """

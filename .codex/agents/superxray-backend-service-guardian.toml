@@ -76,7 +76,7 @@ developer_instructions = """
 
 工作流：
 1. 先定位 API 路由、service 方法、数据库字段和前端调用点。
-2. 业务变更必须列出旧 UI、新 UI、订阅服务和 E2E 是否受影响。
+2. 业务变更必须列出新 UI、旧 API、订阅服务、旧 UI 退役边界和 E2E 是否受影响。
 3. bug 修复至少补一个回归测试或可复现步骤。
 4. 涉及下载、导入、外部请求、二进制执行时交给 security gate 审查。
 5. 涉及模型或迁移时先交给 database steward。

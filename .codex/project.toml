@@ -1,12 +1,12 @@
 [project]
 name = "SuperXray-gui"
 module = "github.com/superaddmin/SuperXray-gui/v2"
-product = "Xray-core web control panel with legacy UI fallback, Vue 3 operations UI, subscription server, gateway egress MVP, and guarded multi-core runtime entry."
+product = "Xray-core web control panel with Vue 3 operations UI, retired legacy HTML UI, subscription server, gateway egress MVP, and guarded multi-core runtime entry."
 default_language = "zh-CN"
 license = "GPL-3.0"
 current_version_file = "config/version"
 current_phase = "Phase 9 security closeout plus risk-accepted Phase 10 minimal CoreManager/sing-box backend entry"
-repository_kind = "mixed Go backend, Vue frontend, legacy HTML UI, shell/Docker/CI, project-local Codex governance"
+repository_kind = "mixed Go backend, Vue frontend, retired legacy HTML UI artifacts, shell/Docker/CI, project-local Codex governance"
 
 [source_of_truth]
 governance = [".codex/governance.toml", ".codex/routing.toml"]
@@ -54,8 +54,8 @@ language = "TypeScript"
 frameworks = ["Vue 3.5", "Vite 8", "Pinia 3", "Ant Design Vue 4", "Axios 1.16", "Vue Router 4"]
 source_dir = "frontend/src"
 build_output = "web/ui"
-legacy_ui_dirs = ["web/html", "web/assets"]
-test_entry = "frontend/tests/*.test.ts plus web/assets/js/**/*.test.js through node --test"
+retired_legacy_ui_dirs = ["web/html", "web/assets"]
+test_entry = "frontend/tests/*.test.ts through node --test"
 
 [stack.ai_config]
 configuration_system = "repository-local .codex governance, routing, agents, skills, context indexes, workflows, validation scripts"
@@ -93,7 +93,7 @@ go = ["go test ./...", "go vet ./...", "go build -o bin/SuperXray.exe ./main.go"
 frontend = ["cd frontend; npm run typecheck", "cd frontend; npm run lint", "cd frontend; npm run test", "cd frontend; npm run build"]
 e2e = ["npm run e2e"]
 security = [
-  "rg \"v-html|innerHTML|insertAdjacentHTML\" web/html frontend/src -n",
+  "rg \"v-html|innerHTML|insertAdjacentHTML\" frontend/src web/ui sub -n",
   "rg \"unsafe-inline|unsafe-eval\" frontend/src web/ui -n",
   "python scripts/secret_scan.py",
 ]
@@ -101,9 +101,7 @@ release = ["python .codex/skills/superxray-release-cicd/scripts/release_gate.py 
 codex = [
   "python .codex/skills/superxray-project-context/scripts/validate_codex_config.py",
   "python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py",
-  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-project-context",
-  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-ui-first-migration",
-  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-release-cicd",
+  "python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd",
 ]
 
 [business_domains]
@@ -119,8 +117,8 @@ release = "Linux amd64/arm64 binary assets, GHCR multi-arch image, semantic vers
 [hard_gates]
 forbidden_before_phase_10_2 = [
   "Route old Xray startup/stop/restart through CoreManager",
-  "Remove legacy UI fallback or /panel/legacy routes",
-  "Write new UI data that legacy UI cannot read",
+  "Reintroduce legacy HTML UI fallback or /panel/legacy routes",
+  "Write data incompatible with old API, subscription output, or database/model.Inbound",
 ]
 forbidden_until_explicit_architecture_gate = [
   "Migrate active model.Inbound writes to proxy_inbounds/proxy_clients",

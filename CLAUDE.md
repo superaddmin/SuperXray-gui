@@ -50,8 +50,7 @@ Controller (web/controller/) → Service (web/service/) → Database (database/m
 
 ### Resource Embedding
 All frontend assets are embedded at compile time via `//go:embed`:
-- `web/assets` → `assetsFS` (CSS, JS, images)
-- `web/html` → `htmlFS` (HTML templates)
+- `web/ui` → Vue 3/Vite UI build output
 - `web/translation` → `i18nFS` (TOML translation files for 13 languages)
 
 **Changes to HTML/CSS/JS require recompilation** — no hot reload.
@@ -71,7 +70,7 @@ All frontend assets are embedded at compile time via `//go:embed`:
 | `web/service/` | Business logic (InboundService, SettingService, TgBot, etc.) |
 | `web/job/` | Cron background jobs (traffic, CPU, IP tracking, LDAP sync) |
 | `web/websocket/` | WebSocket hub for real-time client updates |
-| `web/html/` | HTML templates |
+| `web/ui/` | Vue 3 UI build output |
 | `web/translation/` | i18n TOML files |
 | `xray/` | Xray-core process management and gRPC API |
 | `sub/` | Subscription server |

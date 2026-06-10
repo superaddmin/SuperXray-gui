@@ -154,6 +154,7 @@ default_prompt: Validate the project context.
 """,
         )
         self.write(".codex/skills/superxray-project-context/scripts/validate_codex_config.py", "# placeholder\n")
+        self.write(".codex/skills/superxray-project-context/scripts/validate_skill_formats.py", "# placeholder\n")
         self.write(".codex/skills/superxray-project-context/tests/test_validate_codex_config.py", "# placeholder\n")
         for skill_name in ["superxray-ui-first-migration", "superxray-release-cicd"]:
             self.write(
@@ -195,6 +196,22 @@ verification = ["python .codex/skills/superxray-project-context/scripts/validate
         report = validator.validate(self.root)
         self.assertIn("route_unknown_agent", [issue.code for issue in report.errors])
 
+    def test_route_empty_globs_is_reported(self) -> None:
+        self.write(
+            ".codex/routing.toml",
+            """
+[[routes]]
+name = "empty-globs"
+globs = []
+primary = "demo-agent"
+reviewers = ["demo-agent"]
+verification = ["python .codex/skills/superxray-project-context/scripts/validate_codex_config.py"]
+""",
+        )
+        validator = load_validator()
+        report = validator.validate(self.root)
+        self.assertIn("route_globs_missing", [issue.code for issue in report.errors])
+
     def test_utf8_bom_is_rejected(self) -> None:
         self.write(".codex/context/project-map.md", "# ok\n", bom=True)
         validator = load_validator()
@@ -214,6 +231,128 @@ interface:
         validator = load_validator()
         report = validator.validate(self.root)
         self.assertNotIn("skill_openai_yaml_invalid", [issue.code for issue in report.errors], report.to_text())
+
+    def test_layered_context_reads_are_accepted(self) -> None:
+        self.write(
+            ".codex/governance.toml",
+            """
+[governance]
+version = 3
+
+[context_budget]
+max_context_files_per_turn = 10
+bootstrap_read = [
+  ".codex/project.toml",
+  ".codex/governance.toml",
+  ".codex/routing.toml",
+  ".codex/context/project-map.md",
+]
+extended_read = [
+  ".codex/context/dependency-map.md",
+  ".codex/context/business-flow-map.md",
+  ".codex/context/codex-config-map.md",
+]
+on_demand_read = [
+  ".codex/context/conversation-retrospective-map.md",
+  ".codex/context/runtime-network-debug-map.md",
+]
+
+[codex_validation]
+script = ".codex/skills/superxray-project-context/scripts/validate_codex_config.py"
+
+[codex_directory_policy]
+allowed = [".codex/configuration-update.md"]
+""",
+        )
+        validator = load_validator()
+        report = validator.validate(self.root)
+        self.assertNotIn("governance_first_read_missing", [issue.code for issue in report.errors], report.to_text())
+
+    def test_agent_context_budget_warning_is_reported(self) -> None:
+        self.write(
+            ".codex/governance.toml",
+            """
+[governance]
+version = 3
+
+[context_budget]
+max_context_files_per_turn = 1
+first_read = [
+  ".codex/project.toml",
+  ".codex/governance.toml",
+  ".codex/routing.toml",
+  ".codex/context/project-map.md",
+  ".codex/context/dependency-map.md",
+  ".codex/context/business-flow-map.md",
+  ".codex/context/codex-config-map.md",
+  ".codex/context/conversation-retrospective-map.md",
+  ".codex/context/runtime-network-debug-map.md",
+]
+
+[codex_validation]
+script = ".codex/skills/superxray-project-context/scripts/validate_codex_config.py"
+
+[codex_directory_policy]
+allowed = [".codex/configuration-update.md"]
+""",
+        )
+        validator = load_validator()
+        report = validator.validate(self.root)
+        self.assertIn("agent_context_budget_exceeded", [issue.code for issue in report.warnings], report.to_text())
+
+    def test_non_portable_absolute_verification_path_is_reported(self) -> None:
+        self.write(
+            ".codex/routing.toml",
+            """
+[[routes]]
+name = "codex-governance"
+globs = [".codex/configuration-update.md"]
+primary = "demo-agent"
+reviewers = ["demo-agent"]
+verification = [
+  "python .codex/skills/superxray-project-context/scripts/validate_codex_config.py",
+  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/demo",
+]
+""",
+        )
+        validator = load_validator()
+        report = validator.validate(self.root)
+        self.assertIn("non_portable_absolute_path", [issue.code for issue in report.warnings], report.to_text())
+
+    def test_sensitive_artifact_globs_must_be_ignored(self) -> None:
+        self.write(
+            ".codex/governance.toml",
+            """
+[governance]
+version = 3
+
+[context_budget]
+first_read = [
+  ".codex/project.toml",
+  ".codex/governance.toml",
+  ".codex/routing.toml",
+  ".codex/context/project-map.md",
+  ".codex/context/dependency-map.md",
+  ".codex/context/business-flow-map.md",
+  ".codex/context/codex-config-map.md",
+  ".codex/context/conversation-retrospective-map.md",
+  ".codex/context/runtime-network-debug-map.md",
+]
+
+[codex_validation]
+script = ".codex/skills/superxray-project-context/scripts/validate_codex_config.py"
+
+[security]
+sensitive_artifact_globs = [".env", "*.db", "*.sqlite"]
+
+[codex_directory_policy]
+allowed = [".codex/configuration-update.md"]
+""",
+        )
+        self.write(".gitignore", ".env\n*.db\n")
+        validator = load_validator()
+        report = validator.validate(self.root)
+        self.assertIn("sensitive_glob_not_ignored", [issue.code for issue in report.warnings], report.to_text())
 
 
 if __name__ == "__main__":

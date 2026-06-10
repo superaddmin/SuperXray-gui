@@ -2,6 +2,20 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.3.3] - 2026-06-11
+
+### Changed
+
+- 旧 HTML UI 正式退役：删除 `web/html`、`web/assets`、旧模板渲染、旧静态资源挂载和 `/panel/legacy*` 路由，保留新 Vue UI、登录接口、面板 API、设置/Xray 控制器与 `/panel/ui/` 兼容入口。
+- 订阅服务移除旧 HTML 可视页，浏览器请求也返回纯文本订阅内容；URI/Base64、Xray JSON、Clash/Mihomo、WireGuard 和 diagnose 输出保持兼容。
+- 将 QRious 迁移为新 Vue UI 静态资源，并同步新 UI 构建产物，避免依赖旧 `web/assets`。
+
+### Security
+
+- 统一新 UI 与面板响应的 nonce CSP，移除 legacy UI 所需的 `unsafe-inline` / `unsafe-eval` 例外。
+- 登录失败日志和 Telegram 通知不再包含用户提交的明文密码。
+- `secret_scan.py` 跳过已从 Git 索引删除但工作区不存在的路径，确保旧资源删除期间密钥扫描仍可运行。
+
 ## [3.3.2] - 2026-06-10
 
 ### Fixed

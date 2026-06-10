@@ -242,7 +242,7 @@ Expected: PASS（若失败则修复 adapter），作为 P2 防回归门禁。
 
 - [ ] **Step 1: Add upstream sync policy**
 
-记录上游 3x-ui `3.2.8` 与本项目 `3.3.2` 的选择性同步策略、禁止直接覆盖的本地能力、后续雷达清单。
+记录上游 3x-ui `3.2.8` 与本项目 `3.3.3` 的选择性同步策略、禁止直接覆盖的本地能力、后续雷达清单。
 
 - [ ] **Step 2: Run focused verification**
 

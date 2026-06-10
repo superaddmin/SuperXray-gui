@@ -69,6 +69,9 @@ Thumbs.db
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 x-ui.db
 superxray.db
 
@@ -77,6 +80,7 @@ docker-compose.override.yml
 
 # Ignore .env (Environment Variables) file
 .env
+.env.*
 
 # Ignore local operational audit artifacts containing real server/subscription/proxy details.
 docs/server-*-inbound-subscription-audit-*.txt
@@ -84,6 +88,8 @@ docs/*subscription-audit*.txt
 docs/private-ops/
 *.secrets.*
 *.credentials.*
+**/*secrets*
+**/*credentials*
 
 # Ignore compiled binary (build output)
 SuperXray-gui

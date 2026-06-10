@@ -31,10 +31,10 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 Чтобы установить текущий релиз явно:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.3.2
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.3.3
 ```
 
-Официальные бинарные релизы сейчас публикуются для Linux `amd64` и `arm64`. В конце установки скрипт выводит сгенерированные имя пользователя, пароль, порт панели и `webBasePath`; сохраните эти данные. Docker-образ доступен как `ghcr.io/superaddmin/superxray-gui:3.3.2`. Подробности по Docker, бинарному развертыванию и зависимостям см. в [docs/deployment.md](docs/deployment.md).
+Официальные бинарные релизы сейчас публикуются для Linux `amd64` и `arm64`. В конце установки скрипт выводит сгенерированные имя пользователя, пароль, порт панели и `webBasePath`; сохраните эти данные. Docker-образ доступен как `ghcr.io/superaddmin/superxray-gui:3.3.3`. Подробности по Docker, бинарному развертыванию и зависимостям см. в [docs/deployment.md](docs/deployment.md).
 
 Полную документацию смотрите в [вики проекта](https://github.com/superaddmin/SuperXray-gui/wiki).
 

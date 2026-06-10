@@ -1,16 +1,16 @@
 # SuperXray-gui 技术计划与项目进度状态追踪报告
 
-报告日期：2026-05-04
+报告日期：2026-06-11
 报告口径：以 `plans/` 文档、当前代码实现、测试结果和 UI-first 阶段门禁为准。
 当前主线：UI 先行、Xray 稳定迁移、再接多内核。
 
 ## 1. 执行摘要
 
-项目当前处于 **UI-first Phase 9 安全收口与 Phase 10 风险接受并行推进段**。Phase 0 到 Phase 5 已完成，Phase 6 已完成子阶段 **6a：VMess/VLESS 入站与客户端管理**、**6b：Trojan/Shadowsocks 入站与客户端管理**、**6c/6d：Hysteria2/WireGuard 与 StreamSettings 通用表单** 和 **6e：批量操作/分享导出/mutation E2E 基线**。Phase 7a 已新增 Settings、Subscription、Backup/Restore 新 UI 入口，并已在隔离面板验证设置保存与 SQLite 备份下载。Phase 8 已把新 UI 切到 `/panel/` 默认入口，并保留 `/panel/legacy/` 旧 UI 回退和 `/panel/ui/` 兼容入口。Phase 9 本轮已收口旧 UI HTML sink、session 级 CSRF token、未登录数据库/配置/日志读取、非法数据库导入、新 UI `style-src` nonce 收紧、新 UI 到 Legacy UI 的六类协议创建兼容矩阵、Settings 兼容抽检、VLESS/Trojan/Shadowsocks/Hysteria2 客户端与 WireGuard peer 编辑兼容抽检、在线/IP 管理入口、订阅输出矩阵和相关 E2E；本机隔离真实 Xray core 环境已完成 19 passed / 0 skipped / 0 failed 的完整 Playwright 验收。
+项目当前处于 **UI-first Phase 9 安全收口与 Phase 10 风险接受并行推进段**。Phase 0 到 Phase 8 已完成新 Vue UI 默认入口、登录页、核心 Dashboard/Logs/Xray/Inbounds/Settings/Subscription/Backup/CoreInstances 工作流和旧 API 兼容；旧 HTML UI 已在 2026-06-11 退役，`web/html`、`web/assets` 和 `/panel/legacy*` 不再作为生产入口或回退入口。Phase 9 本轮继续收口 CSP/CSRF/XSS、未登录数据库/配置/日志读取、非法数据库导入、订阅输出矩阵和相关 E2E；旧 API、订阅输出和 `database/model.Inbound` 数据契约继续保留。
 
-多内核后端架构方向已经形成完整方案。Phase 10.1-10.5 已完成准入评估，Phase 10.1 `default-xray` 虚拟只读实例 ADR 已落地；当前已完成六类协议创建、订阅设置保存、VLESS/Trojan/Shadowsocks/Hysteria2 客户端编辑、WireGuard peer 编辑和在线/IP 管理的新旧 UI 自动兼容抽检，订阅输出矩阵已补 Go 层回归；仍缺第二环境/CI 复刻。2026-05-04 因上线部署需要，项目已记录 **风险接受/强制进入**，允许先实施最小 active CoreManager/sing-box 后端入口；仍禁止把旧 `model.Inbound` 迁移到 `proxy_inbounds/proxy_clients`，禁止 CoreManager 接管现有 Xray 生命周期，禁止修改旧订阅输出语义。
+多内核后端架构方向已经形成完整方案。Phase 10.1-10.5 已完成准入评估，Phase 10.1 `default-xray` 虚拟只读实例 ADR 已落地；当前已完成六类协议创建、订阅设置保存、VLESS/Trojan/Shadowsocks/Hysteria2 客户端编辑、WireGuard peer 编辑和在线/IP 管理的新 UI / 旧 API 自动兼容抽检，订阅输出矩阵已补 Go 层回归；仍缺第二环境/CI 复刻。2026-05-04 因上线部署需要，项目已记录 **风险接受/强制进入**，允许先实施最小 active CoreManager/sing-box 后端入口；仍禁止把旧 `model.Inbound` 迁移到 `proxy_inbounds/proxy_clients`，禁止 CoreManager 接管现有 Xray 生命周期，禁止修改旧订阅输出语义。
 
-2026-05-04 已按方案 A 完成第一轮 UI 框架迁移收口，并继续补齐旧 UI 退场前门禁：新 Vue 3/Vite UI 的未使用文件、未使用导出和未使用依赖已清零，CodeMirror 依赖已移除；新 UI 已补登录页、Custom Geo/Geofile、Xray 出站工具、入站导入/批量工具、在线/IP 管理、2FA 设置和订阅公开链接入口；`/panel/legacy`、`web/html` 和 `web/assets` 继续作为受控回退与兼容验收边界保留。新二进制本地 E2E 19 passed，桌面/移动截图式响应式检查通过。
+2026-06-11 已执行旧 HTML UI 全量退役：删除 `web/html`、`web/assets`，移除旧模板渲染、旧静态资源挂载、`/panel/legacy*` 路由和订阅 HTML 可视页；新 UI 保留 `/panel/` 默认入口和 `/panel/ui/` 兼容入口，QRious 作为新 UI 静态资源迁移到 `frontend/public/assets/qrcode/` 与 `web/ui/assets/qrcode/`。
 
 协议能力补齐计划已基本完成：主力协议校验、WireGuard 订阅导出、协议能力矩阵和相关测试均已在代码侧出现，并通过当前验证命令。
 
@@ -26,9 +26,9 @@
 | M5：Xray 生命周期与配置管理   | 已完成   |   100% | Start/Restart/Stop、版本安装、模板编辑保存走旧兼容端点                                                                          |
 | M6：入站与客户端迁移          | 阶段完成 |    99% | 6a-6e 功能收尾已完成；本机隔离真实 core mutation E2E、六类协议创建兼容抽检和主力协议编辑兼容抽检已通过                          |
 | M7：设置、订阅、备份恢复迁移  | 阶段完成 |    94% | Phase 7a 设置保存、SQLite 备份下载、DB 回灌导入、2FA 设置替代和订阅公开链接入口已在本机隔离真实 Xray core 环境通过              |
-| M8：新 UI 默认入口灰度        | 阶段完成 |    82% | `/panel/` 新 UI 默认入口、`/panel/login` 新登录页、`/panel/legacy/` 回退、`/panel/ui/` 兼容入口已通过本地 E2E 和浏览器冒烟      |
+| M8：新 UI 默认入口灰度        | 阶段完成 |   100% | `/panel/` 新 UI 默认入口、`/panel/login` 新登录页和 `/panel/ui/` 兼容入口保留；`/panel/legacy*` 已退役                       |
 | M9：安全收口                  | 推进中   |    99% | 无 HTML sink、session 级 CSRF token、未登录下载/读取、非法 DB 导入、style-src nonce、协议/设置兼容抽检和完整非跳过 E2E 已通过   |
-| M10：多内核后端启动           | 强制进入 |    28% | 已记录风险接受/强制进入，并落地最小 `/panel/api/cores/*`、CoreManager 和 experimental sing-box 后端入口；旧 UI 退场前补门禁推进 |
+| M10：多内核后端启动           | 强制进入 |    28% | 已记录风险接受/强制进入，并落地最小 `/panel/api/cores/*`、CoreManager 和 experimental sing-box 后端入口；旧 HTML UI 已退役 |
 
 ## 3. 文档体系审查结论
 
@@ -111,7 +111,7 @@
 - Phase 0-5 已完成。
 - Phase 6a、6b、6c/6d、6e 已完成，Phase 6 总体进入真实环境验收。
 - Phase 7a 设置/订阅/备份基础迁移已完成，并通过本地隔离面板保存/备份下载验收。
-- Phase 8 默认入口灰度已完成本地验收：新 UI 默认 `/panel/`，旧 UI 回退 `/panel/legacy/`，兼容入口 `/panel/ui/`。
+- Phase 8 默认入口灰度已完成并进入旧 UI 退役状态：新 UI 默认 `/panel/`，兼容入口 `/panel/ui/`，`/panel/legacy*` 不再注册。
 - Phase 9 已完成一轮安全收口：HTML sink、session 级 CSRF token、未登录下载/读取、非法 DB 导入、新 UI `style-src` nonce 收紧、六类协议创建兼容矩阵、Settings 兼容抽检、VLESS/Trojan/Shadowsocks/Hysteria2 客户端和 WireGuard peer 编辑兼容抽检、在线/IP 管理入口和订阅输出矩阵已加入回归；本机隔离真实 Xray core E2E 已 19 passed / 0 skipped / 0 failed。
 - Phase 10.1-10.5 已完成门禁评估；因第二环境/CI 复刻未完成，常规门禁仍未完全通过。
 - 2026-05-04 已记录风险接受/强制进入：允许先做最小 active CoreManager/sing-box 后端入口，同时保留旧 Xray 生命周期和旧数据模型不变。
@@ -127,7 +127,7 @@
 - TCP、WS、gRPC、HTTPUpgrade、TLS、Reality 常用 StreamSettings 表单。
 - 客户端/peer 批量选择、批量重置、批量删除和全量分享链接导出。
 - Settings、Subscription、Backup/Restore 新 UI 基础入口。
-- 新 UI 默认入口、旧 UI 回退入口和兼容入口。
+- 新 UI 默认入口和兼容入口；旧 HTML UI 回退入口已退役。
 - Phase 9 CSRF、下载鉴权、非法 DB 导入、旧模板 HTML sink 和新 UI CSP nonce 回归。
 
 推进中任务：
@@ -208,13 +208,13 @@
   - `sub/wireguard_subscription_test.go`
   - `sub/protocol_capability.go`
   - `sub/protocol_capability_test.go`
-  - `web/assets/js/model/inbound.test.js`
+  - 历史旧 UI JS 单测已随 `web/assets` 退役删除
   - `docs/inbound-creation-guide.md`
 
 验证结果：
 
 - `go test ./sub ./web/service` 通过。
-- `node --test web/assets/js/model/inbound.test.js` 通过，21 个测试全部通过。
+- 旧 `web/assets/js/**/*.test.js` 已随旧 assets 退役；前端测试入口改为 `frontend/tests/*.test.ts`。
 
 风险：
 
@@ -252,7 +252,7 @@
 风险：
 
 - 多内核 UI 设计中的动态表单和实例管理如果提前进入 Phase 6，会与旧 API 兼容目标冲突。
-- UI 信息架构已完成 Phase 8 本地入口验收，生产灰度仍需保留旧 UI 快速回退。
+- UI 信息架构已完成 Phase 8 本地入口验收；旧 HTML UI 快速回退已退役，回滚需走显式评审。
 
 下一步行动：
 
@@ -275,9 +275,9 @@
 | Phase 6e：入站收尾                | 已完成   | 批量选择、批量重置/删除、分享链接导出、多协议 mutation E2E 基线                                                         | 本机 mutation E2E、六类协议创建兼容抽检和主力协议编辑兼容抽检已通过       | 扩展订阅输出兼容矩阵                         |
 | Phase 6 全量                      | 阶段完成 | 完整入站和客户端闭环已落地                                                                                              | 旧 UI/订阅抽检待独立测试环境执行                                          | 保持回归，进入兼容验收                       |
 | Phase 7：设置/订阅/备份           | 阶段完成 | Settings、Subscription、Backup/Restore Phase 7a 基础迁移，2FA 设置替代和订阅公开链接入口                                | DB 回灌导入已通过，CI/第二环境仍需复刻                                    | 在第二环境复刻导入/订阅验收                  |
-| Phase 8：默认入口灰度             | 阶段完成 | `/panel/` 新 UI、`/panel/legacy/` 回退、`/panel/ui/` 兼容入口                                                           | 用户入口切换已本地通过，生产灰度仍需保留快速回滚                          | 保持 legacy 入口并进入 Phase 9 安全收口      |
+| Phase 8：默认入口灰度             | 阶段完成 | `/panel/` 新 UI、`/panel/ui/` 兼容入口，`/panel/legacy*` 已退役                                                         | 用户入口切换已本地通过，旧 HTML UI 回滚需显式评审                          | 进入 Phase 9 安全收口                       |
 | Phase 9：安全收口                 | 推进中   | 无 `v-html/innerHTML`、session 级 CSRF token、未登录下载/读取、非法 DB 导入、新 UI style-src nonce                      | 本机完整非跳过 E2E、协议/设置/编辑/在线 IP/订阅矩阵已通过，第二环境待复刻 | 完成第二环境复刻                             |
-| Phase 10：多内核                  | 强制进入 | Phase 10.1-10.5 准入评估、风险接受记录、CoreManager 和 `experimental-sing-box` 后端入口已完成；旧 UI 退场前补门禁已推进 | CI/第二环境复刻未完成，active 入口需保持最小可回滚                        | 部署环境验证 `/panel/api/cores/*`            |
+| Phase 10：多内核                  | 强制进入 | Phase 10.1-10.5 准入评估、风险接受记录、CoreManager 和 `experimental-sing-box` 后端入口已完成；旧 HTML UI 已退役        | CI/第二环境复刻未完成，active 入口需保持最小可回滚                        | 部署环境验证 `/panel/api/cores/*`            |
 
 ## 6. 技术风险矩阵
 
@@ -288,7 +288,7 @@
 | E2E 真实环境缺失             | 中   | 管理层误判“已全量通过”             | 本机 `.env`、隔离 Xray core 和 19 条 E2E 已通过                                                               | 在 CI/第二测试机复刻                   |
 | 旧 API 与新 SDK 类型漂移     | 中   | 页面错误、保存失败                 | endpoints/types 集中维护                                                                                      | 每新增 API 操作补类型和 E2E            |
 | CSP/CSRF 收口不完整          | 中   | XSS/CSRF 风险残留                  | session 级 CSRF token、未登录下载/读取、非法 DB 导入、无 HTML sink、新 UI style-src nonce 和非跳过 E2E 已通过 | 继续扩展上传/导入边界回归              |
-| 默认入口切换风险             | 中   | 用户无法回到旧 UI                  | `/panel/legacy/` 回退入口已通过本地 E2E 和浏览器冒烟                                                          | 生产灰度保留快速回滚到旧 UI            |
+| 默认入口切换风险             | 中   | 新 UI 入口异常                       | `/panel/` 与 `/panel/ui/` 保留；旧 HTML UI 已退役，回滚需显式评审                                           | 通过新 UI 构建产物和 API 回归回滚       |
 | 多内核提前接入               | 高   | Xray 稳定性下降，回滚困难          | 已记录风险接受/强制进入；本阶段限制为最小 CoreManager/sing-box 后端入口，不迁移旧模型、不接管 Xray 生命周期   | 实施后立即补测试、回滚记录和 CI 复刻   |
 | 文档路径变化导致工具引用失效 | 中   | Agent/团队查找旧路径失败           | 本次已更新 `.codex` 相关引用                                                                                  | 后续新增计划必须同步 `plans/README.md` |
 
@@ -300,7 +300,7 @@
 2. 继续扩展上传/导入大小、文件名和内容校验回归。
 3. 保持本机 `SUPERXRAY_E2E_RESTART=1`、`SUPERXRAY_E2E_IMPORT_DB=1`、`SUPERXRAY_E2E_MUTATION=1` 非跳过回归。
 4. 已补新 Vue UI 创建六类主力协议禁用入站后 Legacy UI/旧 API 可读的兼容抽检记录，已补新 UI 保存订阅标题/公告后 Legacy Settings 可读记录，并已补 VLESS/Trojan/Shadowsocks/Hysteria2 客户端和 WireGuard peer 编辑后 Legacy UI/旧 API 可读记录；订阅输出矩阵已补 Go 层回归。
-5. 保持 `web/html` 和新 UI 无 `v-html/innerHTML/insertAdjacentHTML`。
+5. 保持新 UI、`web/ui`、订阅输出和 Go 响应无不可信 HTML sink；`web/html` 已退役。
 6. 保持新 UI `script-src`、`style-src` 无 `unsafe-inline/unsafe-eval`，并保留动态 `<style>` nonce 浏览器冒烟。
 
 ### P1：真实 Xray core 隔离验收
@@ -310,7 +310,7 @@
 3. 本机已设置 `SUPERXRAY_E2E_MUTATION=1` 并运行多协议写入基线。
 4. 本机已设置 `SUPERXRAY_E2E_IMPORT_DB=1` 并验证数据库备份回灌导入成功路径。
 5. 本机已设置 `SUPERXRAY_E2E_SUB_URL` 并完成订阅服务路径抽检。
-6. 已在 `/panel/legacy/inbounds` 自动抽检旧 UI 读取新 UI 写入的六类主力协议禁用入站，并在 `/panel/legacy/settings` 自动抽检旧 UI 读取新 UI 保存的订阅标题/公告；已补 VLESS/Trojan/Shadowsocks/Hysteria2 客户端和 WireGuard peer 编辑后旧 UI/旧 API 可读，订阅输出矩阵已补 Go 层回归。
+6. 已将兼容抽检收敛为新 UI、旧 API、订阅输出和 `database/model.Inbound` 可读；`/panel/legacy*` 不再作为验收入口。
 
 ### P2：测试环境与发布准备
 
@@ -370,8 +370,8 @@ npm run e2e
 - `go vet ./...` 通过。
 - `go build -o bin/SuperXray.exe ./main.go` 通过。
 - Phase 10 强制进入后，`prettier --check plans/04-ui-first-execution/phase-10-entry-gate-assessment.md plans/04-ui-first-execution/phase-10a-default-xray-readonly-adr.md plans/STATUS.md` 通过。
-- `web/html`、`frontend/src` 未发现 `v-html`、`innerHTML`、`insertAdjacentHTML`。
-- `web/html`、`frontend/src`、`web/ui` 未发现 `v-html`。
+- `frontend/src`、`web/ui`、`sub` 未发现不可信 HTML sink。
+- `frontend/src`、`web/ui` 未发现 `v-html`。
 - `frontend/src` 和 `web/ui` 未发现 `unsafe-inline` 或 `unsafe-eval`。
 - `core`、`web/controller`、`web/middleware`、`web/service`、`database/model`、`frontend/src`、`web/ui` 未发现 `proxy_inbounds` 或 `proxy_clients`。
 - `CoreManager` 和 `sing-box` 仅在强制进入允许范围内出现：`core/`、`web/service/core_service.go`、`web/controller/core.go`、`web/controller/api.go` 与 Phase 10 文档。
@@ -385,14 +385,14 @@ npm run e2e
 - 扩展客户端编辑兼容自动抽检已覆盖：新 Vue UI 编辑 Trojan、Shadowsocks、Hysteria2 客户端后，Legacy UI 展开行和旧入站列表 API 可读取并在测试结束清理。
 - 通过浏览器访问 `http://127.0.0.1:2073/phase7a/panel/`，新 UI 默认入口正常，控制台无 error/warning。
 - 新 UI 浏览器检查显示 21 个动态 `<style>` 节点全部带 CSP nonce。
-- 通过浏览器访问 `http://127.0.0.1:2073/phase7a/panel/legacy/`，旧 UI 回退入口正常，控制台无 error/warning。
+- `/panel/legacy*` 已退役，不再作为浏览器验收入口。
 - 页面截图已保存为 `superxray-phase8-default-ui.png` 和 `superxray-phase8-legacy-ui.png`。
 
 说明：
 
-- 本次继续推进 Phase 9 安全收口：旧 UI HTML sink、session 级 CSRF token、未登录下载和非法 DB 导入已加入回归。
+- 本次继续推进 Phase 9 安全收口：旧 HTML UI 退役、session 级 CSRF token、未登录下载和非法 DB 导入已加入回归。
 - 本次继续推进 Phase 10 风险接受/强制进入：新增最小 active CoreManager、`default-xray` 观察实例和 `experimental-sing-box` 外部进程适配入口。
 - 本次继续推进 Xray 等价迁移缺口：补齐新 UI 在线/IP 管理入口与订阅输出矩阵 Go 回归；CI/第二环境复刻仍是后续门禁。
 - 所有设置写入仍走旧 `/panel/setting/*`，数据库备份恢复仍走旧 `/panel/api/server/*`，但相关 POST 已要求有效 CSRF token；未改动旧 `model.Inbound`、数据库结构、旧订阅输出或现有 Xray 生命周期。
-- 新 UI `script-src` 和 `style-src` 已保持无 `unsafe-inline` 和 `unsafe-eval`；Ant Design Vue 动态样式通过 nonce bootstrap 运行。Legacy UI 因历史内联脚本和 Vue 2 模板仍保留宽 CSP，仅作为回退入口接受。
+- 新 UI `script-src` 和 `style-src` 已保持无 `unsafe-inline` 和 `unsafe-eval`；Ant Design Vue 动态样式通过 nonce bootstrap 运行。Legacy UI 宽 CSP 已随旧 HTML UI 退役移除。
 - 本机隔离运行环境已补齐真实 Xray core：`Xray 26.3.27`，restart、订阅服务路径和数据库导入成功路径均已非跳过通过；本轮验证后本地测试面板继续运行在 `http://127.0.0.1:2073/phase7a/panel/`，用于后续人工验收。

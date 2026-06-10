@@ -1,7 +1,7 @@
 # 核心模块解析
 
 > **目标读者**：后端 / 前端维护者
-> **适用版本**：`v3.3.2`
+> **适用版本**：`v3.3.3`
 > **事实来源**：`main.go`、`config/`、`database/`、`web/`、`sub/`、`core/`、`frontend/src`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md)
 
@@ -40,7 +40,7 @@
 
 | 函数 | 环境变量 | 默认行为 |
 |---|---|---|
-| `GetVersion()` | 无 | 读取 `config/version`，当前 `3.3.2` |
+| `GetVersion()` | 无 | 读取 `config/version`，当前 `3.3.3` |
 | `GetAssetVersion()` | 构建注入 `buildHash` | `version.buildHash`，未注入时使用启动时间戳 |
 | `GetName()` | 无 | 读取 `config/name`，当前 `x-ui` |
 | `IsDebug()` | `XUI_DEBUG` | 值为 `true` 时启用 debug |
@@ -115,7 +115,7 @@ mixed, wireguard, tun, hysteria, hysteria2
 `web.Server` 负责：
 
 - Web 面板 HTTP/HTTPS 监听。
-- 新 Vue UI 和 legacy UI 托管。
+- 新 Vue UI 托管。
 - 面板 API、WebSocket 和静态资源。
 - Cron 后台任务。
 - Telegram Bot 启停。
@@ -127,9 +127,9 @@ mixed, wireguard, tun, hysteria, hysteria2
 
 | 文件 | 作用 |
 |---|---|
-| `web/web.go` | 创建 Gin engine、注册中间件、控制器、WebSocket、legacy 静态资源 |
+| `web/web.go` | 创建 Gin engine、注册中间件、控制器和 WebSocket |
 | `web/ui.go` | 注册新 UI `/panel/*`、`/panel/ui/*` 和 `/panel/assets/*path` |
-| `web/controller/xui.go` | 注册 legacy UI `/panel/legacy/*` |
+| `web/controller/xui.go` | 初始化设置和 Xray 控制器，提供 `/panel/csrf-token` |
 | `web/controller/api.go` | 注册 `/panel/api/*` |
 | `web/controller/setting.go` | 注册 `/panel/setting/*` |
 | `web/controller/xray_setting.go` | 注册 `/panel/xray/*` |
@@ -144,7 +144,7 @@ mixed, wireguard, tun, hysteria, hysteria2
 | `DomainValidatorMiddleware` | 可选 Host 白名单 |
 | `gzip.Gzip` | HTTP 压缩 |
 | `sessions.Sessions("SuperXray", store)` | Cookie Session |
-| base path 注入 | 给模板和控制器提供 `base_path` |
+| base path 注入 | 给控制器提供 `base_path` |
 | 静态资源缓存 | 构建产物长缓存，入口 HTML no-store/no-cache |
 | `locale.LocalizerMiddleware` | Web 国际化 |
 | `RedirectMiddleware` | 兼容旧路径重定向 |
@@ -174,17 +174,15 @@ mixed, wireguard, tun, hysteria, hysteria2
 
 ### 5.3 `XUIController`
 
-负责 legacy 页面和旧设置/Xray 控制器初始化：
+负责旧设置/Xray 控制器初始化，不再注册旧 HTML 页面：
 
 | 路由 | 说明 |
 |---|---|
-| `/panel/legacy` | 重定向到 `/panel/legacy/` |
-| `/panel/legacy/` | legacy Dashboard |
-| `/panel/legacy/inbounds` | legacy Inbounds |
-| `/panel/legacy/settings` | legacy Settings |
-| `/panel/legacy/xray` | legacy Xray |
+| `/panel/setting/*` | 面板设置控制器 |
+| `/panel/xray/*` | Xray 设置与控制器 |
+| `/panel/csrf-token` | 已登录 SPA 获取当前 Session CSRF token |
 
-`/panel/setting/*` 和 `/panel/xray/*` 仍在该控制器初始化链路中挂载。
+`/panel/legacy*` 已退役，不再注册路由。
 
 ### 5.4 `APIController`
 

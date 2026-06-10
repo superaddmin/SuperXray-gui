@@ -2,11 +2,11 @@
 
 ## 架构概览
 
-SuperXray-gui 是基于 Go/Gin 的 Xray-core 管理面板。当前代码库处于“新 Vue 3 UI 默认入口 + legacy UI 回退 + Phase 9 安全收口 + 风险接受的最小 Phase 10 Core API 入口”状态。
+SuperXray-gui 是基于 Go/Gin 的 Xray-core 管理面板。当前代码库处于“新 Vue 3 UI 默认入口 + 旧 HTML UI 已退役 + Phase 9 安全收口 + 风险接受的最小 Phase 10 Core API 入口”状态。
 
 主进程启动两个 HTTP 服务：
 
-- Web Server：管理面板、新 Vue UI、legacy UI、REST API、WebSocket、设置、Xray 生命周期、后台任务。
+- Web Server：管理面板、新 Vue UI、REST API、WebSocket、设置、Xray 生命周期、后台任务。
 - Sub Server：订阅服务，输出 URI/Base64、Xray JSON、Clash/Mihomo、WireGuard 配置和 diagnose 信息。
 
 核心请求链路：
@@ -26,12 +26,11 @@ Browser/API Client
 | `main.go` | CLI、服务启动、信号处理、TG Bot 停止顺序 | `superxray-backend-service-guardian` |
 | `config/` | 版本、应用名、路径和环境变量 | `superxray-backend-service-guardian` |
 | `database/` | SQLite/GORM 初始化、模型、seeders | `superxray-database-steward` |
-| `web/controller/` | Gin controller、API 路由、Legacy 页面入口、Core API | `superxray-go-integration` |
+| `web/controller/` | Gin controller、API 路由、Core API | `superxray-go-integration` |
 | `web/service/` | Inbound、Setting、Server、Xray、TgBot、Core、Geo、WARP/Nord | `superxray-backend-service-guardian` |
 | `web/middleware/` | CSP、CSRF、Domain、Redirect 等中间件 | `superxray-security-gate` |
 | `web/job/` | cron 任务：流量、IP、日志、LDAP、通知 | `superxray-backend-service-guardian` |
 | `web/websocket/` | WebSocket hub 和广播通知 | `superxray-backend-service-guardian` |
-| `web/html`, `web/assets` | Legacy UI 与旧静态资源，当前仍是回退边界 | `superxray-go-integration` |
 | `frontend/` | Vue 3/Vite/TypeScript 新 UI 源码 | `superxray-frontend-migrator` |
 | `web/ui` | Vite 构建输出，Go 嵌入资源 | `superxray-frontend-migrator` |
 | `sub/` | 订阅服务器与协议输出 | `superxray-subscription-protocol-specialist` |
@@ -63,7 +62,7 @@ Browser/API Client
 ## 当前业务主线
 
 - Phase 0-8 已完成新 UI 壳、Go 静态接入、旧 API SDK、只读页面、Xray 生命周期、入站/客户端、设置/订阅/备份和默认入口灰度。
-- Phase 9 聚焦安全收口：CSP/CSRF/XSS、下载鉴权、数据库导入安全、新旧 UI 兼容抽检。
+- Phase 9 聚焦安全收口：CSP/CSRF/XSS、下载鉴权、数据库导入安全、旧 API/数据模型兼容抽检。
 - 本机隔离真实 Xray core 环境已完成 19 条 Playwright 验收，仍缺 CI/第二环境复刻。
 - Phase 10 已风险接受并强制进入最小后端入口：CoreManager 注册表、`default-xray` 只读观察、`experimental-sing-box` 外部适配器。
 - Phase 10 不放宽旧模型迁移、旧订阅语义、旧 Xray 生命周期和 legacy UI 回退边界。
@@ -72,7 +71,7 @@ Browser/API Client
 
 - 活跃入站模型仍是 `database/model.Inbound`。
 - 客户端配置嵌入在 `Inbound.Settings` JSON 中，不是独立表。
-- `StreamSettings`、`Sniffing`、`Settings` JSON 必须保持旧 UI 和新 UI 可读。
+- `StreamSettings`、`Sniffing`、`Settings` JSON 必须保持新 UI、旧 API、订阅服务和 Xray 配置生成可读。
 - 订阅服务读取旧模型生成 URI/JSON/Clash/Mihomo/WireGuard 输出。
 - `proxy_inbounds`、`proxy_clients`、`egress_*` 当前只能作为未来设计或文档概念，不是活跃写路径。
 
@@ -127,6 +126,6 @@ python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metad
 ```powershell
 python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py
 python .codex/skills/superxray-project-context/scripts/validate_codex_config.py
-python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-project-context
+python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd
 python scripts/secret_scan.py
 ```

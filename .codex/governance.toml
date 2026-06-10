@@ -41,12 +41,12 @@ accepted_exceptions = [
 still_blocked = [
   "CoreManager taking over legacy Xray lifecycle before Phase 10.2 approval",
   "Active writes to proxy_inbounds/proxy_clients before explicit architecture gate",
-  "Legacy UI removal before parity, E2E, release, and rollback gates pass",
+  "Reintroducing legacy HTML UI, web/assets, or /panel/legacy without explicit rollback approval",
   "Production egress governance database/API from MVP documents before Phase 10+ design approval",
 ]
 phase_exit_requires = [
   "CI or second environment reproduces SUPERXRAY_E2E_* acceptance with real Xray core or a documented equivalent",
-  "No XSS sink regressions in web/html, frontend/src, or web/ui",
+  "No XSS sink regressions in frontend/src, web/ui, sub, or Go-rendered responses",
   "No forbidden proxy_inbounds/proxy_clients active write hits outside approved docs",
   "Release gate metadata check remains green",
 ]
@@ -62,21 +62,29 @@ default_task_rule = "For implementation requests, make the smallest verified cha
 
 [context_budget]
 max_context_files_per_turn = 10
-max_lines_per_file = 260
+max_lines_per_context_file = 260
 max_log_lines = 120
 summarize_before_handoff = true
 prefer_section_anchors = true
 tool_output_redaction = true
-first_read = [
+script_files_are_exempt = true
+routing_file_may_exceed_budget = true
+prefer_route_name_lookup = true
+bootstrap_read = [
   ".codex/project.toml",
   ".codex/governance.toml",
   ".codex/routing.toml",
   ".codex/context/project-map.md",
+]
+extended_read = [
   ".codex/context/dependency-map.md",
   ".codex/context/business-flow-map.md",
   ".codex/context/codex-config-map.md",
+]
+on_demand_read = [
   ".codex/context/conversation-retrospective-map.md",
   ".codex/context/runtime-network-debug-map.md",
+  ".codex/workflows/network-routing-debug-checklist.md",
 ]
 handoff_must_include = ["goal", "phase", "paths", "facts", "commands", "first_blocker", "risk", "rollback"]
 handoff_must_omit = ["secrets", "cookies", "tokens", "private keys", "subscription URLs", "proxy credentials", "database contents", "full server audit artifacts"]
@@ -102,10 +110,9 @@ network_change_bans = [
 script = ".codex/skills/superxray-project-context/scripts/validate_codex_config.py"
 test = ".codex/skills/superxray-project-context/tests/test_validate_codex_config.py"
 skill_validation = [
-  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-project-context",
-  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-ui-first-migration",
-  "python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-release-cicd",
+  "python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd",
 ]
+skill_validation_policy = "Portable wrapper; set CODEX_SKILL_VALIDATOR to override the local global quick_validate.py path. Missing global validator is a non-blocking skip after structural .codex validation passes."
 text_policy = "All .codex .md/.toml/.yaml/.yml/.py files must be UTF-8 without BOM and LF."
 agent_contract_required = ["knowledge_inputs", "handoff_outputs", "collaboration_rules", "efficiency_metrics"]
 efficiency_metrics = ["first_route_accuracy", "context_files_read_count", "verification_commands_executed", "handoff_blocker_clarity", "forbidden_scope_hits", "secret_scan_findings"]
@@ -123,13 +130,24 @@ windows_shell_policy = "PowerShell commands must use PowerShell syntax and expli
 secret_scan_command = "python scripts/secret_scan.py"
 release_gate_includes_secret_scan = true
 sensitive_artifact_globs = [
+  ".env",
+  ".env.*",
+  "*.db",
+  "*.db-shm",
+  "*.db-wal",
+  "*.sqlite",
+  "*.sqlite-shm",
+  "*.sqlite-wal",
+  "playwright-report/**",
+  "test-results/**",
+  "tests/e2e/.auth/**",
   "docs/server-*-inbound-subscription-audit-*.txt",
   "docs/*subscription-audit*.txt",
   "docs/private-ops/**",
+  "*.secrets.*",
+  "*.credentials.*",
   "**/*secrets*",
   "**/*credentials*",
-  "*.db",
-  "*.sqlite",
 ]
 redaction_placeholders = [
   "<SERVER_IP>",

@@ -35,7 +35,7 @@ review_triggers = [
 ]
 verification_commands = [
   "go test ./web/middleware ./web/controller ./web/service ./sub ./core/...",
-  "rg \"v-html|innerHTML|insertAdjacentHTML\" web/html frontend/src -n",
+  "rg \"v-html|innerHTML|insertAdjacentHTML\" frontend/src web/ui sub -n",
   "rg \"unsafe-inline|unsafe-eval\" frontend/src web/ui -n",
   "python scripts/secret_scan.py",
   "go test ./...",
@@ -83,7 +83,7 @@ developer_instructions = """
 2. 每个问题必须给出文件/路径、影响、触发条件和最小修复建议。
 3. 修复后要求对应安全测试、搜索命令和 secret scan。
 4. 若风险是阶段策略问题，交给 program manager 裁决。
-5. 发布前确认 Legacy UI 的宽 CSP 只保留在受控回退入口。
+5. 发布前确认没有恢复 Legacy UI 宽 CSP、旧模板渲染或 `/panel/legacy*` 路由。
 
 边界：
 - 不用宽泛安全建议替代具体证据。

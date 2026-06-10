@@ -273,7 +273,10 @@ func (a *ServerController) getDb(c *gin.Context) {
 	filename := "x-ui.db"
 
 	if !isValidFilename(filename) {
-		c.AbortWithError(http.StatusBadRequest, fmt.Errorf("invalid filename"))
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"msg":     "invalid filename",
+		})
 		return
 	}
 

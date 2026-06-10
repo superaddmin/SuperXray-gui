@@ -71,10 +71,16 @@ const messages = {
     'en-US': 'Unable to load OpenAPI document',
   },
   'apiDocs.eyebrow': { 'zh-CN': '接口契约', 'en-US': 'API Contract' },
-  'apiDocs.loadFailed': { 'zh-CN': 'OpenAPI 文档请求失败', 'en-US': 'OpenAPI document request failed' },
+  'apiDocs.loadFailed': {
+    'zh-CN': 'OpenAPI 文档请求失败',
+    'en-US': 'OpenAPI document request failed',
+  },
   'apiDocs.loading': { 'zh-CN': '正在加载 OpenAPI 文档…', 'en-US': 'Loading OpenAPI document…' },
   'apiDocs.localContract': { 'zh-CN': '本地契约', 'en-US': 'Local contract' },
-  'apiDocs.methodFilter': { 'zh-CN': '按请求方法筛选接口', 'en-US': 'Filter operations by HTTP method' },
+  'apiDocs.methodFilter': {
+    'zh-CN': '按请求方法筛选接口',
+    'en-US': 'Filter operations by HTTP method',
+  },
   'apiDocs.no': { 'zh-CN': '否', 'en-US': 'No' },
   'apiDocs.noOperations': { 'zh-CN': '没有匹配的接口。', 'en-US': 'No matching operations.' },
   'apiDocs.operationId': { 'zh-CN': '操作 ID', 'en-US': 'Operation ID' },
@@ -98,7 +104,10 @@ const messages = {
   'apiDocs.reload': { 'zh-CN': '重新加载', 'en-US': 'Reload' },
   'apiDocs.requestBody': { 'zh-CN': '请求体', 'en-US': 'Request body' },
   'apiDocs.responses': { 'zh-CN': '响应', 'en-US': 'Responses' },
-  'apiDocs.searchLabel': { 'zh-CN': '搜索接口路径、摘要或操作 ID', 'en-US': 'Search operation path, summary, or operation ID' },
+  'apiDocs.searchLabel': {
+    'zh-CN': '搜索接口路径、摘要或操作 ID',
+    'en-US': 'Search operation path, summary, or operation ID',
+  },
   'apiDocs.searchPlaceholder': {
     'zh-CN': '搜索路径、摘要或 operationId',
     'en-US': 'Search path, summary, or operationId',
@@ -308,7 +317,7 @@ const messages = {
   'route.xray': { 'zh-CN': 'Xray', 'en-US': 'Xray' },
   'settings.backupRestore': { 'zh-CN': '备份 / 恢复', 'en-US': 'Backup / Restore' },
   'settings.description': {
-    'zh-CN': '管理面板安全、订阅端点、备份和旧 UI 兼容设置。',
+    'zh-CN': '管理面板安全、订阅端点、备份和旧设置兼容项。',
     'en-US':
       'Manage panel security, subscription endpoints, backups, and legacy-compatible settings.',
   },
@@ -886,9 +895,9 @@ export const reviewedDomTranslations = [
   },
   {
     source:
-      'Paste a legacy inbound JSON object. It will be imported through the existing Xray API so old UI remains readable.',
-    zhCN: '粘贴旧版入站 JSON 对象。系统会通过现有 Xray API 导入，确保旧 UI 仍可读取。',
-    enUS: 'Paste a legacy inbound JSON object. It will be imported through the existing Xray API so old UI remains readable.',
+      'Paste a legacy inbound JSON object. It will be imported through the existing Xray API and data model.',
+    zhCN: '粘贴旧版入站 JSON 对象。系统会通过现有 Xray API 和数据模型导入。',
+    enUS: 'Paste a legacy inbound JSON object. It will be imported through the existing Xray API and data model.',
     context: 'Import modal',
   },
   {

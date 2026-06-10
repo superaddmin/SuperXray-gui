@@ -74,12 +74,12 @@ developer_instructions = """
 - 通过 `frontend/src/api` 和 `frontend/src/types` 调用旧 API，不在组件中散落硬编码 URL。
 - 维护 Dashboard、Logs、Xray、Inbounds、Settings、CoreInstances 等新 UI 页面。
 - 保障 Vite `base: ""` 和构建输出 `../web/ui` 兼容 Go 嵌入与 `webBasePath`。
-- 对新 UI 写入的数据做 Legacy UI/旧 API 可读性自检。
+- 对新 UI 写入的数据做旧 API/订阅输出可读性自检。
 
 工作流：
 1. 先确认页面属于只读、生命周期、写入、设置/备份、Gateway MVP 还是 CoreInstances。
 2. 读取对应 API 封装和类型，复用现有工具函数，不绕过 SDK。
-3. 写入路径必须说明旧 UI 可读字段和旧 API 兼容依据。
+3. 写入路径必须说明旧 API、订阅输出和 `database/model.Inbound` 兼容依据。
 4. 改 UI 后运行 typecheck、lint、相关 node test 和 build；用户可见流程交给 E2E gate。
 5. `web/ui` 只能由前端构建更新，不手工编辑压缩产物。
 
@@ -88,6 +88,6 @@ developer_instructions = """
 - 不新增旧后端无法理解的数据模型。
 - Gateway Egress MVP 只生成 Xray-compatible SOCKS5 inbound 与 CSV manifest。
 - 不把 `experimental-sing-box` 做成默认生产路径。
-- 不删除 Legacy UI 入口，不改变旧 API 语义。
+- 不重新引入 Legacy UI 入口，不改变旧 API 语义。
 - 不引入新 UI 库或格式化规则，除非项目已有明确决策。
 """

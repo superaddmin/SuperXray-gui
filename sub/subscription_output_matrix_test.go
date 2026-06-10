@@ -721,7 +721,7 @@ func TestSubServiceWithRequestContextDoesNotMutateOriginal(t *testing.T) {
 	}
 }
 
-func TestBrowserSubscriptionRequestRendersLegacyVisualPageWithMountedAssets(t *testing.T) {
+func TestBrowserSubscriptionRequestReturnsPlainTextWithoutLegacyVisualPage(t *testing.T) {
 	setupSubscriptionDiagnosticDB(t)
 	client := matrixClient("matrix-subpage@example")
 	inbound := matrixInbound(model.VLESS, 13014, client)
@@ -736,14 +736,6 @@ func TestBrowserSubscriptionRequestRendersLegacyVisualPageWithMountedAssets(t *t
 	router.Use(func(c *gin.Context) {
 		c.Set("base_path", "/sub/")
 	})
-	router.SetFuncMap(map[string]any{
-		"i18n": func(key string, params ...string) string {
-			return key
-		},
-	})
-	if err := setEmbeddedTemplates(router); err != nil {
-		t.Fatalf("setEmbeddedTemplates failed: %v", err)
-	}
 	NewSUBController(router.Group("/"), "/sub/", "/json/", "/clash/", true, true, false, true, "-ieo", "12", "", "", "", "", "", "", "", "", true, "")
 
 	recorder := httptest.NewRecorder()
@@ -755,20 +747,17 @@ func TestBrowserSubscriptionRequestRendersLegacyVisualPageWithMountedAssets(t *t
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
 	}
-	body := recorder.Body.String()
-	for _, want := range []string{
-		`id="qrcode"`,
-		`id="qrcode-subjson"`,
-		`id="qrcode-subclash"`,
-		`src="/sub/assets/qrcode/qrious2.min.js`,
-		`src="/sub/assets/js/subscription.js`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("subscription visual page missing %q:\n%s", want, body)
-		}
+	if contentType := recorder.Header().Get("Content-Type"); !strings.Contains(contentType, "text/plain") {
+		t.Fatalf("Content-Type = %q, want plain subscription output", contentType)
 	}
-	if strings.Contains(body, "/sub/matrix-sub/assets/") {
-		t.Fatalf("subscription visual page uses unmounted subId asset prefix:\n%s", body)
+	body := recorder.Body.String()
+	if !strings.Contains(body, "vless://") {
+		t.Fatalf("subscription output missing link:\n%s", body)
+	}
+	for _, retired := range []string{`id="qrcode"`, "/assets/", "<script", "<html"} {
+		if strings.Contains(body, retired) {
+			t.Fatalf("subscription output still contains retired visual page fragment %q:\n%s", retired, body)
+		}
 	}
 }
 

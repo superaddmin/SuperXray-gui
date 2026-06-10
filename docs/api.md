@@ -1,7 +1,7 @@
 # API 接口说明
 
 > **目标读者**：集成开发者 / 前端维护者
-> **适用版本**：`v3.3.2`
+> **适用版本**：`v3.3.3`
 > **事实来源**：`web/controller/*`、`web/ui.go`、`web/middleware/security.go`、`web/websocket/*`、`sub/*`、`frontend/src/api/*`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [部署指南](deployment.md) | [Panel OpenAPI](openapi/panel-api.yaml)
 
@@ -30,7 +30,7 @@ window.__SUPERXRAY_UI_CONFIG__ = {
   uiBasePath: "/panel/",
   csrfToken: "<session csrf token>",
   cspNonce: "<request nonce>",
-  version: "3.3.2.<asset-hash>"
+  version: "3.3.3.<asset-hash>"
 }
 ```
 
@@ -122,15 +122,11 @@ HTTP 状态码为 `403`。
 | `GET` | `/panel/ui` | 兼容入口，重定向到 `/panel/ui/` |
 | `GET` | `/panel/ui/*path` | 新 UI 兼容入口 |
 
-### 2.2 Legacy UI
+### 2.2 已退役 Legacy UI
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| `GET` | `/panel/legacy` | 重定向到 `/panel/legacy/` |
-| `GET` | `/panel/legacy/` | 旧版 Dashboard |
-| `GET` | `/panel/legacy/inbounds` | 旧版 Inbounds |
-| `GET` | `/panel/legacy/settings` | 旧版 Settings |
-| `GET` | `/panel/legacy/xray` | 旧版 Xray 配置 |
+旧 HTML UI 已退役，`web/html`、`web/assets` 和 `/panel/legacy*` 页面路由不再注册；默认 `NoRoute` 会返回 `404 Not Found`。新 Vue UI、登录接口、面板 API、`/panel/setting/*` 与 `/panel/xray/*` 控制器仍保留。
+
+未登录访问根路径 `/` 时会重定向到 `/panel/login`，登录成功后进入 `/panel/`。
 
 ---
 

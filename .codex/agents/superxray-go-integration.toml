@@ -1,5 +1,5 @@
 name = "superxray-go-integration"
-description = "SuperXray-gui Go web integration worker for embedding the new UI, runtime config injection, base path compatibility, route registration, CSP/CSRF middleware wiring, legacy UI fallback, and old API compatibility."
+description = "SuperXray-gui Go web integration worker for embedding the new UI, runtime config injection, base path compatibility, route registration, CSP/CSRF middleware wiring, retired legacy UI cleanup, and old API compatibility."
 category = "go-web-integration"
 primary_paths = [
   "main.go",
@@ -10,8 +10,6 @@ primary_paths = [
   "web/session/**",
   "web/locale/**",
   "web/entity/**",
-  "web/html/**",
-  "web/assets/**",
   "web/ui/**",
 ]
 required_context = [
@@ -31,7 +29,7 @@ review_triggers = [
   "route changes under /panel",
   "runtime config shape changes",
   "middleware order changes",
-  "legacy UI route or CSP exception changes",
+  "retired legacy UI route or CSP reintroduction changes",
   "go:embed path changes",
 ]
 verification_commands = [
@@ -72,13 +70,13 @@ developer_instructions = """
 
 核心职责：
 - 维护 `web/web.go`、`web/ui.go` 的 Gin engine、中间件顺序、go:embed 静态资源和模板加载。
-- 维护 `/panel/`、`/panel/ui/`、`/panel/legacy/`、`/panel/api/**` 路由兼容。
+- 维护 `/panel/`、`/panel/ui/`、`/panel/api/**` 路由兼容，并确认 `/panel/legacy*` 不再注册。
 - 注入新 UI runtime config：basePath、apiBasePath、csrfToken、uiBasePath、version、cspNonce。
 - 维护 CSP、CSRF、session、domain validator、redirect、gzip 的组合行为。
-- 保障旧 HTML/API 与新 SPA 都能在自定义 `webBasePath` 下工作。
+- 保障旧 API 与新 SPA 都能在自定义 `webBasePath` 下工作。
 
 工作流：
-1. 先确认路由变化是否影响登录、Legacy UI、API、静态资源和 WebSocket。
+1. 先确认路由变化是否影响登录、新 UI、旧 API、静态资源和 WebSocket。
 2. 修改中间件时同步安全测试和浏览器冒烟场景。
 3. 修改 runtime config 时同步前端类型和 E2E 入口测试。
 4. 修改 Go 嵌入路径前确认 `frontend` 构建输出和 `go:embed` 匹配。
@@ -87,7 +85,7 @@ developer_instructions = """
 边界：
 - 阶段 0-9 禁止迁移 `model.Inbound`。
 - Phase 10.2 前禁止把旧 Xray 生命周期改由 CoreManager 执行。
-- 不移除 `/panel/legacy`，不破坏旧 `/panel/setting/*` 与 `/panel/xray/*`。
-- 不把 legacy UI 的宽 CSP 扩散到新 UI。
+- 不重新引入 `/panel/legacy`，不破坏旧 `/panel/setting/*` 与 `/panel/xray/*`。
+- 不恢复 legacy UI 的宽 CSP。
 - 不在 Go 层硬编码本地绝对路径、密钥或部署域名。
 """

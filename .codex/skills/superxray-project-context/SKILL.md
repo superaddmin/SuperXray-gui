@@ -20,10 +20,10 @@ Use this skill as the first local orientation pass for SuperXray-gui tasks that 
 ## Project Facts
 
 - Go module: `github.com/superaddmin/SuperXray-gui/v2`.
-- Product: Xray-core web panel with new Vue UI, legacy UI fallback, subscription server, Gateway Egress MVP, and guarded multi-core runtime entry.
+- Product: Xray-core web panel with new Vue UI, retired legacy HTML UI, subscription server, Gateway Egress MVP, and guarded multi-core runtime entry.
 - Backend: Go 1.26.4, Gin, GORM, SQLite, Xray-core gRPC/API, robfig/cron, gorilla/websocket.
 - Frontend: Vue 3.5, Vite 8, TypeScript 6, Pinia, Ant Design Vue 4, Axios.
-- Legacy UI: `web/html` and `web/assets`, currently mounted under `/panel/legacy/`.
+- Retired legacy UI: `web/html`, `web/assets`, and `/panel/legacy*` are removed and must not be remounted.
 - New UI: `frontend/src`, built into `web/ui`, mounted at `/panel/` and compatible `/panel/ui/`.
 - Subscription service: `sub/`, serving URI/Base64, Xray JSON, Clash/Mihomo, WireGuard config, and diagnose output.
 - Release: Linux `amd64` and `arm64` binary assets plus optional GHCR multi-arch image.
@@ -42,7 +42,7 @@ Use this skill as the first local orientation pass for SuperXray-gui tasks that 
 
 - Do not route legacy Xray start/stop/restart through CoreManager before Phase 10.2 approval.
 - Do not migrate active writes away from `database/model.Inbound` to `proxy_inbounds` or `proxy_clients`.
-- Do not remove `/panel/legacy/`, `web/html`, or `web/assets` before legacy retirement gates pass.
+- Do not reintroduce `/panel/legacy/`, `web/html`, or `web/assets` after legacy retirement.
 - Do not expand Gateway Egress MVP into production `egress_*` database/API without Phase 10+ design approval.
 - Do not render logs, config previews, subscriptions, or external content with `v-html`, `innerHTML`, or `insertAdjacentHTML`.
 - Do not store secrets, live database files, real subscription URLs, client UUIDs, panel paths, tokens, cookies, or full audit artifacts in the repository.
@@ -96,6 +96,7 @@ For `.codex` governance, agent, routing, workflow, or skill changes, run:
 ```powershell
 python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py
 python .codex/skills/superxray-project-context/scripts/validate_codex_config.py
+python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd
 ```
 
 Read `.codex/context/dependency-map.md`, `.codex/context/business-flow-map.md`, `.codex/context/codex-config-map.md`, and `.codex/workflows/config-validation-and-efficiency.md` when the task needs dependency analysis, business-flow mapping, configuration validation, agent contract checks, or efficiency metrics.

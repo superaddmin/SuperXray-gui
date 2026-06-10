@@ -1,5 +1,7 @@
 # .codex 配置体系重构说明
 
+> 本文件是 `.codex` 配置体系的历史变更记录，不是最高优先级运行指令。当前执行以 `.codex/governance.toml`、`.codex/project.toml`、`.codex/routing.toml` 和 context maps 为准。
+
 本次采用“方案 B：保留现有 agent/skill 名称，增量强化配置体系”。目标是在不破坏现有 SuperXray-gui 项目级 Codex 入口的前提下，补齐架构索引、代理协作契约、技能验证脚本和效率评估闭环。
 
 ## 1. 技术架构分析结果
@@ -11,10 +13,10 @@
 | `main.go` | CLI、环境变量、数据库初始化、Web/Sub 服务生命周期 | `superxray-backend-service-guardian` |
 | `config/` | 版本、应用名、路径与运行配置 | `superxray-backend-service-guardian` |
 | `database/` | SQLite/GORM 初始化、模型、seeders、旧模型兼容 | `superxray-database-steward` |
-| `web/` | Gin 面板服务、controller/service/middleware/job/websocket、legacy UI | `superxray-go-integration` / `superxray-backend-service-guardian` |
+| `web/` | Gin 面板服务、controller/service/middleware/job/websocket、新 UI embed | `superxray-go-integration` / `superxray-backend-service-guardian` |
 | `frontend/` | Vue 3/Vite/TypeScript 新 UI 源码与测试 | `superxray-frontend-migrator` |
 | `web/ui/` | Vite 构建产物，Go embed 静态资源 | `superxray-frontend-migrator` |
-| `web/html/`, `web/assets/` | Legacy UI 与旧静态资源，保留 `/panel/legacy/` 回退 | `superxray-go-integration` |
+| `web/html/`, `web/assets/` | 已退役 Legacy UI 与旧静态资源；不得重新挂载 | `superxray-go-integration` |
 | `sub/` | 订阅服务、协议输出、diagnose、Clash/Mihomo/WireGuard | `superxray-subscription-protocol-specialist` |
 | `xray/` | Legacy Xray 进程/API/traffic 集成 | `superxray-backend-service-guardian` |
 | `core/` | CoreManager、default-xray 只读视图、experimental sing-box 适配器 | `superxray-core-runtime-architect` |
@@ -71,9 +73,7 @@
 ```powershell
 python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py
 python .codex/skills/superxray-project-context/scripts/validate_codex_config.py
-python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-project-context
-python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-ui-first-migration
-python C:/Users/www/.codex/skills/.system/skill-creator/scripts/quick_validate.py .codex/skills/superxray-release-cicd
+python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd
 python scripts/secret_scan.py
 python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only
 ```

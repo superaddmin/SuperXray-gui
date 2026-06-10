@@ -119,7 +119,7 @@ func initTGBotLocalizer(settingService SettingService) error {
 // LocalizerMiddleware returns a Gin middleware that sets up localization for web requests.
 // It determines the user's language from cookies or Accept-Language header,
 // creates a localizer instance, and stores it in the Gin context for use in handlers.
-// Also provides the I18n function in the context for template rendering.
+// Also provides the I18n function in the context for controllers that emit localized responses.
 func LocalizerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Ensure bundle is initialized so creating a Localizer won't panic

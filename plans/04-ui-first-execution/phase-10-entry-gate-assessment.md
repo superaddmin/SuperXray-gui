@@ -13,11 +13,11 @@
 ## 当前已满足条件
 
 - 新 Vue UI 已成为本地隔离环境默认 `/panel/` 入口。
-- `/panel/legacy/` 回退入口可用。
+- `/panel/legacy*` 已退役，不再注册。
 - `/panel/ui/` 兼容入口可用。
 - Phase 7a Settings/Subscription/Backup 基础流可通过旧 API 保存设置并下载 SQLite 备份。
 - 新 UI 日志和配置渲染路径未发现 `v-html`。
-- 旧 UI 模板未发现 `v-html`、`innerHTML`、`insertAdjacentHTML`。
+- 旧 UI 模板目录已删除；新 UI 与订阅输出继续禁止不可信 HTML sink。
 - `/panel/setting/*` 与 `/panel/xray/*` POST 已接入 CSRF 校验。
 - 未登录数据库下载和非法数据库导入已有 E2E 回归。
 - 新 UI `script-src` 不包含 `unsafe-inline` 和 `unsafe-eval`。
@@ -28,24 +28,24 @@
 - Phase 10.1 `default-xray` 虚拟只读实例 ADR 已定义。
 - 本机隔离真实 Xray core E2E 已通过：19 passed / 0 skipped / 0 failed。
 - `SUPERXRAY_E2E_RESTART=1`、`SUPERXRAY_E2E_MUTATION=1`、`SUPERXRAY_E2E_IMPORT_DB=1` 与 `SUPERXRAY_E2E_SUB_URL` 均已非跳过运行。
-- 新旧 UI 兼容自动抽检已覆盖：新 Vue UI 创建 VMess、VLESS、Trojan、Shadowsocks、Hysteria2、WireGuard 六类禁用入站后，Legacy UI 与旧入站列表 API 可读取。
-- Settings 兼容自动抽检已覆盖：新 Vue UI 保存订阅标题和公告后，Legacy Settings UI 可读取。
-- 编辑兼容自动抽检已覆盖：新 Vue UI 编辑 VLESS 入站、VLESS 客户端和 WireGuard peer 后，Legacy UI 可读取入站行和 VLESS 客户端展开行，旧入站列表 API 可读取关键字段。
-- 扩展客户端编辑兼容自动抽检已覆盖：新 Vue UI 编辑 Trojan、Shadowsocks、Hysteria2 客户端后，Legacy UI 展开行与旧入站列表 API 可读取关键字段。
+- 新 UI / 旧 API 兼容自动抽检已覆盖：新 Vue UI 创建 VMess、VLESS、Trojan、Shadowsocks、Hysteria2、WireGuard 六类禁用入站后，旧入站列表 API 可读取。
+- Settings 兼容自动抽检已覆盖：新 Vue UI 保存订阅标题和公告后，旧设置 API 可读取。
+- 编辑兼容自动抽检已覆盖：新 Vue UI 编辑 VLESS 入站、VLESS 客户端和 WireGuard peer 后，旧入站列表 API 可读取关键字段。
+- 扩展客户端编辑兼容自动抽检已覆盖：新 Vue UI 编辑 Trojan、Shadowsocks、Hysteria2 客户端后，旧入站列表 API 可读取关键字段。
 - 在线/IP 管理入口已覆盖：新 UI Inbounds 页展示 Online Clients、Refresh Activity，并在详情抽屉内提供 Online / IP Management、View IPs、Clear IPs 控制；E2E 会创建临时禁用 VLESS 入站后验收并清理。
 - 订阅输出矩阵已补 Go 层回归：VMess、VLESS、Trojan、Shadowsocks、Hysteria2 覆盖订阅链接、JSON outbound、Clash/mihomo proxy；WireGuard 覆盖配置文本、JSON outbound、Clash/mihomo proxy。
-- 2026-05-04 已按“Legacy 隔离 + 新 UI 清理”执行 UI 框架迁移收口：新 UI 未使用文件、未使用导出和未使用依赖已通过 `knip`、`depcheck` 清零，CodeMirror 依赖已移除，`web/html` 与 `/panel/legacy` 仅作为回退和兼容验收边界保留。
+- 2026-06-11 已执行旧 HTML UI 退役：`web/html`、`web/assets` 和 `/panel/legacy*` 已删除或移除，不再作为回退和兼容验收边界。
 
 ## 已风险接受的门禁缺口
 
 - Phase 9 安全收口尚未完全完成，但本次强制进入接受残余风险：
   - CSRF 错误 token、更多下载鉴权和上传/导入边界仍可继续扩展。
-  - Legacy UI 仍需要宽 CSP 才能作为回退入口运行。
+  - Legacy UI 宽 CSP 已随旧 HTML UI 退役移除。
 - CI 或其他测试机尚未复刻本机隔离 E2E 环境，本次强制进入接受残余风险：
   - 需要有效 `.env`。
   - 需要隔离 DB/bin/log 目录。
   - 需要真实 `xray-windows-amd64.exe`、`geoip.dat`、`geosite.dat`。
-- 旧 UI 对新 UI 创建数据已完成六类主力协议自动抽检，Legacy Settings 对新 UI 保存订阅标题/公告也已完成自动抽检；入站基础字段、VLESS/Trojan/Shadowsocks/Hysteria2 客户端和 WireGuard peer 编辑后旧 UI/API 可读已完成自动抽检。订阅输出矩阵已补 Go 层回归；CI/第二环境复刻仍需补齐。
+- 新 UI 对旧 API、旧数据模型和订阅输出的兼容抽检已覆盖六类主力协议、Settings、客户端/Peer 编辑和订阅输出矩阵；CI/第二环境复刻仍需补齐。
 
 ## 强制进入的实施边界
 
@@ -64,7 +64,7 @@
 - 不创建 `proxy_inbounds`、`proxy_clients` 写入路径。
 - 不修改旧 Xray 订阅输出语义。
 - 不新增 Capability Schema 驱动写入表单。
-- 新 UI 和旧 UI 的既有 Xray 等价路径必须继续可用。
+- 新 UI 与旧 API 的既有 Xray 等价路径必须继续可用。
 
 ## 强制进入已实施入口
 
@@ -127,7 +127,7 @@ $env:SUPERXRAY_SING_BOX_LOG_FOLDER = 'F:\SuperXray-gui\log'
 - 依赖项：移除 `@codemirror/lang-json` 与 `codemirror`，生产构建不再包含 CodeMirror 相关 chunk。
 - 交互项：移除无效主题切换状态，保留与当前深色视觉体系一致的主题指示器。
 - 可访问性项：主导航、筛选控件、配置编辑器和默认 Settings 表单已补充显式可读名称。
-- 边界项：`/panel/legacy`、`web/html` 和 `web/assets` 不视为死代码，继续作为 Phase 10 回退入口和新旧 UI 兼容验收基线。
+- 边界项：`/panel/legacy`、`web/html` 和 `web/assets` 已退役，不得重新引入；Phase 10 兼容验收以新 UI、旧 API、订阅输出和数据模型为基线。
 - 取证报告：见 [`.reports/dead-code-analysis.md`](../../.reports/dead-code-analysis.md)。
 
 本轮验证：
@@ -161,11 +161,11 @@ npm run e2e
    - `SUPERXRAY_E2E_MUTATION=1`。
    - `SUPERXRAY_E2E_IMPORT_DB=1`。
    - `SUPERXRAY_E2E_SUB_URL`。
-4. 扩展旧 UI 兼容抽检：
-   - 已完成：`/panel/legacy/inbounds` 可读取新 UI 创建的六类主力协议禁用入站。
-   - 已完成：`/panel/legacy/settings` 可读取新 UI 保存的订阅标题和公告。
-   - 已完成：Legacy UI 可读取新 UI 编辑后的 VLESS 入站行和 VLESS 客户端展开行，旧入站列表 API 可读取 VLESS 入站/客户端和 WireGuard peer 的编辑修改。
-   - 已完成：Legacy UI 展开行和旧入站列表 API 可读取新 UI 对 Trojan、Shadowsocks、Hysteria2 客户端的编辑修改。
+4. 扩展旧 API / 数据模型兼容抽检：
+   - 已完成：旧入站列表 API 可读取新 UI 创建的六类主力协议禁用入站。
+   - 已完成：旧设置 API 可读取新 UI 保存的订阅标题和公告。
+   - 已完成：旧入站列表 API 可读取 VLESS 入站/客户端和 WireGuard peer 的编辑修改。
+   - 已完成：旧入站列表 API 可读取新 UI 对 Trojan、Shadowsocks、Hysteria2 客户端的编辑修改。
    - 待扩展：更多设置项，以及真实订阅 URL 在第二环境/CI 的非跳过复刻。
 5. 为强制进入补充回滚记录：
    - 移除 `/panel/api/cores/*` 路由即可关闭新入口。

@@ -828,7 +828,9 @@
               <ASwitch v-model:checked="streamEditor.hysteriaQuicParamsEnabled" />
             </AFormItem>
             <AFormItem
-              v-if="isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled"
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
               label="UDP Hop"
             >
               <ASwitch v-model:checked="streamEditor.hysteriaUdpHopEnabled" />
@@ -836,21 +838,18 @@
             <AFormItem
               v-if="
                 isHysteriaProtocol(inboundEditor.protocol) &&
-                  streamEditor.hysteriaQuicParamsEnabled &&
-                  streamEditor.hysteriaUdpHopEnabled
+                streamEditor.hysteriaQuicParamsEnabled &&
+                streamEditor.hysteriaUdpHopEnabled
               "
               label="Hop Ports"
             >
-              <AInput
-                v-model:value="streamEditor.hysteriaUdpHopPorts"
-                placeholder="40000-45000"
-              />
+              <AInput v-model:value="streamEditor.hysteriaUdpHopPorts" placeholder="40000-45000" />
             </AFormItem>
             <AFormItem
               v-if="
                 isHysteriaProtocol(inboundEditor.protocol) &&
-                  streamEditor.hysteriaQuicParamsEnabled &&
-                  streamEditor.hysteriaUdpHopEnabled
+                streamEditor.hysteriaQuicParamsEnabled &&
+                streamEditor.hysteriaUdpHopEnabled
               "
               label="Hop Interval"
             >
@@ -1368,7 +1367,7 @@
     >
       <AAlert
         class="mb-12"
-        message="Paste a legacy inbound JSON object. It will be imported through the existing Xray API so old UI remains readable."
+        message="Paste a legacy inbound JSON object. It will be imported through the existing Xray API and data model."
         show-icon
         type="info"
       />
@@ -4475,7 +4474,7 @@ async function loadQrious(): Promise<QriousConstructor> {
 
     const runtime = getRuntimeConfig();
     const script = document.createElement('script');
-    script.src = `${runtime.basePath}assets/qrcode/qrious2.min.js?${runtime.version}`;
+    script.src = `${runtime.uiBasePath}assets/qrcode/qrious2.min.js?${runtime.version}`;
     script.async = true;
     script.onload = () => {
       const loaded = (window as Window & { QRious?: QriousConstructor }).QRious;

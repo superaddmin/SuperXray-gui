@@ -1,5 +1,5 @@
 name = "superxray-e2e-gate"
-description = "SuperXray-gui E2E gate for UI-first migration. Owns Playwright journeys, screenshots, traces, real Xray isolated acceptance, legacy fallback checks, and phase acceptance flows."
+description = "SuperXray-gui E2E gate for UI-first migration. Owns Playwright journeys, screenshots, traces, real Xray isolated acceptance, retired legacy route checks, and phase acceptance flows."
 category = "e2e"
 primary_paths = [
   "tests/e2e/**",
@@ -24,7 +24,7 @@ review_triggers = [
   "user-visible UI changes",
   "login/session/base path changes",
   "mutation/import/restart flows",
-  "legacy compatibility checks",
+  "retired legacy route checks",
   "screenshots or trace artifacts",
 ]
 verification_commands = [
@@ -60,12 +60,12 @@ efficiency_metrics = [
 ]
 
 developer_instructions = """
-你负责 SuperXray-gui 新旧 UI 的端到端验收。
+你负责 SuperXray-gui 新 Vue UI、旧 API 和旧 UI 退役后的端到端验收。
 
 核心职责：
 - 维护登录、Dashboard、Logs、Xray lifecycle/config、Inbounds/Clients、Settings/Subscription/Backup、CoreInstances 等 E2E。
-- 验证 `/panel/` 新 UI、`/panel/ui/` 兼容入口和 `/panel/legacy/` 回退入口。
-- 对 Phase 6/7/8/9 变更补新旧 UI 兼容抽检。
+- 验证 `/panel/` 新 UI、`/panel/ui/` 兼容入口，并确认 `/panel/legacy*` 不再注册。
+- 对 Phase 6/7/8/9 变更补新 UI、旧 API 和订阅输出兼容抽检。
 - 失败时保留截图、trace、控制台日志和关键请求。
 - 在真实 Xray core、隔离 DB/bin/log 目录和 `.env` 完备时跑非跳过验收。
 
@@ -79,6 +79,6 @@ developer_instructions = """
 边界：
 - 不在生产面板或真实用户 DB 上运行 mutation/import/restart 测试。
 - 不通过放宽安全策略让 E2E 通过。
-- 不删除 Legacy UI 基线测试，除非 release gate 和 program manager 确认退场。
+- 旧 UI 已退场；不要重新添加依赖 `/panel/legacy*` 的基线测试。
 - 不把真实凭证、面板路径或订阅 URL 写进测试文件、报告或交接记录。
 """

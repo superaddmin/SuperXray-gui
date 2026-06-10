@@ -158,6 +158,8 @@ def should_scan(root: pathlib.Path, path: pathlib.Path) -> bool:
 
 
 def scan_file(root: pathlib.Path, path: pathlib.Path) -> list[str]:
+    if not path.exists():
+        return []
     try:
         text = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:

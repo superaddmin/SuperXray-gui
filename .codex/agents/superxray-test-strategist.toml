@@ -4,7 +4,6 @@ category = "testing"
 primary_paths = [
   "**/*_test.go",
   "frontend/tests/**",
-  "web/assets/**/*.test.js",
   "playwright.config.ts",
   "package.json",
   "frontend/package.json",

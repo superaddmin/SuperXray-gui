@@ -16,7 +16,7 @@
 - `.codex/**` 配置和技能：`superxray-ui-program-manager`，安全/测试/release 复核。
 - `frontend/src/**`：`superxray-frontend-migrator`，安全与 E2E 复核。
 - `web/ui/**`：视为生成产物，先确认来自 `cd frontend; npm run build`。
-- `web/html/**`、`web/assets/**`：legacy UI 路由，必须保留回退与 CSP 例外说明。
+- `web/html/**`、`web/assets/**`：已退役旧 HTML UI 目录；如出现改动，只允许删除确认或防重新引入审查。
 - `core/**` 与 `/panel/api/cores`：`superxray-core-runtime-architect`，必须确认 Phase 10 准入边界。
 - `sub/**`、协议兼容工具、Gateway MVP：`superxray-subscription-protocol-specialist`。
 - `.github/**`、Docker、安装脚本、版本资产：`superxray-devops-cicd-maintainer` 或 `superxray-release-gate`。
@@ -89,5 +89,5 @@ triage -> owner -> review -> final_gate -> done
 2. 读取 `.codex/context/codex-config-map.md` 与 `.codex/workflows/config-validation-and-efficiency.md`。
 3. 若新增上下文或规则，更新 `.codex/configuration-update.md` 与相关 context map。
 4. 若修改 agent，确认 4 个契约字段仍完整。
-5. 运行 `validate_codex_config.py`、验证单测、相关 `quick_validate.py`、secret scan。
+5. 运行 `validate_codex_config.py`、验证单测、`validate_skill_formats.py` 包装脚本、secret scan。
 6. 交付说明记录效率指标、未运行命令原因、风险与回滚。

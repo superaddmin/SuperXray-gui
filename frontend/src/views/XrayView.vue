@@ -126,7 +126,9 @@
         <div class="gateway-egress-mvp-grid">
           <div class="client-link-card">
             <strong>{{ gatewayEgressMvpPreview.profileCount }}</strong>
-            <p class="muted-text">{{ translate('xray.gateway.previewProfiles', appStore.locale) }}</p>
+            <p class="muted-text">
+              {{ translate('xray.gateway.previewProfiles', appStore.locale) }}
+            </p>
           </div>
           <div class="client-link-card">
             <strong>{{ gatewayEgressMvpPreview.ports.join(', ') }}</strong>
@@ -134,16 +136,21 @@
           </div>
           <div class="client-link-card">
             <strong>{{ gatewayEgressMvpPreview.listenHost }}</strong>
-            <p class="muted-text">{{ translate('xray.gateway.previewListenHost', appStore.locale) }}</p>
+            <p class="muted-text">
+              {{ translate('xray.gateway.previewListenHost', appStore.locale) }}
+            </p>
           </div>
           <div class="client-link-card">
             <strong>{{ gatewayEgressMvpPreview.manifestHost }}</strong>
-            <p class="muted-text">{{ translate('xray.gateway.previewManifestHost', appStore.locale) }}</p>
+            <p class="muted-text">
+              {{ translate('xray.gateway.previewManifestHost', appStore.locale) }}
+            </p>
           </div>
         </div>
 
         <pre class="code-preview compact-preview mt-16">{{
-          gatewayEgressManifestCsv || translate('xray.gateway.validStrategyRequired', appStore.locale)
+          gatewayEgressManifestCsv ||
+          translate('xray.gateway.validStrategyRequired', appStore.locale)
         }}</pre>
       </FormSection>
     </ACard>
@@ -375,11 +382,21 @@
             Add Outbound
           </AButton>
         </template>
-        <ATable :columns="outboundColumns" :data-source="outboundRows" :pagination="false" row-key="key" size="middle">
+        <ATable
+          :columns="outboundColumns"
+          :data-source="outboundRows"
+          :pagination="false"
+          row-key="key"
+          size="middle"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'action'">
               <ASpace wrap>
-                <AButton size="small" :disabled="record.key === 0" @click="setFirstOutbound(record.key)">
+                <AButton
+                  size="small"
+                  :disabled="record.key === 0"
+                  @click="setFirstOutbound(record.key)"
+                >
                   <template #icon><VerticalAlignTopOutlined /></template>
                   First
                 </AButton>
@@ -406,11 +423,21 @@
             Add Rule
           </AButton>
         </template>
-        <ATable :columns="routingColumns" :data-source="routingRuleRows" :pagination="false" row-key="key" size="middle">
+        <ATable
+          :columns="routingColumns"
+          :data-source="routingRuleRows"
+          :pagination="false"
+          row-key="key"
+          size="middle"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'action'">
               <ASpace wrap>
-                <AButton size="small" :disabled="record.key === 0" @click="moveRoutingRule(record.key, record.key - 1)">
+                <AButton
+                  size="small"
+                  :disabled="record.key === 0"
+                  @click="moveRoutingRule(record.key, record.key - 1)"
+                >
                   Up
                 </AButton>
                 <AButton
@@ -443,7 +470,13 @@
             Add DNS Server
           </AButton>
         </template>
-        <ATable :columns="dnsColumns" :data-source="dnsServerRows" :pagination="false" row-key="key" size="middle">
+        <ATable
+          :columns="dnsColumns"
+          :data-source="dnsServerRows"
+          :pagination="false"
+          row-key="key"
+          size="middle"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'action'">
               <ASpace wrap>
@@ -470,7 +503,13 @@
             Add FakeDNS
           </AButton>
         </template>
-        <ATable :columns="fakeDnsColumns" :data-source="fakeDnsRows" :pagination="false" row-key="key" size="middle">
+        <ATable
+          :columns="fakeDnsColumns"
+          :data-source="fakeDnsRows"
+          :pagination="false"
+          row-key="key"
+          size="middle"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'action'">
               <ASpace wrap>
@@ -497,7 +536,13 @@
             Add Balancer
           </AButton>
         </template>
-        <ATable :columns="balancerColumns" :data-source="balancerRows" :pagination="false" row-key="key" size="middle">
+        <ATable
+          :columns="balancerColumns"
+          :data-source="balancerRows"
+          :pagination="false"
+          row-key="key"
+          size="middle"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'action'">
               <ASpace wrap>
@@ -524,7 +569,13 @@
             Add Reverse
           </AButton>
         </template>
-        <ATable :columns="reverseColumns" :data-source="reverseRows" :pagination="false" row-key="key" size="middle">
+        <ATable
+          :columns="reverseColumns"
+          :data-source="reverseRows"
+          :pagination="false"
+          row-key="key"
+          size="middle"
+        >
           <template #bodyCell="{ column, record }">
             <template v-if="column.key === 'action'">
               <ASpace wrap>
@@ -554,43 +605,94 @@
             <template #icon><CopyOutlined /></template>
             Copy
           </AButton>
-          <AButton :disabled="!canApplyProtocolToolOutbound" type="primary" @click="applyProtocolToolOutbound">
+          <AButton
+            :disabled="!canApplyProtocolToolOutbound"
+            type="primary"
+            @click="applyProtocolToolOutbound"
+          >
             Add Outbound
           </AButton>
         </template>
         <AForm layout="vertical">
           <AFormItem label="Mode">
-            <ASelect v-model:value="protocolToolMode" :options="[{ label: 'Combo', value: 'combo' }, { label: 'Argo', value: 'argo' }]" />
+            <ASelect
+              v-model:value="protocolToolMode"
+              :options="[
+                { label: 'Combo', value: 'combo' },
+                { label: 'Argo', value: 'argo' },
+              ]"
+            />
           </AFormItem>
           <template v-if="protocolToolMode === 'combo'">
             <div class="form-grid">
               <AFormItem label="Combo">
-                <ASelect v-model:value="protocolTool.combo" :options="protocolToolRows.map((row) => ({ label: row.label, value: row.value }))" />
+                <ASelect
+                  v-model:value="protocolTool.combo"
+                  :options="protocolToolRows.map((row) => ({ label: row.label, value: row.value }))"
+                />
               </AFormItem>
               <AFormItem label="Tag"><AInput v-model:value="protocolTool.tag" /></AFormItem>
               <AFormItem label="Server"><AInput v-model:value="protocolTool.server" /></AFormItem>
-              <AFormItem label="Port"><AInputNumber v-model:value="protocolTool.port" class="full-width" :min="1" :max="65535" /></AFormItem>
+              <AFormItem label="Port"
+                ><AInputNumber
+                  v-model:value="protocolTool.port"
+                  class="full-width"
+                  :min="1"
+                  :max="65535"
+              /></AFormItem>
               <AFormItem label="UUID"><AInput v-model:value="protocolTool.uuid" /></AFormItem>
-              <AFormItem label="Password"><AInput v-model:value="protocolTool.password" /></AFormItem>
+              <AFormItem label="Password"
+                ><AInput v-model:value="protocolTool.password"
+              /></AFormItem>
               <AFormItem label="SNI"><AInput v-model:value="protocolTool.sni" /></AFormItem>
-              <AFormItem label="Public Key"><AInput v-model:value="protocolTool.publicKey" /></AFormItem>
-              <AFormItem label="Short ID"><AInput v-model:value="protocolTool.shortId" /></AFormItem>
+              <AFormItem label="Public Key"
+                ><AInput v-model:value="protocolTool.publicKey"
+              /></AFormItem>
+              <AFormItem label="Short ID"
+                ><AInput v-model:value="protocolTool.shortId"
+              /></AFormItem>
               <AFormItem label="Path"><AInput v-model:value="protocolTool.path" /></AFormItem>
             </div>
           </template>
           <template v-else>
             <div class="form-grid">
               <AFormItem label="Tunnel Mode">
-                <ASelect v-model:value="protocolTool.combo" :options="[{ label: 'Quick', value: 'quick' }, { label: 'Fixed', value: 'fixed' }]" />
+                <ASelect
+                  v-model:value="protocolTool.combo"
+                  :options="[
+                    { label: 'Quick', value: 'quick' },
+                    { label: 'Fixed', value: 'fixed' },
+                  ]"
+                />
               </AFormItem>
-              <AFormItem label="Origin URL"><AInput v-model:value="protocolTool.originUrl" /></AFormItem>
-              <AFormItem v-if="protocolTool.combo === 'fixed'" label="Tunnel Name"><AInput v-model:value="protocolTool.tunnelName" /></AFormItem>
-              <AFormItem v-if="protocolTool.combo === 'fixed'" label="Tunnel Token"><AInput v-model:value="protocolTool.token" /></AFormItem>
+              <AFormItem label="Origin URL"
+                ><AInput v-model:value="protocolTool.originUrl"
+              /></AFormItem>
+              <AFormItem v-if="protocolTool.combo === 'fixed'" label="Tunnel Name"
+                ><AInput v-model:value="protocolTool.tunnelName"
+              /></AFormItem>
+              <AFormItem v-if="protocolTool.combo === 'fixed'" label="Tunnel Token"
+                ><AInput v-model:value="protocolTool.token"
+              /></AFormItem>
             </div>
           </template>
         </AForm>
-        <ATable :columns="[{ title: 'Combo', dataIndex: 'label', key: 'label' }, { title: 'Runtime', dataIndex: 'runtime', key: 'runtime' }, { title: 'Scope', dataIndex: 'saveToXray', key: 'saveToXray' }]" :data-source="protocolToolRows" :pagination="false" row-key="value" size="small" />
-        <textarea v-model="protocolToolGenerated" class="json-editor compact-json-editor mt-16" readonly />
+        <ATable
+          :columns="[
+            { title: 'Combo', dataIndex: 'label', key: 'label' },
+            { title: 'Runtime', dataIndex: 'runtime', key: 'runtime' },
+            { title: 'Scope', dataIndex: 'saveToXray', key: 'saveToXray' },
+          ]"
+          :data-source="protocolToolRows"
+          :pagination="false"
+          row-key="value"
+          size="small"
+        />
+        <textarea
+          v-model="protocolToolGenerated"
+          class="json-editor compact-json-editor mt-16"
+          readonly
+        />
       </FormSection>
     </ACard>
 
@@ -644,11 +746,17 @@
           type="info"
         />
         <div class="client-link-grid mt-16">
-          <div v-for="preset in DNS_PRESET_OPTIONS" :key="`${preset.name}-card`" class="client-link-card">
+          <div
+            v-for="preset in DNS_PRESET_OPTIONS"
+            :key="`${preset.name}-card`"
+            class="client-link-card"
+          >
             <div class="client-link-title-row">
               <div>
                 <strong>{{ preset.name }}</strong>
-                <p class="muted-text">{{ preset.family ? 'Family profile' : 'Standard profile' }}</p>
+                <p class="muted-text">
+                  {{ preset.family ? 'Family profile' : 'Standard profile' }}
+                </p>
               </div>
               <span class="client-link-format">{{ preset.data.length }} servers</span>
             </div>
@@ -664,17 +772,39 @@
           <AButton type="primary" @click="applyDnsPolicyChanges">Apply DNS Policy</AButton>
         </template>
         <div class="form-grid">
-          <AFormItem label="Enable DNS"><ASwitch v-model:checked="dnsPolicyForm.enableDNS" /></AFormItem>
+          <AFormItem label="Enable DNS"
+            ><ASwitch v-model:checked="dnsPolicyForm.enableDNS"
+          /></AFormItem>
           <AFormItem label="Tag"><AInput v-model:value="dnsPolicyForm.dnsTag" /></AFormItem>
-          <AFormItem label="Client IP"><AInput v-model:value="dnsPolicyForm.dnsClientIp" /></AFormItem>
+          <AFormItem label="Client IP"
+            ><AInput v-model:value="dnsPolicyForm.dnsClientIp"
+          /></AFormItem>
           <AFormItem label="Strategy">
-            <ASelect v-model:value="dnsPolicyForm.dnsStrategy" :options="['UseSystem', 'UseIP', 'UseIPv4', 'UseIPv6'].map((value) => ({ label: value, value }))" />
+            <ASelect
+              v-model:value="dnsPolicyForm.dnsStrategy"
+              :options="
+                ['UseSystem', 'UseIP', 'UseIPv4', 'UseIPv6'].map((value) => ({
+                  label: value,
+                  value,
+                }))
+              "
+            />
           </AFormItem>
-          <AFormItem label="Disable Cache"><ASwitch v-model:checked="dnsPolicyForm.dnsDisableCache" /></AFormItem>
-          <AFormItem label="Disable Fallback"><ASwitch v-model:checked="dnsPolicyForm.dnsDisableFallback" /></AFormItem>
-          <AFormItem label="Disable Fallback If Match"><ASwitch v-model:checked="dnsPolicyForm.dnsDisableFallbackIfMatch" /></AFormItem>
-          <AFormItem label="Enable Parallel Query"><ASwitch v-model:checked="dnsPolicyForm.dnsEnableParallelQuery" /></AFormItem>
-          <AFormItem label="Use System Hosts"><ASwitch v-model:checked="dnsPolicyForm.dnsUseSystemHosts" /></AFormItem>
+          <AFormItem label="Disable Cache"
+            ><ASwitch v-model:checked="dnsPolicyForm.dnsDisableCache"
+          /></AFormItem>
+          <AFormItem label="Disable Fallback"
+            ><ASwitch v-model:checked="dnsPolicyForm.dnsDisableFallback"
+          /></AFormItem>
+          <AFormItem label="Disable Fallback If Match"
+            ><ASwitch v-model:checked="dnsPolicyForm.dnsDisableFallbackIfMatch"
+          /></AFormItem>
+          <AFormItem label="Enable Parallel Query"
+            ><ASwitch v-model:checked="dnsPolicyForm.dnsEnableParallelQuery"
+          /></AFormItem>
+          <AFormItem label="Use System Hosts"
+            ><ASwitch v-model:checked="dnsPolicyForm.dnsUseSystemHosts"
+          /></AFormItem>
         </div>
       </FormSection>
     </ACard>
@@ -686,28 +816,71 @@
         </template>
         <div class="form-grid">
           <AFormItem label="Freedom Strategy">
-            <ASelect v-model:value="runtimePolicyForm.freedomStrategy" :options="['AsIs', 'UseIP', 'UseIPv4', 'UseIPv6'].map((value) => ({ label: value, value }))" />
+            <ASelect
+              v-model:value="runtimePolicyForm.freedomStrategy"
+              :options="
+                ['AsIs', 'UseIP', 'UseIPv4', 'UseIPv6'].map((value) => ({ label: value, value }))
+              "
+            />
           </AFormItem>
           <AFormItem label="Routing Strategy">
-            <ASelect v-model:value="runtimePolicyForm.routingStrategy" :options="['AsIs', 'IPIfNonMatch', 'IPOnDemand'].map((value) => ({ label: value, value }))" />
+            <ASelect
+              v-model:value="runtimePolicyForm.routingStrategy"
+              :options="
+                ['AsIs', 'IPIfNonMatch', 'IPOnDemand'].map((value) => ({ label: value, value }))
+              "
+            />
           </AFormItem>
           <AFormItem label="Log Level">
-            <ASelect v-model:value="runtimePolicyForm.logLevel" :options="['none', 'debug', 'info', 'warning', 'error'].map((value) => ({ label: value, value }))" />
+            <ASelect
+              v-model:value="runtimePolicyForm.logLevel"
+              :options="
+                ['none', 'debug', 'info', 'warning', 'error'].map((value) => ({
+                  label: value,
+                  value,
+                }))
+              "
+            />
           </AFormItem>
           <AFormItem label="Mask Address">
-            <ASelect v-model:value="runtimePolicyForm.maskAddressLog" :options="['', 'quarter', 'half', 'full'].map((value) => ({ label: value || 'Empty', value }))" />
+            <ASelect
+              v-model:value="runtimePolicyForm.maskAddressLog"
+              :options="
+                ['', 'quarter', 'half', 'full'].map((value) => ({ label: value || 'Empty', value }))
+              "
+            />
           </AFormItem>
           <AFormItem label="Access Log">
-            <ASelect v-model:value="runtimePolicyForm.accessLog" :options="['', 'none', './access.log'].map((value) => ({ label: value || 'Empty', value }))" />
+            <ASelect
+              v-model:value="runtimePolicyForm.accessLog"
+              :options="
+                ['', 'none', './access.log'].map((value) => ({ label: value || 'Empty', value }))
+              "
+            />
           </AFormItem>
           <AFormItem label="Error Log">
-            <ASelect v-model:value="runtimePolicyForm.errorLog" :options="['', 'none', './error.log'].map((value) => ({ label: value || 'Empty', value }))" />
+            <ASelect
+              v-model:value="runtimePolicyForm.errorLog"
+              :options="
+                ['', 'none', './error.log'].map((value) => ({ label: value || 'Empty', value }))
+              "
+            />
           </AFormItem>
-          <AFormItem label="DNS Log"><ASwitch v-model:checked="runtimePolicyForm.dnsLog" /></AFormItem>
-          <AFormItem label="Stats Inbound Uplink"><ASwitch v-model:checked="runtimePolicyForm.statsInboundUplink" /></AFormItem>
-          <AFormItem label="Stats Inbound Downlink"><ASwitch v-model:checked="runtimePolicyForm.statsInboundDownlink" /></AFormItem>
-          <AFormItem label="Stats Outbound Uplink"><ASwitch v-model:checked="runtimePolicyForm.statsOutboundUplink" /></AFormItem>
-          <AFormItem label="Stats Outbound Downlink"><ASwitch v-model:checked="runtimePolicyForm.statsOutboundDownlink" /></AFormItem>
+          <AFormItem label="DNS Log"
+            ><ASwitch v-model:checked="runtimePolicyForm.dnsLog"
+          /></AFormItem>
+          <AFormItem label="Stats Inbound Uplink"
+            ><ASwitch v-model:checked="runtimePolicyForm.statsInboundUplink"
+          /></AFormItem>
+          <AFormItem label="Stats Inbound Downlink"
+            ><ASwitch v-model:checked="runtimePolicyForm.statsInboundDownlink"
+          /></AFormItem>
+          <AFormItem label="Stats Outbound Uplink"
+            ><ASwitch v-model:checked="runtimePolicyForm.statsOutboundUplink"
+          /></AFormItem>
+          <AFormItem label="Stats Outbound Downlink"
+            ><ASwitch v-model:checked="runtimePolicyForm.statsOutboundDownlink"
+          /></AFormItem>
         </div>
       </FormSection>
     </ACard>
@@ -726,10 +899,16 @@
           </AFormItem>
         </div>
         <AFormItem label="Observatory JSON">
-          <textarea v-model="observatoryForm.observatoryJson" class="json-editor compact-json-editor" />
+          <textarea
+            v-model="observatoryForm.observatoryJson"
+            class="json-editor compact-json-editor"
+          />
         </AFormItem>
         <AFormItem label="Burst Observatory JSON">
-          <textarea v-model="observatoryForm.burstObservatoryJson" class="json-editor compact-json-editor" />
+          <textarea
+            v-model="observatoryForm.burstObservatoryJson"
+            class="json-editor compact-json-editor"
+          />
         </AFormItem>
       </FormSection>
     </ACard>
@@ -748,11 +927,27 @@
       <AForm layout="vertical">
         <AFormItem label="Tag"><AInput v-model:value="outboundEditor.tag" /></AFormItem>
         <AFormItem label="Protocol"><AInput v-model:value="outboundEditor.protocol" /></AFormItem>
-        <AFormItem label="Send Through"><AInput v-model:value="outboundEditor.sendThrough" /></AFormItem>
-        <AFormItem label="Settings JSON"><textarea v-model="outboundEditor.settingsJson" class="json-editor compact-json-editor" /></AFormItem>
-        <AFormItem label="Stream Settings JSON"><textarea v-model="outboundEditor.streamSettingsJson" class="json-editor compact-json-editor" /></AFormItem>
-        <AFormItem label="Proxy Settings JSON"><textarea v-model="outboundEditor.proxySettingsJson" class="json-editor compact-json-editor" /></AFormItem>
-        <AFormItem label="Mux JSON"><textarea v-model="outboundEditor.muxJson" class="json-editor compact-json-editor" /></AFormItem>
+        <AFormItem label="Send Through"
+          ><AInput v-model:value="outboundEditor.sendThrough"
+        /></AFormItem>
+        <AFormItem label="Settings JSON">
+          <textarea v-model="outboundEditor.settingsJson" class="json-editor compact-json-editor" />
+        </AFormItem>
+        <AFormItem label="Stream Settings JSON">
+          <textarea
+            v-model="outboundEditor.streamSettingsJson"
+            class="json-editor compact-json-editor"
+          />
+        </AFormItem>
+        <AFormItem label="Proxy Settings JSON">
+          <textarea
+            v-model="outboundEditor.proxySettingsJson"
+            class="json-editor compact-json-editor"
+          />
+        </AFormItem>
+        <AFormItem label="Mux JSON">
+          <textarea v-model="outboundEditor.muxJson" class="json-editor compact-json-editor" />
+        </AFormItem>
       </AForm>
     </Modal>
 
@@ -770,7 +965,9 @@
               :options="[{ label: 'SOCKS5', value: 'socks' }]"
             />
           </AFormItem>
-          <AFormItem label="Server"><AInput v-model:value="residentialIpEditor.server" /></AFormItem>
+          <AFormItem label="Server"
+            ><AInput v-model:value="residentialIpEditor.server"
+          /></AFormItem>
           <AFormItem label="Port">
             <AInputNumber
               v-model:value="residentialIpEditor.port"
@@ -789,35 +986,86 @@
       </AForm>
     </Modal>
 
-    <Modal v-model:open="routingRuleModalOpen" title="Routing Rule Editor" @ok="submitRoutingRuleModal">
+    <Modal
+      v-model:open="routingRuleModalOpen"
+      title="Routing Rule Editor"
+      @ok="submitRoutingRuleModal"
+    >
       <AForm layout="vertical">
         <div class="form-grid">
           <AFormItem label="Type"><AInput v-model:value="routingRuleEditor.type" /></AFormItem>
-          <AFormItem label="Outbound Tag"><AInput v-model:value="routingRuleEditor.outboundTag" /></AFormItem>
-          <AFormItem label="Balancer Tag"><AInput v-model:value="routingRuleEditor.balancerTag" /></AFormItem>
-          <AFormItem label="Network"><AInput v-model:value="routingRuleEditor.networkText" placeholder="tcp,udp" /></AFormItem>
+          <AFormItem label="Outbound Tag"
+            ><AInput v-model:value="routingRuleEditor.outboundTag"
+          /></AFormItem>
+          <AFormItem label="Balancer Tag"
+            ><AInput v-model:value="routingRuleEditor.balancerTag"
+          /></AFormItem>
+          <AFormItem label="Network"
+            ><AInput v-model:value="routingRuleEditor.networkText" placeholder="tcp,udp"
+          /></AFormItem>
           <AFormItem label="Port"><AInput v-model:value="routingRuleEditor.portText" /></AFormItem>
-          <AFormItem label="Source Port"><AInput v-model:value="routingRuleEditor.sourcePortText" /></AFormItem>
+          <AFormItem label="Source Port"
+            ><AInput v-model:value="routingRuleEditor.sourcePortText"
+          /></AFormItem>
         </div>
-        <AFormItem label="Domain"><textarea v-model="routingRuleEditor.domainText" class="json-editor compact-json-editor" /></AFormItem>
-        <AFormItem label="IP"><textarea v-model="routingRuleEditor.ipText" class="json-editor compact-json-editor" /></AFormItem>
-        <AFormItem label="Source"><textarea v-model="routingRuleEditor.sourceText" class="json-editor compact-json-editor" /></AFormItem>
-        <AFormItem label="Inbound Tags"><textarea v-model="routingRuleEditor.inboundTagText" class="json-editor compact-json-editor" /></AFormItem>
-        <AFormItem label="Users"><textarea v-model="routingRuleEditor.userText" class="json-editor compact-json-editor" /></AFormItem>
-        <AFormItem label="Protocols"><textarea v-model="routingRuleEditor.protocolText" class="json-editor compact-json-editor" /></AFormItem>
-        <AFormItem label="Attrs JSON"><textarea v-model="routingRuleEditor.attrsJson" class="json-editor compact-json-editor" /></AFormItem>
+        <AFormItem label="Domain">
+          <textarea
+            v-model="routingRuleEditor.domainText"
+            class="json-editor compact-json-editor"
+          />
+        </AFormItem>
+        <AFormItem label="IP">
+          <textarea v-model="routingRuleEditor.ipText" class="json-editor compact-json-editor" />
+        </AFormItem>
+        <AFormItem label="Source">
+          <textarea
+            v-model="routingRuleEditor.sourceText"
+            class="json-editor compact-json-editor"
+          />
+        </AFormItem>
+        <AFormItem label="Inbound Tags">
+          <textarea
+            v-model="routingRuleEditor.inboundTagText"
+            class="json-editor compact-json-editor"
+          />
+        </AFormItem>
+        <AFormItem label="Users">
+          <textarea v-model="routingRuleEditor.userText" class="json-editor compact-json-editor" />
+        </AFormItem>
+        <AFormItem label="Protocols">
+          <textarea
+            v-model="routingRuleEditor.protocolText"
+            class="json-editor compact-json-editor"
+          />
+        </AFormItem>
+        <AFormItem label="Attrs JSON">
+          <textarea v-model="routingRuleEditor.attrsJson" class="json-editor compact-json-editor" />
+        </AFormItem>
       </AForm>
     </Modal>
 
     <Modal v-model:open="dnsServerModalOpen" title="DNS Server Editor" @ok="submitDnsServerModal">
       <AForm layout="vertical">
         <AFormItem label="Address"><AInput v-model:value="dnsServerEditor.address" /></AFormItem>
-        <AFormItem label="Domains"><textarea v-model="dnsServerEditor.domainsText" class="json-editor compact-json-editor" /></AFormItem>
-        <AFormItem label="Expect IPs"><textarea v-model="dnsServerEditor.expectIPsText" class="json-editor compact-json-editor" /></AFormItem>
+        <AFormItem label="Domains">
+          <textarea v-model="dnsServerEditor.domainsText" class="json-editor compact-json-editor" />
+        </AFormItem>
+        <AFormItem label="Expect IPs">
+          <textarea
+            v-model="dnsServerEditor.expectIPsText"
+            class="json-editor compact-json-editor"
+          />
+        </AFormItem>
         <div class="form-grid">
-          <AFormItem label="Skip Fallback"><ASwitch v-model:checked="dnsServerEditor.skipFallback" /></AFormItem>
-          <AFormItem label="Client IP"><AInput v-model:value="dnsServerEditor.clientIP" /></AFormItem>
-          <AFormItem label="Query Strategy"><AInput v-model:value="dnsServerEditor.queryStrategy" /></AFormItem>
+          <AFormItem label="Skip Fallback"
+            ><ASwitch v-model:checked="dnsServerEditor.skipFallback"
+          /></AFormItem>
+          <AFormItem label="Client IP"
+            ><AInput v-model:value="dnsServerEditor.clientIP"
+          /></AFormItem>
+          <AFormItem label="Query Strategy"
+            ><AInput v-model:value="dnsServerEditor.queryStrategy"
+          /></AFormItem>
         </div>
       </AForm>
     </Modal>
@@ -825,7 +1073,9 @@
     <Modal v-model:open="fakeDnsModalOpen" title="FakeDNS Editor" @ok="submitFakeDnsModal">
       <AForm layout="vertical">
         <AFormItem label="IP Pool"><AInput v-model:value="fakeDnsEditor.ipPool" /></AFormItem>
-        <AFormItem label="Pool Size"><AInputNumber v-model:value="fakeDnsEditor.poolSize" class="full-width" :min="0" /></AFormItem>
+        <AFormItem label="Pool Size"
+          ><AInputNumber v-model:value="fakeDnsEditor.poolSize" class="full-width" :min="0"
+        /></AFormItem>
       </AForm>
     </Modal>
 
@@ -833,15 +1083,26 @@
       <AForm layout="vertical">
         <AFormItem label="Tag"><AInput v-model:value="balancerEditor.tag" /></AFormItem>
         <AFormItem label="Strategy"><AInput v-model:value="balancerEditor.strategy" /></AFormItem>
-        <AFormItem label="Selectors"><textarea v-model="balancerEditor.selectorText" class="json-editor compact-json-editor" /></AFormItem>
-        <AFormItem label="Fallback Tag"><AInput v-model:value="balancerEditor.fallbackTag" /></AFormItem>
+        <AFormItem label="Selectors">
+          <textarea v-model="balancerEditor.selectorText" class="json-editor compact-json-editor" />
+        </AFormItem>
+        <AFormItem label="Fallback Tag"
+          ><AInput v-model:value="balancerEditor.fallbackTag"
+        /></AFormItem>
       </AForm>
     </Modal>
 
     <Modal v-model:open="reverseModalOpen" title="Reverse Editor" @ok="submitReverseModal">
       <AForm layout="vertical">
         <div class="form-grid">
-          <AFormItem label="Type"><ASelect v-model:value="reverseEditor.type" :options="[{ label: 'bridge', value: 'bridge' }, { label: 'portal', value: 'portal' }]" /></AFormItem>
+          <AFormItem label="Type"
+            ><ASelect
+              v-model:value="reverseEditor.type"
+              :options="[
+                { label: 'bridge', value: 'bridge' },
+                { label: 'portal', value: 'portal' },
+              ]"
+          /></AFormItem>
           <AFormItem label="Tag"><AInput v-model:value="reverseEditor.tag" /></AFormItem>
           <AFormItem label="Domain"><AInput v-model:value="reverseEditor.domain" /></AFormItem>
           <AFormItem v-if="reverseEditor.type === 'bridge'" label="Bridge Outbound">
@@ -852,7 +1113,10 @@
           </AFormItem>
         </div>
         <AFormItem v-if="reverseEditor.type === 'portal'" label="Portal Inbound Tags">
-          <textarea v-model="reverseEditor.portalInboundTagsText" class="json-editor compact-json-editor" />
+          <textarea
+            v-model="reverseEditor.portalInboundTagsText"
+            class="json-editor compact-json-editor"
+          />
         </AFormItem>
       </AForm>
     </Modal>
@@ -1023,7 +1287,9 @@ const balancerEditor = reactive<BalancerEditorForm>(createBalancerEditor());
 const reverseEditor = reactive<ReverseEditorForm>(createReverseEditor());
 const protocolToolMode = ref<'combo' | 'argo'>('combo');
 const protocolToolGenerated = ref('');
-const protocolToolLastResult = ref<ReturnType<typeof generateProtocolToolCombo> | ReturnType<typeof generateProtocolToolArgo> | null>(null);
+const protocolToolLastResult = ref<
+  ReturnType<typeof generateProtocolToolCombo> | ReturnType<typeof generateProtocolToolArgo> | null
+>(null);
 const protocolTool = reactive({
   combo: 'vless-reality-vision',
   server: 'example.com',
@@ -1661,7 +1927,8 @@ async function testResidentialIpOutbound(index: number) {
       ? `Residential IP test succeeded in ${result.delay} ms with status ${result.statusCode || '-'}`
       : `Residential IP test failed: ${result.error || 'unknown error'}`;
   } catch (caught) {
-    outboundToolResult.value = caught instanceof Error ? caught.message : 'Residential IP test failed';
+    outboundToolResult.value =
+      caught instanceof Error ? caught.message : 'Residential IP test failed';
   } finally {
     testingResidentialIpKey.value = null;
   }
@@ -2043,7 +2310,7 @@ function confirmSaveConfig() {
   Modal.confirm({
     title: 'Save Xray configuration?',
     content:
-      'The template will be saved through the existing legacy endpoint so the old UI can still read it.',
+      'The template will be saved through the existing Xray endpoint and legacy-compatible template model.',
     okText: 'Save',
     onOk: () => saveConfig(parsed),
   });
