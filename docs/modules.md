@@ -1,7 +1,7 @@
 # 核心模块解析
 
 > **目标读者**：后端 / 前端维护者
-> **适用版本**：`v3.0.22`
+> **适用版本**：`v3.3.0`
 > **事实来源**：`main.go`、`config/`、`database/`、`web/`、`sub/`、`core/`、`frontend/src`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md)
 
@@ -40,7 +40,7 @@
 
 | 函数 | 环境变量 | 默认行为 |
 |---|---|---|
-| `GetVersion()` | 无 | 读取 `config/version`，当前 `3.0.22` |
+| `GetVersion()` | 无 | 读取 `config/version`，当前 `3.3.0` |
 | `GetAssetVersion()` | 构建注入 `buildHash` | `version.buildHash`，未注入时使用启动时间戳 |
 | `GetName()` | 无 | 读取 `config/name`，当前 `x-ui` |
 | `IsDebug()` | `XUI_DEBUG` | 值为 `true` 时启用 debug |

@@ -2,6 +2,20 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本号。
 
+## [3.3.0] - 2026-06-10
+
+### Fixed
+
+- 修复 Hysteria2/HY2 订阅与分享链接的 TLS/QUIC 默认参数：ALPN 默认使用 `h3`，uTLS fingerprint 默认留空，降低客户端指纹冲突、面板配置“假死”和握手失败风险。
+- 补齐 Hysteria2 UDP Hop 端口跳跃在 URI、JSON、Clash/Mihomo 与 legacy 导入链路中的 `mport`/`ports` 透传，避免保存或导出后端口范围被重置成“幽灵端口”。
+- 对 Hysteria2 `auth`/`password` userinfo 做安全编码与解码，避免特殊字符或双层密码场景触发客户端认证失败、订阅导入失败或隐藏式 404。
+- 收紧 WARP Matrix 默认路由：普通 `warp` 出站不再自动生成全局 `MATCH` 路由，降低全局 WARP 造成非对称路由断流的风险。
+
+### Changed
+
+- 发布版本从本版本起对齐 `v3.3.0` 命名，并继续输出 `x-ui-linux-amd64.tar.gz` 与 `x-ui-linux-arm64.tar.gz` 两个默认 Linux 发布资产。
+- 同步 README、部署文档、架构文档和 OpenAPI 生成物到 `3.3.0`。
+
 ## [3.0.22] - 2026-06-09
 
 ### Added

@@ -45,6 +45,7 @@ id_ed25519
 # Logs, reports, and test artifacts
 *.log
 logs/
+docs/private-ops/
 output/
 .reports/
 playwright-report/

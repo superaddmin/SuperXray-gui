@@ -1,7 +1,7 @@
 # 服务器部署 + OpenWrt 路由 + AI 出口治理统一总览
 
 > **目标读者**：需要同时维护 SuperXray 服务器节点、OpenWrt/Passwall 分流、AI 平台出口质量与排障流程的开发者 / 运维人员  
-> **适用版本**：`v3.0.22`  
+> **适用版本**：`v3.3.0`
 > **相关文档**：[部署指南](deployment.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md) | [OpenWrt / Passwall AI 路由实战手册](passwall-openwrt-ai-routing-playbook.md)
 
 ---

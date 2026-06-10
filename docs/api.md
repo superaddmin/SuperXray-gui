@@ -1,7 +1,7 @@
 # API 接口说明
 
 > **目标读者**：集成开发者 / 前端维护者
-> **适用版本**：`v3.0.22`
+> **适用版本**：`v3.3.0`
 > **事实来源**：`web/controller/*`、`web/ui.go`、`web/middleware/security.go`、`web/websocket/*`、`sub/*`、`frontend/src/api/*`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [部署指南](deployment.md) | [Panel OpenAPI](openapi/panel-api.yaml)
 
@@ -30,7 +30,7 @@ window.__SUPERXRAY_UI_CONFIG__ = {
   uiBasePath: "/panel/",
   csrfToken: "<session csrf token>",
   cspNonce: "<request nonce>",
-  version: "3.0.22.<asset-hash>"
+  version: "3.3.0.<asset-hash>"
 }
 ```
 

@@ -103,6 +103,16 @@ func TestSubscriptionOutputMatrixCoversLinksJSONAndClash(t *testing.T) {
 				if !ok || streamSettings["finalmask"] == nil {
 					t.Fatalf("hysteria2 json streamSettings missing finalmask obfs block: %#v", outbound["streamSettings"])
 				}
+				tlsSettings, ok := streamSettings["tlsSettings"].(map[string]any)
+				if !ok {
+					t.Fatalf("hysteria2 json streamSettings missing tlsSettings: %#v", streamSettings)
+				}
+				if tlsSettings["fingerprint"] == "chrome" {
+					t.Fatalf("hysteria2 json streamSettings should not fall back to chrome fingerprint: %#v", tlsSettings)
+				}
+				if fp, ok := tlsSettings["fingerprint"].(string); ok && strings.TrimSpace(fp) != "" {
+					t.Fatalf("hysteria2 json streamSettings exported non-empty fingerprint %q", fp)
+				}
 				if strings.Contains(link, "fp=") {
 					t.Fatalf("hysteria2 subscription link exported empty uTLS fingerprint: %s", link)
 				}
@@ -516,6 +526,19 @@ func TestHysteriaLinkEncodesAuthUserinfo(t *testing.T) {
 	}
 	if !strings.Contains(link, "obfs-password=matrix-obfs-pass") {
 		t.Fatalf("hysteria obfs password should stay in query, got: %s", link)
+	}
+}
+
+func TestTrojanLinkEncodesPasswordUserinfo(t *testing.T) {
+	client := matrixPasswordClient("matrix-special-trojan@example")
+	client.Password = "tr/oj=an pass"
+	inbound := matrixInbound(model.Trojan, 12016, client)
+	service := &SubService{address: "vpn.example", remarkModel: "-ieo"}
+
+	link := service.genTrojanLink(inbound, client.Email)
+
+	if !strings.Contains(link, "trojan://tr%2Foj%3Dan%20pass@vpn.example:12016") {
+		t.Fatalf("trojan password userinfo is not URI-encoded safely: %s", link)
 	}
 }
 

@@ -170,11 +170,25 @@ legacy_version() {
         echo "面板版本号不能为空，正在退出。"
         exit 1
     fi
-    # Use the entered panel version in the download link
-    install_command="bash <(curl -Ls \"${legacy_raw_base}/v${tag_version}/install.sh\") v${tag_version}"
+    if [[ ! "$tag_version" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+        echo "面板版本号格式无效，请输入类似 2.4.0 或 v2.4.0 的语义化版本号。"
+        exit 1
+    fi
+    tag_version="${tag_version#v}"
+    tag_ref="v${tag_version}"
+    install_url="${legacy_raw_base}/${tag_ref}/install.sh"
+    tmp_install="$(mktemp)"
 
     echo "正在下载并安装面板版本 $tag_version..."
-    eval "$install_command"
+    if ! curl -fLsS -o "$tmp_install" "$install_url"; then
+        rm -f "$tmp_install"
+        echo "下载历史版本安装脚本失败：$install_url"
+        exit 1
+    fi
+    bash "$tmp_install" "$tag_ref"
+    install_status=$?
+    rm -f "$tmp_install"
+    return "$install_status"
 }
 
 # Function to handle the deletion of the script file
@@ -2388,4 +2402,3 @@ if [[ $# > 0 ]]; then
 else
     show_menu
 fi
-
