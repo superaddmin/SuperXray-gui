@@ -61,3 +61,33 @@ func TestMarshalFinalMaskKeepsValidFragmentLength(t *testing.T) {
 		t.Fatalf("marshalFinalMask payload = %q, want valid length preserved", out)
 	}
 }
+
+func TestHysteriaHopPortsReadsFinalMaskUdpHopPorts(t *testing.T) {
+	ports := hysteriaHopPorts(map[string]any{
+		"finalmask": map[string]any{
+			"quicParams": map[string]any{
+				"udpHop": map[string]any{
+					"ports": " 40000-45000 ",
+				},
+			},
+		},
+	})
+
+	if ports != "40000-45000" {
+		t.Fatalf("hysteriaHopPorts = %q, want trimmed UDP hop ports", ports)
+	}
+}
+
+func TestHysteriaHopPortsSkipsMissingUdpHopPorts(t *testing.T) {
+	ports := hysteriaHopPorts(map[string]any{
+		"finalmask": map[string]any{
+			"quicParams": map[string]any{
+				"udpHop": map[string]any{},
+			},
+		},
+	})
+
+	if ports != "" {
+		t.Fatalf("hysteriaHopPorts = %q, want empty missing UDP hop ports", ports)
+	}
+}

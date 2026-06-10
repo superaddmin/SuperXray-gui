@@ -217,7 +217,7 @@ export function defaultStreamSettings(
         certificates: [],
         alpn: ['h3'],
         settings: {
-          fingerprint: 'chrome',
+          fingerprint: '',
           echConfigList: '',
         },
       },
@@ -642,6 +642,7 @@ function buildHysteriaShareLink(
   if (alpn) {
     params.set('alpn', alpn);
   }
+  appendHysteriaFinalMaskParams(params, stream.finalmask);
 
   const label = encodeURIComponent(shareLinkRemark(inbound, client, options));
   return `hysteria2://${encodeURIComponent(client.auth)}@${shareLinkAddress(
@@ -895,6 +896,76 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function appendHysteriaFinalMaskParams(params: URLSearchParams, finalmask: unknown) {
+  const serialized = serializeShareableFinalMask(finalmask);
+  if (serialized) {
+    params.set('fm', serialized);
+  }
+
+  const obfsPassword = hysteriaSalamanderPassword(finalmask);
+  if (obfsPassword) {
+    params.set('obfs', 'salamander');
+    params.set('obfs-password', obfsPassword);
+  }
+
+  const hopPorts = hysteriaHopPorts(finalmask);
+  if (hopPorts) {
+    params.set('mport', hopPorts);
+  }
+}
+
+function hysteriaSalamanderPassword(finalmask: unknown): string {
+  const udpMasks = asRecord(finalmask).udp;
+  if (!Array.isArray(udpMasks)) {
+    return '';
+  }
+
+  for (const rawMask of udpMasks) {
+    const mask = asRecord(rawMask);
+    if (mask.type !== 'salamander') {
+      continue;
+    }
+    const password = stringValue(asRecord(mask.settings).password).trim();
+    if (password) {
+      return password;
+    }
+  }
+  return '';
+}
+
+function hysteriaHopPorts(finalmask: unknown): string {
+  const quicParams = asRecord(asRecord(finalmask).quicParams);
+  const udpHop = asRecord(quicParams.udpHop);
+  return stringValue(udpHop.ports).trim();
+}
+
+function serializeShareableFinalMask(finalmask: unknown): string {
+  if (!hasShareableFinalMaskValue(finalmask)) {
+    return '';
+  }
+  try {
+    return JSON.stringify(finalmask);
+  } catch {
+    return '';
+  }
+}
+
+function hasShareableFinalMaskValue(value: unknown): boolean {
+  if (value == null) {
+    return false;
+  }
+  if (Array.isArray(value)) {
+    return value.some(hasShareableFinalMaskValue);
+  }
+  if (typeof value === 'object') {
+    return Object.values(value).some(hasShareableFinalMaskValue);
+  }
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+  return true;
 }
 
 function hasUsableTlsCertificateEntry(value: unknown): boolean {

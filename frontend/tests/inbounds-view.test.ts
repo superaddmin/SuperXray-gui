@@ -104,6 +104,19 @@ test('hysteria default TLS async fill does not overwrite user-entered certificat
   assert.match(source, /streamEditor\.tlsKeyFile\.trim\(\)/);
 });
 
+test('hysteria stream editor keeps uTLS none instead of chrome fallback', () => {
+  assert.match(source, /function defaultTlsFingerprintForProtocol/);
+  assert.match(source, /isHysteriaProtocol\(protocol\) \? '' : 'chrome'/);
+  assert.match(
+    source,
+    /tlsFingerprint:\s*stringField\(tlsClientSettings\.fingerprint\) \|\|\s*defaultTlsFingerprintForProtocol\(inboundEditor\.protocol\)/,
+  );
+  assert.match(
+    source,
+    /fingerprint:\s*streamEditor\.tlsFingerprint \|\| defaultTlsFingerprintForProtocol\(inboundEditor\.protocol\)/,
+  );
+});
+
 test('inbounds detail keeps visible share and subscription export actions', () => {
   assert.match(source, /Export Share Links/);
   assert.match(source, /Export Subscription Links/);

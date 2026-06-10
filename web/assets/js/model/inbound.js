@@ -1650,6 +1650,7 @@ class Inbound extends XrayCommonClass {
             this.stream.security = 'tls';
             // Hysteria runs over QUIC and must not inherit TCP TLS ALPN defaults.
             this.stream.tls.alpn = [ALPN_OPTION.H3];
+            this.stream.tls.settings.fingerprint = '';
         }
     }
 
@@ -2148,7 +2149,7 @@ class Inbound extends XrayCommonClass {
 
     genHysteriaLink(address = '', port = this.port, remark = '', clientAuth) {
         const protocol = this.settings.version == 2 ? "hysteria2" : "hysteria";
-        const link = `${protocol}://${clientAuth}@${address}:${port}`;
+        const link = `${protocol}://${encodeURIComponent(clientAuth || '')}@${address}:${port}`;
 
         const params = new Map();
         params.set("security", "tls");
@@ -2169,6 +2170,10 @@ class Inbound extends XrayCommonClass {
         }
 
         Inbound.applyFinalMaskToParams(this.stream.finalmask, params);
+        const hopPorts = this.stream?.finalmask?.quicParams?.udpHop?.ports;
+        if (typeof hopPorts === 'string' && hopPorts.trim().length > 0) {
+            params.set("mport", hopPorts.trim());
+        }
 
         const url = new URL(link);
         for (const [key, value] of params) {

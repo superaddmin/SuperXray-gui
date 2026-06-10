@@ -235,7 +235,7 @@ export function generateProtocolToolCombo(input: ProtocolToolInput): ProtocolToo
         saveToXray: true,
         summary: 'Hysteria2 over TLS',
         clientOutbound: jsonText(outbound),
-        shareLink: `hysteria2://${password}@${server}:${port}?security=tls&sni=${encodeURIComponent(sni)}#hysteria2`,
+        shareLink: `hysteria2://${password}@${server}:${port}?security=tls&sni=${encodeURIComponent(sni)}&alpn=h3#hysteria2`,
       };
     }
     case 'tuic-singbox':

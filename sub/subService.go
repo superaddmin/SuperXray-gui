@@ -391,7 +391,7 @@ func (s *SubService) genTrojanLink(inbound *model.Inbound, email string) string 
 	if !ok {
 		return ""
 	}
-	password := node.Client.Password
+	password := encodeUserinfo(node.Client.Password)
 	params := make(map[string]string)
 	params["type"] = node.StreamNetwork
 
@@ -490,7 +490,7 @@ func (s *SubService) genHysteriaLink(inbound *model.Inbound, email string) strin
 	if !ok {
 		return ""
 	}
-	auth := node.Client.Auth
+	auth := encodeUserinfo(node.Client.Auth)
 	params := make(map[string]string)
 
 	params["security"] = "tls"
@@ -512,7 +512,9 @@ func (s *SubService) genHysteriaLink(inbound *model.Inbound, email string) strin
 	tlsSettings, _ := searchKey(tlsSetting, "settings")
 	if tlsSetting != nil {
 		if fpValue, ok := searchKey(tlsSettings, "fingerprint"); ok {
-			params["fp"], _ = fpValue.(string)
+			if fp, _ := fpValue.(string); strings.TrimSpace(fp) != "" {
+				params["fp"] = fp
+			}
 		}
 		if insecure, ok := searchKey(tlsSettings, "allowInsecure"); ok {
 			if insecureValue, ok := insecure.(bool); ok && insecureValue {
@@ -538,6 +540,9 @@ func (s *SubService) genHysteriaLink(inbound *model.Inbound, email string) strin
 			}
 		}
 	}
+	if hopPorts := hysteriaHopPorts(node.Stream); hopPorts != "" {
+		params["mport"] = hopPorts
+	}
 
 	version, _ := node.Settings["version"].(float64)
 	protocol := "hysteria2"
@@ -554,27 +559,23 @@ func (s *SubService) genHysteriaLink(inbound *model.Inbound, email string) strin
 			}
 
 			link := fmt.Sprintf("%s://%s@%s:%d", protocol, auth, entry.Dest, entry.Port)
-			u, _ := url.Parse(link)
-			q := u.Query()
-			for k, v := range params {
-				q.Add(k, v)
-			}
-			u.RawQuery = q.Encode()
-			u.Fragment = s.genRemark(inbound, email, entry.Remark)
-			links = append(links, u.String())
+			links = append(links, buildLinkWithParams(link, params, s.genRemark(inbound, email, entry.Remark)))
 		}
 		return strings.Join(links, "\n")
 	}
 
 	link := fmt.Sprintf("%s://%s@%s:%d", protocol, auth, node.Address, node.Port)
-	url, _ := url.Parse(link)
-	q := url.Query()
-	for k, v := range params {
-		q.Add(k, v)
-	}
-	url.RawQuery = q.Encode()
-	url.Fragment = s.genRemark(inbound, email, "")
-	return url.String()
+	return buildLinkWithParams(link, params, s.genRemark(inbound, email, ""))
+}
+
+// hysteriaHopPorts returns finalmask.quicParams.udpHop.ports as the
+// Hysteria2 URI `mport` value while keeping the URL authority port numeric.
+func hysteriaHopPorts(stream map[string]any) string {
+	finalmask, _ := stream["finalmask"].(map[string]any)
+	quicParams, _ := finalmask["quicParams"].(map[string]any)
+	udpHop, _ := quicParams["udpHop"].(map[string]any)
+	ports, _ := udpHop["ports"].(string)
+	return strings.TrimSpace(ports)
 }
 
 func (s *SubService) resolveInboundAddress(inbound *model.Inbound) string {
@@ -882,37 +883,51 @@ func (s *SubService) buildVmessExternalProxyLinks(externalProxies []any, baseObj
 }
 
 func buildLinkWithParams(link string, params map[string]string, fragment string) string {
-	parsedURL, _ := url.Parse(link)
-	q := parsedURL.Query()
-	for k, v := range params {
-		if v == "" {
-			continue
-		}
-		q.Add(k, v)
-	}
-	parsedURL.RawQuery = q.Encode()
-	parsedURL.Fragment = fragment
-	return parsedURL.String()
+	return appendQueryAndFragment(link, params, fragment, "", false)
 }
 
 func buildLinkWithParamsAndSecurity(link string, params map[string]string, fragment, security string, omitTLSFields bool) string {
-	parsedURL, _ := url.Parse(link)
-	q := parsedURL.Query()
+	return appendQueryAndFragment(link, params, fragment, security, omitTLSFields)
+}
+
+func encodeUserinfo(value string) string {
+	return strings.ReplaceAll(url.QueryEscape(value), "+", "%20")
+}
+
+func appendQueryAndFragment(link string, params map[string]string, fragment, securityOverride string, omitTLSFields bool) string {
+	var builder strings.Builder
+	builder.WriteString(link)
+
+	q := url.Values{}
 	for k, v := range params {
-		if k == "security" {
-			v = security
+		if securityOverride != "" && k == "security" {
+			v = securityOverride
 		}
 		if v == "" {
 			continue
 		}
-		if omitTLSFields && (k == "alpn" || k == "sni" || k == "fp") {
+		if omitTLSFields && (k == "alpn" || k == "sni" || k == "fp" || k == "pcs") {
 			continue
 		}
 		q.Add(k, v)
 	}
-	parsedURL.RawQuery = q.Encode()
-	parsedURL.Fragment = fragment
-	return parsedURL.String()
+	if encoded := q.Encode(); encoded != "" {
+		if strings.Contains(link, "?") {
+			if !strings.HasSuffix(link, "?") && !strings.HasSuffix(link, "&") {
+				builder.WriteByte('&')
+			}
+		} else {
+			builder.WriteByte('?')
+		}
+		builder.WriteString(encoded)
+	}
+
+	if fragment != "" {
+		builder.WriteByte('#')
+		builder.WriteString(strings.ReplaceAll(url.QueryEscape(fragment), "+", "%20"))
+	}
+
+	return builder.String()
 }
 
 func (s *SubService) buildExternalProxyURLLinks(

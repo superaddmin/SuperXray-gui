@@ -122,3 +122,35 @@ test('proxy URI import rejects missing or invalid ports', () => {
     assert.equal(Outbound.fromLink('socks5://127.0.0.1'), null);
     assert.equal(Outbound.fromLink('http://127.0.0.1:70000'), null);
 });
+
+test('hysteria2 URI imports TLS h3 and UDP hop ports without uTLS default', () => {
+    const { Outbound, Protocols } = loadOutboundModel();
+
+    const outbound = Outbound.fromLink(
+        'hysteria2://hy2%2Fauth%3Dwith%20padding@hy.example:443?security=tls&sni=hy.example&alpn=h3&mport=40000-45000&hop-interval=5-10#hy2',
+    );
+
+    assert.ok(outbound);
+    assert.equal(outbound.protocol, Protocols.Hysteria);
+    assert.equal(outbound.stream.network, 'hysteria');
+    assert.equal(outbound.stream.security, 'tls');
+    assert.equal(outbound.stream.hysteria.auth, 'hy2/auth=with padding');
+    assert.equal(outbound.stream.tls.serverName, 'hy.example');
+    assert.deepEqual(Array.from(outbound.stream.tls.alpn), ['h3']);
+    assert.equal(outbound.stream.tls.fingerprint, '');
+    assert.equal(outbound.stream.finalmask.quicParams.udpHop.ports, '40000-45000');
+    assert.equal(outbound.stream.finalmask.quicParams.udpHop.interval, '5-10');
+});
+
+test('hysteria2 URI import keeps auth and salamander obfs password separate', () => {
+    const { Outbound } = loadOutboundModel();
+
+    const outbound = Outbound.fromLink(
+        'hysteria2://hy2-auth@hy.example:443?security=tls&obfs=salamander&obfs-password=obfs-secret#hy2',
+    );
+
+    assert.ok(outbound);
+    assert.equal(outbound.stream.hysteria.auth, 'hy2-auth');
+    assert.equal(outbound.stream.finalmask.udp[0].type, 'salamander');
+    assert.equal(outbound.stream.finalmask.udp[0].settings.password, 'obfs-secret');
+});

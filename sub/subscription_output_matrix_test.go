@@ -75,7 +75,7 @@ func TestSubscriptionOutputMatrixCoversLinksJSONAndClash(t *testing.T) {
 			name:         "hysteria2",
 			inbound:      matrixHysteriaInbound(12005, matrixHysteriaClient("matrix-hy2@example")),
 			client:       matrixHysteriaClient("matrix-hy2@example"),
-			linkContains: []string{"hysteria2://matrix-hy2-auth@", "obfs=salamander", "obfs-password=matrix-obfs-pass"},
+			linkContains: []string{"hysteria2://matrix-hy2-auth@", "obfs=salamander", "obfs-password=matrix-obfs-pass", "mport=40000-45000"},
 			jsonProtocol: "hysteria",
 			clashType:    "hysteria2",
 		},
@@ -103,6 +103,9 @@ func TestSubscriptionOutputMatrixCoversLinksJSONAndClash(t *testing.T) {
 				if !ok || streamSettings["finalmask"] == nil {
 					t.Fatalf("hysteria2 json streamSettings missing finalmask obfs block: %#v", outbound["streamSettings"])
 				}
+				if strings.Contains(link, "fp=") {
+					t.Fatalf("hysteria2 subscription link exported empty uTLS fingerprint: %s", link)
+				}
 			}
 
 			proxies := clashService.getProxies(cloneMatrixInbound(tc.inbound), tc.client, host)
@@ -111,6 +114,9 @@ func TestSubscriptionOutputMatrixCoversLinksJSONAndClash(t *testing.T) {
 			}
 			if proxies[0]["type"] != tc.clashType {
 				t.Fatalf("clash type for %s = %v, want %s", tc.name, proxies[0]["type"], tc.clashType)
+			}
+			if tc.name == "hysteria2" && proxies[0]["ports"] != "40000-45000" {
+				t.Fatalf("clash hysteria2 ports = %v, want 40000-45000", proxies[0]["ports"])
 			}
 		})
 	}
@@ -411,7 +417,7 @@ func matrixHysteriaInbound(port int, client model.Client) *model.Inbound {
 			"alpn":       []string{"h3"},
 			"settings": map[string]any{
 				"allowInsecure": true,
-				"fingerprint":   "chrome",
+				"fingerprint":   "",
 			},
 		},
 		"finalmask": map[string]any{
@@ -421,6 +427,12 @@ func matrixHysteriaInbound(port int, client model.Client) *model.Inbound {
 					"password": "matrix-obfs-pass",
 				},
 			}},
+			"quicParams": map[string]any{
+				"udpHop": map[string]any{
+					"ports":    "40000-45000",
+					"interval": "5-10",
+				},
+			},
 		},
 	})
 }
@@ -488,6 +500,49 @@ func TestBuildLinkWithParamsFiltersEmptyValuesAndOrdersQuery(t *testing.T) {
 	}
 	if !strings.HasSuffix(link, "#remark%20with%20space") {
 		t.Fatalf("link fragment not encoded as expected: %s", link)
+	}
+}
+
+func TestHysteriaLinkEncodesAuthUserinfo(t *testing.T) {
+	client := matrixHysteriaClient("matrix-special-hy2@example")
+	client.Auth = "hy2/auth=with padding"
+	inbound := matrixHysteriaInbound(12014, client)
+	service := &SubService{address: "vpn.example", remarkModel: "-ieo"}
+
+	link := service.genHysteriaLink(inbound, client.Email)
+
+	if !strings.Contains(link, "hysteria2://hy2%2Fauth%3Dwith%20padding@vpn.example:12014") {
+		t.Fatalf("hysteria auth userinfo is not URI-encoded safely: %s", link)
+	}
+	if !strings.Contains(link, "obfs-password=matrix-obfs-pass") {
+		t.Fatalf("hysteria obfs password should stay in query, got: %s", link)
+	}
+}
+
+func TestHysteriaExternalProxyLinkKeepsUdpHopMport(t *testing.T) {
+	client := matrixHysteriaClient("matrix-external-hy2@example")
+	inbound := matrixHysteriaInbound(12015, client)
+	var stream map[string]any
+	if err := json.Unmarshal([]byte(inbound.StreamSettings), &stream); err != nil {
+		t.Fatalf("stream settings invalid: %v", err)
+	}
+	stream["externalProxy"] = []map[string]any{{
+		"forceTls": "same",
+		"dest":     "edge.example",
+		"port":     443,
+		"remark":   "edge",
+	}}
+	streamJSON, _ := json.Marshal(stream)
+	inbound.StreamSettings = string(streamJSON)
+	service := &SubService{address: "vpn.example", remarkModel: "-ieo"}
+
+	link := service.genHysteriaLink(inbound, client.Email)
+
+	if !strings.Contains(link, "hysteria2://matrix-hy2-auth@edge.example:443") {
+		t.Fatalf("hysteria external proxy endpoint missing: %s", link)
+	}
+	if !strings.Contains(link, "mport=40000-45000") {
+		t.Fatalf("hysteria external proxy link should keep UDP hop mport: %s", link)
 	}
 }
 

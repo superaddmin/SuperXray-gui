@@ -3465,7 +3465,9 @@ function syncStreamEditorFromSettings() {
     tlsMaxVersion: stringField(tlsSettings.maxVersion) || '1.3',
     tlsAlpn:
       arrayField(tlsSettings.alpn).join(',') || defaultTlsAlpnForProtocol(inboundEditor.protocol),
-    tlsFingerprint: stringField(tlsClientSettings.fingerprint) || 'chrome',
+    tlsFingerprint:
+      stringField(tlsClientSettings.fingerprint) ||
+      defaultTlsFingerprintForProtocol(inboundEditor.protocol),
     tlsCertificateFile: stringField(firstCertificate.certificateFile),
     tlsKeyFile: stringField(firstCertificate.keyFile),
     tlsRejectUnknownSni: Boolean(tlsSettings.rejectUnknownSni),
@@ -3696,7 +3698,8 @@ function buildTlsSettings(existingTlsSettings: Record<string, unknown>): Record<
     echServerKeys: streamEditor.tlsEchServerKeys,
     echForceQuery: stringField(existingTlsSettings.echForceQuery) || 'none',
     settings: {
-      fingerprint: streamEditor.tlsFingerprint || 'chrome',
+      fingerprint:
+        streamEditor.tlsFingerprint || defaultTlsFingerprintForProtocol(inboundEditor.protocol),
       echConfigList: streamEditor.tlsEchConfigList,
     },
   };
@@ -4175,6 +4178,10 @@ function defaultSecurityForProtocol(protocol: XrayEditableInboundProtocol): stri
 
 function defaultTlsAlpnForProtocol(protocol: XrayEditableInboundProtocol): string {
   return isHysteriaProtocol(protocol) ? 'h3' : 'h2,http/1.1';
+}
+
+function defaultTlsFingerprintForProtocol(protocol: XrayEditableInboundProtocol): string {
+  return isHysteriaProtocol(protocol) ? '' : 'chrome';
 }
 
 function hasUsableTlsCertificate(stream: Record<string, unknown>): boolean {

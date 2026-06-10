@@ -290,6 +290,50 @@ test('new TCP finalmask fragment defaults to a non-zero length range', () => {
     assert.equal(inbound.stream.finalmask.tcp[0].settings.length, '100-200');
 });
 
+test('Hysteria defaults to h3 without uTLS fingerprint', () => {
+    const { Inbound, Protocols } = loadInboundModel();
+
+    const inbound = new Inbound();
+    inbound.protocol = Protocols.HYSTERIA;
+
+    assert.deepEqual(Array.from(inbound.stream.tls.alpn), ['h3']);
+    assert.equal(inbound.stream.tls.settings.fingerprint, '');
+});
+
+test('Hysteria share link exports UDP hop ports as mport', () => {
+    const { Inbound, Protocols } = loadInboundModel();
+
+    const inbound = new Inbound();
+    inbound.protocol = Protocols.HYSTERIA;
+    inbound.settings.version = 2;
+    inbound.stream.finalmask.enableQuicParams = true;
+    inbound.stream.finalmask.quicParams.udpHop = { ports: '40000-45000', interval: '5-10' };
+
+    const link = inbound.genHysteriaLink('203.0.113.20', 443, 'hy2-hop', 'hy2-auth');
+    const url = new URL(link);
+
+    assert.equal(url.searchParams.get('alpn'), 'h3');
+    assert.equal(url.searchParams.get('mport'), '40000-45000');
+    assert.equal(url.searchParams.has('fp'), false);
+});
+
+test('Hysteria share link URI-encodes auth userinfo', () => {
+    const { Inbound, Protocols } = loadInboundModel();
+
+    const inbound = new Inbound();
+    inbound.protocol = Protocols.HYSTERIA;
+    inbound.settings.version = 2;
+
+    const link = inbound.genHysteriaLink(
+        '203.0.113.20',
+        443,
+        'hy2-auth',
+        'hy2/auth=with padding',
+    );
+
+    assert.match(link, /^hysteria2:\/\/hy2%2Fauth%3Dwith%20padding@203\.0\.113\.20:443/);
+});
+
 test('WireGuard peers preserve subscription metadata', () => {
     const { Inbound } = loadInboundModel();
 

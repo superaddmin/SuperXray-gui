@@ -1353,20 +1353,42 @@ class Outbound extends CommonClass {
         if (!match) return null;
 
         let [, password, address, port, params, hash] = match;
+        password = decodeURIComponent(password);
         port = parseInt(port);
 
         // Parse URL parameters if present
         let urlParams = new URLSearchParams(params);
 
-        // Create stream settings with hysteria network
-        let stream = new StreamSettings('hysteria', 'none');
+        // Create stream settings with hysteria network. Hysteria2 always
+        // runs over TLS/QUIC, so keep TLS enabled and default ALPN to h3.
+        let stream = new StreamSettings('hysteria', 'tls');
+        const sni = urlParams.get('sni') ?? '';
+        const alpn = urlParams.get('alpn') ?? 'h3';
+        const fp = urlParams.get('fp') ?? '';
+        stream.tls = new TlsStreamSettings(
+            sni,
+            alpn ? alpn.split(',').filter(Boolean) : ['h3'],
+            fp
+        );
 
         // Set hysteria stream settings
         stream.hysteria.auth = password;
         stream.hysteria.congestion = urlParams.get('congestion') ?? '';
         stream.hysteria.up = urlParams.get('up') ?? '0';
         stream.hysteria.down = urlParams.get('down') ?? '0';
-        stream.hysteria.udphopPort = urlParams.get('udphopPort') ?? '';
+        stream.hysteria.udphopPort = urlParams.get('udphopPort') ?? urlParams.get('mport') ?? '';
+        const hopPorts = urlParams.get('mport') ?? urlParams.get('ports') ?? '';
+        if (hopPorts) {
+            const hopInterval = urlParams.get('hop-interval') ?? urlParams.get('hopInterval') ?? '30';
+            stream.finalmask.enableQuicParams = true;
+            stream.finalmask.quicParams.udpHop = { ports: hopPorts, interval: hopInterval };
+        }
+        if (urlParams.get('obfs') === 'salamander') {
+            const obfsPassword = urlParams.get('obfs-password') ?? '';
+            if (obfsPassword) {
+                stream.finalmask.udp.push(new UdpMask('salamander', { password: obfsPassword }));
+            }
+        }
         // Support both old single interval and new min/max range
         if (urlParams.has('udphopInterval')) {
             const interval = parseInt(urlParams.get('udphopInterval'));

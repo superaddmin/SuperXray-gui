@@ -54,6 +54,29 @@ test('generateProtocolToolCombo returns xray-compatible outbound for vless reali
   assert.doesNotThrow(() => JSON.parse(result.clientOutbound || '{}'));
 });
 
+test('generateProtocolToolCombo keeps Hysteria2 on h3 without uTLS fingerprint', () => {
+  const result = generateProtocolToolCombo({
+    combo: 'hysteria2-tls',
+    server: 'hy2.example',
+    port: 443,
+    password: 'hy2/auth=with padding',
+    sni: 'hy2.example',
+    fingerprint: 'chrome',
+    tag: 'proxy',
+  });
+
+  const outbound = JSON.parse(result.clientOutbound || '{}');
+  const tlsSettings = outbound.streamSettings?.tlsSettings;
+
+  assert.equal(tlsSettings?.serverName, 'hy2.example');
+  assert.deepEqual(tlsSettings?.alpn, ['h3']);
+  assert.equal(tlsSettings?.settings?.fingerprint, undefined);
+  assert.equal(outbound.streamSettings?.hysteriaSettings?.auth, 'hy2/auth=with padding');
+  assert.match(result.shareLink || '', /hysteria2:\/\/hy2%2Fauth%3Dwith%20padding@/);
+  assert.match(result.shareLink || '', /alpn=h3/);
+  assert.doesNotMatch(result.shareLink || '', /fp=chrome/);
+});
+
 test('warp matrix options include openai-specific routing', () => {
   assert.ok(WARP_MATRIX_OPTIONS.some((item) => item.tag === 'warp-openai'));
 });
@@ -104,4 +127,27 @@ test('applyWarpMatrixToTemplate preserves non-warp config and replaces old warp 
 
   assert.deepEqual(result.outbounds.map((row: { tag: string }) => row.tag), ['direct', 'warp', 'warp-openai']);
   assert.equal(result.routing.rules.length, 2);
+});
+
+test('applyWarpMatrixToTemplate does not make plain WARP the global default route', () => {
+  const result = applyWarpMatrixToTemplate(
+    {
+      outbounds: [{ tag: 'direct', protocol: 'freedom' }],
+      routing: {
+        rules: [{ outboundTag: 'direct', domain: ['geosite:cn'] }],
+      },
+    },
+    {
+      mtu: 1420,
+      secretKey: 'private',
+      address: ['172.16.0.2/32'],
+      reserved: [1, 2, 3],
+      peers: [{ publicKey: 'peer', endpoint: '162.159.192.1:2408' }],
+      noKernelTun: false,
+    },
+    ['warp'],
+  );
+
+  assert.deepEqual(result.outbounds.map((row: { tag: string }) => row.tag), ['direct', 'warp']);
+  assert.deepEqual(result.routing.rules, [{ outboundTag: 'direct', domain: ['geosite:cn'] }]);
 });

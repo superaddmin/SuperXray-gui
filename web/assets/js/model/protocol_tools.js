@@ -474,7 +474,7 @@
                 return generateXrayCombo(
                     normalizedInput,
                     outbound,
-                    `hysteria2://${password}@${server}:${port}?security=tls&sni=${encodeURIComponent(sni)}#hysteria2`,
+                    `hysteria2://${password}@${server}:${port}?security=tls&sni=${encodeURIComponent(sni)}&alpn=h3#hysteria2`,
                     'Hysteria2 over TLS',
                 );
             }

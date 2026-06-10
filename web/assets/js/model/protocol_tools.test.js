@@ -121,6 +121,27 @@ test('generates xray vless xhttp reality combo', () => {
     assert.match(result.shareLink, /type=xhttp/);
 });
 
+test('generates xray hysteria2 combo with h3 and no uTLS fingerprint', () => {
+    const result = ProtocolToolGenerator.generateCombo({
+        combo: 'hysteria2-tls',
+        server: 'hy2.example',
+        port: 443,
+        password: 'hy2/auth=with padding',
+        sni: 'hy2.example',
+        fingerprint: 'chrome',
+    });
+
+    assert.equal(result.saveToXray, true);
+    const outbound = JSON.parse(result.clientOutbound);
+    assert.equal(outbound.protocol, 'hysteria');
+    assert.deepEqual(outbound.streamSettings.tlsSettings.alpn, ['h3']);
+    assert.equal(outbound.streamSettings.tlsSettings.settings, undefined);
+    assert.equal(outbound.streamSettings.hysteriaSettings.auth, 'hy2/auth=with padding');
+    assert.match(result.shareLink, /hysteria2:\/\/hy2%2Fauth%3Dwith%20padding@/);
+    assert.match(result.shareLink, /alpn=h3/);
+    assert.doesNotMatch(result.shareLink, /fp=chrome/);
+});
+
 test('builds warp matrix and preserves non-warp config', () => {
     const base = {
         mtu: 1420,
@@ -151,4 +172,26 @@ test('builds warp matrix and preserves non-warp config', () => {
     assert.equal(result.routing.rules[0].outboundTag, 'direct');
     assert.equal(result.routing.rules[1].outboundTag, 'warp-openai');
     assert.deepEqual(result.routing.rules[1].domain, ['geosite:openai']);
+});
+
+test('plain warp matrix does not add a global warp route', () => {
+    const base = {
+        mtu: 1420,
+        secretKey: 'private',
+        address: ['172.16.0.2/32'],
+        reserved: [1, 2, 3],
+        peers: [{ publicKey: 'peer', endpoint: '162.159.192.1:2408' }],
+        noKernelTun: false,
+    };
+    const existing = {
+        outbounds: [{ tag: 'direct', protocol: 'freedom' }],
+        routing: {
+            rules: [{ outboundTag: 'direct', domain: ['geosite:cn'] }],
+        },
+    };
+
+    const result = WarpMatrixBuilder.applyMatrix(existing, base, ['warp']);
+
+    assert.deepEqual(result.outbounds.map(o => o.tag), ['direct', 'warp']);
+    assert.deepEqual(result.routing.rules, [{ outboundTag: 'direct', domain: ['geosite:cn'] }]);
 });

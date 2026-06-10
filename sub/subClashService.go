@@ -368,6 +368,10 @@ func (s *SubClashService) buildHysteriaProxy(inbound *model.Inbound, client mode
 		}
 	}
 
+	if hopPorts := hysteriaHopPorts(rawStream); hopPorts != "" {
+		proxy["ports"] = hopPorts
+	}
+
 	return proxy
 }
 

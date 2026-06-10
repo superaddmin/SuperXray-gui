@@ -5,6 +5,7 @@ import {
   applyPanelDefaultTlsCertificate,
   buildClientSubscriptionLinks,
   buildInboundShareLinks,
+  defaultStreamSettings,
   generateBulkClientProfiles,
   mergeSubscriptionEndpointDefaults,
 } from '../src/utils/inboundCompat.ts';
@@ -180,6 +181,57 @@ test('applyPanelDefaultTlsCertificate preserves existing inline TLS certificate 
       key: ['-----BEGIN PRIVATE KEY-----', 'MIIB', '-----END PRIVATE KEY-----'],
     },
   ]);
+});
+
+test('defaultStreamSettings keeps Hysteria2 on h3 without uTLS fingerprint', () => {
+  const stream = defaultStreamSettings('hysteria2');
+  const tlsSettings = stream.tlsSettings as Record<string, unknown>;
+  const tlsClientSettings = tlsSettings.settings as Record<string, unknown>;
+
+  assert.deepEqual(tlsSettings.alpn, ['h3']);
+  assert.equal(tlsClientSettings.fingerprint, '');
+});
+
+test('buildInboundShareLinks exports Hysteria2 UDP hop ports without default fp', () => {
+  const links = buildInboundShareLinks({
+    protocol: 'hysteria',
+    remark: 'hy2-hop',
+    listen: '203.0.113.20',
+    port: 443,
+    settings: JSON.stringify({
+      version: 2,
+      clients: [{ email: 'hy2@example.com', auth: 'hy2-auth', enable: true }],
+    }),
+    streamSettings: JSON.stringify({
+      network: 'hysteria',
+      security: 'tls',
+      tlsSettings: {
+        serverName: 'hy2.example',
+        alpn: ['h3'],
+        settings: { fingerprint: '' },
+      },
+      finalmask: {
+        udp: [
+          {
+            type: 'salamander',
+            settings: { password: 'obfs-pass' },
+          },
+        ],
+        quicParams: {
+          udpHop: { ports: '40000-45000', interval: '5-10' },
+        },
+      },
+    }),
+  } as never);
+
+  assert.equal(links.length, 1);
+  const link = new URL(links[0]);
+  assert.equal(link.searchParams.get('alpn'), 'h3');
+  assert.equal(link.searchParams.get('mport'), '40000-45000');
+  assert.equal(link.searchParams.get('obfs'), 'salamander');
+  assert.equal(link.searchParams.get('obfs-password'), 'obfs-pass');
+  assert.match(link.searchParams.get('fm') || '', /"udpHop"/);
+  assert.equal(link.searchParams.has('fp'), false);
 });
 
 test('buildInboundShareLinks exports single-user Shadowsocks links like legacy UI', () => {
