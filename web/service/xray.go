@@ -3,11 +3,16 @@ package service
 import (
 	"encoding/json"
 	"errors"
+	"path"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
+	"github.com/superaddmin/SuperXray-gui/v2/config"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
+	"github.com/superaddmin/SuperXray-gui/v2/util/json_util"
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
 
 	"go.uber.org/atomic"
@@ -103,6 +108,7 @@ func (s *XrayService) GetXrayConfig() (*xray.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	xrayConfig.LogConfig = resolveXrayLogPaths(xrayConfig.LogConfig)
 
 	if err, _ := s.inboundService.AddTraffic(nil, nil); err != nil {
 		return nil, err
@@ -206,6 +212,54 @@ func (s *XrayService) GetXrayConfig() (*xray.Config, error) {
 		xrayConfig.InboundConfigs = append(xrayConfig.InboundConfigs, *inboundConfig)
 	}
 	return xrayConfig, nil
+}
+
+// resolveXrayLogPaths confines Xray log.access/log.error values to the panel
+// log folder. This preserves "" and "none" as disabled values, but reduces any
+// user-provided path to its basename to prevent absolute-path or traversal
+// writes outside config.GetLogFolder().
+func resolveXrayLogPaths(logCfg json_util.RawMessage) json_util.RawMessage {
+	if len(logCfg) == 0 {
+		return logCfg
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(logCfg, &parsed); err != nil {
+		return logCfg
+	}
+
+	changed := false
+	for _, key := range []string{"access", "error"} {
+		value, ok := parsed[key].(string)
+		if !ok {
+			continue
+		}
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" || strings.EqualFold(trimmed, "none") {
+			continue
+		}
+
+		base := path.Base(filepath.ToSlash(trimmed))
+		if base == "" || base == "." || base == ".." || base == "/" {
+			continue
+		}
+
+		confined := filepath.Join(config.GetLogFolder(), base)
+		if confined == value {
+			continue
+		}
+		parsed[key] = confined
+		changed = true
+	}
+
+	if !changed {
+		return logCfg
+	}
+	out, err := json.Marshal(parsed)
+	if err != nil {
+		return logCfg
+	}
+	return out
 }
 
 // GetXrayTraffic fetches the current traffic statistics from the running Xray process.

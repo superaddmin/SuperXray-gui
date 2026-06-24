@@ -31,6 +31,18 @@ def version_reference_pattern(version: str) -> str:
     return rf"(^|[^0-9A-Za-z.])v?{escaped}([^0-9A-Za-z-]|$)"
 
 
+def filter_allowed_stale_version_references(grep_output: str) -> str:
+    """Keep stale SuperXray references while allowing upstream 3x-ui baselines."""
+    findings: list[str] = []
+    for line in grep_output.splitlines():
+        is_upstream_policy = line.startswith("docs/upstream-sync-policy.md:")
+        is_3x_ui_reference = re.search(r"\b(?:MHSanaei/)?3x-ui\b", line, re.IGNORECASE)
+        if is_upstream_policy and is_3x_ui_reference:
+            continue
+        findings.append(line)
+    return "\n".join(findings)
+
+
 class Gate:
     def __init__(self, root: pathlib.Path, args: argparse.Namespace) -> None:
         self.root = root
@@ -201,6 +213,7 @@ class Gate:
             if stale_result.returncode not in (0, 1):
                 raise RuntimeError(stale_result.stderr or stale_result.stdout)
             stale = stale_result.stdout
+            stale = filter_allowed_stale_version_references(stale)
             if stale.strip():
                 raise RuntimeError(f"stale version references found:\n{stale}")
         tag = self.release_tag()

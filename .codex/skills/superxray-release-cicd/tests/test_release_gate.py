@@ -119,6 +119,16 @@ class ReleaseMetadataTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "stale version references"):
             self.make_gate(self.make_repo(files)).check_release_metadata()
 
+    def test_release_metadata_allows_upstream_3x_ui_version_references(self) -> None:
+        files = self.base_files()
+        files["docs/upstream-sync-policy.md"] = (
+            "> 当前上游基线：`3x-ui upstream tag v3.0.7` = `abcdef123`\n"
+            "- 选择性同步 `3x-ui v3.0.7` 的安全修复。\n"
+            "- Historical upstream 3x-ui v3.0.3 radar entry.\n"
+        )
+
+        self.make_gate(self.make_repo(files)).check_release_metadata()
+
     def test_release_metadata_does_not_match_current_version_prefixes(self) -> None:
         files = {
             "CHANGELOG.md": (

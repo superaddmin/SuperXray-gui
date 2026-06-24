@@ -1,0 +1,6 @@
+*.sh text eol=lf
+DockerInit.sh text eol=lf
+DockerEntrypoint.sh text eol=lf
+frontend/public/openapi.json text eol=lf
+frontend/tests/** text eol=lf
+web/ui/openapi.json text eol=lf
