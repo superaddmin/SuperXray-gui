@@ -24,19 +24,129 @@ As an enhanced fork of the original X-UI project, SuperXray provides improved st
 
 ## Current Vue UI
 
-The new Vue 3 operations UI now includes a front-loaded Xray workspace navigation and a Gateway Egress MVP panel. The MVP only generates Xray-compatible SOCKS5 inbounds and a Gateway CSV registration manifest; it does not add egress database models, take over CoreManager lifecycle, or promote sing-box to a production path.
+The Vue 3 operations UI now centers the dashboard, inbound management, outbound tools, settings, and bot/integration pages. The screenshots below use the latest UI assets in `media/` and replace the older mixed references.
 
-<p align="center">
-  <img src="./docs/assets/xray-mvp-desktop.png" alt="Xray workspace and Gateway Egress MVP desktop view" width="720">
-</p>
+<table>
+  <tr>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./media/01-overview-dark.png">
+        <img src="./media/01-overview-light.png" alt="Dashboard overview" width="400">
+      </picture>
+    </td>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./media/02-inbounds-dark.png">
+        <img src="./media/02-inbounds-light.png" alt="Inbound list" width="400">
+      </picture>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">Dashboard overview</td>
+    <td align="center">Inbound list</td>
+  </tr>
+  <tr>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./media/03-add-inbound-dark.png">
+        <img src="./media/03-add-inbound-light.png" alt="Add inbound dialog" width="400">
+      </picture>
+    </td>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./media/04-add-client-dark.png">
+        <img src="./media/04-add-client-light.png" alt="Add client dialog" width="400">
+      </picture>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">Add inbound</td>
+    <td align="center">Add client</td>
+  </tr>
+  <tr>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./media/05-settings-dark.png">
+        <img src="./media/05-settings-light.png" alt="Settings page" width="400">
+      </picture>
+    </td>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./media/06-configs-dark.png">
+        <img src="./media/06-configs-light.png" alt="Xray configuration and outbound tools" width="400">
+      </picture>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">Settings</td>
+    <td align="center">Xray configuration and outbound tools</td>
+  </tr>
+  <tr>
+    <td>
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="./media/07-bot-dark.png">
+        <img src="./media/07-bot-light.png" alt="Bot integration configuration" width="400">
+      </picture>
+    </td>
+    <td></td>
+  </tr>
+  <tr>
+    <td align="center">Bot / integration setup</td>
+    <td></td>
+  </tr>
+</table>
 
-<p align="center">
-  <img src="./docs/assets/xray-mvp-mobile.png" alt="Gateway Egress MVP mobile view" width="240">
-</p>
+### Inbound Setup Guide
 
-- `listenHost` is written to the generated Xray inbound listen address.
-- `manifestHost` is written to Gateway CSV `host` rows, so Docker bridge deployments can register a Gateway-reachable address instead of unusable container-local loopback.
-- The current MVP keeps the existing Xray template save path as the only persistence path.
+1. Open the **Inbounds** page. It shows every listener, its protocol, transport, client count, traffic totals, and enable switch.
+   <p align="center">
+     <img src="./media/02-inbounds-light.png" alt="Inbound list page" width="720">
+   </p>
+
+2. Click **New Inbound** to open the create dialog. This form is where you define the protocol, remark, listen address, port, traffic limit, expiry, and enabled state.
+   <p align="center">
+     <img src="./media/03-add-inbound-light.png" alt="Add inbound dialog" width="720">
+   </p>
+
+3. Choose the protocol first. Common proxy protocols such as VMess, VLESS, Trojan, Shadowsocks, Hysteria2, and WireGuard support client management and sharing. Tunnel, HTTP, Mixed, and Tun are valid Xray listeners, but they are not subscription nodes.
+
+4. Fill in the listener fields:
+   - `Listen` controls the bind address.
+   - `Port` must be unique on the server.
+   - `Traffic Limit GB`, `Expiry Timestamp`, and `Traffic Reset` are optional lifecycle controls.
+   - `Enable` turns the inbound on immediately after saving.
+
+5. If the protocol exposes stream settings, open the transport section and set the network, security, TLS, Reality, or protocol-specific fields. The form stays synchronized with the legacy Xray JSON template.
+
+6. Save the inbound and open **Details** on the row you just created. The drawer shows live activity, online clients, traffic counters, and the share/export actions.
+
+7. Add a client from the drawer or the row action menu. Set the email, traffic limit, expiry, and protocol-specific credentials, then save.
+   <p align="center">
+     <img src="./media/04-add-client-light.png" alt="Add client dialog" width="720">
+   </p>
+
+8. Use **Share**, **Access**, **Reset**, and **Export** to generate share links, QR codes, subscription snippets, or JSON for external clients.
+
+### Outbound Setup Guide
+
+1. Open the **Xray** workspace from the main navigation. The page starts with the Gateway Egress MVP block, then outbound tools, structured outbounds, and routing rules.
+   <p align="center">
+     <img src="./media/06-configs-light.png" alt="Xray configuration and outbound tools" width="720">
+   </p>
+
+2. In **Outbound Tools**, use **Refresh Traffic** to inspect current counters and **Test First Outbound** to verify the active first outbound against the saved outbound test URL.
+
+3. In **Residential IP Pool**, add or edit SOCKS5 outbounds when you need dedicated egress entries. These rows stay inside the existing Xray template and can be tested individually.
+
+4. In **Outbounds**, add, reorder, edit, or delete outbound blocks in the template. Keep the first outbound aligned with the path you want to test most often.
+
+5. In **Routing Rules**, map domains or inbound tags to the intended outbound tags. Use the structured editor to keep AI, residential, and general traffic separated.
+
+6. If you only need a local Gateway entry, use the Gateway Egress MVP fields at the top of the Xray page. It generates Xray-compatible SOCKS5 inbounds and a CSV manifest, without creating new database models.
+
+7. The MVP uses `listenHost` for the generated Xray inbound listen address and `manifestHost` for the Gateway CSV host rows, so Docker bridge deployments can register a Gateway-reachable address instead of a container-local loopback.
+
+8. The current MVP keeps the existing Xray template save path as the only persistence path.
 
 ## Quick Start
 
