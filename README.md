@@ -82,17 +82,15 @@ The Vue 3 operations UI now centers the dashboard, inbound management, outbound 
     <td align="center">Xray configuration and outbound tools</td>
   </tr>
   <tr>
-    <td>
+    <td colspan="2" align="center">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="./media/07-bot-dark.png">
         <img src="./media/07-bot-light.png" alt="Bot integration configuration" width="400">
       </picture>
     </td>
-    <td></td>
   </tr>
   <tr>
-    <td align="center">Bot / integration setup</td>
-    <td></td>
+    <td colspan="2" align="center">Bot / integration setup</td>
   </tr>
 </table>
 
