@@ -51,7 +51,7 @@ export const xrayProtocolRegistry: Record<XrayEditableInboundProtocol, ProtocolR
     category: 'proxy',
     color: 'volcano',
     coreTypes: ['xray'],
-    capabilities: { clients: false, stream: false, tls: false, sniffing: true, shareLink: false },
+    capabilities: { clients: false, stream: false, tls: false, sniffing: true, shareLink: true },
   },
   trojan: {
     protocol: 'trojan',
@@ -75,7 +75,7 @@ export const xrayProtocolRegistry: Record<XrayEditableInboundProtocol, ProtocolR
     category: 'proxy',
     color: 'magenta',
     coreTypes: ['xray'],
-    capabilities: { clients: false, stream: false, tls: false, sniffing: true, shareLink: false },
+    capabilities: { clients: false, stream: false, tls: false, sniffing: true, shareLink: true },
   },
   wireguard: {
     protocol: 'wireguard',

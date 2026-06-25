@@ -91,6 +91,26 @@ func (s *SubService) GetSubs(subId string, host string) ([]string, int64, xray.C
 			}
 			continue
 		}
+		if isProxyAccountProtocol(inbound.Protocol) {
+			accounts, err := proxyAccountsBySubID(inbound, subId)
+			if err != nil {
+				logger.Error("SubService - Proxy accounts: Unable to get accounts from inbound")
+				continue
+			}
+			for _, account := range accounts {
+				var link string
+				switch inbound.Protocol {
+				case model.HTTP:
+					link = requestService.genHTTPProxyLink(inbound, account)
+				case model.Mixed:
+					link = requestService.genSocks5ProxyLink(inbound, account)
+				}
+				if link != "" {
+					result = append(result, link)
+				}
+			}
+			continue
+		}
 
 		clients, err := s.inboundService.GetClients(inbound)
 		if err != nil {
@@ -162,12 +182,22 @@ func (s *SubService) getInboundsBySubId(subId string) ([]*model.Inbound, error) 
 			)
 			OR (
 				protocol IN ?
+				AND (
+					JSON_EXTRACT(inbounds.settings, '$.subId') = ?
+					OR EXISTS (
+						SELECT 1 FROM JSON_EACH(JSON_EXTRACT(inbounds.settings, '$.accounts')) AS account
+						WHERE JSON_EXTRACT(account.value, '$.subId') = ?
+					)
+				)
+			)
+			OR (
+				protocol IN ?
 				AND EXISTS (
 					SELECT 1 FROM JSON_EACH(JSON_EXTRACT(inbounds.settings, '$.peers')) AS peer
 					WHERE JSON_EXTRACT(peer.value, '$.subId') = ?
 				)
 			)
-		)`, true, subscriptionClientProtocols(), subId, subscriptionPeerProtocols(), subId).Find(&inbounds).Error
+		)`, true, subscriptionStandardClientProtocols(), subId, subscriptionProxyAccountProtocols(), subId, subId, subscriptionPeerProtocols(), subId).Find(&inbounds).Error
 	if err != nil {
 		return nil, err
 	}

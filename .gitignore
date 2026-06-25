@@ -29,10 +29,19 @@
 .superpowers/
 .cache/
 .playwright-mcp/
+.pytest_cache/
 .sync*
 .reports/
 output/
 superxray-*.png
+companion-*.png
+companion-*.md
+reference-*.png
+reference-*-snapshot.md
+ui-refresh-*.png
+project_bug_analysis_report.md
+static_analysis_*.json
+static_analysis_*.md
 
 # Ignore log files
 *.log
@@ -49,9 +58,11 @@ bin/
 dist/
 release/
 node_modules/
+coverage/
 playwright-report/
 test-results/
 tests/e2e/.auth/
+*.tsbuildinfo
 
 # Ignore compiled binaries
 main
@@ -81,6 +92,8 @@ docker-compose.override.yml
 # Ignore .env (Environment Variables) file
 .env
 .env.*
+!.env.example
+!.env.*.example
 
 # Ignore local operational audit artifacts containing real server/subscription/proxy details.
 docs/server-*-inbound-subscription-audit-*.txt
@@ -90,6 +103,8 @@ docs/private-ops/
 *.credentials.*
 **/*secrets*
 **/*credentials*
+!web/service/shadowsocks_credentials.go
+!web/service/shadowsocks_credentials_test.go
 
 # Ignore compiled binary (build output)
 SuperXray-gui

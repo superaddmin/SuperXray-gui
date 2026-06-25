@@ -66,6 +66,17 @@ interface ShareLinkTarget extends ShareLinkBuildOptions {
   remark: string;
 }
 
+interface ProxyAccount {
+  user?: string;
+  pass?: string;
+  subId?: string;
+  remark?: string;
+  email?: string;
+  comment?: string;
+  enable?: boolean;
+  enabled?: boolean;
+}
+
 export interface BulkClientGenerationInput {
   protocol: XrayEditableInboundProtocol;
   quantity: number;
@@ -337,10 +348,11 @@ export function stringifyJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
-function defaultProxyAccount(): { user: string; pass: string } {
+function defaultProxyAccount(): { user: string; pass: string; subId: string } {
   return {
     user: randomLowerToken(10),
     pass: randomLowerToken(10),
+    subId: randomLowerToken(16),
   };
 }
 
@@ -449,6 +461,10 @@ export function buildClientShareLink(
 }
 
 export function buildInboundShareLinks(inbound: Inbound): string[] {
+  if (inbound.protocol === 'http' || inbound.protocol === 'mixed') {
+    return buildProxyAccountShareLinks(inbound);
+  }
+
   const targetsForClient = (clientEmail = '') => buildShareLinkTargets(inbound, clientEmail);
 
   if (
@@ -736,6 +752,55 @@ function buildWireguardShareLink(
   }
   url.hash = encodeURIComponent(shareLinkRemark(inbound, client, options));
   return url.toString();
+}
+
+function buildProxyAccountShareLinks(inbound: Inbound): string[] {
+  const settings = parseInboundSettings(inbound);
+  const accounts = Array.isArray(settings.accounts)
+    ? settings.accounts.map(normalizeProxyAccount).filter(Boolean)
+    : [];
+  if (accounts.length === 0 && settings.subId) {
+    accounts.push({});
+  }
+  return accounts
+    .filter((account) => account.enable !== false && account.enabled !== false)
+    .map((account) => buildProxyAccountShareLink(inbound, account))
+    .filter(hasText);
+}
+
+function normalizeProxyAccount(value: unknown): ProxyAccount {
+  const account = asRecord(value);
+  return {
+    user: stringValue(account.user || account.username),
+    pass: stringValue(account.pass || account.password),
+    subId: stringValue(account.subId || account.subID || account.sub_id),
+    remark: stringValue(account.remark || account.name),
+    email: stringValue(account.email),
+    comment: stringValue(account.comment),
+    enable: typeof account.enable === 'boolean' ? account.enable : undefined,
+    enabled: typeof account.enabled === 'boolean' ? account.enabled : undefined,
+  };
+}
+
+function buildProxyAccountShareLink(inbound: Inbound, account: ProxyAccount): string {
+  const scheme = inbound.protocol === 'mixed' ? 'socks5' : 'http';
+  const auth =
+    account.user || account.pass
+      ? `${encodeURIComponent(account.user || '')}${
+          account.pass ? `:${encodeURIComponent(account.pass)}` : ''
+        }@`
+      : '';
+  const remark =
+    account.remark ||
+    account.email ||
+    account.comment ||
+    inbound.remark ||
+    inbound.tag ||
+    `inbound-${inbound.port}`;
+  return `${scheme}://${auth}${shareLinkAddress(inbound, {})}:${shareLinkPort(
+    inbound,
+    {},
+  )}#${encodeURIComponent(remark)}`;
 }
 
 function buildShareLinkTargets(inbound: Inbound, clientEmail: string): ShareLinkTarget[] {

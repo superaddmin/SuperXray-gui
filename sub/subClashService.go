@@ -71,6 +71,19 @@ func (s *SubClashService) GetClash(subId string, host string) (string, string, e
 			}
 			continue
 		}
+		if isProxyAccountProtocol(inbound.Protocol) {
+			accounts, err := proxyAccountsBySubID(inbound, subId)
+			if err != nil {
+				logger.Error("SubClashService - Proxy accounts: Unable to get accounts from inbound")
+				continue
+			}
+			for _, account := range accounts {
+				if proxy := s.buildProxyAccountProxy(inbound, account, host, ""); len(proxy) > 0 {
+					proxies = append(proxies, proxy)
+				}
+			}
+			continue
+		}
 
 		clients, err := s.inboundService.GetClients(inbound)
 		if err != nil {
@@ -289,6 +302,41 @@ func (s *SubClashService) buildProxy(inbound *model.Inbound, client model.Client
 	}
 
 	return proxy
+}
+
+func (s *SubClashService) buildProxyAccountProxy(inbound *model.Inbound, account proxyAccount, host string, extraRemark string) map[string]any {
+	server := inbound.Listen
+	if server == "" || server == "0.0.0.0" || server == "::" || server == "::0" {
+		server = host
+	}
+	proxy := map[string]any{
+		"name":   s.SubService.genProxyAccountRemark(inbound, account, extraRemark),
+		"server": server,
+		"port":   inbound.Port,
+	}
+	if proxyAccountUsesAuth(account) {
+		proxy["username"] = account.User
+		proxy["password"] = account.Pass
+	}
+	switch inbound.Protocol {
+	case model.HTTP:
+		proxy["type"] = "http"
+	case model.Mixed:
+		proxy["type"] = "socks5"
+		proxy["udp"] = mixedProxyUDPEnabled(inbound)
+	default:
+		return nil
+	}
+	return proxy
+}
+
+func mixedProxyUDPEnabled(inbound *model.Inbound) bool {
+	var settings map[string]any
+	if !decodeJSONString(inbound.Settings, &settings, "mixed proxy settings") {
+		return false
+	}
+	udp, _ := settings["udp"].(bool)
+	return udp
 }
 
 // buildHysteriaProxy produces a mihomo-compatible Clash entry for a

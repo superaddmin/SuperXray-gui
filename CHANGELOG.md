@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-06-25
+
+### Added
+
+- 为 HTTP 与 Mixed 入站新增代理账号订阅导出能力：支持按账号或顶层 `subId` 匹配订阅，统一补齐前端分享链接、URI 订阅、Xray JSON 与 Clash/Mihomo 输出。
+
 ### Security
 
 - 选择性同步上游 `MHSanaei/3x-ui v3.3.1` 的 Xray 日志路径安全修复：运行时生成配置时将 `log.access` / `log.error` 限定到面板日志目录下的同名文件，保留 `none` / 空值禁用语义，避免管理员可写模板或数据库导入造成任意路径日志写入。
@@ -13,6 +19,7 @@
 - 同步上游 v3.3.1 的 Go 依赖更新：`golang.org/x/net` 升级到 `v0.56.0`，并随 `go mod tidy` 更新 `golang.org/x/exp` 与 `golang.org/x/tools`。
 - 新增 `.gitattributes`，约束 Shell 脚本、OpenAPI 生成物、前端测试与 `web/ui/openapi.json` 使用 LF，减少 Windows 下的伪换行差异。
 - 更新上游同步策略：记录 v3.3.1 的大规模 `internal/` / React 前端迁移不直接覆盖本项目，后续继续按安全修复、协议能力和 Vue UI 兼容能力选择性移植。
+- 收紧 `.gitignore` 并清理本地生成物：保留 `.env.example` 与凭据生成相关源码可追踪，继续忽略设计稿、静态分析报告、增量缓存、运行日志与本地 Claude 配置。
 
 ## [3.3.3] - 2026-06-11
 

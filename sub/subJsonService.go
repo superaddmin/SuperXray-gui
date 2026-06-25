@@ -129,6 +129,18 @@ func (s *SubJsonService) GetJson(subId string, host string) (string, string, err
 			}
 			continue
 		}
+		if isProxyAccountProtocol(inbound.Protocol) {
+			accounts, err := proxyAccountsBySubID(inbound, subId)
+			if err != nil {
+				logger.Error("SubJsonService - Proxy accounts: Unable to get accounts from inbound")
+				continue
+			}
+			for _, account := range accounts {
+				newConfigs := s.getProxyAccountConfigs(inbound, account, host)
+				configArray = append(configArray, newConfigs...)
+			}
+			continue
+		}
 
 		clients, err := s.inboundService.GetClients(inbound)
 		if err != nil {
@@ -259,6 +271,34 @@ func (s *SubJsonService) getConfig(inbound *model.Inbound, client model.Client, 
 		newJsonArray = append(newJsonArray, newConfig)
 	}
 
+	return newJsonArray
+}
+
+func (s *SubJsonService) getProxyAccountConfigs(inbound *model.Inbound, account proxyAccount, host string) []json_util.RawMessage {
+	var newJsonArray []json_util.RawMessage
+	workingInbound := *inbound
+	if workingInbound.Listen == "" || workingInbound.Listen == "0.0.0.0" || workingInbound.Listen == "::" || workingInbound.Listen == "::0" {
+		workingInbound.Listen = host
+	}
+
+	var newOutbounds []json_util.RawMessage
+	switch workingInbound.Protocol {
+	case model.HTTP:
+		newOutbounds = append(newOutbounds, s.genHTTPOutbound(&workingInbound, account))
+	case model.Mixed:
+		newOutbounds = append(newOutbounds, s.genSocksOutbound(&workingInbound, account))
+	default:
+		return nil
+	}
+	newOutbounds = append(newOutbounds, s.defaultOutbounds...)
+
+	newConfigJson := make(map[string]any)
+	maps.Copy(newConfigJson, s.configJson)
+	newConfigJson["outbounds"] = newOutbounds
+	newConfigJson["remarks"] = s.SubService.genProxyAccountRemark(&workingInbound, account, "")
+
+	newConfig, _ := json.MarshalIndent(newConfigJson, "", "  ")
+	newJsonArray = append(newJsonArray, newConfig)
 	return newJsonArray
 }
 
@@ -492,6 +532,43 @@ func (s *SubJsonService) genHy(inbound *model.Inbound, newStream map[string]any,
 
 	result, _ := json.MarshalIndent(outbound, "", "  ")
 	return result
+}
+
+func (s *SubJsonService) genHTTPOutbound(inbound *model.Inbound, account proxyAccount) json_util.RawMessage {
+	return s.genProxyAccountOutbound("http", inbound, account)
+}
+
+func (s *SubJsonService) genSocksOutbound(inbound *model.Inbound, account proxyAccount) json_util.RawMessage {
+	return s.genProxyAccountOutbound("socks", inbound, account)
+}
+
+func (s *SubJsonService) genProxyAccountOutbound(protocol string, inbound *model.Inbound, account proxyAccount) json_util.RawMessage {
+	outbound := Outbound{
+		Protocol: protocol,
+		Tag:      "proxy",
+		Settings: map[string]any{
+			"servers": []any{proxyAccountOutboundServer(inbound, account)},
+		},
+	}
+	if s.mux != "" {
+		outbound.Mux = json_util.RawMessage(s.mux)
+	}
+	result, _ := json.MarshalIndent(outbound, "", "  ")
+	return result
+}
+
+func proxyAccountOutboundServer(inbound *model.Inbound, account proxyAccount) map[string]any {
+	server := map[string]any{
+		"address": inbound.Listen,
+		"port":    inbound.Port,
+	}
+	if proxyAccountUsesAuth(account) {
+		server["users"] = []any{map[string]any{
+			"user": account.User,
+			"pass": account.Pass,
+		}}
+	}
+	return server
 }
 
 type Outbound struct {

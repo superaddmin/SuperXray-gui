@@ -15,7 +15,7 @@ import (
 )
 
 func TestSubscriptionOutputMatrixCoversLinksJSONAndClash(t *testing.T) {
-	host := "vpn.example"
+	host := "vpn.example.com"
 	subService := &SubService{
 		address:        host,
 		remarkModel:    "-ieo",
@@ -129,6 +129,132 @@ func TestSubscriptionOutputMatrixCoversLinksJSONAndClash(t *testing.T) {
 				t.Fatalf("clash hysteria2 ports = %v, want 40000-45000", proxies[0]["ports"])
 			}
 		})
+	}
+}
+
+func TestProxyAccountSubscriptionsIncludeHTTPAndSOCKS5Outputs(t *testing.T) {
+	setupSubscriptionDiagnosticDB(t)
+	const subID = "matrix-proxy-sub"
+	host := "vpn.example.com"
+	inbounds := []*model.Inbound{
+		matrixProxyAccountInbound(model.HTTP, 13101, map[string]any{
+			"user":  "http-user",
+			"pass":  "http/pass with space",
+			"subId": subID,
+		}),
+		matrixProxyAccountInbound(model.Mixed, 13102, map[string]any{
+			"user":  "socks-user",
+			"pass":  "socks/pass with space",
+			"subId": subID,
+		}),
+	}
+	for _, inbound := range inbounds {
+		if err := database.GetDB().Create(inbound).Error; err != nil {
+			t.Fatalf("create %s inbound failed: %v", inbound.Protocol, err)
+		}
+	}
+
+	subService := &SubService{
+		remarkModel:    "-ieo",
+		inboundService: service.InboundService{},
+	}
+	links, _, _, err := subService.GetSubs(subID, host)
+	if err != nil {
+		t.Fatalf("GetSubs returned error: %v", err)
+	}
+	joinedLinks := strings.Join(links, "\n")
+	for _, want := range []string{
+		"http://http-user:http%2Fpass%20with%20space@vpn.example.com:13101#matrix-http",
+		"socks5://socks-user:socks%2Fpass%20with%20space@vpn.example.com:13102#matrix-mixed",
+	} {
+		if !strings.Contains(joinedLinks, want) {
+			t.Fatalf("proxy subscription links missing %q:\n%s", want, joinedLinks)
+		}
+	}
+
+	jsonService := &SubJsonService{
+		configJson: map[string]any{},
+		SubService: subService,
+	}
+	jsonText, _, err := jsonService.GetJson(subID, host)
+	if err != nil {
+		t.Fatalf("GetJson returned error: %v", err)
+	}
+	outbounds := proxyMatrixOutboundsByProtocol(t, jsonText)
+	assertProxyMatrixServerUser(t, outbounds["http"], "http-user", "http/pass with space")
+	assertProxyMatrixServerUser(t, outbounds["socks"], "socks-user", "socks/pass with space")
+
+	clashService := &SubClashService{SubService: subService}
+	clashText, _, err := clashService.GetClash(subID, host)
+	if err != nil {
+		t.Fatalf("GetClash returned error: %v", err)
+	}
+	for _, want := range []string{
+		"type: http",
+		"type: socks5",
+		"username: http-user",
+		"password: http/pass with space",
+		"username: socks-user",
+		"password: socks/pass with space",
+	} {
+		if !strings.Contains(clashText, want) {
+			t.Fatalf("clash proxy output missing %q:\n%s", want, clashText)
+		}
+	}
+}
+
+func TestProxyAccountSubscriptionMatchesTopLevelSubID(t *testing.T) {
+	setupSubscriptionDiagnosticDB(t)
+	const subID = "matrix-top-level-sub"
+	inbound := matrixProxyAccountInbound(model.HTTP, 13103, map[string]any{
+		"user": "top-user",
+		"pass": "top-pass",
+	})
+	var settings map[string]any
+	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+		t.Fatalf("proxy settings invalid: %v", err)
+	}
+	settings["subId"] = subID
+	settingsJSON, _ := json.Marshal(settings)
+	inbound.Settings = string(settingsJSON)
+	if err := database.GetDB().Create(inbound).Error; err != nil {
+		t.Fatalf("create top-level subId inbound failed: %v", err)
+	}
+
+	subService := &SubService{remarkModel: "-ieo"}
+	links, _, _, err := subService.GetSubs(subID, "vpn.example")
+	if err != nil {
+		t.Fatalf("GetSubs returned error: %v", err)
+	}
+	if len(links) != 1 || !strings.Contains(links[0], "http://top-user:top-pass@vpn.example:13103") {
+		t.Fatalf("top-level subId proxy links = %#v, want one HTTP proxy link", links)
+	}
+}
+
+func TestProxyAccountSubscriptionSupportsUnauthenticatedTopLevelSubID(t *testing.T) {
+	setupSubscriptionDiagnosticDB(t)
+	const subID = "matrix-no-auth-sub"
+	inbound := matrixInboundWithSettings(model.Mixed, 13104, map[string]any{
+		"auth":  "noauth",
+		"subId": subID,
+		"udp":   false,
+	}, map[string]any{})
+	inbound.Enable = true
+	inbound.Tag = "matrix-proxy-noauth"
+	if err := database.GetDB().Create(inbound).Error; err != nil {
+		t.Fatalf("create no-auth proxy inbound failed: %v", err)
+	}
+
+	subService := &SubService{remarkModel: "-ieo"}
+	links, _, _, err := subService.GetSubs(subID, "vpn.example")
+	if err != nil {
+		t.Fatalf("GetSubs returned error: %v", err)
+	}
+	if len(links) != 1 || !strings.Contains(links[0], "socks5://vpn.example:13104") {
+		t.Fatalf("no-auth proxy links = %#v, want one SOCKS5 link without userinfo", links)
+	}
+	if strings.Contains(links[0], "@vpn.example") {
+		t.Fatalf("no-auth proxy link should not include userinfo: %s", links[0])
 	}
 }
 
@@ -445,6 +571,24 @@ func matrixHysteriaInbound(port int, client model.Client) *model.Inbound {
 			},
 		},
 	})
+}
+
+func matrixProxyAccountInbound(protocol model.Protocol, port int, account map[string]any) *model.Inbound {
+	settings := map[string]any{
+		"accounts": []map[string]any{account},
+	}
+	if protocol == model.HTTP {
+		settings["allowTransparent"] = false
+	}
+	if protocol == model.Mixed {
+		settings["auth"] = "password"
+		settings["udp"] = true
+		settings["ip"] = "127.0.0.1"
+	}
+	inbound := matrixInboundWithSettings(protocol, port, settings, map[string]any{})
+	inbound.Enable = true
+	inbound.Tag = "matrix-proxy-" + string(protocol)
+	return inbound
 }
 
 func matrixInboundWithSettings(protocol model.Protocol, port int, settings map[string]any, stream map[string]any) *model.Inbound {
@@ -878,4 +1022,62 @@ func parseMatrixOutbound(t *testing.T, outboundJSON []byte) map[string]any {
 		t.Fatalf("outbound JSON invalid: %v", err)
 	}
 	return outbound
+}
+
+func proxyMatrixOutboundsByProtocol(t *testing.T, jsonText string) map[string]map[string]any {
+	t.Helper()
+	var configs []map[string]any
+	if err := json.Unmarshal([]byte(jsonText), &configs); err != nil {
+		var single map[string]any
+		if singleErr := json.Unmarshal([]byte(jsonText), &single); singleErr != nil {
+			t.Fatalf("proxy json subscription invalid: array error=%v single error=%v\n%s", err, singleErr, jsonText)
+		}
+		configs = []map[string]any{single}
+	}
+	outbounds := make(map[string]map[string]any)
+	for _, config := range configs {
+		items, ok := config["outbounds"].([]any)
+		if !ok || len(items) == 0 {
+			t.Fatalf("proxy config missing outbounds: %#v", config)
+		}
+		outbound, ok := items[0].(map[string]any)
+		if !ok {
+			t.Fatalf("proxy outbound has unexpected shape: %#v", items[0])
+		}
+		protocol, _ := outbound["protocol"].(string)
+		outbounds[protocol] = outbound
+	}
+	for _, protocol := range []string{"http", "socks"} {
+		if outbounds[protocol] == nil {
+			t.Fatalf("proxy json subscription missing %s outbound: %#v", protocol, outbounds)
+		}
+	}
+	return outbounds
+}
+
+func assertProxyMatrixServerUser(t *testing.T, outbound map[string]any, user string, pass string) {
+	t.Helper()
+	settings, ok := outbound["settings"].(map[string]any)
+	if !ok {
+		t.Fatalf("proxy outbound settings has unexpected shape: %#v", outbound["settings"])
+	}
+	servers, ok := settings["servers"].([]any)
+	if !ok || len(servers) != 1 {
+		t.Fatalf("proxy outbound servers = %#v, want one server", settings["servers"])
+	}
+	server, ok := servers[0].(map[string]any)
+	if !ok {
+		t.Fatalf("proxy server has unexpected shape: %#v", servers[0])
+	}
+	users, ok := server["users"].([]any)
+	if !ok || len(users) != 1 {
+		t.Fatalf("proxy server users = %#v, want one authenticated user", server["users"])
+	}
+	gotUser, ok := users[0].(map[string]any)
+	if !ok {
+		t.Fatalf("proxy user has unexpected shape: %#v", users[0])
+	}
+	if gotUser["user"] != user || gotUser["pass"] != pass {
+		t.Fatalf("proxy user = %#v, want user=%q pass=%q", gotUser, user, pass)
+	}
 }

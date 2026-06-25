@@ -15,26 +15,29 @@ import (
 
 func TestDiagnoseSubscriptionInboundsReportsOutputAndSkippedNodes(t *testing.T) {
 	client := matrixClient("diagnose-vless@example")
-	unsupportedClient := matrixClient("diagnose-http@example")
-	unsupportedClient.SubID = client.SubID
 	inbounds := []*model.Inbound{
 		matrixInbound(model.VLESS, 13001, client),
-		matrixInbound(model.HTTP, 13002, unsupportedClient),
+		matrixProxyAccountInbound(model.HTTP, 13002, map[string]any{
+			"user":  "diagnose-http",
+			"pass":  "diagnose-pass",
+			"subId": client.SubID,
+		}),
+		matrixInbound(model.Tunnel, 13003, client),
 	}
 
 	diagnostic := diagnoseSubscriptionInbounds(inbounds, client.SubID, subscriptionFormatURI)
 
-	if diagnostic.TotalInbounds != 2 {
-		t.Fatalf("total inbounds = %d, want 2", diagnostic.TotalInbounds)
+	if diagnostic.TotalInbounds != 3 {
+		t.Fatalf("total inbounds = %d, want 3", diagnostic.TotalInbounds)
 	}
-	if diagnostic.OutputNodes != 1 {
-		t.Fatalf("output nodes = %d, want 1", diagnostic.OutputNodes)
+	if diagnostic.OutputNodes != 2 {
+		t.Fatalf("output nodes = %d, want 2", diagnostic.OutputNodes)
 	}
 	if diagnostic.SkippedNodes != 1 {
 		t.Fatalf("skipped nodes = %d, want 1", diagnostic.SkippedNodes)
 	}
-	if len(diagnostic.SkipReasons) != 1 || diagnostic.SkipReasons[0].Protocol != string(model.HTTP) {
-		t.Fatalf("skip reasons = %#v, want one http skip", diagnostic.SkipReasons)
+	if len(diagnostic.SkipReasons) != 1 || diagnostic.SkipReasons[0].Protocol != string(model.Tunnel) {
+		t.Fatalf("skip reasons = %#v, want one tunnel skip", diagnostic.SkipReasons)
 	}
 	if len(diagnostic.Warnings) == 0 {
 		t.Fatalf("warnings should explain skipped nodes")
@@ -60,7 +63,7 @@ func TestDiagnoseSubscriptionInboundsReportsSupportedFormatsAndProtocols(t *test
 		t.Fatalf("supported formats = %#v, want %#v", diagnostic.SupportedFormats, wantFormats)
 	}
 
-	wantProtocols := []string{"vmess", "vless", "trojan", "shadowsocks", "hysteria", "hysteria2", "wireguard"}
+	wantProtocols := []string{"vmess", "vless", "http", "trojan", "shadowsocks", "mixed", "hysteria", "hysteria2", "wireguard"}
 	if strings.Join(diagnostic.SupportedProtocols, ",") != strings.Join(wantProtocols, ",") {
 		t.Fatalf("supported protocols = %#v, want %#v", diagnostic.SupportedProtocols, wantProtocols)
 	}

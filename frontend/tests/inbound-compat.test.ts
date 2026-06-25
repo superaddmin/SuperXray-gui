@@ -6,10 +6,12 @@ import {
   applyHysteriaFinalmaskUdpHop,
   buildClientSubscriptionLinks,
   buildInboundShareLinks,
+  defaultInboundSettings,
   defaultStreamSettings,
   generateBulkClientProfiles,
   mergeSubscriptionEndpointDefaults,
 } from '../src/utils/inboundCompat.ts';
+import { protocolSupportsShareLink } from '../src/schemas/protocolRegistry.ts';
 
 test('buildClientSubscriptionLinks returns enabled subscription endpoints for a client subId', () => {
   const links = buildClientSubscriptionLinks(
@@ -28,6 +30,51 @@ test('buildClientSubscriptionLinks returns enabled subscription endpoints for a 
     { label: 'URI', url: 'https://example.com/sub/client-sub-id' },
     { label: 'JSON', url: 'https://example.com/json/client-sub-id' },
     { label: 'Clash', url: 'https://example.com/clash/client-sub-id' },
+  ]);
+});
+
+test('default proxy account settings include subscription id for HTTP and mixed', () => {
+  for (const protocol of ['http', 'mixed'] as const) {
+    const settings = defaultInboundSettings(protocol);
+    const accounts = settings.accounts as Array<Record<string, unknown>>;
+    assert.equal(Array.isArray(accounts), true);
+    assert.equal(typeof accounts[0]?.subId, 'string');
+    assert.ok(String(accounts[0]?.subId).length > 0);
+  }
+});
+
+test('protocol registry marks HTTP and mixed proxy inbounds as shareable', () => {
+  assert.equal(protocolSupportsShareLink('http'), true);
+  assert.equal(protocolSupportsShareLink('mixed'), true);
+});
+
+test('buildInboundShareLinks exports HTTP and SOCKS5 proxy account links', () => {
+  const httpLinks = buildInboundShareLinks({
+    protocol: 'http',
+    remark: 'http-proxy',
+    listen: 'http.example.com',
+    port: 8080,
+    settings: JSON.stringify({
+      accounts: [{ user: 'http-user', pass: 'http/pass with space', subId: 'sub-http' }],
+    }),
+    streamSettings: '{}',
+  } as never);
+  const socksLinks = buildInboundShareLinks({
+    protocol: 'mixed',
+    remark: 'socks-proxy',
+    listen: 'socks.example.com',
+    port: 1080,
+    settings: JSON.stringify({
+      accounts: [{ user: 'socks-user', pass: 'socks/pass with space', subId: 'sub-socks' }],
+    }),
+    streamSettings: '{}',
+  } as never);
+
+  assert.deepEqual(httpLinks, [
+    'http://http-user:http%2Fpass%20with%20space@http.example.com:8080#http-proxy',
+  ]);
+  assert.deepEqual(socksLinks, [
+    'socks5://socks-user:socks%2Fpass%20with%20space@socks.example.com:1080#socks-proxy',
   ]);
 });
 

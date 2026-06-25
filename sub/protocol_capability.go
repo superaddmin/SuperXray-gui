@@ -6,10 +6,30 @@ func subscriptionClientProtocols() []model.Protocol {
 	return []model.Protocol{
 		model.VMESS,
 		model.VLESS,
+		model.HTTP,
+		model.Trojan,
+		model.Shadowsocks,
+		model.Mixed,
+		model.Hysteria,
+		model.Hysteria2,
+	}
+}
+
+func subscriptionStandardClientProtocols() []model.Protocol {
+	return []model.Protocol{
+		model.VMESS,
+		model.VLESS,
 		model.Trojan,
 		model.Shadowsocks,
 		model.Hysteria,
 		model.Hysteria2,
+	}
+}
+
+func subscriptionProxyAccountProtocols() []model.Protocol {
+	return []model.Protocol{
+		model.HTTP,
+		model.Mixed,
 	}
 }
 

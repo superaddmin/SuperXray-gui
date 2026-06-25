@@ -12,8 +12,10 @@ func TestSubscriptionProtocolMatrix(t *testing.T) {
 	for _, protocol := range []model.Protocol{
 		model.VMESS,
 		model.VLESS,
+		model.HTTP,
 		model.Trojan,
 		model.Shadowsocks,
+		model.Mixed,
 		model.Hysteria,
 		model.Hysteria2,
 	} {

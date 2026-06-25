@@ -73,6 +73,20 @@ func diagnoseSubscriptionInbounds(inbounds []*model.Inbound, subId string, forma
 			diagnostic.OutputNodes += len(peers)
 			continue
 		}
+		if isProxyAccountProtocol(inbound.Protocol) {
+			accounts, err := proxyAccountsBySubID(inbound, subId)
+			if err != nil || len(accounts) == 0 {
+				diagnostic.SkippedNodes++
+				diagnostic.SkipReasons = append(diagnostic.SkipReasons, SubscriptionDiagnosticSkip{
+					InboundID: inbound.Id,
+					Protocol:  string(inbound.Protocol),
+					Reason:    "no enabled proxy account matches this subscription id",
+				})
+				continue
+			}
+			diagnostic.OutputNodes += len(accounts)
+			continue
+		}
 
 		clients, err := service.inboundService.GetClients(inbound)
 		if err != nil || len(clients) == 0 {
