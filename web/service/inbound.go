@@ -603,11 +603,7 @@ func (s *InboundService) buildRuntimeInboundForAPI(tx *gorm.DB, inbound *model.I
 		return &runtimeInbound, nil
 	}
 
-	var clientStats []xray.ClientTraffic
-	err := tx.Model(xray.ClientTraffic{}).
-		Where("inbound_id = ?", inbound.Id).
-		Select("email", "enable").
-		Find(&clientStats).Error
+	clientStats, err := s.inbounds().ListClientTrafficEnableByInboundID(tx, inbound.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -1123,8 +1119,7 @@ func (s *InboundService) DelInboundClient(inboundId int, clientId string) (bool,
 	needRestart := false
 
 	if len(email) > 0 {
-		notDepleted := true
-		err = db.Model(xray.ClientTraffic{}).Select("enable").Where("email = ?", email).First(&notDepleted).Error
+		notDepleted, err := s.inbounds().IsClientTrafficEnabledByEmail(db, email)
 		if err != nil {
 			logger.Error("Get stats error")
 			return false, err
@@ -1440,8 +1435,7 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 	for _, traffic := range traffics {
 		emails = append(emails, traffic.Email)
 	}
-	dbClientTraffics := make([]*xray.ClientTraffic, 0, len(traffics))
-	dbClientTraffics, err = s.inbounds().ListClientTrafficsByEmailsTx(tx, emails)
+	dbClientTraffics, err := s.inbounds().ListClientTrafficsByEmailsTx(tx, emails)
 	if err != nil {
 		return err
 	}
@@ -1545,11 +1539,10 @@ func (s *InboundService) adjustTraffics(tx *gorm.DB, dbClientTraffics []*xray.Cl
 
 func (s *InboundService) autoRenewClients(tx *gorm.DB) (bool, int64, error) {
 	// check for time expired
-	var traffics []*xray.ClientTraffic
 	now := time.Now().Unix() * 1000
 	var err, err1 error
 
-	err = tx.Model(xray.ClientTraffic{}).Where("reset > 0 and expiry_time > 0 and expiry_time <= ?", now).Find(&traffics).Error
+	traffics, err := s.inbounds().ListRenewableClientTraffics(tx, now)
 	if err != nil {
 		return false, 0, err
 	}
@@ -1570,7 +1563,7 @@ func (s *InboundService) autoRenewClients(tx *gorm.DB) (bool, int64, error) {
 	for _, traffic := range traffics {
 		inbound_ids = append(inbound_ids, traffic.InboundId)
 	}
-	err = tx.Model(model.Inbound{}).Where("id IN ?", inbound_ids).Find(&inbounds).Error
+	inbounds, err = s.inbounds().ListInboundsByIDs(tx, inbound_ids)
 	if err != nil {
 		return false, 0, err
 	}
@@ -1649,11 +1642,7 @@ func (s *InboundService) disableInvalidInbounds(tx *gorm.DB) (bool, int64, error
 	needRestart := false
 
 	if p != nil {
-		var tags []string
-		err := tx.Table("inbounds").
-			Select("inbounds.tag").
-			Where("((total > 0 and up + down >= total) or (expiry_time > 0 and expiry_time <= ?)) and enable = ?", now, true).
-			Scan(&tags).Error
+		tags, err := s.inbounds().ListInvalidInboundTags(tx, now)
 		if err != nil {
 			return false, 0, err
 		}
@@ -1676,11 +1665,7 @@ func (s *InboundService) disableInvalidInbounds(tx *gorm.DB) (bool, int64, error
 		})
 	}
 
-	result := tx.Model(model.Inbound{}).
-		Where("((total > 0 and up + down >= total) or (expiry_time > 0 and expiry_time <= ?)) and enable = ?", now, true).
-		Update("enable", false)
-	err := result.Error
-	count := result.RowsAffected
+	count, err := s.inbounds().DisableInvalidInbounds(tx, now)
 	return needRestart, count, err
 }
 
@@ -1689,16 +1674,7 @@ func (s *InboundService) disableInvalidClients(tx *gorm.DB) (bool, int64, error)
 	needRestart := false
 
 	if p != nil {
-		var results []struct {
-			Tag   string
-			Email string
-		}
-
-		err := tx.Table("inbounds").
-			Select("inbounds.tag, client_traffics.email").
-			Joins("JOIN client_traffics ON inbounds.id = client_traffics.inbound_id").
-			Where("((client_traffics.total > 0 AND client_traffics.up + client_traffics.down >= client_traffics.total) OR (client_traffics.expiry_time > 0 AND client_traffics.expiry_time <= ?)) AND client_traffics.enable = ?", now, true).
-			Scan(&results).Error
+		results, err := s.inbounds().ListInvalidClientTrafficTargets(tx, now)
 		if err != nil {
 			return false, 0, err
 		}
@@ -1722,11 +1698,7 @@ func (s *InboundService) disableInvalidClients(tx *gorm.DB) (bool, int64, error)
 			}
 		})
 	}
-	result := tx.Model(xray.ClientTraffic{}).
-		Where("((total > 0 and up + down >= total) or (expiry_time > 0 and expiry_time <= ?)) and enable = ?", now, true).
-		Update("enable", false)
-	err := result.Error
-	count := result.RowsAffected
+	count, err := s.inbounds().DisableInvalidClientTraffics(tx, now)
 	return needRestart, count, err
 }
 
@@ -2203,28 +2175,15 @@ func (s *InboundService) DelDepletedClients(id int) (err error) {
 		}
 	}()
 
-	whereText := "reset = 0 and inbound_id "
-	if id < 0 {
-		whereText += "> ?"
-	} else {
-		whereText += "= ?"
-	}
-
 	// Only consider truly depleted clients: expired OR traffic exhausted
 	now := time.Now().Unix() * 1000
-	depletedClients := []xray.ClientTraffic{}
-	err = db.Model(xray.ClientTraffic{}).
-		Where(whereText+" and ((total > 0 and up + down >= total) or (expiry_time > 0 and expiry_time <= ?))", id, now).
-		Select("inbound_id, GROUP_CONCAT(email) as email").
-		Group("inbound_id").
-		Find(&depletedClients).Error
+	depletedClients, err := s.inbounds().ListDepletedClientGroups(tx, id, now)
 	if err != nil {
 		return err
 	}
 
 	for _, depletedClient := range depletedClients {
-		emails := strings.Split(depletedClient.Email, ",")
-		oldInbound, err := s.GetInbound(depletedClient.InboundId)
+		oldInbound, err := s.GetInbound(depletedClient.InboundID)
 		if err != nil {
 			return err
 		}
@@ -2239,7 +2198,7 @@ func (s *InboundService) DelDepletedClients(id int) (err error) {
 		for _, client := range oldClients {
 			deplete := false
 			c := client.(map[string]any)
-			for _, email := range emails {
+			for _, email := range depletedClient.Emails {
 				if email == c["email"].(string) {
 					deplete = true
 					break
@@ -2264,14 +2223,14 @@ func (s *InboundService) DelDepletedClients(id int) (err error) {
 			}
 		} else {
 			// Delete inbound if no client remains
-			if _, err := s.DelInbound(depletedClient.InboundId); err != nil {
+			if _, err := s.DelInbound(depletedClient.InboundID); err != nil {
 				return err
 			}
 		}
 	}
 
 	// Delete stats only for truly depleted clients
-	err = tx.Where(whereText+" and ((total > 0 and up + down >= total) or (expiry_time > 0 and expiry_time <= ?))", id, now).Delete(xray.ClientTraffic{}).Error
+	err = s.inbounds().DeleteDepletedClientTraffics(tx, id, now)
 	if err != nil {
 		return err
 	}

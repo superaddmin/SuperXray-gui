@@ -2,6 +2,7 @@ package database
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
@@ -54,6 +55,15 @@ type InboundRepository interface {
 	ListClientTrafficsByEmailsTx(tx *gorm.DB, emails []string) ([]*xray.ClientTraffic, error)
 	ListClientTrafficsByClientID(id string) ([]xray.ClientTraffic, error)
 	ListInboundsByIDs(tx *gorm.DB, ids []int) ([]*model.Inbound, error)
+	ListClientTrafficEnableByInboundID(tx *gorm.DB, inboundID int) ([]xray.ClientTraffic, error)
+	IsClientTrafficEnabledByEmail(tx *gorm.DB, email string) (bool, error)
+	ListDepletedClientGroups(tx *gorm.DB, inboundID int, now int64) ([]DepletedClientGroup, error)
+	DeleteDepletedClientTraffics(tx *gorm.DB, inboundID int, now int64) error
+	ListRenewableClientTraffics(tx *gorm.DB, now int64) ([]*xray.ClientTraffic, error)
+	ListInvalidInboundTags(tx *gorm.DB, now int64) ([]string, error)
+	DisableInvalidInbounds(tx *gorm.DB, now int64) (int64, error)
+	ListInvalidClientTrafficTargets(tx *gorm.DB, now int64) ([]ClientTrafficTarget, error)
+	DisableInvalidClientTraffics(tx *gorm.DB, now int64) (int64, error)
 	FindInboundBySettingsContains(query string) (*model.Inbound, error)
 	SearchByRemark(query string) ([]*model.Inbound, error)
 	ListTags() ([]string, error)
@@ -88,6 +98,16 @@ type InboundOptionRecord struct {
 	Port           int
 	TLSFlowCapable bool
 	SSMethod       string
+}
+
+type ClientTrafficTarget struct {
+	Tag   string
+	Email string
+}
+
+type DepletedClientGroup struct {
+	InboundID int
+	Emails    []string
 }
 
 type GormUserRepository struct {
@@ -355,6 +375,146 @@ func (r *GormInboundRepository) ListInboundsByIDs(tx *gorm.DB, ids []int) ([]*mo
 		return nil, err
 	}
 	return inbounds, nil
+}
+
+func (r *GormInboundRepository) ListClientTrafficEnableByInboundID(tx *gorm.DB, inboundID int) ([]xray.ClientTraffic, error) {
+	rows := make([]xray.ClientTraffic, 0)
+	if tx == nil {
+		tx = r.db
+	}
+	if err := tx.Model(xray.ClientTraffic{}).
+		Where("inbound_id = ?", inboundID).
+		Select("email", "enable").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func (r *GormInboundRepository) IsClientTrafficEnabledByEmail(tx *gorm.DB, email string) (bool, error) {
+	if tx == nil {
+		tx = r.db
+	}
+	var row struct {
+		Enable bool
+	}
+	if err := tx.Model(xray.ClientTraffic{}).Select("enable").Where("email = ?", email).First(&row).Error; err != nil {
+		return false, err
+	}
+	return row.Enable, nil
+}
+
+func (r *GormInboundRepository) ListDepletedClientGroups(tx *gorm.DB, inboundID int, now int64) ([]DepletedClientGroup, error) {
+	if tx == nil {
+		tx = r.db
+	}
+
+	whereText := "reset = 0 and inbound_id "
+	if inboundID < 0 {
+		whereText += "> ?"
+	} else {
+		whereText += "= ?"
+	}
+
+	rows := make([]struct {
+		InboundID int    `gorm:"column:inbound_id"`
+		Emails    string `gorm:"column:email"`
+	}, 0)
+	if err := tx.Model(xray.ClientTraffic{}).
+		Where(whereText+" and ((total > 0 and up + down >= total) or (expiry_time > 0 and expiry_time <= ?))", inboundID, now).
+		Select("inbound_id, GROUP_CONCAT(email) as email").
+		Group("inbound_id").
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	groups := make([]DepletedClientGroup, 0, len(rows))
+	for _, row := range rows {
+		emails := make([]string, 0)
+		for _, email := range strings.Split(row.Emails, ",") {
+			if email != "" {
+				emails = append(emails, email)
+			}
+		}
+		groups = append(groups, DepletedClientGroup{
+			InboundID: row.InboundID,
+			Emails:    emails,
+		})
+	}
+	return groups, nil
+}
+
+func (r *GormInboundRepository) DeleteDepletedClientTraffics(tx *gorm.DB, inboundID int, now int64) error {
+	if tx == nil {
+		tx = r.db
+	}
+	whereText := "reset = 0 and inbound_id "
+	if inboundID < 0 {
+		whereText += "> ?"
+	} else {
+		whereText += "= ?"
+	}
+	return tx.Where(whereText+" and ((total > 0 and up + down >= total) or (expiry_time > 0 and expiry_time <= ?))", inboundID, now).Delete(xray.ClientTraffic{}).Error
+}
+
+func (r *GormInboundRepository) ListRenewableClientTraffics(tx *gorm.DB, now int64) ([]*xray.ClientTraffic, error) {
+	traffics := make([]*xray.ClientTraffic, 0)
+	if tx == nil {
+		tx = r.db
+	}
+	if err := tx.Model(xray.ClientTraffic{}).Where("reset > 0 and expiry_time > 0 and expiry_time <= ?", now).Find(&traffics).Error; err != nil {
+		return nil, err
+	}
+	return traffics, nil
+}
+
+func (r *GormInboundRepository) ListInvalidInboundTags(tx *gorm.DB, now int64) ([]string, error) {
+	tags := make([]string, 0)
+	if tx == nil {
+		tx = r.db
+	}
+	if err := tx.Table("inbounds").
+		Select("inbounds.tag").
+		Where("((total > 0 and up + down >= total) or (expiry_time > 0 and expiry_time <= ?)) and enable = ?", now, true).
+		Scan(&tags).Error; err != nil {
+		return nil, err
+	}
+	return tags, nil
+}
+
+func (r *GormInboundRepository) DisableInvalidInbounds(tx *gorm.DB, now int64) (int64, error) {
+	if tx == nil {
+		tx = r.db
+	}
+	result := tx.Model(model.Inbound{}).
+		Where("((total > 0 and up + down >= total) or (expiry_time > 0 and expiry_time <= ?)) and enable = ?", now, true).
+		Update("enable", false)
+	return result.RowsAffected, result.Error
+}
+
+func (r *GormInboundRepository) ListInvalidClientTrafficTargets(tx *gorm.DB, now int64) ([]ClientTrafficTarget, error) {
+	targets := make([]ClientTrafficTarget, 0)
+	if tx == nil {
+		tx = r.db
+	}
+	if err := tx.Table("inbounds").
+		Select("inbounds.tag, client_traffics.email").
+		Joins("JOIN client_traffics ON inbounds.id = client_traffics.inbound_id").
+		Where("((client_traffics.total > 0 AND client_traffics.up + client_traffics.down >= client_traffics.total) OR (client_traffics.expiry_time > 0 AND client_traffics.expiry_time <= ?)) AND client_traffics.enable = ?", now, true).
+		Scan(&targets).Error; err != nil {
+		return nil, err
+	}
+	return targets, nil
+}
+
+func (r *GormInboundRepository) DisableInvalidClientTraffics(tx *gorm.DB, now int64) (int64, error) {
+	if tx == nil {
+		tx = r.db
+	}
+	result := tx.Model(xray.ClientTraffic{}).
+		Where("((total > 0 and up + down >= total) or (expiry_time > 0 and expiry_time <= ?)) and enable = ?", now, true).
+		Update("enable", false)
+	return result.RowsAffected, result.Error
 }
 
 func (r *GormInboundRepository) FindInboundBySettingsContains(query string) (*model.Inbound, error) {

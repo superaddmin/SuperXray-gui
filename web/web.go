@@ -18,6 +18,7 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
 	"github.com/superaddmin/SuperXray-gui/v2/web/controller"
+	"github.com/superaddmin/SuperXray-gui/v2/web/entity"
 	"github.com/superaddmin/SuperXray-gui/v2/web/job"
 	"github.com/superaddmin/SuperXray-gui/v2/web/locale"
 	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
@@ -98,6 +99,11 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	}
 
 	engine := gin.Default()
+	requestMetrics := service.NewRequestMetricsStore()
+	engine.Use(middleware.RequestIDMiddleware())
+	engine.Use(middleware.StructuredRequestLoggerMiddleware(middleware.RequestLogOptions{
+		Metrics: requestMetrics,
+	}))
 	engine.Use(middleware.SecurityHeadersMiddleware())
 
 	webDomain, err := s.settingService.GetWebDomain()
@@ -158,6 +164,7 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	s.index = controller.NewIndexController(g)
 	s.registerNewUIRoutes(g, basePath)
 	s.panel = controller.NewXUIController(g)
+	s.registerV1APIRoutes(g, requestMetrics)
 	s.api = controller.NewAPIController(g, s.customGeoService)
 
 	// Initialize WebSocket hub
@@ -176,10 +183,32 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 
 	// Add a catch-all route to handle undefined paths and return 404
 	engine.NoRoute(func(c *gin.Context) {
+		if isV1APIPath(c.Request.URL.Path, basePath) {
+			controller.WriteAPIError(c, http.StatusNotFound, entity.APIErrorCodeNotFound, "route not found", nil)
+			return
+		}
 		c.AbortWithStatus(http.StatusNotFound)
 	})
 
 	return engine, nil
+}
+
+func (s *Server) registerV1APIRoutes(g *gin.RouterGroup, metrics *service.RequestMetricsStore) {
+	controller.NewV1ControllerWithOptions(g, controller.V1ControllerOptions{
+		Health:  service.NewHealthServiceWithXrayAndMetrics(&s.xrayService, metrics),
+		Metrics: metrics,
+	})
+}
+
+func isV1APIPath(path string, basePath string) bool {
+	basePath = strings.TrimSpace(basePath)
+	if basePath == "" || basePath == "/" {
+		return path == "/api/v1" || strings.HasPrefix(path, "/api/v1/")
+	}
+
+	basePath = "/" + strings.Trim(basePath, "/")
+	prefix := basePath + "/api/v1"
+	return path == prefix || strings.HasPrefix(path, prefix+"/")
 }
 
 // startTask schedules background jobs (Xray checks, traffic jobs, cron

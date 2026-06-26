@@ -376,6 +376,32 @@ func TestRepositoriesReadAndWriteCurrentGORMModels(t *testing.T) {
 		t.Fatalf("Inbounds.ListInboundsByIDs() returned %+v, want both fixture inbounds", txInbounds)
 	}
 
+	tx = gdb.Begin()
+	enableRows, err := repos.Inbounds.ListClientTrafficEnableByInboundID(tx, inbound.Id)
+	if err != nil {
+		t.Fatalf("Inbounds.ListClientTrafficEnableByInboundID() failed: %v", err)
+	}
+	if err := tx.Rollback().Error; err != nil {
+		t.Fatalf("rollback ListClientTrafficEnableByInboundID transaction failed: %v", err)
+	}
+	enableByEmail := make(map[string]bool, len(enableRows))
+	for _, row := range enableRows {
+		enableByEmail[row.Email] = row.Enable
+	}
+	if _, ok := enableByEmail["phase2@example.test"]; !ok {
+		t.Fatalf("Inbounds.ListClientTrafficEnableByInboundID() returned %+v, want phase2@example.test", enableRows)
+	}
+	if _, ok := enableByEmail[clientTraffic.Email]; !ok {
+		t.Fatalf("Inbounds.ListClientTrafficEnableByInboundID() returned %+v, want %s", enableRows, clientTraffic.Email)
+	}
+	trafficEnabled, err := repos.Inbounds.IsClientTrafficEnabledByEmail(gdb, "phase2@example.test")
+	if err != nil {
+		t.Fatalf("Inbounds.IsClientTrafficEnabledByEmail() failed: %v", err)
+	}
+	if !trafficEnabled {
+		t.Fatal("Inbounds.IsClientTrafficEnabledByEmail() returned false, want true")
+	}
+
 	maintenanceNow := time.Now().Unix() * 1000
 	depletedInbound := &model.Inbound{
 		UserId:         user.Id,
@@ -418,6 +444,27 @@ func TestRepositoriesReadAndWriteCurrentGORMModels(t *testing.T) {
 	}
 	if err := gdb.Create(renewableTraffic).Error; err != nil {
 		t.Fatalf("create renewable client traffic fixture failed: %v", err)
+	}
+
+	tx = gdb.Begin()
+	depletedGroups, err := repos.Inbounds.ListDepletedClientGroups(tx, -1, maintenanceNow)
+	if err != nil {
+		t.Fatalf("Inbounds.ListDepletedClientGroups() failed: %v", err)
+	}
+	if err := tx.Rollback().Error; err != nil {
+		t.Fatalf("rollback ListDepletedClientGroups transaction failed: %v", err)
+	}
+	foundDepletedGroup := false
+	for _, group := range depletedGroups {
+		for _, email := range group.Emails {
+			if group.InboundID == depletedInbound.Id && email == depletedTraffic.Email {
+				foundDepletedGroup = true
+				break
+			}
+		}
+	}
+	if !foundDepletedGroup {
+		t.Fatalf("Inbounds.ListDepletedClientGroups() returned %+v, want inbound %d email %s", depletedGroups, depletedInbound.Id, depletedTraffic.Email)
 	}
 
 	tx = gdb.Begin()
@@ -503,6 +550,21 @@ func TestRepositoriesReadAndWriteCurrentGORMModels(t *testing.T) {
 	}
 	if storedDepletedTraffic.Enable {
 		t.Fatal("Inbounds.DisableInvalidClientTraffics() left depleted client traffic enabled")
+	}
+
+	tx = gdb.Begin()
+	if err := repos.Inbounds.DeleteDepletedClientTraffics(tx, -1, maintenanceNow); err != nil {
+		t.Fatalf("Inbounds.DeleteDepletedClientTraffics() failed: %v", err)
+	}
+	if err := tx.Commit().Error; err != nil {
+		t.Fatalf("commit DeleteDepletedClientTraffics transaction failed: %v", err)
+	}
+	storedDepletedTraffic, err = repos.Inbounds.GetClientTrafficByEmail(depletedTraffic.Email)
+	if err != nil {
+		t.Fatalf("Inbounds.GetClientTrafficByEmail() after DeleteDepletedClientTraffics failed: %v", err)
+	}
+	if storedDepletedTraffic != nil {
+		t.Fatalf("Inbounds.DeleteDepletedClientTraffics() left traffic %+v, want nil", storedDepletedTraffic)
 	}
 
 	tx = gdb.Begin()

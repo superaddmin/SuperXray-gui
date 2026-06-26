@@ -7,6 +7,7 @@ import (
 
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/web/entity"
+	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -70,6 +71,34 @@ func pureJsonMsg(c *gin.Context, statusCode int, success bool, msg string) {
 		Success: success,
 		Msg:     msg,
 	})
+}
+
+func writeAPISuccess(c *gin.Context, statusCode int, data any) {
+	c.JSON(statusCode, entity.APIResponse{
+		Success:   true,
+		RequestID: apiRequestID(c),
+		Data:      data,
+	})
+}
+
+// WriteAPIError sends a unified error response for versioned API endpoints.
+func WriteAPIError(c *gin.Context, statusCode int, code entity.APIErrorCode, message string, details any) {
+	c.AbortWithStatusJSON(statusCode, entity.APIResponse{
+		Success:   false,
+		RequestID: apiRequestID(c),
+		Error: &entity.APIError{
+			Code:    code,
+			Message: message,
+			Details: details,
+		},
+	})
+}
+
+func apiRequestID(c *gin.Context) string {
+	if requestID := middleware.RequestID(c); requestID != "" {
+		return requestID
+	}
+	return c.Writer.Header().Get(middleware.RequestIDHeader)
 }
 
 // isAjax checks if the request is an AJAX request.

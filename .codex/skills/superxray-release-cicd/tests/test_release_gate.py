@@ -93,9 +93,13 @@ class ReleaseMetadataTests(unittest.TestCase):
                 "    steps:",
                 "      - name: Validate release metadata",
                 "        run: python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only",
+                "      - name: Run secret scan",
+                "        run: python scripts/secret_scan.py",
                 "      - uses: actions/setup-go@v6",
                 "      - run: sudo apt-get install -y gcc-aarch64-linux-gnu",
                 "      - run: GOARCH=\"$goarch\" go build",
+                "      - name: Run OpenAPI contract gate",
+                "        run: go test ./web/controller -run 'TestV1OpenAPIRoutesStayInSyncWithGoRoutes|TestV1OpenAPIResponseContract|TestV1OpenAPIIncludesMetricsEndpoint' -count=1",
                 "      - run: echo x-ui-linux-${{ matrix.platform }}.tar.gz",
                 "      - run: echo '- amd64'",
                 "      - run: echo '- arm64'",
@@ -154,10 +158,42 @@ class ReleaseMetadataTests(unittest.TestCase):
         )
         self.assertIn('".codex/**"', release_workflow)
 
+    def test_release_workflow_includes_secret_scan_gate(self) -> None:
+        release_workflow = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("python scripts/secret_scan.py", release_workflow)
+
+    def test_release_workflow_includes_openapi_contract_gate(self) -> None:
+        release_workflow = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("Run OpenAPI contract gate", release_workflow)
+        self.assertIn("TestV1OpenAPIIncludesMetricsEndpoint", release_workflow)
+
     def test_release_workflow_rejects_missing_codex_path_filter(self) -> None:
         release_workflow = self.valid_release_workflow().replace('      - ".codex/**"\n', "")
 
         with self.assertRaisesRegex(RuntimeError, r"\.codex/\*\*"):
+            self.make_gate(self.make_repo(self.workflow_files(release_workflow))).check_workflows()
+
+    def test_release_workflow_rejects_missing_secret_scan_gate(self) -> None:
+        release_workflow = self.valid_release_workflow().replace(
+            "      - name: Run secret scan\n        run: python scripts/secret_scan.py\n",
+            "",
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "Run secret scan"):
+            self.make_gate(self.make_repo(self.workflow_files(release_workflow))).check_workflows()
+
+    def test_release_workflow_rejects_missing_openapi_contract_gate(self) -> None:
+        release_workflow = self.valid_release_workflow().replace(
+            "      - name: Run OpenAPI contract gate\n"
+            "        run: go test ./web/controller -run 'TestV1OpenAPIRoutesStayInSyncWithGoRoutes|TestV1OpenAPIResponseContract|TestV1OpenAPIIncludesMetricsEndpoint' -count=1\n",
+            "",
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "OpenAPI contract gate"):
             self.make_gate(self.make_repo(self.workflow_files(release_workflow))).check_workflows()
 
     def test_project_go_version_metadata_rejects_drift(self) -> None:

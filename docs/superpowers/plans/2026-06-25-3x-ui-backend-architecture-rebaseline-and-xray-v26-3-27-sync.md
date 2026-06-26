@@ -12,7 +12,7 @@
 
 **Tech Stack:** Go 1.26.4、Gin、GORM、SQLite、robfig/cron、WebSocket、Go `embed`、Xray-core release `v26.3.27`、GitHub Actions、Docker、Markdown。
 
-**当前执行状态（2026-06-26）：** Phase 0 已完成运行时 Xray-core `v26.3.27` 发布链路对齐；Phase 1 已落地架构契约文档 [docs/backend-internal-rebaseline-contract.md](../../backend-internal-rebaseline-contract.md)，用于约束后续 `internal/` 包边界、API 契约、数据流和迁移顺序；Phase 2 已落地迁移元数据表、baseline 记录和首批 GORM repository 边界，SettingService/UserService 及 InboundService 读路径、第二批查询路径、第三批邮箱唯一性读取路径已收口，不改变现有业务表。
+**当前执行状态（2026-06-26）：** Phase 0 已完成运行时 Xray-core `v26.3.27` 发布链路对齐；Phase 1 已落地架构契约文档 [docs/backend-internal-rebaseline-contract.md](../../backend-internal-rebaseline-contract.md)，用于约束后续 `internal/` 包边界、API 契约、数据流和迁移顺序；Phase 2 已落地迁移元数据表、baseline 记录和首批 GORM repository 边界，SettingService/UserService 及 InboundService 读写路径已分批收口，不改变现有业务表。Phase 3-7 已启动首批基础设施切片：新增 `/api/v1` 版本化 API 契约、统一响应/错误壳、`X-Request-ID` 中间件、固定窗口限流、健康检查服务、Xray 只读运行时快照、request metrics 观测入口、release workflow secret scan 和 OpenAPI contract gate；旧 `/panel/api` 契约保持不变。
 
 ---
 
@@ -266,8 +266,8 @@ internal/
 
 ## 8. 可观测性方案
 
-- 结构化日志：统一字段 `requestId/userId/ip/path/duration/error`。
-- 指标暴露：请求耗时、成功率、Xray 状态、流量、重启次数、订阅命中率。
+- 结构化日志：统一字段 `requestId/ip/path/route/method/status/duration/error`；用户维度后续在 auth 上下文完善后再接入。
+- 指标暴露：请求耗时、成功率、Xray 状态、流量、重启次数、订阅命中率，先落地请求计数与路由聚合快照。
 - 健康检查：区分 `live`、`ready`、`xray healthy`、`db healthy`。
 - 告警：将 xray 进程退出、DB 迁移失败、订阅异常、流量采集失败纳入告警规则。
 
@@ -357,6 +357,9 @@ internal/
   - [x] InboundService 首批读路径（`GetInbounds` / `GetAllInbounds` / `GetInbound`）已迁到 `InboundRepository`。
   - [x] InboundService 第二批查询路径（`GetInboundOptions` / `GetInboundsByTrafficReset` / `checkPortExist`）已迁到 `InboundRepository`。
   - [x] InboundService 第三批邮箱唯一性读取路径（`getAllEmails` / `checkEmailExistForInbound` / `checkEmailsExistForClients`）已迁到 `InboundRepository`。
+  - [x] InboundService 写入保存路径（新增/更新 inbound、客户端增删改、批量保存 client traffic）已迁到事务感知 repository 方法。
+  - [x] InboundService 流量聚合与维护路径（`AddTraffic`、`autoRenewClients`、失效 inbound/client 禁用、运行时 client enable 投影）已迁到 `InboundRepository`。
+  - [x] InboundService 客户端删除与耗尽清理路径（`DelInboundClient`、`DelDepletedClients`）已迁到 repository/DTO 边界。
 - [x] 启动旧表兼容读取验证，避免一刀切改表。
 
 **验收标准：**
@@ -379,6 +382,11 @@ internal/
 - `web/service/inbound.go` 第二批迁移已将 `GetInboundOptions`、`GetInboundsByTrafficReset`、`checkPortExist` 切到 `database.InboundRepository`；options 派生字段由 repository record adapter 计算，service 只映射现有 API DTO。
 - `web/service/inbound.go` 第三批迁移已将 `getAllEmails` 切到 `database.InboundRepository.ListClientEmails`，使 `checkEmailExistForInbound`、`checkEmailsExistForClients` 和复制客户端路径共享同一 repository 邮箱读取边界。
 - `web/service/inbound_test.go` 新增 fake inbound repository 用例，验证 InboundService 首批、第二批和第三批读/查询路径调用 repository 边界、按用户筛选、全量读取、单条读取、options 元数据、traffic reset 过滤、端口冲突调用、邮箱唯一性读取以及大小写不敏感的客户端统计回填。
+- `database.InboundRepository` 新增事务感知写入与流量维护方法：`SaveInbound`、`SaveInbounds`、`SaveClientTraffics`、`AddInboundTrafficByTag`、`ListClientTrafficsByEmailsTx`、`ListInboundsByIDs`、`ListClientTrafficEnableByInboundID`、`ListRenewableClientTraffics`、`ListInvalidInboundTags`、`DisableInvalidInbounds`、`ListInvalidClientTrafficTargets`、`DisableInvalidClientTraffics`、`IsClientTrafficEnabledByEmail`、`ListDepletedClientGroups`、`DeleteDepletedClientTraffics`。
+- `web/service/inbound.go` 已将 `AddInbound`、`UpdateInbound`、`AddInboundClient`、`UpdateInboundClient`、`DelInboundClient`、`addInboundTraffic`、`addClientTraffic`、`adjustTraffics`、`autoRenewClients`、`disableInvalidInbounds`、`disableInvalidClients`、`buildRuntimeInboundForAPI`、`DelDepletedClients` 的主要读写投影迁到 `InboundRepository`；`service` 继续保留 Xray API 同步、JSON settings 业务变换和事务编排。
+- `database/repository_test.go` 扩展覆盖事务内保存、批量保存、流量增量、client enable 投影、自动续期查询、失效禁用查询/更新、耗尽客户端分组与删除，确保 repository 仍操作旧 `inbounds` / `client_traffics` 表。
+- `web/service/inbound_test.go` 扩展 fake repository 用例，验证 InboundService 写入保存、流量聚合、自动续期、失效禁用、运行时投影、客户端删除和耗尽清理路径实际调用 repository 边界。
+- 验证命令：`go test ./database ./web/service -run 'TestRepositoriesReadAndWriteCurrentGORMModels|TestInboundServiceTrafficAggregationUsesRepositoryBoundary|TestInboundServiceTrafficMaintenanceUsesRepositoryBoundary|TestInboundServiceRuntimeInboundUsesRepositoryClientEnableProjection' -count=1` 通过；`go test ./database ./web/service -run 'TestRepositoriesReadAndWriteCurrentGORMModels|TestInboundServiceClientDeleteUsesRepositoryTrafficEnableLookup|TestInboundServiceDelDepletedClientsUsesRepositoryBoundary' -count=1` 通过；`go test ./database ./web/service` 通过。
 - 当前步骤未改动 `users`、`inbounds`、`settings`、`client_traffics` 等业务表语义，旧写路径继续兼容。
 
 ### Phase 3: API / middleware 重构
@@ -387,12 +395,23 @@ internal/
 
 - [ ] 路由分组重整为 public/auth/admin/api/ws。
 - [ ] 中间件管线固化，加入 JWT、速率限制和统一错误映射。
-- [ ] 统一请求/响应 DTO 和错误码。
+- [x] 首批 `/api/v1` 版本化 API 已引入统一请求追踪、响应 DTO 和错误码；旧 `/panel/api` 响应字段保持兼容。
+  - [x] `/api/v1` 已接入固定窗口速率限制和统一 `RATE_LIMITED` 429 错误壳。
 
 **验收标准：**
 
 - 401/403/404/429/5xx 行为清晰且可测试。
 - 前端和脚本调用不会因字段变更而无提示失败。
+
+**执行证据（2026-06-26）：**
+
+- 新增 `web/entity/api.go`，定义 `APIResponse`、`APIError` 与稳定错误码：`UNAUTHORIZED`、`FORBIDDEN`、`NOT_FOUND`、`RATE_LIMITED`、`VALIDATION_ERROR`、`INTERNAL_ERROR`。
+- 新增 `web/middleware/request_id.go`，全局注入并回显 `X-Request-ID`；无有效请求 ID 时生成 `req_` 前缀追踪 ID。
+- 新增 `web/middleware/rate_limit.go`，提供固定窗口限流中间件；`/api/v1` 默认每客户端每分钟 120 次，超过限额返回统一 `RATE_LIMITED` 429 响应并设置 `Retry-After`。
+- 新增 `web/controller/v1.go`，注册 `/api/v1/health/live` 与 `/api/v1/health/ready`；新增 `controller.WriteAPIError` 用于 v1 统一错误输出。
+- `web/web.go` 在全局 Gin pipeline 中启用 request-id middleware，并对 `/api/v1/*` 未命中路由返回统一 `NOT_FOUND` JSON；旧 `NoRoute` 与 `/panel/api` 隐藏式 404 行为不变。
+- 新增 `web/middleware/request_id_test.go`、`web/middleware/rate_limit_test.go`、`web/controller/v1_test.go`、`web/api_v1_test.go`，覆盖请求 ID 传播/生成、v1 成功响应壳、v1 404/429 错误壳、固定窗口重置和 basePath 匹配。
+- 未完成项：JWT/API Token、登录态/Token/路由组分级限流、完整 public/auth/admin/api/ws 分组仍待后续批次落地。
 
 ### Phase 4: Xray 集成层与模板引擎
 
@@ -407,12 +426,20 @@ internal/
 - 配置变更可预期地触发 reload/restart。
 - 模板输出可校验，失败时有清晰回滚。
 
+**执行证据（2026-06-26）：**
+
+- 首批仅落地健康检查侧的只读集成点：新增 `service.XrayRuntimeStatus` 接口和 `HealthService` 可选 Xray runtime snapshot，不启动、不停止、不重启 Xray。
+- `/api/v1/health/ready` 可返回 Xray `state/errorMsg/version` 投影，为后续 process manager、gRPC client 和模板校验层提供可观测入口。
+- 遵守当前项目边界：未把 legacy XrayService 生命周期路由到 CoreManager，未迁移 active inbound 写模型，未改动 template/reload 策略。
+- 未完成项：进程管理封装、gRPC client、模板 renderer、reload/restart 策略仍待后续专门批次。
+
 ### Phase 5: 业务服务层
 
 **前置依赖：** Phase 3、Phase 4 完成。
 
 - [ ] 用户、节点、流量、订阅、通知、审计服务接口定稿。
 - [ ] 每个 service 只依赖接口，不直接依赖 Gin。
+- [x] 首批健康检查业务逻辑已收口到 `web/service.HealthService`，controller 只负责 HTTP 编排。
 - [ ] 把统计与告警逻辑收口到服务层。
 
 **验收标准：**
@@ -420,30 +447,58 @@ internal/
 - 业务服务可独立单测。
 - controller 不再承载核心业务计算。
 
+**执行证据（2026-06-26）：**
+
+- 新增 `web/service/health.go`，以 `HealthService` 封装 live/ready 报告生成；`controller.V1Controller` 依赖 `v1HealthService` 接口，不直接读取 Xray 全局状态。
+- 新增 `web/service/health_test.go`，覆盖健康服务独立单测和 Xray runtime snapshot 状态投影。
+- 未完成项：用户、节点、流量、订阅、通知、审计服务接口仍需按领域继续抽象。
+
 ### Phase 6: 安全与可观测性
 
 **前置依赖：** Phase 3、Phase 5 完成。
 
 - [ ] TLS、JWT、CSRF、限流、输入校验、日志脱敏全部落地。
-- [ ] 结构化日志、指标暴露、健康检查和告警规则补齐。
+- [x] 首批健康检查与请求追踪已落地，可用于发布前基本探活。
+- [x] 结构化日志与请求指标快照已落地，`/api/v1/metrics` 与 `/api/v1/health/ready` 共享同一只读投影。
+- [x] release workflow 已接入 secret scan 与 OpenAPI contract gate，发布前可在 CI 早期阻断回归。
+- [ ] 告警规则、JWT/API Token、全局分级限流策略仍待后续批次。
 
 **验收标准：**
 
 - 安全头与鉴权行为都有回归测试。
 - 健康检查和指标能用于发布判断。
 
+**执行证据（2026-06-26）：**
+
+- `X-Request-ID` 在响应头与 v1 响应体中保持一致，便于后续结构化日志串联。
+- `/api/v1` 首批固定窗口限流已落地，超过限额返回 `RATE_LIMITED` 429 与 `Retry-After`，用于保护公开健康探针和后续机器 API。
+- `/api/v1/health/live` 提供进程 liveness，`/api/v1/health/ready` 提供 readiness 与 Xray 只读状态投影，并附带 request metrics 快照。
+- `/api/v1/metrics` 作为只读观测入口，返回与 ready 响应内一致的请求计数、状态码分布、路由聚合和平均延迟。
+- 结构化日志中已输出 requestId/method/path/route/status/duration/clientIp/error，便于后续汇入文件或集中日志。
+- `release.yml` 已在 analyze job 中前置 `scripts/secret_scan.py` 与 v1 OpenAPI contract gate，`release_gate.py` 也将其纳入工作流校验。
+- 已有 `web/middleware/security_test.go` 继续覆盖 CSP、CSRF 和安全头；本批新增 request-id、rate-limit、request-log、metrics 与 health 回归测试。
+- 未完成项：JWT/API Token、全局分级限流策略、安全告警规则仍待后续批次。
+
 ### Phase 7: 测试、CI/CD 与容器化
 
 **前置依赖：** Phase 0 至 Phase 6 完成。
 
-- [ ] 补齐单元、集成和 E2E 覆盖。
-- [ ] release gate、secret scan、OpenAPI stale gate 进入 CI。
+- [x] 首批 v1 API 单元/契约测试已补齐。
+- [x] release gate、secret scan、OpenAPI stale gate 进入 CI。
 - [ ] 容器镜像与 release 包发布一致化。
 
 **验收标准：**
 
 - 主分支的 CI 结果能直接代表可发布性。
 - release 包中包含正确版本的 Xray release。
+
+**执行证据（2026-06-26）：**
+
+- 新增 `docs/openapi/api-v1.yaml`，记录 `/api/v1/health/live`、`/api/v1/health/ready`、`/api/v1/metrics`、`APIResponse`、`APIError`、错误码、`X-Request-ID` 和 `Retry-After`。
+- 新增 `web/controller/v1_openapi_contract_test.go`，校验 v1 Go 路由与 `docs/openapi/api-v1.yaml` 同步，并要求 v1 endpoint 文档包含 200、统一 404 与统一 429 响应。
+- 更新 [docs/api.md](../../api.md)，补充 `/api/v1` 响应壳、错误码、basePath 示例、健康接口、metrics 接口和 429 限流说明。
+- 验证命令：`go test ./web/middleware ./web/service ./web/controller -run "TestStructuredRequestLogger|TestRequestMetricsStore|TestHealthServiceReadyIncludesMetricsSnapshot|TestV1MetricsUsesUnifiedAPIResponse|TestV1OpenAPIIncludesMetricsEndpoint|TestV1OpenAPIResponseContract" -count=1` 通过；`go test ./...` 通过；`go vet ./...` 通过；`go build ./...` 通过；`git diff --check` 通过；`python scripts\secret_scan.py` 通过；`python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metadata-only` 通过。
+- 未完成项：CI workflow stale gate、容器镜像、release package 与 Xray release 版本二次校验仍待后续批次。
 
 ## 12. 风险缓解清单
 

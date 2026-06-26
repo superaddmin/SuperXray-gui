@@ -1,0 +1,305 @@
+openapi: 3.1.0
+info:
+  title: SuperXray Versioned API
+  version: 0.1.0
+  description: |
+    Machine-readable contract for the versioned SuperXray API surface.
+    Runtime deployments may prepend the configured webBasePath before these paths.
+servers:
+  - url: "{webBasePath}"
+    description: Runtime web base path. Use / for the source default.
+    variables:
+      webBasePath:
+        default: /
+tags:
+  - name: Health
+    description: Side-effect-free process and runtime health probes.
+  - name: Metrics
+    description: Read-only request metrics snapshots.
+paths:
+  /api/v1/health/live:
+    get:
+      tags: [Health]
+      summary: Liveness probe for the panel process.
+      operationId: getV1HealthLive
+      parameters:
+        - $ref: '#/components/parameters/RequestIDHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/HealthResponse'
+        '404':
+          $ref: '#/components/responses/APIErrorNotFound'
+        '429':
+          $ref: '#/components/responses/APIErrorRateLimited'
+  /api/v1/health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe with optional Xray runtime snapshot.
+      operationId: getV1HealthReady
+      parameters:
+        - $ref: '#/components/parameters/RequestIDHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/HealthResponse'
+        '404':
+          $ref: '#/components/responses/APIErrorNotFound'
+        '429':
+          $ref: '#/components/responses/APIErrorRateLimited'
+  /api/v1/metrics:
+    get:
+      tags: [Metrics]
+      summary: Request metrics snapshot for the panel process.
+      operationId: getV1Metrics
+      parameters:
+        - $ref: '#/components/parameters/RequestIDHeader'
+      responses:
+        '200':
+          $ref: '#/components/responses/MetricsResponse'
+        '404':
+          $ref: '#/components/responses/APIErrorNotFound'
+        '429':
+          $ref: '#/components/responses/APIErrorRateLimited'
+components:
+  parameters:
+    RequestIDHeader:
+      name: X-Request-ID
+      in: header
+      required: false
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+      description: Optional client-provided request id. The server echoes it when valid, otherwise generates one.
+  responses:
+    HealthResponse:
+      description: Unified successful API response containing a health report.
+      headers:
+        X-Request-ID:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/APIResponse'
+              - type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/HealthReport'
+          examples:
+            live:
+              value:
+                success: true
+                requestId: req_0123456789abcdef0123456789abcdef
+                data:
+                  status: live
+                  checkedAt: '2026-06-26T00:00:00Z'
+            ready:
+              value:
+                success: true
+                requestId: req_0123456789abcdef0123456789abcdef
+                data:
+                  status: ready
+                  checkedAt: '2026-06-26T00:00:00Z'
+                  xray:
+                    state: running
+                    version: v26.3.27
+                  metrics:
+                    requests:
+                      total: 3
+                      inFlight: 1
+                      byStatus:
+                        "200": 2
+                        "404": 1
+                      byRoute:
+                        "GET /api/v1/health/live":
+                          total: 2
+                          averageLatencyMs: 12
+                      averageLatencyMs: 18
+                    observedAt: '2026-06-26T00:00:00Z'
+    MetricsResponse:
+      description: Unified successful API response containing a request metrics snapshot.
+      headers:
+        X-Request-ID:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/APIResponse'
+              - type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MetricsReport'
+          examples:
+            snapshot:
+              value:
+                success: true
+                requestId: req_0123456789abcdef0123456789abcdef
+                data:
+                  requests:
+                    total: 3
+                    inFlight: 1
+                    byStatus:
+                      "200": 2
+                      "404": 1
+                    byRoute:
+                      "GET /api/v1/health/live":
+                        total: 2
+                        averageLatencyMs: 12
+                    averageLatencyMs: 18
+                  observedAt: '2026-06-26T00:00:00Z'
+    APIErrorNotFound:
+      description: Unified route-not-found response for /api/v1.
+      headers:
+        X-Request-ID:
+          schema:
+            type: string
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/APIResponse'
+              - type: object
+                required: [error]
+                properties:
+                  error:
+                    $ref: '#/components/schemas/APIError'
+          examples:
+            notFound:
+              value:
+                success: false
+                requestId: req_0123456789abcdef0123456789abcdef
+                error:
+                  code: NOT_FOUND
+                  message: route not found
+    APIErrorRateLimited:
+      description: Unified rate-limit response for /api/v1.
+      headers:
+        X-Request-ID:
+          schema:
+            type: string
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 1
+          description: Seconds until the client should retry.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/APIResponse'
+              - type: object
+                required: [error]
+                properties:
+                  error:
+                    $ref: '#/components/schemas/APIError'
+          examples:
+            rateLimited:
+              value:
+                success: false
+                requestId: req_0123456789abcdef0123456789abcdef
+                error:
+                  code: RATE_LIMITED
+                  message: rate limit exceeded
+  schemas:
+    APIResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        requestId:
+          type: string
+        data:
+          description: Endpoint-specific payload.
+        error:
+          $ref: '#/components/schemas/APIError'
+    APIError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          $ref: '#/components/schemas/APIErrorCode'
+        message:
+          type: string
+        details:
+          description: Optional machine-readable validation or diagnostic details.
+    APIErrorCode:
+      type: string
+      enum:
+        - UNAUTHORIZED
+        - FORBIDDEN
+        - NOT_FOUND
+        - RATE_LIMITED
+        - VALIDATION_ERROR
+        - INTERNAL_ERROR
+    HealthReport:
+      type: object
+      required: [status, checkedAt]
+      properties:
+        status:
+          type: string
+          enum: [live, ready]
+        checkedAt:
+          type: string
+          format: date-time
+        xray:
+          $ref: '#/components/schemas/XrayHealthReport'
+        metrics:
+          $ref: '#/components/schemas/MetricsReport'
+    XrayHealthReport:
+      type: object
+      required: [state, version]
+      properties:
+        state:
+          type: string
+          enum: [running, stop, error]
+        errorMsg:
+          type: string
+        version:
+          type: string
+    MetricsReport:
+      type: object
+      required: [requests, observedAt]
+      properties:
+        requests:
+          $ref: '#/components/schemas/RequestMetricsSnapshot'
+        observedAt:
+          type: string
+          format: date-time
+    RequestMetricsSnapshot:
+      type: object
+      required: [total, inFlight, byStatus, byRoute, averageLatencyMs]
+      properties:
+        total:
+          type: integer
+          format: int64
+        inFlight:
+          type: integer
+          format: int64
+        byStatus:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+        byRoute:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/RouteMetricsSnapshot'
+        averageLatencyMs:
+          type: integer
+          format: int64
+    RouteMetricsSnapshot:
+      type: object
+      required: [total, averageLatencyMs]
+      properties:
+        total:
+          type: integer
+          format: int64
+        averageLatencyMs:
+          type: integer
+          format: int64

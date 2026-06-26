@@ -404,6 +404,47 @@ func TestInboundServiceClientWritePathsUseRepositorySave(t *testing.T) {
 	}
 }
 
+func TestInboundServiceClientDeleteUsesRepositoryTrafficEnableLookup(t *testing.T) {
+	setupInboundServiceTestDB(t)
+
+	repo := &fakeInboundRepository{
+		inbounds: []*model.Inbound{
+			{
+				Id:             45,
+				Remark:         "delete-client-repository",
+				Enable:         false,
+				Protocol:       model.VLESS,
+				Port:           10045,
+				Tag:            "delete-client-repository",
+				Settings:       `{"clients":[{"id":"00000000-0000-4000-8000-000000000045","email":"delete-client@example.test","enable":false},{"id":"00000000-0000-4000-8000-000000000046","email":"kept-client@example.test","enable":true}]}`,
+				StreamSettings: `{"network":"tcp","security":"none"}`,
+				Sniffing:       `{}`,
+				ClientStats: []xray.ClientTraffic{
+					{Id: 45, Email: "delete-client@example.test", InboundId: 45, Enable: true},
+				},
+			},
+		},
+	}
+	svc := NewInboundService(repo)
+
+	needRestart, err := svc.DelInboundClient(45, "00000000-0000-4000-8000-000000000045")
+	if err != nil {
+		t.Fatalf("DelInboundClient() returned error: %v", err)
+	}
+	if needRestart {
+		t.Fatal("DelInboundClient() returned needRestart=true, want false for disabled inbound")
+	}
+	if len(repo.isClientTrafficEnabledByEmailCalls) != 1 || repo.isClientTrafficEnabledByEmailCalls[0] != "delete-client@example.test" {
+		t.Fatalf("DelInboundClient() IsClientTrafficEnabledByEmail calls = %v, want delete-client@example.test", repo.isClientTrafficEnabledByEmailCalls)
+	}
+	if len(repo.deleteClientTrafficCalls) != 1 || repo.deleteClientTrafficCalls[0] != "delete-client@example.test" {
+		t.Fatalf("DelInboundClient() DeleteClientTrafficByEmail calls = %v, want delete-client@example.test", repo.deleteClientTrafficCalls)
+	}
+	if len(repo.saveInboundCalls) != 1 || strings.Contains(repo.saveInboundCalls[0].Settings, "delete-client@example.test") {
+		t.Fatalf("DelInboundClient() saved settings = %s, want deleted client removed", repo.saveInboundCalls[0].Settings)
+	}
+}
+
 func TestInboundServiceTrafficAggregationUsesRepositoryBoundary(t *testing.T) {
 	setupInboundServiceTestDB(t)
 
@@ -593,48 +634,132 @@ func TestInboundServiceTrafficMaintenanceUsesRepositoryBoundary(t *testing.T) {
 	}
 }
 
+func TestInboundServiceRuntimeInboundUsesRepositoryClientEnableProjection(t *testing.T) {
+	setupInboundServiceTestDB(t)
+
+	repo := &fakeInboundRepository{
+		inbounds: []*model.Inbound{
+			{
+				Id:             77,
+				Remark:         "runtime-repository-boundary",
+				Enable:         true,
+				Protocol:       model.VLESS,
+				Port:           10077,
+				Tag:            "runtime-tag",
+				StreamSettings: `{"network":"tcp","security":"none"}`,
+				Settings:       `{"clients":[{"id":"00000000-0000-4000-8000-000000000077","email":"enabled@example.test","enable":true},{"id":"00000000-0000-4000-8000-000000000078","email":"disabled@example.test","enable":true},{"id":"00000000-0000-4000-8000-000000000079","email":"manual-disabled@example.test","enable":false}]}`,
+				ClientStats: []xray.ClientTraffic{
+					{InboundId: 77, Email: "enabled@example.test", Enable: true},
+					{InboundId: 77, Email: "disabled@example.test", Enable: false},
+				},
+			},
+		},
+	}
+	svc := NewInboundService(repo)
+
+	runtimeInbound, err := svc.buildRuntimeInboundForAPI(database.GetDB(), repo.inbounds[0])
+	if err != nil {
+		t.Fatalf("buildRuntimeInboundForAPI() returned error: %v", err)
+	}
+	if len(repo.listClientTrafficEnableByInboundIDCalls) != 1 || repo.listClientTrafficEnableByInboundIDCalls[0] != 77 {
+		t.Fatalf("buildRuntimeInboundForAPI() ListClientTrafficEnableByInboundID calls = %v, want [77]", repo.listClientTrafficEnableByInboundIDCalls)
+	}
+	if strings.Contains(runtimeInbound.Settings, "disabled@example.test") {
+		t.Fatalf("buildRuntimeInboundForAPI() kept DB-disabled client in settings: %s", runtimeInbound.Settings)
+	}
+	if strings.Contains(runtimeInbound.Settings, "manual-disabled@example.test") {
+		t.Fatalf("buildRuntimeInboundForAPI() kept manually disabled client in settings: %s", runtimeInbound.Settings)
+	}
+	if !strings.Contains(runtimeInbound.Settings, "enabled@example.test") {
+		t.Fatalf("buildRuntimeInboundForAPI() dropped enabled client from settings: %s", runtimeInbound.Settings)
+	}
+}
+
+func TestInboundServiceDelDepletedClientsUsesRepositoryBoundary(t *testing.T) {
+	setupInboundServiceTestDB(t)
+
+	repo := &fakeInboundRepository{
+		inbounds: []*model.Inbound{
+			{
+				Id:       88,
+				Remark:   "depleted-repository-boundary",
+				Enable:   false,
+				Protocol: model.VLESS,
+				Port:     10088,
+				Tag:      "depleted-tag",
+				Settings: `{"clients":[{"id":"00000000-0000-4000-8000-000000000088","email":"drop@example.test","enable":true},{"id":"00000000-0000-4000-8000-000000000089","email":"keep@example.test","enable":true}]}`,
+				ClientStats: []xray.ClientTraffic{
+					{Id: 88, InboundId: 88, Email: "drop@example.test", Enable: true, Up: 100, Down: 0, Total: 50},
+					{Id: 89, InboundId: 88, Email: "keep@example.test", Enable: true, Up: 0, Down: 0, Total: 50},
+				},
+			},
+		},
+	}
+	svc := NewInboundService(repo)
+
+	if err := svc.DelDepletedClients(-1); err != nil {
+		t.Fatalf("DelDepletedClients() returned error: %v", err)
+	}
+	if len(repo.listDepletedClientGroupsCalls) != 1 || repo.listDepletedClientGroupsCalls[0] != -1 {
+		t.Fatalf("DelDepletedClients() ListDepletedClientGroups calls = %v, want [-1]", repo.listDepletedClientGroupsCalls)
+	}
+	if len(repo.saveInboundCalls) != 1 || strings.Contains(repo.saveInboundCalls[0].Settings, "drop@example.test") {
+		t.Fatalf("DelDepletedClients() saved settings = %s, want depleted client removed", repo.saveInboundCalls[0].Settings)
+	}
+	if !strings.Contains(repo.saveInboundCalls[0].Settings, "keep@example.test") {
+		t.Fatalf("DelDepletedClients() saved settings = %s, want kept client retained", repo.saveInboundCalls[0].Settings)
+	}
+	if len(repo.deleteDepletedClientTrafficsCalls) != 1 || repo.deleteDepletedClientTrafficsCalls[0] != -1 {
+		t.Fatalf("DelDepletedClients() DeleteDepletedClientTraffics calls = %v, want [-1]", repo.deleteDepletedClientTrafficsCalls)
+	}
+}
+
 type fakeInboundRepository struct {
-	inbounds                          []*model.Inbound
-	options                           []database.InboundOptionRecord
-	clientEmails                      []string
-	portExists                        bool
-	getCalls                          []int
-	listByUserIDCalls                 []int
-	listAllCalls                      int
-	listAllCalled                     bool
-	listOptionsByUserIDCalls          []int
-	listByTrafficResetCalls           []string
-	listClientEmailsCalls             int
-	searchByRemarkCalls               []string
-	portExistsCalls                   []portExistsCall
-	listClientTrafficsByEmailsCalls   [][]string
-	listTagsCalls                     int
-	resetClientTrafficCalls           []string
-	resetAllClientTrafficsCalls       []int
-	resetAllTrafficsCalled            bool
-	resetInboundTrafficCalls          []int
-	deleteOrphanedClientTrafficsCalls int
-	addInboundTrafficCalls            []inboundTrafficCall
-	listClientTrafficsByEmailsTxCalls [][]string
-	listInboundsByIDsCalls            [][]int
-	listRenewableClientTrafficsCalls  int
-	listInvalidInboundTagsCalls       int
-	disableInvalidInboundsCalls       int
-	listInvalidClientTrafficTargetsCalls int
-	disableInvalidClientTrafficsCalls    int
-	saveInboundCalls                  []model.Inbound
-	saveInboundsCalls                 [][]model.Inbound
-	saveClientTrafficCalls            []xray.ClientTraffic
-	saveClientTrafficsCalls           [][]xray.ClientTraffic
-	createClientTrafficCalls          []xray.ClientTraffic
-	updateClientTrafficCalls          []updateClientTrafficCall
-	updateClientIPCalls               []ipUpdateCall
-	updateTrafficUsageCalls           []usageUpdateCall
-	deleteClientTrafficCalls          []string
-	deleteClientTrafficsCalls         []int
-	deleteClientIPCalls               []string
-	deleteByIDCalls                   []int
-	clearClientIPCalls                []string
+	inbounds                                []*model.Inbound
+	options                                 []database.InboundOptionRecord
+	clientEmails                            []string
+	portExists                              bool
+	getCalls                                []int
+	listByUserIDCalls                       []int
+	listAllCalls                            int
+	listAllCalled                           bool
+	listOptionsByUserIDCalls                []int
+	listByTrafficResetCalls                 []string
+	listClientEmailsCalls                   int
+	searchByRemarkCalls                     []string
+	portExistsCalls                         []portExistsCall
+	listClientTrafficsByEmailsCalls         [][]string
+	listTagsCalls                           int
+	resetClientTrafficCalls                 []string
+	resetAllClientTrafficsCalls             []int
+	resetAllTrafficsCalled                  bool
+	resetInboundTrafficCalls                []int
+	deleteOrphanedClientTrafficsCalls       int
+	addInboundTrafficCalls                  []inboundTrafficCall
+	listClientTrafficsByEmailsTxCalls       [][]string
+	listInboundsByIDsCalls                  [][]int
+	listClientTrafficEnableByInboundIDCalls []int
+	listRenewableClientTrafficsCalls        int
+	listInvalidInboundTagsCalls             int
+	disableInvalidInboundsCalls             int
+	listInvalidClientTrafficTargetsCalls    int
+	disableInvalidClientTrafficsCalls       int
+	saveInboundCalls                        []model.Inbound
+	saveInboundsCalls                       [][]model.Inbound
+	saveClientTrafficCalls                  []xray.ClientTraffic
+	saveClientTrafficsCalls                 [][]xray.ClientTraffic
+	createClientTrafficCalls                []xray.ClientTraffic
+	updateClientTrafficCalls                []updateClientTrafficCall
+	updateClientIPCalls                     []ipUpdateCall
+	updateTrafficUsageCalls                 []usageUpdateCall
+	deleteClientTrafficCalls                []string
+	deleteClientTrafficsCalls               []int
+	deleteClientIPCalls                     []string
+	deleteByIDCalls                         []int
+	isClientTrafficEnabledByEmailCalls      []string
+	listDepletedClientGroupsCalls           []int
+	deleteDepletedClientTrafficsCalls       []int
+	clearClientIPCalls                      []string
 }
 
 type updateClientTrafficCall struct {
@@ -778,6 +903,23 @@ func (r *fakeInboundRepository) ListInboundsByIDs(_ *gorm.DB, ids []int) ([]*mod
 		}
 	}
 	return inbounds, nil
+}
+
+func (r *fakeInboundRepository) ListClientTrafficEnableByInboundID(_ *gorm.DB, inboundID int) ([]xray.ClientTraffic, error) {
+	r.listClientTrafficEnableByInboundIDCalls = append(r.listClientTrafficEnableByInboundIDCalls, inboundID)
+	rows := make([]xray.ClientTraffic, 0)
+	for _, inbound := range r.inbounds {
+		if inbound.Id != inboundID {
+			continue
+		}
+		for _, clientTraffic := range inbound.ClientStats {
+			rows = append(rows, xray.ClientTraffic{
+				Email:  clientTraffic.Email,
+				Enable: clientTraffic.Enable,
+			})
+		}
+	}
+	return rows, nil
 }
 
 func (r *fakeInboundRepository) ListRenewableClientTraffics(_ *gorm.DB, now int64) ([]*xray.ClientTraffic, error) {
@@ -1103,6 +1245,65 @@ func (r *fakeInboundRepository) GetClientTrafficByEmail(email string) (*xray.Cli
 		}
 	}
 	return nil, nil
+}
+
+func (r *fakeInboundRepository) IsClientTrafficEnabledByEmail(_ *gorm.DB, email string) (bool, error) {
+	r.isClientTrafficEnabledByEmailCalls = append(r.isClientTrafficEnabledByEmailCalls, email)
+	for _, inbound := range r.inbounds {
+		for _, clientTraffic := range inbound.ClientStats {
+			if clientTraffic.Email == email {
+				return clientTraffic.Enable, nil
+			}
+		}
+	}
+	return false, gorm.ErrRecordNotFound
+}
+
+func (r *fakeInboundRepository) ListDepletedClientGroups(_ *gorm.DB, inboundID int, now int64) ([]database.DepletedClientGroup, error) {
+	r.listDepletedClientGroupsCalls = append(r.listDepletedClientGroupsCalls, inboundID)
+	emailByInboundID := make(map[int][]string)
+	for _, inbound := range r.inbounds {
+		if inboundID >= 0 && inbound.Id != inboundID {
+			continue
+		}
+		if inboundID < 0 && inbound.Id <= inboundID {
+			continue
+		}
+		for _, clientTraffic := range inbound.ClientStats {
+			if clientTraffic.Reset == 0 && ((clientTraffic.Total > 0 && clientTraffic.Up+clientTraffic.Down >= clientTraffic.Total) || (clientTraffic.ExpiryTime > 0 && clientTraffic.ExpiryTime <= now)) {
+				emailByInboundID[inbound.Id] = append(emailByInboundID[inbound.Id], clientTraffic.Email)
+			}
+		}
+	}
+	groups := make([]database.DepletedClientGroup, 0, len(emailByInboundID))
+	for id, emails := range emailByInboundID {
+		groups = append(groups, database.DepletedClientGroup{
+			InboundID: id,
+			Emails:    emails,
+		})
+	}
+	return groups, nil
+}
+
+func (r *fakeInboundRepository) DeleteDepletedClientTraffics(_ *gorm.DB, inboundID int, now int64) error {
+	r.deleteDepletedClientTrafficsCalls = append(r.deleteDepletedClientTrafficsCalls, inboundID)
+	for i := range r.inbounds {
+		if inboundID >= 0 && r.inbounds[i].Id != inboundID {
+			continue
+		}
+		if inboundID < 0 && r.inbounds[i].Id <= inboundID {
+			continue
+		}
+		filtered := r.inbounds[i].ClientStats[:0]
+		for _, clientTraffic := range r.inbounds[i].ClientStats {
+			depleted := clientTraffic.Reset == 0 && ((clientTraffic.Total > 0 && clientTraffic.Up+clientTraffic.Down >= clientTraffic.Total) || (clientTraffic.ExpiryTime > 0 && clientTraffic.ExpiryTime <= now))
+			if !depleted {
+				filtered = append(filtered, clientTraffic)
+			}
+		}
+		r.inbounds[i].ClientStats = filtered
+	}
+	return nil
 }
 
 func (r *fakeInboundRepository) Save(_ *model.Inbound) error {

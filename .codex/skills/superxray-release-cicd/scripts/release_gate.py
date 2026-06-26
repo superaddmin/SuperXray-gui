@@ -289,6 +289,10 @@ class Gate:
         required_release_tokens = [
             "v*.*.*",
             "Validate release metadata",
+            "Run secret scan",
+            "python scripts/secret_scan.py",
+            "Run OpenAPI contract gate",
+            "TestV1OpenAPIRoutesStayInSyncWithGoRoutes|TestV1OpenAPIResponseContract|TestV1OpenAPIIncludesMetricsEndpoint",
             "Generate release notes",
             '$0 ~ "^## \\\\[" version "\\\\]([[:space:]]|$)"',
             "id: release_notes",
@@ -296,6 +300,7 @@ class Gate:
             ".codex/**",
             ".github/agentic-workflows/**",
             "release_gate.py --ci --metadata-only",
+            "scripts/**",
             "actions/setup-go",
             "gcc-aarch64-linux-gnu",
             "GOARCH=\"$goarch\"",
