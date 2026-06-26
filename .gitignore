@@ -54,6 +54,7 @@ __pycache__/
 
 # Ignore build and distribution directories
 backup/
+build/
 bin/
 dist/
 release/

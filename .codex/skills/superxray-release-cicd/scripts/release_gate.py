@@ -35,6 +35,8 @@ def filter_allowed_stale_version_references(grep_output: str) -> str:
     """Keep stale SuperXray references while allowing upstream 3x-ui baselines."""
     findings: list[str] = []
     for line in grep_output.splitlines():
+        if line.startswith("docs/superpowers/"):
+            continue
         is_upstream_policy = line.startswith("docs/upstream-sync-policy.md:")
         is_3x_ui_reference = re.search(r"\b(?:MHSanaei/)?3x-ui\b", line, re.IGNORECASE)
         if is_upstream_policy and is_3x_ui_reference:

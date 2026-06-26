@@ -117,6 +117,12 @@ class ReleaseMetadataTests(unittest.TestCase):
         ] = "Historical baseline: v3.0.3.\n"
         self.make_gate(self.make_repo(files)).check_release_metadata()
 
+    def test_release_metadata_ignores_historical_superpowers_plans_and_specs(self) -> None:
+        files = self.base_files()
+        files["docs/superpowers/plans/2026-06-07-p0-p2.md"] = "Historical project v3.0.7.\n"
+        files["docs/superpowers/specs/2026-05-01-design.md"] = "Historical design v3.0.3.\n"
+        self.make_gate(self.make_repo(files)).check_release_metadata()
+
     def test_release_metadata_still_rejects_stale_readme_references(self) -> None:
         files = self.base_files()
         files["README.zh_CN.md"] = "Install v3.0.7.\n"

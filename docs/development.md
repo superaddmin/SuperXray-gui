@@ -1,7 +1,7 @@
 # 开发者贡献指南
 
 > **目标读者**：贡献者 / 维护者 / 自动化 Agent
-> **适用版本**：`v3.4.0`
+> **适用版本**：`v3.4.1`
 > **事实来源**：`go.mod`、`.env.example`、`frontend/package.json`、`.github/workflows/*`、`.codex/project.toml`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [部署指南](deployment.md)
 

@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [3.4.1] - 2026-06-26
+
+### Changed
+
+- 同步发布元数据、README、部署/API/架构文档与 OpenAPI 生成物到 `v3.4.1`。
+- 发布门禁允许 `docs/superpowers/**` 历史计划、规格和报告保留当时版本号，避免 patch release 误改历史证据。
+
+### Removed
+
+- 从 Git 索引移除误提交的 `build/x-ui` 构建产物，并忽略本地 `build/` 输出目录。
+- 删除未引用的历史 Windows 说明文件和旧截图/教程图片，保留当前 README 实际使用的 UI 截图、品牌图与捐赠按钮资源。
+
 ## [3.4.0] - 2026-06-25
 
 ### Added
