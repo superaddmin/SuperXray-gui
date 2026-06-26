@@ -293,7 +293,7 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 | Gin | v1.12.0 | HTTP Web 框架 |
 | GORM | v1.31.1 | ORM 框架 |
 | SQLite | - | 嵌入式数据库 |
-| Xray-core | v26.4.25 | 代理核心引擎 |
+| Xray-core | v26.3.27 | 代理核心引擎 |
 | robfig/cron | v3.0.x | 定时任务调度 |
 | gorilla/websocket | - | WebSocket 通信 |
 | telego | - | Telegram Bot API |

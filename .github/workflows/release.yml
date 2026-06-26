@@ -151,7 +151,7 @@ jobs:
           cp x-ui.sh x-ui/
 
           cd x-ui/bin
-          xray_url="https://github.com/XTLS/Xray-core/releases/download/v26.4.25/"
+          xray_url="https://github.com/XTLS/Xray-core/releases/download/v26.3.27/"
           wget -q "${xray_url}${XRAY_ZIP}"
           unzip -q "$XRAY_ZIP"
           rm -f "$XRAY_ZIP" geoip.dat geosite.dat

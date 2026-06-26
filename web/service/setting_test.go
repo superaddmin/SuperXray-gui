@@ -9,6 +9,7 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/database"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/web/entity"
+	"gorm.io/gorm"
 )
 
 func TestSettingServiceFallsBackToDefaultForEmptyRequiredSetting(t *testing.T) {
@@ -113,6 +114,45 @@ func TestSettingServiceUpdateAllSettingRejectsInvalidPanelProxy(t *testing.T) {
 	}
 }
 
+func TestSettingServiceUsesRepositoryBoundary(t *testing.T) {
+	repo := newFakeSettingRepository()
+	repo.settings["webPort"] = &model.Setting{Key: "webPort", Value: "2053"}
+	settingSvc := NewSettingService(repo)
+
+	if err := settingSvc.setString("panelProxy", "http://127.0.0.1:18080"); err != nil {
+		t.Fatalf("setString through repository returned error: %v", err)
+	}
+	if repo.settings["panelProxy"].Value != "http://127.0.0.1:18080" {
+		t.Fatalf("panelProxy persisted through repository = %q", repo.settings["panelProxy"].Value)
+	}
+
+	panelProxy, err := settingSvc.getString("panelProxy")
+	if err != nil {
+		t.Fatalf("getString through repository returned error: %v", err)
+	}
+	if panelProxy != "http://127.0.0.1:18080" {
+		t.Fatalf("getString through repository = %q", panelProxy)
+	}
+
+	allSetting, err := settingSvc.GetAllSetting()
+	if err != nil {
+		t.Fatalf("GetAllSetting through repository returned error: %v", err)
+	}
+	if allSetting.WebPort != 2053 {
+		t.Fatalf("GetAllSetting WebPort = %d, want 2053", allSetting.WebPort)
+	}
+	if len(repo.allExceptKeys) != 1 || repo.allExceptKeys[0] != "xrayTemplateConfig" {
+		t.Fatalf("GetAllSetting excluded keys = %v, want [xrayTemplateConfig]", repo.allExceptKeys)
+	}
+
+	if err := settingSvc.ResetSettings(); err != nil {
+		t.Fatalf("ResetSettings through repository returned error: %v", err)
+	}
+	if !repo.deleteAllCalled {
+		t.Fatal("ResetSettings did not call repository DeleteAll")
+	}
+}
+
 func setupSettingServiceTestDB(t *testing.T) {
 	t.Helper()
 	dbDir := t.TempDir()
@@ -136,4 +176,57 @@ func validAllSettingForServiceTest() *entity.AllSetting {
 		SubClashPath: "/clash/",
 		TimeLocation: "Local",
 	}
+}
+
+type fakeSettingRepository struct {
+	settings        map[string]*model.Setting
+	allExceptKeys   []string
+	deleteAllCalled bool
+}
+
+func newFakeSettingRepository() *fakeSettingRepository {
+	return &fakeSettingRepository{
+		settings: make(map[string]*model.Setting),
+	}
+}
+
+func (r *fakeSettingRepository) Get(key string) (*model.Setting, error) {
+	setting, ok := r.settings[key]
+	if !ok {
+		return nil, gorm.ErrRecordNotFound
+	}
+	copy := *setting
+	return &copy, nil
+}
+
+func (r *fakeSettingRepository) Save(key string, value string) error {
+	r.settings[key] = &model.Setting{
+		Key:   key,
+		Value: value,
+	}
+	return nil
+}
+
+func (r *fakeSettingRepository) AllExcept(keys ...string) ([]*model.Setting, error) {
+	r.allExceptKeys = append([]string(nil), keys...)
+	excluded := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		excluded[key] = struct{}{}
+	}
+
+	settings := make([]*model.Setting, 0, len(r.settings))
+	for key, setting := range r.settings {
+		if _, ok := excluded[key]; ok {
+			continue
+		}
+		copy := *setting
+		settings = append(settings, &copy)
+	}
+	return settings, nil
+}
+
+func (r *fakeSettingRepository) DeleteAll() error {
+	r.deleteAllCalled = true
+	r.settings = make(map[string]*model.Setting)
+	return nil
 }

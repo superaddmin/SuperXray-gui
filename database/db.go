@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"slices"
+	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/config"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
@@ -24,8 +25,11 @@ import (
 var db *gorm.DB
 
 const (
-	defaultUsername = "admin"
-	defaultPassword = "admin"
+	defaultUsername           = "admin"
+	defaultPassword           = "admin"
+	baselineMigrationVersion  = "202606260001"
+	baselineMigrationName     = "baseline-auto-migrate"
+	baselineMigrationChecksum = "gorm-auto-migrate-current-models"
 )
 
 func initModels() error {
@@ -38,6 +42,8 @@ func initModels() error {
 		&xray.ClientTraffic{},
 		&model.HistoryOfSeeders{},
 		&model.CustomGeoResource{},
+		&model.SchemaMigration{},
+		&model.MigrationEvent{},
 	}
 	for _, model := range models {
 		if err := db.AutoMigrate(model); err != nil {
@@ -46,6 +52,36 @@ func initModels() error {
 		}
 	}
 	return nil
+}
+
+func recordBaselineMigration() error {
+	now := time.Now().UnixMilli()
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		migration := model.SchemaMigration{
+			Version:    baselineMigrationVersion,
+			Name:       baselineMigrationName,
+			Checksum:   baselineMigrationChecksum,
+			DurationMs: 0,
+			Status:     "applied",
+		}
+		if err := tx.Where("version = ?", baselineMigrationVersion).
+			Attrs(migration).
+			FirstOrCreate(&migration).Error; err != nil {
+			return err
+		}
+
+		event := model.MigrationEvent{
+			Version:    baselineMigrationVersion,
+			Direction:  "up",
+			StartedAt:  now,
+			FinishedAt: now,
+			Status:     "applied",
+		}
+		return tx.Where("version = ? AND direction = ?", baselineMigrationVersion, "up").
+			Attrs(event).
+			FirstOrCreate(&event).Error
+	})
 }
 
 // initUser creates a default admin user if the users table is empty.
@@ -144,6 +180,9 @@ func InitDB(dbPath string) error {
 	}
 
 	if err := initModels(); err != nil {
+		return err
+	}
+	if err := recordBaselineMigration(); err != nil {
 		return err
 	}
 

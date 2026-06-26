@@ -101,6 +101,28 @@ type HistoryOfSeeders struct {
 	SeederName string `json:"seederName"`
 }
 
+// SchemaMigration records idempotent database migration applications.
+type SchemaMigration struct {
+	Version    string `json:"version" gorm:"primaryKey;size:32"`
+	Name       string `json:"name" gorm:"not null"`
+	Checksum   string `json:"checksum"`
+	AppliedAt  int64  `json:"appliedAt" gorm:"autoCreateTime;column:applied_at"`
+	DurationMs int64  `json:"durationMs" gorm:"column:duration_ms"`
+	Status     string `json:"status" gorm:"not null;default:applied"`
+}
+
+// MigrationEvent records migration attempts for audit and rollback planning.
+type MigrationEvent struct {
+	Id         int    `json:"id" gorm:"primaryKey;autoIncrement"`
+	Version    string `json:"version" gorm:"index;not null"`
+	Direction  string `json:"direction" gorm:"not null"`
+	StartedAt  int64  `json:"startedAt" gorm:"autoCreateTime;column:started_at"`
+	FinishedAt int64  `json:"finishedAt" gorm:"column:finished_at"`
+	Status     string `json:"status" gorm:"not null"`
+	Error      string `json:"error"`
+	BackupPath string `json:"backupPath" gorm:"column:backup_path"`
+}
+
 // GenXrayInboundConfig generates an Xray inbound configuration from the Inbound model.
 func (i *Inbound) GenXrayInboundConfig() *xray.InboundConfig {
 	listen := i.Listen

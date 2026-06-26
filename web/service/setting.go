@@ -151,7 +151,22 @@ func defaultForEmptySetting(key string, value string) (string, bool) {
 
 // SettingService provides business logic for application settings management.
 // It handles configuration storage, retrieval, and validation for all system settings.
-type SettingService struct{}
+type SettingService struct {
+	settingRepository database.SettingRepository
+}
+
+func NewSettingService(settingRepository database.SettingRepository) *SettingService {
+	return &SettingService{
+		settingRepository: settingRepository,
+	}
+}
+
+func (s *SettingService) settings() database.SettingRepository {
+	if s.settingRepository != nil {
+		return s.settingRepository
+	}
+	return database.NewRepositories(database.GetDB()).Settings
+}
 
 func (s *SettingService) GetDefaultJSONConfig() (any, error) {
 	var jsonData any
@@ -163,9 +178,7 @@ func (s *SettingService) GetDefaultJSONConfig() (any, error) {
 }
 
 func (s *SettingService) GetAllSetting() (*entity.AllSetting, error) {
-	db := database.GetDB()
-	settings := make([]*model.Setting, 0)
-	err := db.Model(model.Setting{}).Not("key = ?", "xrayTemplateConfig").Find(&settings).Error
+	settings, err := s.settings().AllExcept("xrayTemplateConfig")
 	if err != nil {
 		return nil, err
 	}
@@ -244,39 +257,15 @@ func (s *SettingService) GetAllSetting() (*entity.AllSetting, error) {
 }
 
 func (s *SettingService) ResetSettings() error {
-	db := database.GetDB()
-	err := db.Where("1 = 1").Delete(model.Setting{}).Error
-	if err != nil {
-		return err
-	}
-	return db.Model(model.User{}).
-		Where("1 = 1").Error
+	return s.settings().DeleteAll()
 }
 
 func (s *SettingService) getSetting(key string) (*model.Setting, error) {
-	db := database.GetDB()
-	setting := &model.Setting{}
-	err := db.Model(model.Setting{}).Where("key = ?", key).First(setting).Error
-	if err != nil {
-		return nil, err
-	}
-	return setting, nil
+	return s.settings().Get(key)
 }
 
 func (s *SettingService) saveSetting(key string, value string) error {
-	setting, err := s.getSetting(key)
-	db := database.GetDB()
-	if database.IsNotFound(err) {
-		return db.Create(&model.Setting{
-			Key:   key,
-			Value: value,
-		}).Error
-	} else if err != nil {
-		return err
-	}
-	setting.Key = key
-	setting.Value = value
-	return db.Save(setting).Error
+	return s.settings().Save(key, value)
 }
 
 func (s *SettingService) getString(key string) (string, error) {

@@ -355,7 +355,7 @@ PR 至少包含：
 1. `release_gate.py --ci --metadata-only` 校验版本、CHANGELOG 和 release metadata。
 2. 设置 Go。
 3. 针对 Linux `amd64` / `arm64` 构建 `xui-release`。
-4. 下载 Xray release `v26.4.25`。
+4. 下载 Xray release `v26.3.27`。
 5. 下载 Geo 数据文件。
 6. 打包：
    - `x-ui-linux-amd64.tar.gz`

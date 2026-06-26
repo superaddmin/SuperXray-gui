@@ -15,33 +15,32 @@ import (
 // UserService provides business logic for user management and authentication.
 // It handles user creation, login, password management, and 2FA operations.
 type UserService struct {
+	userRepository database.UserRepository
 	settingService SettingService
+}
+
+func NewUserService(userRepository database.UserRepository, settingService SettingService) *UserService {
+	return &UserService{
+		userRepository: userRepository,
+		settingService: settingService,
+	}
+}
+
+func (s *UserService) users() database.UserRepository {
+	if s.userRepository != nil {
+		return s.userRepository
+	}
+	return database.NewRepositories(database.GetDB()).Users
 }
 
 // GetFirstUser retrieves the first user from the database.
 // This is typically used for initial setup or when there's only one admin user.
 func (s *UserService) GetFirstUser() (*model.User, error) {
-	db := database.GetDB()
-
-	user := &model.User{}
-	err := db.Model(model.User{}).
-		First(user).
-		Error
-	if err != nil {
-		return nil, err
-	}
-	return user, nil
+	return s.users().First()
 }
 
 func (s *UserService) CheckUser(username string, password string, twoFactorCode string) (*model.User, error) {
-	db := database.GetDB()
-
-	user := &model.User{}
-
-	err := db.Model(model.User{}).
-		Where("username = ?", username).
-		First(user).
-		Error
+	user, err := s.users().FindByUsername(username)
 	if err == gorm.ErrRecordNotFound {
 		return nil, errors.New("invalid credentials")
 	} else if err != nil {
@@ -103,7 +102,6 @@ func (s *UserService) CheckUser(username string, password string, twoFactorCode 
 }
 
 func (s *UserService) UpdateUser(id int, username string, password string) error {
-	db := database.GetDB()
 	hashedPassword, err := crypto.HashPasswordAsBcrypt(password)
 
 	if err != nil {
@@ -124,10 +122,7 @@ func (s *UserService) UpdateUser(id int, username string, password string) error
 		}
 	}
 
-	return db.Model(model.User{}).
-		Where("id = ?", id).
-		Updates(map[string]any{"username": username, "password": hashedPassword}).
-		Error
+	return s.users().UpdateCredentials(id, username, hashedPassword)
 }
 
 func (s *UserService) UpdateFirstUser(username string, password string) error {
@@ -142,17 +137,16 @@ func (s *UserService) UpdateFirstUser(username string, password string) error {
 		return er
 	}
 
-	db := database.GetDB()
-	user := &model.User{}
-	err := db.Model(model.User{}).First(user).Error
+	user, err := s.users().First()
 	if database.IsNotFound(err) {
-		user.Username = username
-		user.Password = hashedPassword
-		return db.Model(model.User{}).Create(user).Error
+		return s.users().Save(&model.User{
+			Username: username,
+			Password: hashedPassword,
+		})
 	} else if err != nil {
 		return err
 	}
 	user.Username = username
 	user.Password = hashedPassword
-	return db.Save(user).Error
+	return s.users().Save(user)
 }
