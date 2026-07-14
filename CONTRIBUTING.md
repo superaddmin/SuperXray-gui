@@ -6,7 +6,7 @@ Thank you for contributing to SuperXray. Keep changes focused, follow the neares
 
 Requirements:
 
-- Go `1.26.4` and a C toolchain for CGO/SQLite builds.
+- Go `1.26.5` and a C toolchain for CGO/SQLite builds.
 - Node.js and npm compatible with the committed lockfiles.
 
 ```powershell

@@ -208,7 +208,7 @@ services:
 git clone https://github.com/superaddmin/SuperXray-gui.git
 cd SuperXray-gui
 
-# 编译（需要 Go 1.26.4 和 CGO）
+# 编译（需要 Go 1.26.5 和 CGO）
 CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 # 运行
@@ -289,7 +289,7 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
-| Go | 1.26.4 | 后端开发语言 |
+| Go | 1.26.5 | 后端开发语言 |
 | Gin | v1.12.0 | HTTP Web 框架 |
 | GORM | v1.31.1 | ORM 框架 |
 | SQLite | - | 嵌入式数据库 |
@@ -368,7 +368,7 @@ SuperXray-gui/
 ### 环境准备
 
 ```bash
-# 安装 Go 1.26.4
+# 安装 Go 1.26.5
 go version
 
 # 克隆仓库

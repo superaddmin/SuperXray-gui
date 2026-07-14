@@ -21,7 +21,7 @@ Use this skill as the first local orientation pass for SuperXray-gui tasks that 
 
 - Go module: `github.com/superaddmin/SuperXray-gui/v2`.
 - Product: Xray-core web panel with new Vue UI, retired legacy HTML UI, subscription server, Gateway Egress MVP, and guarded multi-core runtime entry.
-- Backend: Go 1.26.4, Gin, GORM, SQLite, Xray-core gRPC/API, robfig/cron, gorilla/websocket.
+- Backend: Go 1.26.5, Gin, GORM, SQLite, Xray-core gRPC/API, robfig/cron, gorilla/websocket.
 - Frontend: Vue 3.5, Vite 8, TypeScript 6, Pinia, Ant Design Vue 4, Axios.
 - Retired legacy UI: `web/html`, `web/assets`, and `/panel/legacy*` are removed and must not be remounted.
 - New UI: `frontend/src`, built into `web/ui`, mounted at `/panel/` and compatible `/panel/ui/`.

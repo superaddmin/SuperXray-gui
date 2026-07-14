@@ -24,7 +24,7 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、旧 HTML UI 退�
 
 1. 记录 `MHSanaei/3x-ui upstream/main` 的合并基线。
 2. 移植 finalmask fragment 空/零长度防崩溃修复。
-3. 同步 Go 版本到 `1.26.4`，并更新 Xray-core、gRPC、fasthttp、gopsutil、telego、validator、`x/crypto` 等依赖。
+3. 同步 Go 版本到 `1.26.5`，并更新 Xray-core、gRPC、fasthttp、gopsutil、telego、validator、`x/crypto` 等依赖。
 4. 补齐 release gate：`go.mod` 的 `go` 指令必须与 `.codex/project.toml` 的 `[stack.backend].version` 一致。
 5. 补齐 settings 空值 fallback，避免非空默认配置被空字符串持久化后导致启动或读取失败。
 6. 增强 Clash/Mihomo 订阅 routing rules，支持复用订阅设置中的行分隔规则并保留 `MATCH,PROXY` 兜底。

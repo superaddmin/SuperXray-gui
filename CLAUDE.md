@@ -12,7 +12,7 @@ This repository keeps project facts in shared source-of-truth files. Read those 
 Current anchors:
 
 - Module: `github.com/superaddmin/SuperXray-gui/v2`.
-- Go: `1.26.4` from `go.mod`.
+- Go: `1.26.5` from `go.mod`.
 - Vue source: `frontend/src`; scripts and versions: `frontend/package.json`.
 - Vite output: `web/ui`; Go embedding and routes: `web/ui.go`.
 - Legacy `web/html`, `web/assets`, and `/panel/legacy*` paths are retired.

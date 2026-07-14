@@ -25,7 +25,7 @@
 
 ### 核心依赖与技术栈
 
-- 后端：Go 1.26.4、Gin 1.12、GORM 1.31、SQLite、Xray-core gRPC/API、robfig/cron、gorilla/websocket、go-i18n、telego、LDAP、TOTP。
+- 后端：Go 1.26.5、Gin 1.12、GORM 1.31、SQLite、Xray-core gRPC/API、robfig/cron、gorilla/websocket、go-i18n、telego、LDAP、TOTP。
 - 前端：Vue 3.5、Vite 8、TypeScript 6、Pinia 3、Ant Design Vue 4、Axios 1.16、Vue Router 4。
 - 数据库：SQLite + GORM；活跃写模型仍为 `database/model.Inbound`，客户端嵌入 `Inbound.Settings` JSON。
 - 构建与验证：`go test` / `go vet` / `go build`、`npm run typecheck/lint/test/build`、Playwright、release gate、secret scan。

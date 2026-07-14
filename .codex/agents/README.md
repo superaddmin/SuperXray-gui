@@ -4,7 +4,7 @@
 
 ## 项目事实
 
-- 后端主栈：Go 1.26.4、Gin、GORM、SQLite、robfig/cron、gorilla/websocket、go-i18n、Xray-core gRPC/API。
+- 后端主栈：Go 1.26.5、Gin、GORM、SQLite、robfig/cron、gorilla/websocket、go-i18n、Xray-core gRPC/API。
 - 前端主栈：Vue 3.5、Vite 8、TypeScript 6、Pinia、Ant Design Vue 4、Axios、Vue Router。
 - 旧 HTML UI：`web/html`、`web/assets` 和 `/panel/legacy*` 已退役，不得重新挂载。
 - 新 UI：`frontend/` 构建输出到 `web/ui`，由 Go 通过嵌入式静态资源托管。

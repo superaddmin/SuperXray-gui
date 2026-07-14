@@ -18,7 +18,7 @@ SuperXray-gui 是一个以 Xray-core 为主运行核心的 Web 控制面板。�
 | 应用名 | `x-ui`，由 `config/name` 提供 |
 | 当前版本 | `3.4.3`，由 `config/version` 提供 |
 | Go module | `github.com/superaddmin/SuperXray-gui/v2` |
-| Go 版本 | `1.26.4`，见 `go.mod` |
+| Go 版本 | `1.26.5`，见 `go.mod` |
 | 数据库 | SQLite + GORM |
 | 主运行核心 | legacy XrayService + `database/model.Inbound` |
 | 新 UI | Vue 3 / Vite / TypeScript / Pinia / Ant Design Vue 4 |

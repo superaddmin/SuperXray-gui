@@ -8,13 +8,14 @@
 
 ### Security
 
+- 升级 Go 与 Docker 构建工具链至 1.26.5，修复标准库 `crypto/tls` 与 `os.Root` 的可达安全漏洞。
 - 强化仓库秘密扫描，覆盖通用及加密 PKCS#8 私钥、PEM/KEY/PK8 文件、JKS/PKCS#12/PFX 等二进制密钥容器，并取消对已跟踪 `web/ui` 文件的扫描豁免。
 - 扩展本地证书、私钥和密钥容器忽略规则，降低敏感材料误提交风险。
 - 补充秘密扫描回归测试，覆盖未跟踪、已忽略、强制跟踪、二进制密钥材料和生成前端资源等边界。
 
 ### Changed
 
-- 同步贡献指南、Agent 指令、中文 README 与前端 README 到当前 Go 1.26.4、Vue 3.5、Vite 8、TypeScript 6 架构及实际验证流程。
+- 同步贡献指南、Agent 指令、中文 README 与前端 README 到当前 Go 1.26.5、Vue 3.5、Vite 8、TypeScript 6 架构及实际验证流程。
 - 修正文档中的 HTTP/Mixed 订阅能力、失效的历史计划引用、当前目录结构、前端事实源和嵌入式构建说明。
 
 ### Removed
