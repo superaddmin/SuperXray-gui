@@ -15,7 +15,7 @@
 ### Changed
 
 - 同步贡献指南、Agent 指令、中文 README 与前端 README 到当前 Go 1.26.4、Vue 3.5、Vite 8、TypeScript 6 架构及实际验证流程。
-- 修正文档中的 HTTP/Mixed 订阅能力、当前目录结构、前端事实源和嵌入式构建说明。
+- 修正文档中的 HTTP/Mixed 订阅能力、失效的历史计划引用、当前目录结构、前端事实源和嵌入式构建说明。
 
 ### Removed
 
