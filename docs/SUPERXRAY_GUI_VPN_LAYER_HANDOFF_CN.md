@@ -9,7 +9,7 @@
 
 本交接文档作为跨项目目标、边界和验收清单保留，但不能作为当前仓库一次性全量实现规格。结合 SuperXray-gui 现阶段 UI-first / Xray parity 边界，执行拆分如下：
 
-- MVP 只做 Xray 兼容配置生成与本机端口登记，不新增数据库模型，不接管 CoreManager，不碰 sing-box 生产路径。实施计划见：`docs/superpowers/plans/2026-05-16-vpn-egress-mvp-xray-compatible.md`。
+- MVP 只做 Xray 兼容配置生成与本机端口登记，不新增数据库模型，不接管 CoreManager，不碰 sing-box 生产路径。当前实现边界与运维方式见：`docs/ai-routing-and-residential-egress.md`。
 - Phase 10+ 才评审完整出口治理子系统，包含 `egress_groups`、`egress_nodes`、`egress_probe_results`、`egress_switch_events` 的 schema/API/UI 与探测、切换、审计能力。设计草案见：`docs/superpowers/specs/2026-05-16-phase10-egress-governance-design.md`。
 - 若下文愿景描述与本节阶段裁定冲突，以本节和上述两个拆分文档为当前执行边界。
 

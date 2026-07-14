@@ -39,7 +39,7 @@ frontend_scope = ["frontend/README.md", "plans/03-ui-design/multi-core-ui-design
 gateway_egress_scope = [
   "docs/ai-routing-and-residential-egress.md",
   "docs/SUPERXRAY_GUI_VPN_LAYER_HANDOFF_CN.md",
-  "docs/superpowers/plans/2026-05-16-vpn-egress-mvp-xray-compatible.md",
+  "docs/superpowers/specs/2026-05-16-phase10-egress-governance-design.md",
 ]
 
 [stack.backend]

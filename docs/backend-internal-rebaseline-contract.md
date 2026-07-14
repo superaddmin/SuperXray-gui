@@ -1,6 +1,6 @@
 # 后端 internal 重基线契约
 
-> **执行阶段：** `docs/superpowers/plans/2026-06-25-3x-ui-backend-architecture-rebaseline-and-xray-v26-3-27-sync.md` Phase 1
+> **执行依据：** 本文作为当前后端 `internal/` 重基线事实契约；多内核架构路线见 `plans/02-architecture/backend-multi-core-architecture-plan.md`
 >
 > **适用范围：** SuperXray-gui 当前 Go 后端，含 `web/`、`sub/`、`database/`、`xray/`、`core/`、`config/`、`main.go`
 >
