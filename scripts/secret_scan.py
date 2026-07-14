@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scan tracked and untracked workspace files for high-risk operational secrets."""
+"""Scan tracked and unignored untracked files; use --all to include ignored files."""
 
 from __future__ import annotations
 
@@ -23,22 +23,26 @@ SKIP_DIRS = {
     "release",
     "test-results",
 }
-SKIP_PATH_PREFIXES = {
-    "web/ui/",
-}
 DOC_SUFFIXES = {".md", ".txt", ".env", ".toml", ".yaml", ".yml", ".sh", ".conf", ".cfg", ".ini"}
+BINARY_KEY_CONTAINER_SUFFIXES = {".jks", ".keystore", ".p12", ".pfx"}
+BINARY_PRIVATE_KEY_SUFFIXES = {".pk8"}
+TEXT_PRIVATE_KEY_SUFFIXES = {".key", ".pem"}
 
 TEXT_SUFFIXES = {
     "",
     ".cfg",
     ".conf",
+    ".crt",
+    ".csr",
     ".env",
     ".example",
     ".go",
     ".ini",
     ".js",
     ".json",
+    ".key",
     ".md",
+    ".pem",
     ".py",
     ".sh",
     ".toml",
@@ -61,7 +65,7 @@ class Pattern:
 PATTERNS = [
     Pattern(
         "private-key",
-        re.compile(r"-----BEGIN (?:RSA|DSA|EC|OPENSSH|PRIVATE) PRIVATE KEY-----"),
+        re.compile(r"-----BEGIN (?:(?:RSA|DSA|EC|OPENSSH|ENCRYPTED) )?PRIVATE KEY-----"),
         "Remove private keys from the repository and rotate the key.",
     ),
     Pattern(
@@ -148,11 +152,14 @@ def should_scan(root: pathlib.Path, path: pathlib.Path) -> bool:
     if any(part in SKIP_DIRS for part in rel.parts):
         return False
     rel_posix = rel.as_posix()
-    if any(rel_posix.startswith(prefix) for prefix in SKIP_PATH_PREFIXES):
-        return False
     if rel_posix == "scripts/secret_scan.py":
         return False
-    if path.suffix.lower() not in TEXT_SUFFIXES:
+    suffix = path.suffix.lower()
+    if (
+        suffix not in TEXT_SUFFIXES
+        and suffix not in BINARY_KEY_CONTAINER_SUFFIXES
+        and suffix not in BINARY_PRIVATE_KEY_SUFFIXES
+    ):
         return False
     return True
 
@@ -160,17 +167,29 @@ def should_scan(root: pathlib.Path, path: pathlib.Path) -> bool:
 def scan_file(root: pathlib.Path, path: pathlib.Path) -> list[str]:
     if not path.exists():
         return []
+    rel = path.relative_to(root).as_posix()
+    suffix = path.suffix.lower()
+    if suffix in BINARY_KEY_CONTAINER_SUFFIXES:
+        return [
+            f"{rel}: binary-key-container: Remove binary key containers from the repository "
+            "and rotate contained credentials."
+        ]
+    if suffix in BINARY_PRIVATE_KEY_SUFFIXES:
+        return [binary_key_material_finding(rel)]
     try:
         text = path.read_text(encoding="utf-8")
     except UnicodeDecodeError:
+        if suffix in TEXT_PRIVATE_KEY_SUFFIXES:
+            return [binary_key_material_finding(rel)]
         return []
-    rel = path.relative_to(root).as_posix()
     findings: list[str] = []
     for lineno, line in enumerate(text.splitlines(), start=1):
         for pattern in PATTERNS:
             if pattern.suffixes is not None and path.suffix.lower() not in pattern.suffixes:
                 continue
             lowered = line.lower()
+            if pattern.name == "private-key" and private_key_looks_like_fixture(line):
+                continue
             if pattern.name in {"subscription-url", "socks-uri-credential"} and (
                 "example.com" in lowered
                 or "example.org" in lowered
@@ -188,6 +207,25 @@ def scan_file(root: pathlib.Path, path: pathlib.Path) -> list[str]:
             if pattern.regex.search(line):
                 findings.append(f"{rel}:{lineno}: {pattern.name}: {pattern.guidance}")
     return findings
+
+
+def binary_key_material_finding(rel: str) -> str:
+    return (
+        f"{rel}: binary-key-material: Remove binary private key material from the repository "
+        "and rotate the key."
+    )
+
+
+def private_key_looks_like_fixture(line: str) -> bool:
+    match = re.search(
+        r"-----BEGIN (?P<label>(?:(?:RSA|DSA|EC|OPENSSH|ENCRYPTED) )?PRIVATE KEY)-----"
+        r"(?P<payload>.*?)-----END (?P=label)-----",
+        line,
+    )
+    if not match:
+        return False
+    payload = re.sub(r"[^A-Za-z0-9+/=]", "", match.group("payload"))
+    return payload == "MIIB"
 
 
 def socks_uri_looks_like_fixture(line: str) -> bool:
@@ -231,7 +269,8 @@ def main() -> int:
         for finding in findings:
             print(f"- {finding}")
         return 1
-    print("PASS: no high-risk secrets found in scanned workspace files.")
+    scope = "all non-skipped workspace files" if args.all else "tracked and unignored untracked files"
+    print(f"PASS: no high-risk secrets found in {scope}.")
     return 0
 
 

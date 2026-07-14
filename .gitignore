@@ -96,6 +96,17 @@ docker-compose.override.yml
 !.env.example
 !.env.*.example
 
+# Ignore local certificates, private keys, and binary key containers
+*.pem
+*.key
+*.pk8
+*.crt
+*.csr
+*.p12
+*.pfx
+*.jks
+*.keystore
+
 # Ignore local operational audit artifacts containing real server/subscription/proxy details.
 docs/server-*-inbound-subscription-audit-*.txt
 docs/*subscription-audit*.txt

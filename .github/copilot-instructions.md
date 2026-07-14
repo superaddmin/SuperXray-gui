@@ -1,158 +1,65 @@
-# SuperXray Development Guide
+# SuperXray Repository Instructions
 
-## Project Overview
-SuperXray is a web-based control panel for managing Xray-core servers. It's a Go application using Gin web framework with embedded static assets and SQLite database. The panel manages VPN/proxy inbounds, monitors traffic, and provides Telegram bot integration.
+Use repository facts instead of copying architecture descriptions into this file.
 
-## Architecture
+## Required orientation
 
-### Core Components
-- **main.go**: Entry point that initializes database, web server, and subscription server. Handles graceful shutdown via SIGHUP/SIGTERM signals
-- **web/**: Primary web server with Gin router, HTML templates, and static assets embedded via `//go:embed`
-- **xray/**: Xray-core process management and API communication for traffic monitoring
-- **database/**: GORM-based SQLite database with models in `database/model/`
-- **sub/**: Subscription server running alongside main web server (separate port)
-- **web/service/**: Business logic layer containing InboundService, SettingService, TgBot, etc.
-- **web/controller/**: HTTP handlers using Gin context (`*gin.Context`)
-- **web/job/**: Cron-based background jobs for traffic monitoring, CPU checks, LDAP sync
+Read these sources before changing code or documentation:
 
-### Key Architectural Patterns
-1. **Embedded Resources**: All web assets (HTML, CSS, JS, translations) are embedded at compile time using `embed.FS`:
-   - `web/assets` → `assetsFS`
-   - `web/html` → `htmlFS`
-   - `web/translation` → `i18nFS`
+1. `AGENTS.md` instructions supplied by the active workspace.
+2. `.codex/project.toml` for the current stack, phase, source-of-truth map, and hard gates.
+3. `.codex/governance.toml` and `.codex/routing.toml` for task boundaries, ownership, and verification.
+4. `.codex/context/project-map.md` for the compact project map.
+5. The files directly affected by the task and the relevant entry in `.codex/workflows/verification-matrix.md`.
 
-2. **Dual Server Design**: Main web panel + subscription server run concurrently, managed by `web/global` package
+For release work, also read `.github/agentic-workflows/release.md`. For implementation status, use `plans/STATUS.md` rather than historical reports under `docs/superpowers/`.
 
-3. **Xray Integration**: Panel generates `config.json` for Xray binary, communicates via gRPC API for real-time traffic stats
+## Current facts
 
-4. **Signal-Based Restart**: SIGHUP triggers graceful restart. **Critical**: Always call `service.StopBot()` before restart to prevent Telegram bot 409 conflicts
+- Go module: `github.com/superaddmin/SuperXray-gui/v2`.
+- Go version: `1.26.4`, defined by `go.mod`.
+- Backend: Gin, GORM, SQLite, Xray-core integration, subscription service, and background jobs.
+- Frontend source: `frontend/src` using Vue 3.5, Vite 8, TypeScript 6, Pinia 3, Vue Router 4, Ant Design Vue 4, and Axios.
+- Frontend build output: `web/ui`, embedded and served by `web/ui.go` at `/panel/` with `/panel/ui/` compatibility.
+- `web/html`, `web/assets`, and `/panel/legacy*` are retired and must not be restored.
 
-5. **Database Seeders**: Uses `HistoryOfSeeders` model to track one-time migrations (e.g., password bcrypt migration)
+Do not hand-edit generated `web/ui` assets. Change `frontend/src`, run the frontend checks, and rebuild through `frontend/package.json` when generated output is part of the requested change.
 
-## Development Workflows
+## Non-negotiable boundaries
 
-### Agentic Release Workflow
-Release automation tasks must first read `.github/agentic-workflows/release.md`. That file is the shared release playbook for GitHub Copilot, Codex, and other AI agents; it defines the version policy, release gate, tag rules, workflow monitoring, asset verification, and rollback boundaries.
+- Keep active Xray writes on `database/model.Inbound` until an explicit architecture gate changes that contract.
+- Do not route the legacy Xray lifecycle through CoreManager before Phase 10.2 approval.
+- Do not render logs, configuration, subscriptions, or external content with `v-html`, `innerHTML`, or `insertAdjacentHTML`.
+- State-changing APIs require CSRF protection; downloads, imports, URLs, paths, and executable inputs require the existing security checks.
+- Do not commit credentials, private keys, live databases, subscription identifiers, cookies, tokens, or full server audit artifacts.
+- Preserve project-native tooling and avoid unrelated refactors, dependency upgrades, or bulk formatting.
 
-### Building & Running
-```bash
-# Build (creates bin/SuperXray.exe)
-go run tasks.json → "go: build" task
+## Verification
 
-# Run with debug logging
-XUI_DEBUG=true go run ./main.go
-# Or use task: "go: run"
+Choose the smallest relevant set, then run the broader gate when the change crosses domains.
 
-# Test
-go test ./...
+After npm dependencies are installed, `go list ./...` can discover third-party Go fixtures under `node_modules`. Full Go verification therefore filters those import paths first.
+
+```powershell
+# Go
+$goPackages = @(go list ./... | Where-Object { $_ -notmatch '/node_modules/' })
+if ($LASTEXITCODE -ne 0 -or $goPackages.Count -eq 0) { throw 'go list failed or returned no project packages' }
+go test $goPackages
+go vet $goPackages
+New-Item -ItemType Directory -Force bin | Out-Null
+go build -o bin/SuperXray.exe ./main.go
+
+# Frontend
+Set-Location frontend
+npm ci
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+Set-Location ..
+
+# Repository secrets
+python scripts/secret_scan.py
 ```
 
-### Command-Line Operations
-The main.go accepts flags for admin tasks:
-- `-reset` - Reset all panel settings to defaults
-- `-show` - Display current settings (port, paths)
-- Use these by running the binary directly, not via web interface
-
-### Database Management
-- DB path: Configured via `config.GetDBPath()`, typically `/etc/x-ui/x-ui.db`
-- Models: Located in `database/model/model.go` - Auto-migrated on startup
-- Seeders: Use `HistoryOfSeeders` to prevent re-running migrations
-- Default credentials: admin/admin (hashed with bcrypt)
-
-### Telegram Bot Development
-- Bot instance in `web/service/tgbot.go` (3700+ lines)
-- Uses `telego` library with long polling
-- **Critical Pattern**: Must call `service.StopBot()` before any server restart to prevent 409 bot conflicts
-- Bot handlers use `telegohandler.BotHandler` for routing
-- i18n via embedded `i18nFS` passed to bot startup
-
-## Code Conventions
-
-### Service Layer Pattern
-Services inject dependencies (like xray.XrayAPI) and operate on GORM models:
-```go
-type InboundService struct {
-    xrayApi xray.XrayAPI
-}
-
-func (s *InboundService) GetInbounds(userId int) ([]*model.Inbound, error) {
-    // Business logic here
-}
-```
-
-### Controller Pattern
-Controllers use Gin context and inherit from BaseController:
-```go
-func (a *InboundController) getInbounds(c *gin.Context) {
-    // Use I18nWeb(c, "key") for translations
-    // Check auth via checkLogin middleware
-}
-```
-
-### Configuration Management
-- Environment vars: `XUI_DEBUG`, `XUI_LOG_LEVEL`, `XUI_MAIN_FOLDER`
-- Config embedded files: `config/version`, `config/name`
-- Use `config.GetLogLevel()`, `config.GetDBPath()` helpers
-
-### Internationalization
-- Translation files: `web/translation/translate.*.toml`
-- Access via `I18nWeb(c, "pages.login.loginAgain")` in controllers
-- Use `locale.I18nType` enum (Web, Api, etc.)
-
-## External Dependencies & Integration
-
-### Xray-core
-- Binary management: Download platform-specific binary (`xray-{os}-{arch}`) to bin folder
-- Config generation: Panel creates `config.json` dynamically from inbound/outbound settings
-- Process control: Start/stop via `xray/process.go`
-- gRPC API: Real-time stats via `xray/api.go` using `google.golang.org/grpc`
-
-### Critical External Paths
-- Xray binary: `{bin_folder}/xray-{os}-{arch}`
-- Xray config: `{bin_folder}/config.json`
-- GeoIP/GeoSite: `{bin_folder}/geoip.dat`, `geosite.dat`
-- Logs: `{log_folder}/3xipl.log`, `3xipl-banned.log`
-
-### Job Scheduling
-Uses `robfig/cron/v3` for periodic tasks:
-- Traffic monitoring: `xray_traffic_job.go`
-- CPU alerts: `check_cpu_usage.go`
-- IP tracking: `check_client_ip_job.go`
-- LDAP sync: `ldap_sync_job.go`
-
-Jobs registered in `web/web.go` during server initialization
-
-## Deployment & Scripts
-
-### Installation Script Pattern
-Both `install.sh` and `x-ui.sh` follow these patterns:
-- Multi-distro support via `$release` variable (ubuntu, debian, centos, arch, etc.)
-- Port detection with `is_port_in_use()` using ss/netstat/lsof
-- Systemd service management with distro-specific unit files (`.service.debian`, `.service.arch`, `.service.rhel`)
-
-### Docker Build
-Multi-stage Dockerfile:
-1. **Builder**: CGO-enabled build, runs `DockerInit.sh` to download Xray binary
-2. **Final**: Alpine-based with fail2ban pre-configured
-
-### Key File Locations (Production)
-- Binary: `/usr/local/x-ui/`
-- Database: `/etc/x-ui/x-ui.db`
-- Logs: `/var/log/x-ui/`
-- Service: `/etc/systemd/system/x-ui.service.*`
-
-## Testing & Debugging
-- Set `XUI_DEBUG=true` for detailed logging
-- Check Xray process: `x-ui.sh` script provides menu for status/logs
-- Database inspection: Direct SQLite access to x-ui.db
-- Traffic debugging: Check `3xipl.log` for IP limit tracking
-- Telegram bot: Logs show bot initialization and command handling
-
-## Common Gotchas
-1. **Bot Restart**: Always stop Telegram bot before server restart to avoid 409 conflict
-2. **Embedded Assets**: Changes to HTML/CSS require recompilation (not hot-reload)
-3. **Password Migration**: Seeder system tracks bcrypt migration - check `HistoryOfSeeders` table
-4. **Port Binding**: Subscription server uses different port from main panel
-5. **Xray Binary**: Must match OS/arch exactly - managed by installer scripts
-6. **Session Management**: Uses `gin-contrib/sessions` with cookie store
-7. **IP Limitation**: Implements "last IP wins" - when client exceeds LimitIP, oldest connections are automatically disconnected via Xray API to allow newest IPs
+Use `npm run e2e` from the repository root only for flows that require browser coverage. Record the commands actually run and their results; never invent verification output.

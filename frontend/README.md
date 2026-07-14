@@ -1,44 +1,48 @@
-# SuperXray New UI
+# SuperXray Vue UI
 
-This directory contains the Phase 1 Vue 3/Vite frontend shell.
+`frontend/` contains the active panel frontend. It is a Vue 3.5 and TypeScript 6 application built with Vite 8.
 
-## Scope
+## Architecture
 
-- Vue 3 + Vite + TypeScript application shell.
-- Vue Router, Pinia, Axios, and Ant Design Vue 4 dependencies.
-- Relative Vite build output with `base: ""`.
-- Production build output is written to `../web/ui` for Go embedding in Phase 2.
-- Reserved routes for Dashboard, Logs, Xray, Inbounds, and Settings.
-- Phase 3 API wrappers under `src/api` and legacy response types under `src/types`.
-- Phase 4 read-only Dashboard, Logs, and Xray config preview.
-- Phase 5 Xray lifecycle, version management, and legacy-compatible template editing.
-- No migrated multi-core write flows.
+- Application source: `frontend/src`.
+- Unit tests: `frontend/tests/*.test.ts`, executed with Node's test runner.
+- Main libraries: Vue Router 4, Pinia 3, Ant Design Vue 4, and Axios.
+- Routes: login, dashboard, logs, core instances, Xray, inbounds, settings, API docs, and the not-found view.
+- API wrappers live in `src/api`; shared protocol and compatibility logic lives in `src/schemas` and `src/utils`.
+- `vite.config.ts` writes production output to `../web/ui` with a relative asset base.
+- `web/ui.go` embeds `web/ui` and serves the application at `/panel/`, with `/panel/ui/` retained as a compatible route.
+- The Go server injects `window.__SUPERXRAY_UI_CONFIG__` at request time, including API/base paths, CSP nonce, CSRF token, UI base path, and version.
+
+`frontend/src` is the source of truth. Do not hand-edit generated files under `web/ui`. The retired `web/html` and `web/assets` directories are not part of the current UI.
 
 ## Commands
 
+Run commands from this directory:
+
 ```powershell
-npm install
+npm ci
+npm run dev
 npm run typecheck
 npm run lint
+npm run format
+npm run test
 npm run build
-npm run dev
+npm run preview
 ```
 
-`npm run build` must run before Go release builds so that `web/ui` exists for `go:embed`.
+`npm run build` first runs `npm run gen:openapi`, then `vue-tsc -b` and `vite build`. Vite clears and recreates `web/ui`, so include generated output only when the requested change requires it.
 
-## Runtime Config
+## Development and verification
 
-Phase 2 should inject `window.__SUPERXRAY_UI_CONFIG__` before the Vite bundle:
+- Use `npm run dev` for the Vite development server.
+- Run `npm run typecheck`, `npm run lint`, and `npm run test` for frontend source changes.
+- Run `npm run build` when validating the embedded production bundle or changing generated OpenAPI output.
+- If a change affects runtime config injection, base paths, CSP, CSRF, static caching, or Go route mounting, also run from the repository root:
 
-```ts
-window.__SUPERXRAY_UI_CONFIG__ = {
-  apiBasePath: '/',
-  basePath: '/',
-  cspNonce: '',
-  csrfToken: '',
-  uiBasePath: '/panel/ui/',
-  version: 'dev',
-};
+```powershell
+go test ./web ./web/locale
+New-Item -ItemType Directory -Force bin | Out-Null
+go build -o bin/SuperXray.exe ./main.go
 ```
 
-The new UI is designed to keep using the legacy Xray APIs until the parity gates are complete.
+The UI continues to use the existing Go APIs. Active Xray writes remain on the legacy-compatible `database/model.Inbound` contract until the project phase gates explicitly change it.

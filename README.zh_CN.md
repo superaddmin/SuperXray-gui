@@ -208,7 +208,7 @@ services:
 git clone https://github.com/superaddmin/SuperXray-gui.git
 cd SuperXray-gui
 
-# 编译（需要 Go 1.26+ 和 CGO）
+# 编译（需要 Go 1.26.4 和 CGO）
 CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 # 运行
@@ -245,15 +245,15 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 ### 订阅链接
 
-在面板设置中启用订阅服务后，每个客户端会自动生成订阅 ID，可通过以下地址获取配置：
+在面板设置中启用订阅服务后，标准协议客户端以及 HTTP/Mixed 代理账号可通过各自的订阅 ID 获取配置：
 
 | 格式 | 地址 | 适用客户端 | 当前支持的协议 |
 |------|------|-----------|----------------|
-| Base64 / Plain URI | `http://<IP>:2096/sub/<subid>` | V2rayN、Shadowrocket、支持标准分享链接的客户端 | VMess、VLESS、Trojan、Shadowsocks、Hysteria、Hysteria2；WireGuard 返回独立配置文本 |
-| JSON | `http://<IP>:2096/json/<subid>` | Xray 客户端 | VMess、VLESS、Trojan、Shadowsocks、Hysteria、Hysteria2、WireGuard |
-| Clash | `http://<IP>:2096/clash/<subid>` | Clash/Mihomo | VMess、VLESS、Trojan、Shadowsocks、Hysteria、Hysteria2、WireGuard |
+| Base64 / Plain URI | `http://<IP>:2096/sub/<subid>` | V2rayN、Shadowrocket、支持标准分享链接的客户端 | VMess、VLESS、Trojan、Shadowsocks、Hysteria、Hysteria2；HTTP 输出 HTTP proxy URI，Mixed 输出 SOCKS5 URI；WireGuard 返回独立配置文本 |
+| JSON | `http://<IP>:2096/json/<subid>` | Xray 客户端 | VMess、VLESS、Trojan、Shadowsocks、Hysteria、Hysteria2、WireGuard；HTTP 生成 `protocol: http` outbound，Mixed 生成 `protocol: socks` outbound |
+| Clash | `http://<IP>:2096/clash/<subid>` | Clash/Mihomo | VMess、VLESS、Trojan、Shadowsocks、Hysteria、Hysteria2、WireGuard；HTTP 生成 `type: http` 节点，Mixed 生成 `type: socks5` 节点 |
 
-> 订阅输出不包含 Tunnel、HTTP、Mixed、Tun 这类入站规则；它们可作为 Xray 入站配置使用，但不是面向客户端订阅分发的节点类型。Clash/Mihomo 输出中，普通代理协议当前仅生成 TCP、WebSocket、gRPC 传输节点，mKCP、HTTPUpgrade、XHTTP 等传输更适合通过 Xray JSON 或客户端手动配置验证。
+> HTTP/Mixed 账号节点覆盖三类入口：Base64 / Plain URI 分别生成 `http://` / `socks5://` URI；JSON 分别生成 `protocol: http` / `protocol: socks` outbound；Clash 分别生成 `type: http` / `type: socks5` 节点。认证账号读取自入站 `settings.accounts`，并按启用状态和有效订阅 ID 匹配。Tunnel 与 Tun 不生成客户端订阅节点。Clash/Mihomo 输出中，其他普通代理协议当前仅生成 TCP、WebSocket、gRPC 传输节点，mKCP、HTTPUpgrade、XHTTP 等传输更适合通过 Xray JSON 或客户端手动配置验证。
 >
 > 默认订阅服务监听 `2096/tcp`，提供 `/sub/`、`/json/`、`/clash/` 三类入口。若直接从公网访问订阅链接，需要在云安全组和系统防火墙放行 `2096/tcp`；更推荐通过 Nginx/Caddy 将订阅路径反向代理到统一的 `443/tcp`。
 
@@ -277,8 +277,8 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 | Hysteria2 | 支持 | auth 必填且要求 TLS | 支持 | 支持 Base64/JSON/Clash | 主路径完整，依赖客户端 Hysteria2 支持 |
 | WireGuard | 支持 | 基础字段透传，订阅侧按 peer 输出 | 支持 | 支持 WireGuard 配置、JSON、Clash | 可运行，客户端导入方式与普通代理协议不同 |
 | Tunnel | 支持 | 后端轻校验，主要依赖 Xray 运行时校验 | 支持 | 不支持 | 可作为入站规则保存和运行，不生成客户端订阅节点 |
-| HTTP | 支持 | 后端轻校验，主要依赖 Xray 运行时校验 | 支持 | 不支持 | 可作为本地/服务端代理入站，不生成订阅节点 |
-| Mixed | 支持 | 后端轻校验，主要依赖 Xray 运行时校验 | 支持 | 不支持 | 可作为 HTTP + SOCKS 混合入站，不生成订阅节点 |
+| HTTP | 支持 | 后端轻校验，主要依赖 Xray 运行时校验 | 支持 | 支持 Base64/Plain URI、JSON、Clash | URI 为 `http://`；JSON 为 `protocol: http` outbound；Clash 为 `type: http`；账号来自 `settings.accounts` |
+| Mixed | 支持 | 后端轻校验，主要依赖 Xray 运行时校验 | 支持 | 支持 Base64/Plain URI、JSON、Clash | URI 为 `socks5://`；JSON 为 `protocol: socks` outbound；Clash 为 `type: socks5`；账号来自 `settings.accounts` |
 | Tun | 支持 | 后端轻校验，主要依赖 Xray 运行时校验 | 支持 | 不支持 | 可作为透明代理类入站，运行效果依赖系统路由/权限配置 |
 
 ---
@@ -289,7 +289,7 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
-| Go | 1.26.3 | 后端开发语言 |
+| Go | 1.26.4 | 后端开发语言 |
 | Gin | v1.12.0 | HTTP Web 框架 |
 | GORM | v1.31.1 | ORM 框架 |
 | SQLite | - | 嵌入式数据库 |
@@ -302,13 +302,15 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 ### 前端
 
-| 技术 | 用途 |
-|------|------|
-| Vue.js | 前端 MVVM 框架 |
-| Ant Design Vue | UI 组件库 |
-| Axios | HTTP 客户端 |
-| CodeMirror | JSON 代码编辑器 |
-| QRious | 二维码生成 |
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| Vue | 3.5 | 组件与响应式 UI |
+| Vite | 8.0 | 开发服务器与生产构建 |
+| TypeScript | 6.0 | 类型系统 |
+| Pinia | 3.0 | 前端状态管理 |
+| Vue Router | 4.6 | 面板路由 |
+| Ant Design Vue | 4.2 | UI 组件库 |
+| Axios | 1.16 | HTTP 客户端 |
 
 ### DevOps
 
@@ -323,69 +325,41 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 ## 📁 项目结构
 
-```
+```text
 SuperXray-gui/
-├── main.go                    # 程序入口，CLI 命令解析
-├── config/                    # 配置管理
-│   ├── config.go              # 配置加载与环境变量
-│   ├── version                # 版本号 (3.4.2)
-│   └── name                   # 应用名 (x-ui)
-├── database/                  # 数据库层
-│   ├── db.go                  # SQLite 初始化与迁移
-│   └── model/
-│       ├── model.go           # 数据模型 (User/Inbound/Client/Setting)
-│       └── model_test.go      # 模型测试
-├── logger/                    # 日志系统
-│   └── logger.go              # 双后端日志 (控制台 + 文件)
-├── web/                       # Web 层 (核心)
-│   ├── web.go                 # HTTP 服务器主体 (507 行)
-│   ├── controller/            # 控制器层 (9 个文件)
-│   │   ├── index.go           # 首页/登录/登出
-│   │   ├── xui.go             # 面板页面路由
-│   │   ├── api.go             # API 路由组入口
-│   │   ├── inbound.go         # Inbound CRUD
-│   │   ├── setting.go         # 面板设置
-│   │   ├── xray_setting.go    # Xray 配置管理
-│   │   ├── server.go          # 服务器管理
-│   │   ├── websocket.go       # WebSocket 连接
-│   │   └── custom_geo.go      # 自定义 Geo 资源
-│   ├── service/               # 业务逻辑层 (14 个文件)
-│   │   ├── inbound.go         # Inbound 服务 (2804 行)
-│   │   ├── tgbot.go           # Telegram Bot (3823 行)
-│   │   ├── server.go          # 服务器监控 (1329 行)
-│   │   ├── setting.go         # 设置服务 (859 行)
-│   │   ├── xray.go            # Xray 进程管理
-│   │   ├── user.go            # 用户认证
-│   │   └── ...                # 其他服务
-│   ├── job/                   # 后台定时任务 (10 个 Job)
+├── main.go                    # CLI 与服务入口
+├── config/                    # 版本、名称、环境与路径配置
+├── core/                      # CoreManager 类型、注册表与实验适配器
+├── database/                  # GORM/SQLite 初始化、模型与迁移
+├── frontend/                  # Vue 3/Vite/TypeScript 源码与前端测试
+│   ├── src/                   # 页面、组件、API、状态与兼容逻辑
+│   ├── tests/                 # Node test runner 单元测试
+│   ├── package.json           # 前端依赖与命令
+│   └── vite.config.ts         # 构建输出到 ../web/ui
+├── web/                       # Gin 面板、API 与 Go 托管的新 UI
+│   ├── web.go                 # HTTP 服务、任务与生命周期
+│   ├── ui.go                  # 嵌入 web/ui、注入 runtime config、注册路由
+│   ├── controller/            # HTTP/API 控制器
+│   ├── service/               # 业务服务
+│   ├── job/                   # 后台定时任务
+│   ├── middleware/            # 安全与请求中间件
+│   ├── session/               # 登录会话与 CSRF
 │   ├── websocket/             # WebSocket Hub
-│   ├── middleware/            # 中间件 (域名验证/重定向)
-│   ├── html/                  # HTML 模板
-│   ├── assets/                # 静态资源 (JS/CSS/字体)
-│   └── translation/           # 翻译文件 (13 种语言 TOML)
-├── sub/                       # 订阅服务
-│   ├── sub.go                 # 订阅服务器主体
-│   ├── subService.go          # Base64 订阅 (1484 行)
-│   ├── subJsonService.go      # JSON 订阅
-│   └── subClashService.go     # Clash/Mihomo 订阅
-├── util/                      # 工具包
-│   ├── crypto/                # bcrypt 密码哈希
-│   ├── ldap/                  # LDAP 认证
-│   ├── random/                # 随机数生成
-│   └── sys/                   # 系统信息 (跨平台)
-├── xray/                      # Xray 集成包
-├── media/                     # 截图与资源图片
-├── docs/                      # 技术文档
-│   ├── architecture.md        # 系统架构设计
-│   ├── deployment.md          # 部署指南
-│   ├── modules.md             # 核心模块解析
-│   ├── api.md                 # API 接口说明
-│   └── development.md         # 开发者贡献指南
-├── Dockerfile                 # 多阶段 Docker 构建
+│   ├── translation/           # 服务端翻译文件
+│   └── ui/                    # Vite 生产构建产物，供 go:embed 使用
+├── sub/                       # URI/JSON/Clash/WireGuard 订阅服务
+├── xray/                      # Xray 进程与 gRPC API 集成
+├── util/                      # 通用工具
+├── tools/                     # OpenAPI 等生成工具
+├── scripts/                   # 仓库校验与维护脚本
+├── docs/                      # 架构、API、部署和开发文档
+├── Dockerfile                 # 容器构建
 ├── docker-compose.yml         # Docker Compose 编排
-├── install.sh                 # 一键安装脚本
-└── .github/                   # CI/CD 配置
+├── install.sh / update.sh     # 安装与更新脚本
+└── .github/                   # CI/CD 与协作配置
 ```
+
+新 UI 的事实源是 `frontend/src`；`npm run build` 会生成 `web/ui`，再由 `web/ui.go` 嵌入并挂载到 `/panel/`（兼容 `/panel/ui/`）。旧 `web/html`、`web/assets` 和 `/panel/legacy*` 已退役。
 
 ---
 
@@ -394,12 +368,17 @@ SuperXray-gui/
 ### 环境准备
 
 ```bash
-# 安装 Go 1.26+
+# 安装 Go 1.26.4
 go version
 
 # 克隆仓库
 git clone https://github.com/superaddmin/SuperXray-gui.git
 cd SuperXray-gui
+
+# 安装前端依赖
+cd frontend
+npm ci
+cd ..
 ```
 
 ### 运行调试
@@ -411,14 +390,26 @@ mkdir -p x-ui
 # 2. 配置环境变量
 cp .env.example .env
 
-# 3. 调试模式运行（支持模板热更新）
+# 3. 启动 Go 后端
 XUI_DEBUG=true go run main.go
+```
+
+Vue 页面热更新由 Vite 提供，请在另一个终端运行：
+
+```bash
+cd frontend
+npm run dev
 ```
 
 ### 编译构建
 
 ```bash
-# 标准编译
+# 先构建 Vue UI（生成 web/ui）
+cd frontend
+npm run build
+cd ..
+
+# 再构建 Go 二进制
 CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 # Docker 构建
@@ -428,15 +419,36 @@ docker build -t ghcr.io/superaddmin/superxray-gui:dev .
 
 ### 运行测试
 
+安装 npm 依赖后，`node_modules` 可能包含第三方 Go 示例包；全量验证先保留 `go list` 的失败状态，再用 Bash 数组过滤这些导入路径，避免测试范围漂移。
+
 ```bash
-# 运行所有测试
-go test ./...
+# 后端验证
+go_package_output="$(go list ./...)" || exit 1
+go_packages=()
+while IFS= read -r package; do
+  if [[ -n "$package" && "$package" != */node_modules/* ]]; then
+    go_packages+=("$package")
+  fi
+done <<< "$go_package_output"
 
-# 查看详细输出
-go test -v ./...
+if ((${#go_packages[@]} == 0)); then
+  echo "未找到项目 Go 包" >&2
+  exit 1
+fi
 
-# 生成覆盖率报告
-go test -cover ./...
+go test "${go_packages[@]}" || exit 1
+go vet "${go_packages[@]}" || exit 1
+
+# 前端验证
+cd frontend
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+cd ..
+
+# 秘密扫描
+python scripts/secret_scan.py
 ```
 
 > 💡 详细的开发指南请参阅 [开发者贡献指南](docs/development.md)。
