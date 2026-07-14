@@ -62,7 +62,15 @@ class ReleaseMetadataTests(unittest.TestCase):
                     "platform linux/arm64\n"
                     "gcc-aarch64-linux-gnu\n"
                 ),
-                ".github/workflows/codeql.yml": "github/codeql-action/analyze\n",
+                ".github/workflows/codeql.yml": (
+                    "on:\n"
+                    "  push:\n"
+                    "    branches:\n"
+                    '      - "**"\n'
+                    "    tags-ignore:\n"
+                    '      - "v*"\n'
+                    "github/codeql-action/analyze\n"
+                ),
                 ".github/agentic-workflows/release.md": (
                     "GitHub Agentic Workflow: Release\n"
                     "release_gate.py\n"
@@ -201,6 +209,22 @@ class ReleaseMetadataTests(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "OpenAPI contract gate"):
             self.make_gate(self.make_repo(self.workflow_files(release_workflow))).check_workflows()
+
+    def test_codeql_workflow_rejects_tag_only_push_filter(self) -> None:
+        release_workflow = (REPO_ROOT / ".github" / "workflows" / "release.yml").read_text(
+            encoding="utf-8"
+        )
+        files = self.workflow_files(release_workflow)
+        files[".github/workflows/codeql.yml"] = (
+            "on:\n"
+            "  push:\n"
+            "    tags-ignore:\n"
+            '      - "v*"\n'
+            "github/codeql-action/analyze\n"
+        )
+
+        with self.assertRaisesRegex(RuntimeError, "branch pushes"):
+            self.make_gate(self.make_repo(files)).check_workflows()
 
     def test_project_go_version_metadata_rejects_drift(self) -> None:
         files = self.base_files()

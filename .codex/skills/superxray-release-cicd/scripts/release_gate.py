@@ -349,6 +349,18 @@ class Gate:
             raise RuntimeError("test-arm64.yml must not compile Go inside the emulated arm64 container")
         if "github/codeql-action/analyze" not in codeql:
             raise RuntimeError("codeql.yml must run CodeQL analysis")
+        codeql_lines = codeql.splitlines()
+        try:
+            push_index = codeql_lines.index("  push:")
+        except ValueError as exc:
+            raise RuntimeError("codeql.yml must run CodeQL analysis on branch pushes") from exc
+        push_block: list[str] = []
+        for line in codeql_lines[push_index + 1 :]:
+            if line.strip() and not line.startswith("    "):
+                break
+            push_block.append(line)
+        if "    branches:" not in push_block or '      - "**"' not in push_block:
+            raise RuntimeError("codeql.yml must run CodeQL analysis on branch pushes")
         agentic = self._read(".github/agentic-workflows/release.md")
         required_agentic_tokens = [
             "GitHub Agentic Workflow: Release",
