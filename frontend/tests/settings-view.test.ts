@@ -70,7 +70,7 @@ test('settings view keeps representative field bindings from every tab', () => {
     'settings.webBasePath',
     'settings.webCertFile',
     'settings.webKeyFile',
-    'settings.panelProxy',
+    'panelProxyAddress',
     'settings.sessionMaxAge',
     'settings.pageSize',
     'settings.expireDiff',
@@ -146,4 +146,11 @@ test('settings view keeps representative field bindings from every tab', () => {
   ]) {
     assert.match(source, new RegExp(escapeRegExp(binding)));
   }
+});
+
+test('panel proxy configuration distinguishes SOCKS5 and SOCKS5H DNS behavior', () => {
+  assert.match(source, /SOCKS5H \(Remote DNS\)/);
+  assert.match(source, /v-model:value="panelProxyScheme"/);
+  assert.match(source, /v-model:value="panelProxyAddress"/);
+  assert.match(source, /function updatePanelProxyScheme\(scheme: PanelProxyScheme\)/);
 });

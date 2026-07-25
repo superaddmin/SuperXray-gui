@@ -68,15 +68,25 @@
             <FormSection
               eyebrow="Panel"
               title="Panel Outbound Proxy"
-              description="Optional HTTP/HTTPS/SOCKS5 proxy used by panel-owned outbound requests such as WARP API calls. Leave blank for direct connections."
+              description="Optional proxy for panel-owned outbound requests. SOCKS5 uses local DNS; SOCKS5H (Remote DNS) resolves through the proxy. Leave the address blank for direct connections."
             >
-              <AFormItem label="Proxy URL">
-                <AInput
-                  v-model:value="settings.panelProxy"
-                  aria-label="Panel outbound proxy URL"
-                  placeholder="socks5://127.0.0.1:1080"
-                />
-              </AFormItem>
+              <div class="form-grid">
+                <AFormItem label="Proxy Type">
+                  <ASelect
+                    v-model:value="panelProxyScheme"
+                    aria-label="Panel outbound proxy type"
+                    :options="panelProxySchemeOptions"
+                    @change="updatePanelProxyScheme(panelProxyScheme)"
+                  />
+                </AFormItem>
+                <AFormItem label="Proxy Address">
+                  <AInput
+                    v-model:value="panelProxyAddress"
+                    aria-label="Panel outbound proxy address"
+                    placeholder="user:password@127.0.0.1:1080"
+                  />
+                </AFormItem>
+              </div>
             </FormSection>
 
             <FormSection eyebrow="Panel" title="Session and Display">
@@ -656,9 +666,12 @@ type SettingsTab =
   | 'ldap'
   | 'backup';
 
+type PanelProxyScheme = 'http' | 'https' | 'socks5' | 'socks5h';
+
 const activeTab = ref<SettingsTab>('panel');
 const settings = ref<PanelSettings>(createEmptySettings());
 const loadedSettings = ref<PanelSettings | null>(null);
+const panelProxyScheme = ref<PanelProxyScheme>('socks5');
 const credentials = ref<UserCredentialsUpdateForm>({
   oldUsername: '',
   oldPassword: '',
@@ -787,6 +800,19 @@ const datepickerOptions = [
   { label: 'Gregorian', value: 'gregorian' },
   { label: 'Jalali', value: 'jalali' },
 ];
+const panelProxySchemeOptions: Array<{ label: string; value: PanelProxyScheme }> = [
+  { label: 'HTTP', value: 'http' },
+  { label: 'HTTPS', value: 'https' },
+  { label: 'SOCKS5', value: 'socks5' },
+  { label: 'SOCKS5H (Remote DNS)', value: 'socks5h' },
+];
+const panelProxyAddress = computed({
+  get: () => parsePanelProxy(settings.value.panelProxy)?.address ?? settings.value.panelProxy.trim(),
+  set: (address: string) => {
+    const trimmed = address.trim();
+    settings.value.panelProxy = trimmed ? `${panelProxyScheme.value}://${trimmed}` : '';
+  },
+});
 
 async function loadSettings() {
   if (!hasInjectedRuntimeConfig()) {
@@ -799,6 +825,7 @@ async function loadSettings() {
     const payload = await getAllSettings({ notifyOnError: false });
     settings.value = cloneSettings(payload);
     loadedSettings.value = cloneSettings(payload);
+    syncPanelProxyScheme(payload.panelProxy);
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : 'Failed to load settings';
   } finally {
@@ -811,7 +838,32 @@ function resetForm() {
     return;
   }
   settings.value = cloneSettings(loadedSettings.value);
+  syncPanelProxyScheme(settings.value.panelProxy);
   error.value = '';
+}
+
+function updatePanelProxyScheme(scheme: PanelProxyScheme) {
+  const address = panelProxyAddress.value;
+  panelProxyScheme.value = scheme;
+  settings.value.panelProxy = address ? `${scheme}://${address}` : '';
+}
+
+function syncPanelProxyScheme(value: string) {
+  const parsed = parsePanelProxy(value);
+  if (parsed) {
+    panelProxyScheme.value = parsed.scheme;
+  }
+}
+
+function parsePanelProxy(value: string): { scheme: PanelProxyScheme; address: string } | null {
+  const match = /^(http|https|socks5|socks5h):\/\/(.*)$/i.exec(value.trim());
+  if (!match) {
+    return null;
+  }
+  return {
+    scheme: match[1].toLowerCase() as PanelProxyScheme,
+    address: match[2],
+  };
 }
 
 function confirmSave() {

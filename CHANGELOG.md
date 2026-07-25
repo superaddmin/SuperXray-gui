@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- 区分面板出站代理的 `SOCKS5` 本地 DNS 与 `SOCKS5H` 代理端 DNS 语义，并在 Vue 设置页提供明确的代理类型选择。
+
 ## [3.4.3] - 2026-07-14
 
 ### Security
