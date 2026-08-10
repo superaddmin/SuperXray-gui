@@ -3,6 +3,7 @@ import { downloadFile, getJson, postForm, type ApiRequestOptions, uploadForm } f
 
 import type {
   PanelLogRequest,
+  SelfSignedCertificate,
   ServerStatus,
   XrayAccessLogEntry,
   XrayLogRequest,
@@ -76,4 +77,15 @@ export function importDatabase(file: File, options?: ApiRequestOptions): Promise
   const body = new FormData();
   body.append('db', file);
   return uploadForm<string>(legacyEndpoints.server.importDatabase, body, options);
+}
+
+export function generateSelfSignedCertificate(
+  serverNames: string,
+  options?: ApiRequestOptions,
+): Promise<SelfSignedCertificate> {
+  return postForm<SelfSignedCertificate>(
+    legacyEndpoints.server.selfSignedCertificate,
+    { sni: serverNames },
+    options,
+  );
 }

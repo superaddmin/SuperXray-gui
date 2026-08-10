@@ -23,9 +23,17 @@ test('new inbound submit syncs default client into settings JSON', () => {
   assert.match(source, /function applyInboundClientEditorToSettings\(\)/);
   assert.match(
     source,
-    /settings\.clients = \[\{ \.\.\.existingClient, \.\.\.client \}, \.\.\.clients\.slice\(1\)\]/,
+    /protectedInboundClients\.value = \[\{ \.\.\.existingClient, \.\.\.client \}, \.\.\.clients\.slice\(1\)\]/,
   );
   assert.match(source, /client\.flow = editor\.flow \|\| ''/);
+});
+
+test('advanced settings isolate client records and restore them only at submit', () => {
+  assert.match(source, /prepareInboundSettingsForEditing\(inbound\.settings, parsedSettings\)/);
+  assert.match(source, /const separated = separateInboundClients\(parsed\)/);
+  assert.match(source, /protectedInboundClients\.value = separated\.clients/);
+  assert.match(source, /restoreInboundClients\(editorSettings, protectedInboundClients\.value\)/);
+  assert.match(source, /Manage clients with the client form instead of Settings JSON/);
 });
 
 test('gateway proxy templates expose local HTTP and SOCKS5 exits', () => {
@@ -206,7 +214,53 @@ test('hysteria inbound form exposes QUIC Params UDP Hop controls and syncs final
   assert.match(source, /const udpHop = objectField\(quicParams\.udpHop\)/);
   assert.match(source, /hysteriaUdpHopPorts:\s*stringField\(udpHop\.ports\)/);
   assert.match(source, /applyHysteriaFinalmaskUdpHop/);
-  assert.match(source, /const streamWithUdpHop = applyHysteriaFinalmaskUdpHop\(stream, \{/);
+  assert.match(
+    source,
+    /const streamWithUdpHop = applyHysteriaFinalmaskUdpHop\(stream, hysteriaQuicInput\)/,
+  );
   assert.match(source, /Object\.assign\(stream, streamWithUdpHop\)/);
   assert.match(source, /delete stream\.finalmask/);
+});
+
+test('hysteria QUIC form uses the v1.11.4 receive window and stream defaults', () => {
+  assert.match(source, /HYSTERIA_QUIC_DEFAULTS/);
+  assert.match(source, /hysteriaInitStreamReceiveWindow/);
+  assert.match(source, /hysteriaMaxStreamReceiveWindow/);
+  assert.match(source, /hysteriaInitConnectionReceiveWindow/);
+  assert.match(source, /hysteriaMaxConnectionReceiveWindow/);
+  assert.match(source, /hysteriaMaxIdleTimeout/);
+  assert.match(source, /hysteriaMaxIncomingStreams/);
+});
+
+test('TUN form normalizes current Xray fields while preserving the source settings object', () => {
+  assert.match(source, /title="TUN Settings"/);
+  assert.match(source, /v-model:value="tunEditor\.gateway"/);
+  assert.match(source, /v-model:value="tunEditor\.dns"/);
+  assert.match(source, /v-model:value="tunEditor\.autoSystemRoutingTable"/);
+  assert.match(source, /v-model:value="tunEditor\.autoOutboundsInterface"/);
+  assert.match(source, /normalizeTunSettings\(\{/);
+  assert.match(source, /\.\.\.parseInboundSettingsText\(normalizedSettingsText\)/);
+  assert.match(source, /validateTunSettings\(settings\)/);
+});
+
+test('XHTTP form exposes v1.11.4 extra and XMUX controls with a preserving merge path', () => {
+  assert.match(source, /xhttpXPaddingObfsMode/);
+  assert.match(source, /xhttpXPaddingPlacement/);
+  assert.match(source, /xhttpUplinkHttpMethod/);
+  assert.match(source, /xhttpSessionPlacement/);
+  assert.match(source, /xhttpSeqPlacement/);
+  assert.match(source, /xhttpUplinkDataPlacement/);
+  assert.match(source, /xhttpXmuxEnabled/);
+  assert.match(source, /resolveXhttpExtraSettings/);
+  assert.match(source, /mergeXhttpSettings\(existingXhttpSettings, xhttpInput\)/);
+  assert.match(source, /validateXhttpFormInput\(xhttpInput\)/);
+});
+
+test('TLS form generates and persists inline self-signed certificate material', () => {
+  assert.match(source, /generateSelfSignedCertificate/);
+  assert.match(source, /@click="generateSelfSignedTlsCertificate"/);
+  assert.match(source, /streamEditor\.tlsCertificate = result\.cert/);
+  assert.match(source, /streamEditor\.tlsPrivateKey = result\.key/);
+  assert.match(source, /certificate:\s*splitPemLines\(inlineCertificate\)/);
+  assert.match(source, /key:\s*splitPemLines\(inlineKey\)/);
 });

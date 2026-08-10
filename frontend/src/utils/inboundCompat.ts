@@ -14,6 +14,15 @@ const SHADOWSOCKS_2022_AES_128_GCM = '2022-blake3-aes-128-gcm';
 const SHADOWSOCKS_2022_SINGLE_USER = '2022-blake3-chacha20-poly1305';
 const SHADOWSOCKS_DEFAULT_KEY_BYTES = 32;
 
+export const HYSTERIA_QUIC_DEFAULTS = {
+  initStreamReceiveWindow: 8_388_608,
+  maxStreamReceiveWindow: 8_388_608,
+  initConnectionReceiveWindow: 20_971_520,
+  maxConnectionReceiveWindow: 20_971_520,
+  maxIdleTimeout: 30,
+  maxIncomingStreams: 1_024,
+} as const;
+
 export interface SubscriptionEndpointSettings {
   subEnable: boolean;
   subJsonEnable: boolean;
@@ -38,6 +47,43 @@ export interface HysteriaUdpHopFormInput {
   udpHopEnabled: boolean;
   ports: string;
   interval: string;
+  initStreamReceiveWindow: number;
+  maxStreamReceiveWindow: number;
+  initConnectionReceiveWindow: number;
+  maxConnectionReceiveWindow: number;
+  maxIdleTimeout: number;
+  maxIncomingStreams: number;
+}
+
+export interface XhttpFormInput {
+  path: string;
+  host: string;
+  mode: string;
+  noSSEHeader: boolean;
+  scMaxBufferedPosts: number;
+  scMaxEachPostBytes: string;
+  scStreamUpServerSecs: string;
+  xPaddingBytes: string;
+  xPaddingObfsMode: boolean;
+  xPaddingKey: string;
+  xPaddingHeader: string;
+  xPaddingPlacement: string;
+  xPaddingMethod: string;
+  uplinkHTTPMethod: string;
+  sessionPlacement: string;
+  sessionKey: string;
+  seqPlacement: string;
+  seqKey: string;
+  uplinkDataPlacement: string;
+  uplinkDataKey: string;
+  uplinkChunkSize: number;
+  xmuxEnabled: boolean;
+  xmuxMaxConcurrency: string;
+  xmuxMaxConnections: string;
+  xmuxCMaxReuseTimes: string;
+  xmuxHMaxRequestTimes: string;
+  xmuxHMaxReusableSecs: string;
+  xmuxHKeepAlivePeriod: number;
 }
 
 export function mergeSubscriptionEndpointDefaults(
@@ -103,6 +149,26 @@ export const SHADOWSOCKS_METHOD_OPTIONS = [
 
 export function parseInboundSettings(inbound: Pick<Inbound, 'settings'>): InboundSettings {
   return parseJsonObject<InboundSettings>(inbound.settings, { clients: [] });
+}
+
+export function separateInboundClients(settings: Record<string, unknown>): {
+  editorSettings: Record<string, unknown>;
+  clients: unknown[];
+} {
+  const editorSettings = { ...settings };
+  const clients = Array.isArray(editorSettings.clients) ? [...editorSettings.clients] : [];
+  delete editorSettings.clients;
+  return { editorSettings, clients };
+}
+
+export function restoreInboundClients(
+  editorSettings: Record<string, unknown>,
+  clients: readonly unknown[],
+): Record<string, unknown> {
+  return {
+    ...editorSettings,
+    clients: [...clients],
+  };
 }
 
 export function parseInboundStreamSettings(
@@ -192,8 +258,8 @@ export function defaultInboundSettings(protocol: XrayEditableInboundProtocol): I
   if (protocol === 'tun') {
     return {
       name: 'xray0',
-      mtu: [1500, 1280],
-      gateway: [],
+      mtu: 1500,
+      gateway: ['10.0.0.1/16'],
       dns: [],
       userLevel: 0,
       autoSystemRoutingTable: [],
@@ -314,6 +380,31 @@ export function applyHysteriaFinalmaskUdpHop(
     return next;
   }
 
+  quicParams.initStreamReceiveWindow = nonNegativeInteger(
+    input.initStreamReceiveWindow,
+    HYSTERIA_QUIC_DEFAULTS.initStreamReceiveWindow,
+  );
+  quicParams.maxStreamReceiveWindow = nonNegativeInteger(
+    input.maxStreamReceiveWindow,
+    HYSTERIA_QUIC_DEFAULTS.maxStreamReceiveWindow,
+  );
+  quicParams.initConnectionReceiveWindow = nonNegativeInteger(
+    input.initConnectionReceiveWindow,
+    HYSTERIA_QUIC_DEFAULTS.initConnectionReceiveWindow,
+  );
+  quicParams.maxConnectionReceiveWindow = nonNegativeInteger(
+    input.maxConnectionReceiveWindow,
+    HYSTERIA_QUIC_DEFAULTS.maxConnectionReceiveWindow,
+  );
+  quicParams.maxIdleTimeout = nonNegativeInteger(
+    input.maxIdleTimeout,
+    HYSTERIA_QUIC_DEFAULTS.maxIdleTimeout,
+  );
+  quicParams.maxIncomingStreams = nonNegativeInteger(
+    input.maxIncomingStreams,
+    HYSTERIA_QUIC_DEFAULTS.maxIncomingStreams,
+  );
+
   if (input.quicParamsEnabled && input.udpHopEnabled && ports) {
     quicParams.udpHop = interval ? { ports, interval } : { ports };
     finalmask.quicParams = quicParams;
@@ -333,6 +424,316 @@ export function applyHysteriaFinalmaskUdpHop(
     delete next.finalmask;
   }
   return next;
+}
+
+export function validateHysteriaQuicFormInput(input: HysteriaUdpHopFormInput): string {
+  if (!input.quicParamsEnabled) {
+    return '';
+  }
+
+  const integerChecks: Array<[string, number]> = [
+    ['initial stream receive window', input.initStreamReceiveWindow],
+    ['max stream receive window', input.maxStreamReceiveWindow],
+    ['initial connection receive window', input.initConnectionReceiveWindow],
+    ['max connection receive window', input.maxConnectionReceiveWindow],
+    ['max idle timeout', input.maxIdleTimeout],
+    ['max incoming streams', input.maxIncomingStreams],
+  ];
+  for (const [label, value] of integerChecks) {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      return `Hysteria QUIC ${label} must be a non-negative integer`;
+    }
+  }
+
+  const windowChecks: Array<[string, number]> = [
+    ['initial stream receive window', input.initStreamReceiveWindow],
+    ['max stream receive window', input.maxStreamReceiveWindow],
+    ['initial connection receive window', input.initConnectionReceiveWindow],
+    ['max connection receive window', input.maxConnectionReceiveWindow],
+  ];
+  for (const [label, value] of windowChecks) {
+    if (value > 0 && value < 16_384) {
+      return `Hysteria QUIC ${label} must be 0 or at least 16384`;
+    }
+  }
+  if (input.maxIdleTimeout !== 0 && (input.maxIdleTimeout < 4 || input.maxIdleTimeout > 120)) {
+    return 'Hysteria QUIC max idle timeout must be 0 or between 4 and 120';
+  }
+  if (input.maxIncomingStreams > 0 && input.maxIncomingStreams < 8) {
+    return 'Hysteria QUIC max incoming streams must be 0 or at least 8';
+  }
+  return '';
+}
+
+const XHTTP_LEGACY_EXTRA_KEYS = [
+  'headers',
+  'scMaxBufferedPosts',
+  'scMaxEachPostBytes',
+  'scStreamUpServerSecs',
+  'noSSEHeader',
+  'serverMaxHeaderBytes',
+  'xPaddingBytes',
+  'xPaddingObfsMode',
+  'xPaddingKey',
+  'xPaddingHeader',
+  'xPaddingPlacement',
+  'xPaddingMethod',
+  'uplinkHTTPMethod',
+  'sessionPlacement',
+  'sessionKey',
+  'seqPlacement',
+  'seqKey',
+  'uplinkDataPlacement',
+  'uplinkDataKey',
+  'uplinkChunkSize',
+  'noGRPCHeader',
+  'scMinPostsIntervalMs',
+  'xmux',
+  'downloadSettings',
+] as const;
+
+export function resolveXhttpExtraSettings(
+  settings: Record<string, unknown>,
+): Record<string, unknown> {
+  const extra = { ...asRecord(settings.extra) };
+  for (const key of XHTTP_LEGACY_EXTRA_KEYS) {
+    if (extra[key] === undefined && settings[key] !== undefined) {
+      extra[key] = settings[key];
+    }
+  }
+  return extra;
+}
+
+export function resolveXhttpHost(settings: Record<string, unknown>): string {
+  const directHost = stringValue(settings.host).trim();
+  if (directHost) {
+    return directHost;
+  }
+  const headers = asRecord(resolveXhttpExtraSettings(settings).headers);
+  const hostKey = Object.keys(headers).find((key) => key.toLowerCase() === 'host');
+  return hostKey ? stringValue(headers[hostKey]).trim() : '';
+}
+
+export function mergeXhttpSettings(
+  settings: Record<string, unknown>,
+  input: XhttpFormInput,
+): Record<string, unknown> {
+  const next = { ...settings };
+  const extra = resolveXhttpExtraSettings(settings);
+  for (const key of XHTTP_LEGACY_EXTRA_KEYS) {
+    delete next[key];
+  }
+
+  next.path = input.path.trim() || '/';
+  setOptionalString(next, 'host', input.host);
+  next.mode = input.mode || 'auto';
+
+  const headers = { ...asRecord(extra.headers) };
+  const hostHeaderKey = Object.keys(headers).find((key) => key.toLowerCase() === 'host');
+  if (hostHeaderKey) {
+    setOptionalString(headers, hostHeaderKey, input.host);
+  }
+  if (Object.keys(headers).length > 0) {
+    extra.headers = headers;
+  } else {
+    delete extra.headers;
+  }
+
+  setOptionalNonNegativeInteger(extra, 'scMaxBufferedPosts', input.scMaxBufferedPosts);
+  setOptionalString(extra, 'scMaxEachPostBytes', input.scMaxEachPostBytes);
+  setOptionalString(extra, 'scStreamUpServerSecs', input.scStreamUpServerSecs);
+  setOptionalBoolean(extra, 'noSSEHeader', input.noSSEHeader);
+  setOptionalString(extra, 'xPaddingBytes', input.xPaddingBytes);
+  setOptionalBoolean(extra, 'xPaddingObfsMode', input.xPaddingObfsMode);
+  setOptionalString(extra, 'xPaddingKey', input.xPaddingKey);
+  setOptionalString(extra, 'xPaddingHeader', input.xPaddingHeader);
+  setOptionalString(extra, 'xPaddingPlacement', input.xPaddingPlacement);
+  setOptionalString(extra, 'xPaddingMethod', input.xPaddingMethod);
+  setOptionalString(extra, 'uplinkHTTPMethod', input.uplinkHTTPMethod.toUpperCase());
+  setOptionalString(extra, 'sessionPlacement', input.sessionPlacement);
+  setOptionalString(extra, 'sessionKey', input.sessionKey);
+  setOptionalString(extra, 'seqPlacement', input.seqPlacement);
+  setOptionalString(extra, 'seqKey', input.seqKey);
+  setOptionalString(extra, 'uplinkDataPlacement', input.uplinkDataPlacement);
+  setOptionalString(extra, 'uplinkDataKey', input.uplinkDataKey);
+  setOptionalNonNegativeInteger(extra, 'uplinkChunkSize', input.uplinkChunkSize);
+
+  if (input.xmuxEnabled) {
+    const xmux = { ...asRecord(extra.xmux) };
+    setOptionalString(xmux, 'maxConcurrency', input.xmuxMaxConcurrency);
+    setOptionalString(xmux, 'maxConnections', input.xmuxMaxConnections);
+    if (input.xmuxMaxConnections.trim()) {
+      delete xmux.maxConcurrency;
+    } else if (input.xmuxMaxConcurrency.trim()) {
+      delete xmux.maxConnections;
+    }
+    setOptionalString(xmux, 'cMaxReuseTimes', input.xmuxCMaxReuseTimes);
+    setOptionalString(xmux, 'hMaxRequestTimes', input.xmuxHMaxRequestTimes);
+    setOptionalString(xmux, 'hMaxReusableSecs', input.xmuxHMaxReusableSecs);
+    setOptionalNonNegativeInteger(xmux, 'hKeepAlivePeriod', input.xmuxHKeepAlivePeriod);
+    extra.xmux = xmux;
+  } else {
+    delete extra.xmux;
+  }
+
+  if (Object.keys(extra).length > 0) {
+    next.extra = extra;
+  } else {
+    delete next.extra;
+  }
+  return next;
+}
+
+export function validateXhttpFormInput(input: XhttpFormInput): string {
+  if (hasControlCharacter(input.path) || hasControlCharacter(input.host)) {
+    return 'XHTTP path and host must not contain control characters';
+  }
+  if (!['auto', 'packet-up', 'stream-up', 'stream-one'].includes(input.mode)) {
+    return `Unsupported XHTTP mode: ${input.mode}`;
+  }
+  const optionChecks: Array<[string, string, readonly string[]]> = [
+    [
+      'padding placement',
+      input.xPaddingPlacement,
+      ['', 'cookie', 'header', 'query', 'queryInHeader'],
+    ],
+    ['padding method', input.xPaddingMethod, ['', 'repeat-x', 'tokenish']],
+    ['uplink HTTP method', input.uplinkHTTPMethod, ['', 'POST', 'PUT', 'GET']],
+    ['session placement', input.sessionPlacement, ['', 'path', 'header', 'cookie', 'query']],
+    ['sequence placement', input.seqPlacement, ['', 'path', 'header', 'cookie', 'query']],
+    ['uplink data placement', input.uplinkDataPlacement, ['', 'auto', 'body', 'cookie', 'header']],
+  ];
+  for (const [label, value, allowed] of optionChecks) {
+    if (!allowed.includes(value)) {
+      return `Unsupported XHTTP ${label}: ${value}`;
+    }
+  }
+  if (input.uplinkHTTPMethod === 'GET' && input.mode !== 'packet-up') {
+    return 'XHTTP uplink HTTP method GET is only supported in packet-up mode';
+  }
+  if (['cookie', 'header'].includes(input.uplinkDataPlacement) && input.mode !== 'packet-up') {
+    return `XHTTP uplink data placement ${input.uplinkDataPlacement} is only supported in packet-up mode`;
+  }
+  const integerChecks: Array<[string, number]> = [
+    ['max buffered posts', input.scMaxBufferedPosts],
+    ['uplink chunk size', input.uplinkChunkSize],
+    ['XMUX keep-alive period', input.xmuxHKeepAlivePeriod],
+  ];
+  for (const [label, value] of integerChecks) {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      return `XHTTP ${label} must be a non-negative integer`;
+    }
+  }
+  if (input.uplinkChunkSize > 2_147_483_647) {
+    return 'XHTTP uplink chunk size must fit a signed 32-bit integer';
+  }
+  const rangeChecks: Array<[string, string, boolean]> = [
+    ['each post bytes', input.scMaxEachPostBytes, false],
+    ['stream-up server seconds', input.scStreamUpServerSecs, false],
+    ['padding bytes', input.xPaddingBytes, true],
+    ['XMUX max concurrency', input.xmuxMaxConcurrency, false],
+    ['XMUX max connections', input.xmuxMaxConnections, false],
+    ['XMUX max reuse times', input.xmuxCMaxReuseTimes, false],
+    ['XMUX max request times', input.xmuxHMaxRequestTimes, false],
+    ['XMUX max reusable seconds', input.xmuxHMaxReusableSecs, false],
+  ];
+  for (const [label, value, positive] of rangeChecks) {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const range = parseCoreInt32Range(trimmed);
+    if (!range) {
+      return `XHTTP ${label} must be an integer or integer range`;
+    }
+    if (positive && (range[0] <= 0 || range[1] <= 0)) {
+      return `XHTTP ${label} values must be greater than 0`;
+    }
+  }
+  const textChecks = [
+    input.scMaxEachPostBytes,
+    input.scStreamUpServerSecs,
+    input.xPaddingBytes,
+    input.xPaddingKey,
+    input.xPaddingHeader,
+    input.sessionKey,
+    input.seqKey,
+    input.uplinkDataKey,
+    input.xmuxMaxConcurrency,
+    input.xmuxMaxConnections,
+    input.xmuxCMaxReuseTimes,
+    input.xmuxHMaxRequestTimes,
+    input.xmuxHMaxReusableSecs,
+  ];
+  if (textChecks.some((value) => value.length > 256 || hasControlCharacter(value))) {
+    return 'XHTTP text values must be at most 256 characters without control characters';
+  }
+  return '';
+}
+
+export function normalizeTunSettings(settings: InboundSettings): InboundSettings {
+  const normalized = { ...settings };
+  const rawMtu = normalized.mtu ?? normalized.MTU;
+  const mtu = Array.isArray(rawMtu) ? rawMtu[0] : rawMtu;
+  const autoOutboundsInterface = stringValue(normalized.autoOutboundsInterface).trim();
+
+  normalized.name = stringValue(normalized.name).trim() || 'xray0';
+  normalized.mtu = mtu === undefined || mtu === null || mtu === '' ? 1500 : Number(mtu);
+  normalized.gateway = normalizeStringList(normalized.gateway ?? normalized.Gateway);
+  normalized.dns = normalizeStringList(normalized.dns ?? normalized.DNS);
+  normalized.userLevel =
+    normalized.userLevel === undefined || normalized.userLevel === null
+      ? 0
+      : Number(normalized.userLevel);
+  normalized.autoSystemRoutingTable = normalizeStringList(normalized.autoSystemRoutingTable);
+  if (autoOutboundsInterface) {
+    normalized.autoOutboundsInterface = autoOutboundsInterface;
+  } else {
+    delete normalized.autoOutboundsInterface;
+  }
+  delete normalized.MTU;
+  delete normalized.Gateway;
+  delete normalized.DNS;
+  return normalized;
+}
+
+export function validateTunSettings(settings: InboundSettings): string {
+  const name = stringValue(settings.name).trim();
+  if (!name || name.length > 128 || hasControlCharacter(name)) {
+    return 'TUN interface name must be 1-128 characters without control characters';
+  }
+
+  const mtu = Number(settings.mtu);
+  if (!Number.isInteger(mtu) || mtu < 1 || mtu > 9_000) {
+    return 'TUN MTU must be an integer between 1 and 9000';
+  }
+
+  const userLevel = Number(settings.userLevel);
+  if (!Number.isInteger(userLevel) || userLevel < 0 || userLevel > 4_294_967_295) {
+    return 'TUN user level must be an unsigned 32-bit integer';
+  }
+
+  for (const gateway of normalizeStringList(settings.gateway)) {
+    if (!isValidIpPrefix(gateway)) {
+      return `Invalid TUN gateway CIDR: ${gateway}`;
+    }
+  }
+  for (const dns of normalizeStringList(settings.dns)) {
+    if (!isValidIpAddress(dns)) {
+      return `Invalid TUN DNS address: ${dns}`;
+    }
+  }
+  for (const route of normalizeStringList(settings.autoSystemRoutingTable)) {
+    if (!isValidIpPrefix(route)) {
+      return `Invalid TUN system route CIDR: ${route}`;
+    }
+  }
+
+  const outboundInterface = stringValue(settings.autoOutboundsInterface).trim();
+  if (outboundInterface.length > 128 || hasControlCharacter(outboundInterface)) {
+    return 'TUN outbound interface must be at most 128 characters without control characters';
+  }
+  return '';
 }
 
 export function defaultSniffingSettings(): InboundSniffingSettings {
@@ -1056,6 +1457,141 @@ function hysteriaHopPorts(finalmask: unknown): string {
 
 function normalizeHopRange(value: string): string {
   return value.trim().replace(/^(\d+)\s*:\s*(\d+)$/, '$1-$2');
+}
+
+function parseCoreInt32Range(value: string): [number, number] | null {
+  const match = /^(-?\d+)(?:-(-?\d+))?$/.exec(value);
+  if (!match) {
+    return null;
+  }
+  const left = Number(match[1]);
+  const right = Number(match[2] ?? match[1]);
+  if (
+    !Number.isSafeInteger(left) ||
+    !Number.isSafeInteger(right) ||
+    left < -2_147_483_648 ||
+    left > 2_147_483_647 ||
+    right < -2_147_483_648 ||
+    right > 2_147_483_647
+  ) {
+    return null;
+  }
+  return left <= right ? [left, right] : [right, left];
+}
+
+function normalizeStringList(value: unknown): string[] {
+  const values = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(/[\n,]/)
+      : [];
+  return [
+    ...new Set(
+      values
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function nonNegativeInteger(value: unknown, fallback: number): number {
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= 0 ? number : fallback;
+}
+
+function setOptionalString(target: Record<string, unknown>, key: string, value: string) {
+  const trimmed = value.trim();
+  if (trimmed) {
+    target[key] = trimmed;
+  } else {
+    delete target[key];
+  }
+}
+
+function setOptionalBoolean(target: Record<string, unknown>, key: string, value: boolean) {
+  if (value) {
+    target[key] = true;
+  } else {
+    delete target[key];
+  }
+}
+
+function setOptionalNonNegativeInteger(
+  target: Record<string, unknown>,
+  key: string,
+  value: number,
+) {
+  if (Number.isSafeInteger(value) && value > 0) {
+    target[key] = value;
+  } else {
+    delete target[key];
+  }
+}
+
+function hasControlCharacter(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0) || 0;
+    return codePoint <= 31 || codePoint === 127;
+  });
+}
+
+function isValidIpPrefix(value: string): boolean {
+  const separator = value.lastIndexOf('/');
+  if (separator <= 0 || separator !== value.indexOf('/')) {
+    return false;
+  }
+  const address = value.slice(0, separator);
+  const prefixText = value.slice(separator + 1);
+  if (!/^\d+$/.test(prefixText) || !isValidIpAddress(address)) {
+    return false;
+  }
+  const prefix = Number(prefixText);
+  return prefix >= 0 && prefix <= (address.includes(':') ? 128 : 32);
+}
+
+function isValidIpAddress(value: string): boolean {
+  return isValidIpv4(value) || isValidIpv6(value);
+}
+
+function isValidIpv4(value: string): boolean {
+  const parts = value.split('.');
+  return (
+    parts.length === 4 &&
+    parts.every(
+      (part) =>
+        /^\d{1,3}$/.test(part) &&
+        (part === '0' || !part.startsWith('0')) &&
+        Number(part) >= 0 &&
+        Number(part) <= 255,
+    )
+  );
+}
+
+function isValidIpv6(value: string): boolean {
+  if (!value.includes(':') || value.includes('%') || (value.match(/::/g) || []).length > 1) {
+    return false;
+  }
+
+  const compressed = value.includes('::');
+  const halves = value.split('::');
+  const groups = halves.flatMap((half) => (half ? half.split(':') : []));
+  let groupCount = 0;
+  for (let index = 0; index < groups.length; index += 1) {
+    const group = groups[index];
+    if (group.includes('.')) {
+      if (index !== groups.length - 1 || !isValidIpv4(group)) {
+        return false;
+      }
+      groupCount += 2;
+      continue;
+    }
+    if (!/^[0-9a-fA-F]{1,4}$/.test(group)) {
+      return false;
+    }
+    groupCount += 1;
+  }
+  return compressed ? groupCount < 8 : groupCount === 8;
 }
 
 function serializeShareableFinalMask(finalmask: unknown): string {

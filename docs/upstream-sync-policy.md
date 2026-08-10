@@ -1,8 +1,8 @@
-# 上游 3x-ui 同步策略与落地雷达
+# 上游同步策略与落地雷达
 
-> 更新日期：2026-06-26
-> 上游仓库：`MHSanaei/3x-ui`
-> 当前上游基线：`3x-ui upstream tag v3.3.1` = `b5ef412b8`
+> 更新日期：2026-08-11
+> 上游仓库：`MHSanaei/3x-ui`、`alireza0/x-ui`
+> 当前上游基线：`MHSanaei/3x-ui v3.3.1` = `b5ef412b8`；`alireza0/x-ui v1.11.4` = `73b050c95e3fb25128baedc8668d72a45a7b5b6f`
 > 当前项目版本：`3.4.3`
 
 ## 1. 同步原则
@@ -37,6 +37,9 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、旧 HTML UI 退�
 13. 选择性同步 `3x-ui v3.3.1` 的 Xray 日志路径安全修复：运行时生成配置时将 `log.access` / `log.error` 限定到面板日志目录下的 basename，并补充回归测试覆盖绝对路径、`..` 穿越与 `none` / 空值禁用语义。
 14. 同步 `golang.org/x/net v0.56.0` 及随动 `golang.org/x/exp`、`golang.org/x/tools` 更新。
 15. 引入项目本地 `.gitattributes`，仅约束 Shell 脚本、OpenAPI 生成物、前端测试和 `web/ui/openapi.json` 为 LF；不引入上游 React 生成目录约束。
+16. 按功能移植 `alireza0/x-ui v1.11.4` 的自签名证书、Hysteria QUIC、TUN、XHTTP/XMUX 与 Go 依赖更新；逐字段保留旧配置和未知 JSON 扩展。
+17. 评估后保留本地 JSON 显式默认值、客户端高级 JSON 兼容入口、WARP Matrix 与 `3.4.3` 版本号，不采用上游面向旧 HTML UI 的删除或全局收缩改动。
+18. 保持 `alireza0-xui` 远程只读，设置 `remote.alireza0-xui.pushurl=DISABLED`；完整集成记录见 `docs/upstream-alireza0-v1.11.4-integration.md`。
 
 ## 3. 上游雷达清单
 

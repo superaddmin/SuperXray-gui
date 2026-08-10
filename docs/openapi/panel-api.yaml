@@ -711,6 +711,23 @@ paths:
           $ref: '#/components/responses/ForbiddenCSRF'
         '404':
           $ref: '#/components/responses/AuthNotFound'
+  /panel/api/server/getNewSelfSignedCert:
+    post:
+      tags: [Server]
+      summary: Generate an inline self-signed TLS certificate for the provided DNS or IP SANs.
+      operationId: getNewSelfSignedCert
+      requestBody:
+        $ref: '#/components/requestBodies/EchCertForm'
+      security:
+        - cookieAuth: []
+          csrfToken: []
+      responses:
+        '200':
+          $ref: '#/components/responses/LegacyMsg'
+        '403':
+          $ref: '#/components/responses/ForbiddenCSRF'
+        '404':
+          $ref: '#/components/responses/AuthNotFound'
   /panel/api/cores/instances:
     get:
       tags: [Cores]

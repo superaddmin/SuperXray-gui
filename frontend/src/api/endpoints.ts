@@ -28,6 +28,7 @@ export const legacyEndpoints = {
     xrayLogs: (count: number) => `panel/api/server/xraylogs/${encodePath(count)}`,
     database: 'panel/api/server/getDb',
     importDatabase: 'panel/api/server/importDB',
+    selfSignedCertificate: 'panel/api/server/getNewSelfSignedCert',
   },
   customGeo: {
     list: 'panel/api/custom-geo/list',

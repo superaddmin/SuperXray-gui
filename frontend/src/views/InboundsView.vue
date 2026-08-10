@@ -608,6 +608,44 @@
         </FormSection>
 
         <FormSection
+          v-if="inboundEditor.protocol === 'tun'"
+          eyebrow="Protocol"
+          title="TUN Settings"
+          description="Interface addresses, DNS and routing fields stay synchronized with the current Xray TUN schema."
+        >
+          <template #actions>
+            <AButton size="small" @click="syncTunEditorFromSettings">Sync JSON</AButton>
+            <AButton size="small" @click="applyTunEditorToSettings">Apply</AButton>
+          </template>
+          <div class="form-grid">
+            <AFormItem label="Interface Name">
+              <AInput v-model:value="tunEditor.name" placeholder="xray0" />
+            </AFormItem>
+            <AFormItem label="MTU">
+              <AInputNumber v-model:value="tunEditor.mtu" :min="1" :max="9000" class="full-width" />
+            </AFormItem>
+            <AFormItem label="Gateway CIDRs">
+              <AInput v-model:value="tunEditor.gateway" placeholder="10.0.0.1/16, fc00::1/64" />
+            </AFormItem>
+            <AFormItem label="DNS Addresses">
+              <AInput v-model:value="tunEditor.dns" placeholder="1.1.1.1, 2606:4700:4700::1111" />
+            </AFormItem>
+            <AFormItem label="User Level">
+              <AInputNumber v-model:value="tunEditor.userLevel" :min="0" class="full-width" />
+            </AFormItem>
+            <AFormItem label="Auto System Route CIDRs">
+              <AInput
+                v-model:value="tunEditor.autoSystemRoutingTable"
+                placeholder="0.0.0.0/0, ::/0"
+              />
+            </AFormItem>
+            <AFormItem label="Outbounds Interface">
+              <AInput v-model:value="tunEditor.autoOutboundsInterface" placeholder="auto" />
+            </AFormItem>
+          </div>
+        </FormSection>
+
+        <FormSection
           v-if="protocolSupportsStream(inboundEditor.protocol)"
           eyebrow="Transport"
           title="Transport Settings"
@@ -735,6 +773,145 @@
             <AFormItem v-if="streamEditor.network === 'xhttp'" label="Padding Bytes">
               <AInput v-model:value="streamEditor.xhttpXPaddingBytes" />
             </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Padding Obfuscation">
+              <ASwitch v-model:checked="streamEditor.xhttpXPaddingObfsMode" />
+            </AFormItem>
+            <AFormItem
+              v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpXPaddingObfsMode"
+              label="Padding Key"
+            >
+              <AInput v-model:value="streamEditor.xhttpXPaddingKey" placeholder="x_padding" />
+            </AFormItem>
+            <AFormItem
+              v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpXPaddingObfsMode"
+              label="Padding Header"
+            >
+              <AInput v-model:value="streamEditor.xhttpXPaddingHeader" placeholder="X-Padding" />
+            </AFormItem>
+            <AFormItem
+              v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpXPaddingObfsMode"
+              label="Padding Placement"
+            >
+              <ASelect
+                v-model:value="streamEditor.xhttpXPaddingPlacement"
+                :options="xhttpPaddingPlacementOptions"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpXPaddingObfsMode"
+              label="Padding Method"
+            >
+              <ASelect
+                v-model:value="streamEditor.xhttpXPaddingMethod"
+                :options="xhttpPaddingMethodOptions"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Uplink HTTP Method">
+              <ASelect
+                v-model:value="streamEditor.xhttpUplinkHttpMethod"
+                :options="xhttpUplinkMethodOptions"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Session Placement">
+              <ASelect
+                v-model:value="streamEditor.xhttpSessionPlacement"
+                :options="xhttpPlacementOptions"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                streamEditor.network === 'xhttp' &&
+                  streamEditor.xhttpSessionPlacement &&
+                  streamEditor.xhttpSessionPlacement !== 'path'
+              "
+              label="Session Key"
+            >
+              <AInput v-model:value="streamEditor.xhttpSessionKey" placeholder="x_session" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Sequence Placement">
+              <ASelect
+                v-model:value="streamEditor.xhttpSeqPlacement"
+                :options="xhttpPlacementOptions"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                streamEditor.network === 'xhttp' &&
+                  streamEditor.xhttpSeqPlacement &&
+                  streamEditor.xhttpSeqPlacement !== 'path'
+              "
+              label="Sequence Key"
+            >
+              <AInput v-model:value="streamEditor.xhttpSeqKey" placeholder="x_seq" />
+            </AFormItem>
+            <AFormItem
+              v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpMode === 'packet-up'"
+              label="Uplink Data Placement"
+            >
+              <ASelect
+                v-model:value="streamEditor.xhttpUplinkDataPlacement"
+                :options="xhttpUplinkDataPlacementOptions"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                streamEditor.network === 'xhttp' &&
+                  streamEditor.xhttpMode === 'packet-up' &&
+                  streamEditor.xhttpUplinkDataPlacement &&
+                  streamEditor.xhttpUplinkDataPlacement !== 'body'
+              "
+              label="Uplink Data Key"
+            >
+              <AInput v-model:value="streamEditor.xhttpUplinkDataKey" placeholder="x_data" />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                streamEditor.network === 'xhttp' &&
+                  streamEditor.xhttpMode === 'packet-up' &&
+                  streamEditor.xhttpUplinkDataPlacement &&
+                  streamEditor.xhttpUplinkDataPlacement !== 'body'
+              "
+              label="Uplink Chunk Size"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.xhttpUplinkChunkSize"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="XMUX">
+              <ASwitch v-model:checked="streamEditor.xhttpXmuxEnabled" />
+            </AFormItem>
+            <template v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpXmuxEnabled">
+              <AFormItem label="XMUX Max Concurrency">
+                <AInput v-model:value="streamEditor.xhttpXmuxMaxConcurrency" placeholder="16-32" />
+              </AFormItem>
+              <AFormItem label="XMUX Max Connections">
+                <AInput v-model:value="streamEditor.xhttpXmuxMaxConnections" placeholder="0" />
+              </AFormItem>
+              <AFormItem label="XMUX Max Reuse Times">
+                <AInput v-model:value="streamEditor.xhttpXmuxCMaxReuseTimes" placeholder="0" />
+              </AFormItem>
+              <AFormItem label="XMUX Max Request Times">
+                <AInput
+                  v-model:value="streamEditor.xhttpXmuxHMaxRequestTimes"
+                  placeholder="600-900"
+                />
+              </AFormItem>
+              <AFormItem label="XMUX Max Reusable Seconds">
+                <AInput
+                  v-model:value="streamEditor.xhttpXmuxHMaxReusableSecs"
+                  placeholder="1800-3000"
+                />
+              </AFormItem>
+              <AFormItem label="XMUX Keep Alive Period">
+                <AInputNumber
+                  v-model:value="streamEditor.xhttpXmuxHKeepAlivePeriod"
+                  :min="0"
+                  class="full-width"
+                />
+              </AFormItem>
+            </template>
             <AFormItem v-if="streamEditor.security === 'tls'" label="TLS SNI">
               <AInput v-model:value="streamEditor.tlsServerName" />
             </AFormItem>
@@ -755,6 +932,31 @@
             </AFormItem>
             <AFormItem v-if="streamEditor.security === 'tls'" label="Key File">
               <AInput v-model:value="streamEditor.tlsKeyFile" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label="Inline Certificate">
+              <textarea
+                v-model="streamEditor.tlsCertificate"
+                class="json-editor compact-json-editor"
+                rows="5"
+                spellcheck="false"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label="Inline Private Key">
+              <textarea
+                v-model="streamEditor.tlsPrivateKey"
+                class="json-editor compact-json-editor"
+                rows="5"
+                spellcheck="false"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label=" ">
+              <AButton
+                :loading="generatingSelfSignedCertificate"
+                @click="generateSelfSignedTlsCertificate"
+              >
+                <template #icon><SafetyCertificateOutlined /></template>
+                Generate Self-Signed Certificate
+              </AButton>
             </AFormItem>
             <AFormItem v-if="streamEditor.security === 'tls'" label="Reject Unknown SNI">
               <ASwitch v-model:checked="streamEditor.tlsRejectUnknownSni" />
@@ -837,9 +1039,81 @@
             </AFormItem>
             <AFormItem
               v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
+              label="Initial Stream Window"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.hysteriaInitStreamReceiveWindow"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
+              label="Max Stream Window"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.hysteriaMaxStreamReceiveWindow"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
+              label="Initial Connection Window"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.hysteriaInitConnectionReceiveWindow"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
+              label="Max Connection Window"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.hysteriaMaxConnectionReceiveWindow"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
+              label="Max Idle Timeout"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.hysteriaMaxIdleTimeout"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
+              label="Max Incoming Streams"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.hysteriaMaxIncomingStreams"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
                 isHysteriaProtocol(inboundEditor.protocol) &&
-                streamEditor.hysteriaQuicParamsEnabled &&
-                streamEditor.hysteriaUdpHopEnabled
+                  streamEditor.hysteriaQuicParamsEnabled &&
+                  streamEditor.hysteriaUdpHopEnabled
               "
               label="Hop Ports"
             >
@@ -848,8 +1122,8 @@
             <AFormItem
               v-if="
                 isHysteriaProtocol(inboundEditor.protocol) &&
-                streamEditor.hysteriaQuicParamsEnabled &&
-                streamEditor.hysteriaUdpHopEnabled
+                  streamEditor.hysteriaQuicParamsEnabled &&
+                  streamEditor.hysteriaUdpHopEnabled
               "
               label="Hop Interval"
             >
@@ -926,10 +1200,10 @@
           v-if="inboundClientSectionVisible"
           eyebrow="Client"
           title="Default Client"
-          description="Create the first client for protocols that require one. Apply keeps the form and raw settings JSON in sync."
+          description="Client records stay outside advanced JSON to prevent conflicting edits."
         >
           <template #actions>
-            <AButton size="small" @click="syncInboundClientEditorFromSettings">Sync JSON</AButton>
+            <AButton size="small" @click="syncInboundClientEditorFromSettings">Reset</AButton>
             <AButton size="small" @click="applyInboundClientEditorToSettings">Apply</AButton>
           </template>
           <div class="form-grid client-form-grid">
@@ -1021,7 +1295,7 @@
         <FormSection
           eyebrow="Advanced"
           title="Advanced JSON"
-          description="Raw legacy JSON remains editable for compatibility and advanced Xray options."
+          description="Advanced settings remain editable; client records are protected and managed separately."
         >
           <div class="form-json-stack">
             <div class="json-section">
@@ -1394,6 +1668,7 @@ import {
   PlusOutlined,
   QrcodeOutlined,
   ReloadOutlined,
+  SafetyCertificateOutlined,
   UserAddOutlined,
 } from '@ant-design/icons-vue';
 import {
@@ -1438,6 +1713,7 @@ import {
   updateInbound,
   updateInboundClient,
 } from '@/api/inbounds';
+import { generateSelfSignedCertificate } from '@/api/server';
 import { getAllSettings, getDefaultSettings } from '@/api/settings';
 import PageHeader from '@/components/PageHeader.vue';
 import FormSection from '@/components/FormSection.vue';
@@ -1463,6 +1739,7 @@ import type {
 import type { PanelSettings } from '@/types/settings';
 import { formatBytes, formatCount } from '@/utils/format';
 import {
+  HYSTERIA_QUIC_DEFAULTS,
   SHADOWSOCKS_METHOD_OPTIONS,
   applyHysteriaFinalmaskUdpHop,
   applyPanelDefaultTlsCertificate,
@@ -1484,13 +1761,23 @@ import {
   getShadowsocksMethod,
   isShadowsocks2022Method,
   isSingleUserShadowsocks2022,
+  mergeXhttpSettings,
   mergeSubscriptionEndpointDefaults,
+  normalizeTunSettings,
   parseInboundSettings,
   parseInboundSniffingSettings,
   parseInboundStreamSettings,
+  restoreInboundClients,
   resolveInboundHost,
+  resolveXhttpHost,
+  resolveXhttpExtraSettings,
+  separateInboundClients,
   stringifyJson,
   type PanelDefaultTlsCertificate,
+  type XhttpFormInput,
+  validateTunSettings,
+  validateHysteriaQuicFormInput,
+  validateXhttpFormInput,
 } from '@/utils/inboundCompat';
 import {
   normalizeRealityServerSettings,
@@ -1539,6 +1826,16 @@ interface WireguardEditorState {
   noKernelTun: boolean;
 }
 
+interface TunEditorState {
+  name: string;
+  mtu: number;
+  gateway: string;
+  dns: string;
+  userLevel: number;
+  autoSystemRoutingTable: string;
+  autoOutboundsInterface: string;
+}
+
 interface StreamEditorState {
   network: string;
   security: string;
@@ -1568,6 +1865,26 @@ interface StreamEditorState {
   xhttpScMaxEachPostBytes: string;
   xhttpScStreamUpServerSecs: string;
   xhttpXPaddingBytes: string;
+  xhttpXPaddingObfsMode: boolean;
+  xhttpXPaddingKey: string;
+  xhttpXPaddingHeader: string;
+  xhttpXPaddingPlacement: string;
+  xhttpXPaddingMethod: string;
+  xhttpUplinkHttpMethod: string;
+  xhttpSessionPlacement: string;
+  xhttpSessionKey: string;
+  xhttpSeqPlacement: string;
+  xhttpSeqKey: string;
+  xhttpUplinkDataPlacement: string;
+  xhttpUplinkDataKey: string;
+  xhttpUplinkChunkSize: number;
+  xhttpXmuxEnabled: boolean;
+  xhttpXmuxMaxConcurrency: string;
+  xhttpXmuxMaxConnections: string;
+  xhttpXmuxCMaxReuseTimes: string;
+  xhttpXmuxHMaxRequestTimes: string;
+  xhttpXmuxHMaxReusableSecs: string;
+  xhttpXmuxHKeepAlivePeriod: number;
   tlsServerName: string;
   tlsMinVersion: string;
   tlsMaxVersion: string;
@@ -1575,6 +1892,8 @@ interface StreamEditorState {
   tlsFingerprint: string;
   tlsCertificateFile: string;
   tlsKeyFile: string;
+  tlsCertificate: string;
+  tlsPrivateKey: string;
   tlsRejectUnknownSni: boolean;
   tlsDisableSystemRoot: boolean;
   tlsEnableSessionResumption: boolean;
@@ -1599,6 +1918,12 @@ interface StreamEditorState {
   hysteriaUdpHopEnabled: boolean;
   hysteriaUdpHopPorts: string;
   hysteriaUdpHopInterval: string;
+  hysteriaInitStreamReceiveWindow: number;
+  hysteriaMaxStreamReceiveWindow: number;
+  hysteriaInitConnectionReceiveWindow: number;
+  hysteriaMaxConnectionReceiveWindow: number;
+  hysteriaMaxIdleTimeout: number;
+  hysteriaMaxIncomingStreams: number;
   sockoptEnabled: boolean;
   sockoptAcceptProxyProtocol: boolean;
   sockoptTcpFastOpen: boolean;
@@ -1700,6 +2025,7 @@ const sharePreviewFilename = ref('inbounds-export.txt');
 const inboundModalOpen = ref(false);
 const inboundModalMode = ref<InboundModalMode>('create');
 const savingInbound = ref(false);
+const generatingSelfSignedCertificate = ref(false);
 const busyInboundId = ref<number | null>(null);
 const importModalOpen = ref(false);
 const importInboundText = ref('');
@@ -1750,8 +2076,10 @@ const menuDangerActionKeys = new Set<HeaderActionKey>([
 
 const inboundEditor = reactive<InboundEditorState>(createInboundEditor());
 const wireguardEditor = reactive<WireguardEditorState>(createWireguardEditor());
+const tunEditor = reactive<TunEditorState>(createTunEditor());
 const streamEditor = reactive<StreamEditorState>(createStreamEditor());
 const inboundClientEditor = reactive<ClientEditorState>(createClientEditor());
+const protectedInboundClients = ref<unknown[]>([]);
 const clientEditor = reactive<ClientEditorState>(createClientEditor());
 const bulkClientForm = reactive<BulkClientFormState>(createBulkClientForm());
 
@@ -1848,6 +2176,21 @@ const xhttpModeOptions = ['auto', 'packet-up', 'stream-up', 'stream-one'].map((v
   label: value,
   value,
 }));
+const xhttpPaddingPlacementOptions = selectOptionsWithDefault([
+  'queryInHeader',
+  'cookie',
+  'header',
+  'query',
+]);
+const xhttpPaddingMethodOptions = selectOptionsWithDefault(['repeat-x', 'tokenish']);
+const xhttpUplinkMethodOptions = selectOptionsWithDefault(['POST', 'PUT', 'GET']);
+const xhttpPlacementOptions = selectOptionsWithDefault(['path', 'header', 'cookie', 'query']);
+const xhttpUplinkDataPlacementOptions = selectOptionsWithDefault([
+  'auto',
+  'body',
+  'cookie',
+  'header',
+]);
 const tlsVersionOptions = ['1.0', '1.1', '1.2', '1.3'].map((value) => ({
   label: value,
   value,
@@ -2057,9 +2400,14 @@ watch(
   (protocol) => {
     if (inboundModalMode.value === 'create') {
       inboundEditor.settings = stringifyJson(defaultInboundSettings(protocol));
+      inboundEditor.settings = prepareInboundSettingsForEditing(
+        inboundEditor.settings,
+        defaultInboundSettings(protocol),
+      );
       inboundEditor.streamSettings = stringifyJson(defaultStreamSettings(protocol));
       Object.assign(inboundClientEditor, createClientEditor(protocol));
       syncWireguardEditorFromSettings();
+      syncTunEditorFromSettings();
       syncStreamEditorFromSettings();
       syncInboundClientEditorFromSettings();
       void applyPanelDefaultTlsCertificateToEditor();
@@ -2158,8 +2506,13 @@ async function refreshClientActivity() {
 function openCreateInbound() {
   inboundModalMode.value = 'create';
   Object.assign(inboundEditor, createInboundEditor());
+  inboundEditor.settings = prepareInboundSettingsForEditing(
+    inboundEditor.settings,
+    defaultInboundSettings(inboundEditor.protocol),
+  );
   Object.assign(inboundClientEditor, createClientEditor(inboundEditor.protocol));
   syncWireguardEditorFromSettings();
+  syncTunEditorFromSettings();
   syncStreamEditorFromSettings();
   syncInboundClientEditorFromSettings();
   inboundModalOpen.value = true;
@@ -2179,8 +2532,13 @@ function openGatewayProxyTemplate(template: GatewayProxyTemplate) {
     }),
   );
   inboundModalMode.value = 'create';
+  inboundEditor.settings = prepareInboundSettingsForEditing(
+    inboundEditor.settings,
+    defaultInboundSettings(protocol),
+  );
   Object.assign(inboundClientEditor, createClientEditor(protocol));
   syncWireguardEditorFromSettings();
+  syncTunEditorFromSettings();
   syncStreamEditorFromSettings();
   syncInboundClientEditorFromSettings();
   inboundModalOpen.value = true;
@@ -2233,6 +2591,7 @@ async function submitImportInbound() {
 
 function openEditInbound(record: Inbound | Record<string, unknown>) {
   const inbound = asInbound(record);
+  const parsedSettings = parseInboundSettings(inbound);
   inboundModalMode.value = 'edit';
   Object.assign(inboundEditor, {
     id: inbound.id,
@@ -2244,11 +2603,12 @@ function openEditInbound(record: Inbound | Record<string, unknown>) {
     totalGB: bytesToGb(inbound.total),
     expiryTime: inbound.expiryTime || 0,
     trafficReset: inbound.trafficReset || 'never',
-    settings: formatJsonText(inbound.settings, parseInboundSettings(inbound)),
+    settings: prepareInboundSettingsForEditing(inbound.settings, parsedSettings),
     streamSettings: formatJsonText(inbound.streamSettings, parseInboundStreamSettings(inbound)),
     sniffing: formatJsonText(inbound.sniffing, parseInboundSniffingSettings(inbound)),
   });
   syncWireguardEditorFromSettings();
+  syncTunEditorFromSettings();
   syncStreamEditorFromSettings();
   syncInboundClientEditorFromSettings();
   inboundModalOpen.value = true;
@@ -2257,22 +2617,36 @@ function openEditInbound(record: Inbound | Record<string, unknown>) {
 async function submitInbound() {
   if (inboundEditor.protocol === 'wireguard') {
     applyWireguardEditorToSettings();
+  } else if (inboundEditor.protocol === 'tun') {
+    if (!applyTunEditorToSettings()) {
+      return;
+    }
   } else if (protocolSupportsStream(inboundEditor.protocol)) {
-    applyStreamEditorToSettings();
+    if (!applyStreamEditorToSettings()) {
+      return;
+    }
     await applyPanelDefaultTlsCertificateToEditor();
   }
   if (inboundClientSectionVisible.value) {
     applyInboundClientEditorToSettings();
   }
-  const settings = normalizeJsonEditorText(inboundEditor.settings, 'Settings JSON');
+  const normalizedSettings = normalizeJsonEditorText(inboundEditor.settings, 'Settings JSON');
   const streamSettings = normalizeJsonEditorText(
     inboundEditor.streamSettings,
     'Stream Settings JSON',
   );
   const sniffing = normalizeJsonEditorText(inboundEditor.sniffing, 'Sniffing JSON');
-  if (!settings || !streamSettings || !sniffing) {
+  if (!normalizedSettings || !streamSettings || !sniffing) {
     return;
   }
+  const editorSettings = parseInboundSettingsText(normalizedSettings);
+  if (inboundClientSectionVisible.value && Object.hasOwn(editorSettings, 'clients')) {
+    error.value = 'Manage clients with the client form instead of Settings JSON';
+    return;
+  }
+  const settings = inboundClientSectionVisible.value
+    ? stringifyJson(restoreInboundClients(editorSettings, protectedInboundClients.value))
+    : normalizedSettings;
   if (!inboundEditor.port || inboundEditor.port < 1 || inboundEditor.port > 65535) {
     error.value = 'Port must be between 1 and 65535';
     return;
@@ -2330,6 +2704,7 @@ function formatInboundJson(field: InboundJsonField) {
     inboundEditor[field] = formatted;
     if (field === 'settings') {
       syncWireguardEditorFromSettings();
+      syncTunEditorFromSettings();
     }
     if (field === 'streamSettings') {
       syncStreamEditorFromSettings();
@@ -3318,6 +3693,18 @@ function createWireguardEditor(): WireguardEditorState {
   };
 }
 
+function createTunEditor(): TunEditorState {
+  return {
+    name: 'xray0',
+    mtu: 1500,
+    gateway: '10.0.0.1/16',
+    dns: '',
+    userLevel: 0,
+    autoSystemRoutingTable: '',
+    autoOutboundsInterface: 'auto',
+  };
+}
+
 function createStreamEditor(): StreamEditorState {
   return {
     network: 'tcp',
@@ -3344,10 +3731,30 @@ function createStreamEditor(): StreamEditorState {
     xhttpHost: '',
     xhttpMode: 'auto',
     xhttpNoSseHeader: false,
-    xhttpScMaxBufferedPosts: 30,
-    xhttpScMaxEachPostBytes: '1000000',
-    xhttpScStreamUpServerSecs: '20-80',
-    xhttpXPaddingBytes: '100-1000',
+    xhttpScMaxBufferedPosts: 0,
+    xhttpScMaxEachPostBytes: '',
+    xhttpScStreamUpServerSecs: '',
+    xhttpXPaddingBytes: '',
+    xhttpXPaddingObfsMode: false,
+    xhttpXPaddingKey: '',
+    xhttpXPaddingHeader: '',
+    xhttpXPaddingPlacement: '',
+    xhttpXPaddingMethod: '',
+    xhttpUplinkHttpMethod: '',
+    xhttpSessionPlacement: '',
+    xhttpSessionKey: '',
+    xhttpSeqPlacement: '',
+    xhttpSeqKey: '',
+    xhttpUplinkDataPlacement: '',
+    xhttpUplinkDataKey: '',
+    xhttpUplinkChunkSize: 0,
+    xhttpXmuxEnabled: false,
+    xhttpXmuxMaxConcurrency: '16-32',
+    xhttpXmuxMaxConnections: '',
+    xhttpXmuxCMaxReuseTimes: '',
+    xhttpXmuxHMaxRequestTimes: '600-900',
+    xhttpXmuxHMaxReusableSecs: '1800-3000',
+    xhttpXmuxHKeepAlivePeriod: 0,
     tlsServerName: '',
     tlsMinVersion: '1.2',
     tlsMaxVersion: '1.3',
@@ -3355,6 +3762,8 @@ function createStreamEditor(): StreamEditorState {
     tlsFingerprint: 'chrome',
     tlsCertificateFile: '',
     tlsKeyFile: '',
+    tlsCertificate: '',
+    tlsPrivateKey: '',
     tlsRejectUnknownSni: false,
     tlsDisableSystemRoot: false,
     tlsEnableSessionResumption: false,
@@ -3379,6 +3788,12 @@ function createStreamEditor(): StreamEditorState {
     hysteriaUdpHopEnabled: false,
     hysteriaUdpHopPorts: '',
     hysteriaUdpHopInterval: '',
+    hysteriaInitStreamReceiveWindow: HYSTERIA_QUIC_DEFAULTS.initStreamReceiveWindow,
+    hysteriaMaxStreamReceiveWindow: HYSTERIA_QUIC_DEFAULTS.maxStreamReceiveWindow,
+    hysteriaInitConnectionReceiveWindow: HYSTERIA_QUIC_DEFAULTS.initConnectionReceiveWindow,
+    hysteriaMaxConnectionReceiveWindow: HYSTERIA_QUIC_DEFAULTS.maxConnectionReceiveWindow,
+    hysteriaMaxIdleTimeout: HYSTERIA_QUIC_DEFAULTS.maxIdleTimeout,
+    hysteriaMaxIncomingStreams: HYSTERIA_QUIC_DEFAULTS.maxIncomingStreams,
     sockoptEnabled: false,
     sockoptAcceptProxyProtocol: false,
     sockoptTcpFastOpen: false,
@@ -3406,6 +3821,43 @@ function syncWireguardEditorFromSettings() {
   });
 }
 
+function syncTunEditorFromSettings() {
+  const settings = normalizeTunSettings(parseInboundSettingsText(inboundEditor.settings));
+  Object.assign(tunEditor, {
+    name: stringField(settings.name) || 'xray0',
+    mtu: Number(settings.mtu || 1500),
+    gateway: arrayField(settings.gateway).join(', '),
+    dns: arrayField(settings.dns).join(', '),
+    userLevel: Number(settings.userLevel || 0),
+    autoSystemRoutingTable: arrayField(settings.autoSystemRoutingTable).join(', '),
+    autoOutboundsInterface: stringField(settings.autoOutboundsInterface),
+  });
+}
+
+function applyTunEditorToSettings(): boolean {
+  const normalizedSettingsText = normalizeJsonEditorText(inboundEditor.settings, 'Settings JSON');
+  if (!normalizedSettingsText) {
+    return false;
+  }
+  const settings = normalizeTunSettings({
+    ...parseInboundSettingsText(normalizedSettingsText),
+    name: tunEditor.name,
+    mtu: tunEditor.mtu,
+    gateway: parseListText(tunEditor.gateway),
+    dns: parseListText(tunEditor.dns),
+    userLevel: tunEditor.userLevel,
+    autoSystemRoutingTable: parseListText(tunEditor.autoSystemRoutingTable),
+    autoOutboundsInterface: tunEditor.autoOutboundsInterface,
+  });
+  const validationError = validateTunSettings(settings);
+  if (validationError) {
+    error.value = validationError;
+    return false;
+  }
+  inboundEditor.settings = stringifyJson(settings);
+  return true;
+}
+
 function applyWireguardEditorToSettings() {
   const settings = parseInboundSettingsText(inboundEditor.settings);
   settings.mtu = Math.max(0, Number(wireguardEditor.mtu || 0));
@@ -3419,8 +3871,7 @@ function applyWireguardEditorToSettings() {
 }
 
 function syncInboundClientEditorFromSettings() {
-  const settings = parseInboundSettingsText(inboundEditor.settings);
-  const clients = Array.isArray(settings.clients) ? settings.clients : [];
+  const clients = protectedInboundClients.value;
   const client = objectField(clients[0]);
   const fallback = createClientEditor(inboundEditor.protocol);
   Object.assign(inboundClientEditor, {
@@ -3444,12 +3895,10 @@ function syncInboundClientEditorFromSettings() {
 }
 
 function applyInboundClientEditorToSettings() {
-  const settings = parseInboundSettingsText(inboundEditor.settings);
-  const clients = Array.isArray(settings.clients) ? settings.clients : [];
+  const clients = protectedInboundClients.value;
   const existingClient = objectField(clients[0]);
   const client = buildClientPayloadFromEditor(inboundClientEditor);
-  settings.clients = [{ ...existingClient, ...client }, ...clients.slice(1)];
-  inboundEditor.settings = stringifyJson(settings);
+  protectedInboundClients.value = [{ ...existingClient, ...client }, ...clients.slice(1)];
 }
 
 function syncStreamEditorFromSettings() {
@@ -3465,6 +3914,8 @@ function syncStreamEditorFromSettings() {
   const grpcSettings = objectField(stream.grpcSettings);
   const httpupgradeSettings = objectField(stream.httpupgradeSettings);
   const xhttpSettings = objectField(stream.xhttpSettings);
+  const xhttpExtra = resolveXhttpExtraSettings(xhttpSettings);
+  const xhttpXmux = objectField(xhttpExtra.xmux);
   const kcpSettings = objectField(stream.kcpSettings);
   const sockopt = objectField(stream.sockopt);
   const tcpSettings = objectField(stream.tcpSettings);
@@ -3496,13 +3947,33 @@ function syncStreamEditorFromSettings() {
     httpupgradePath: stringField(httpupgradeSettings.path) || '/',
     httpupgradeHost: stringField(httpupgradeSettings.host),
     xhttpPath: stringField(xhttpSettings.path) || '/',
-    xhttpHost: stringField(xhttpSettings.host),
+    xhttpHost: resolveXhttpHost(xhttpSettings),
     xhttpMode: stringField(xhttpSettings.mode) || 'auto',
-    xhttpNoSseHeader: Boolean(xhttpSettings.noSSEHeader),
-    xhttpScMaxBufferedPosts: Number(xhttpSettings.scMaxBufferedPosts || 30),
-    xhttpScMaxEachPostBytes: stringField(xhttpSettings.scMaxEachPostBytes) || '1000000',
-    xhttpScStreamUpServerSecs: stringField(xhttpSettings.scStreamUpServerSecs) || '20-80',
-    xhttpXPaddingBytes: stringField(xhttpSettings.xPaddingBytes) || '100-1000',
+    xhttpNoSseHeader: Boolean(xhttpExtra.noSSEHeader),
+    xhttpScMaxBufferedPosts: Number(xhttpExtra.scMaxBufferedPosts ?? 0),
+    xhttpScMaxEachPostBytes: stringField(xhttpExtra.scMaxEachPostBytes),
+    xhttpScStreamUpServerSecs: stringField(xhttpExtra.scStreamUpServerSecs),
+    xhttpXPaddingBytes: stringField(xhttpExtra.xPaddingBytes),
+    xhttpXPaddingObfsMode: Boolean(xhttpExtra.xPaddingObfsMode),
+    xhttpXPaddingKey: stringField(xhttpExtra.xPaddingKey),
+    xhttpXPaddingHeader: stringField(xhttpExtra.xPaddingHeader),
+    xhttpXPaddingPlacement: stringField(xhttpExtra.xPaddingPlacement),
+    xhttpXPaddingMethod: stringField(xhttpExtra.xPaddingMethod),
+    xhttpUplinkHttpMethod: stringField(xhttpExtra.uplinkHTTPMethod).toUpperCase(),
+    xhttpSessionPlacement: stringField(xhttpExtra.sessionPlacement),
+    xhttpSessionKey: stringField(xhttpExtra.sessionKey),
+    xhttpSeqPlacement: stringField(xhttpExtra.seqPlacement),
+    xhttpSeqKey: stringField(xhttpExtra.seqKey),
+    xhttpUplinkDataPlacement: stringField(xhttpExtra.uplinkDataPlacement),
+    xhttpUplinkDataKey: stringField(xhttpExtra.uplinkDataKey),
+    xhttpUplinkChunkSize: Number(xhttpExtra.uplinkChunkSize ?? 0),
+    xhttpXmuxEnabled: xhttpExtra.xmux !== undefined && xhttpExtra.xmux !== null,
+    xhttpXmuxMaxConcurrency: stringField(xhttpXmux.maxConcurrency) || '16-32',
+    xhttpXmuxMaxConnections: stringField(xhttpXmux.maxConnections),
+    xhttpXmuxCMaxReuseTimes: stringField(xhttpXmux.cMaxReuseTimes),
+    xhttpXmuxHMaxRequestTimes: stringField(xhttpXmux.hMaxRequestTimes) || '600-900',
+    xhttpXmuxHMaxReusableSecs: stringField(xhttpXmux.hMaxReusableSecs) || '1800-3000',
+    xhttpXmuxHKeepAlivePeriod: Number(xhttpXmux.hKeepAlivePeriod ?? 0),
     tlsServerName: stringField(tlsSettings.serverName),
     tlsMinVersion: stringField(tlsSettings.minVersion) || '1.2',
     tlsMaxVersion: stringField(tlsSettings.maxVersion) || '1.3',
@@ -3513,6 +3984,8 @@ function syncStreamEditorFromSettings() {
       defaultTlsFingerprintForProtocol(inboundEditor.protocol),
     tlsCertificateFile: stringField(firstCertificate.certificateFile),
     tlsKeyFile: stringField(firstCertificate.keyFile),
+    tlsCertificate: arrayField(firstCertificate.certificate).join('\n'),
+    tlsPrivateKey: arrayField(firstCertificate.key).join('\n'),
     tlsRejectUnknownSni: Boolean(tlsSettings.rejectUnknownSni),
     tlsDisableSystemRoot: Boolean(tlsSettings.disableSystemRoot),
     tlsEnableSessionResumption: Boolean(tlsSettings.enableSessionResumption),
@@ -3537,6 +4010,24 @@ function syncStreamEditorFromSettings() {
     hysteriaUdpHopEnabled: Object.keys(udpHop).length > 0,
     hysteriaUdpHopPorts: stringField(udpHop.ports),
     hysteriaUdpHopInterval: stringField(udpHop.interval),
+    hysteriaInitStreamReceiveWindow: Number(
+      quicParams.initStreamReceiveWindow ?? HYSTERIA_QUIC_DEFAULTS.initStreamReceiveWindow,
+    ),
+    hysteriaMaxStreamReceiveWindow: Number(
+      quicParams.maxStreamReceiveWindow ?? HYSTERIA_QUIC_DEFAULTS.maxStreamReceiveWindow,
+    ),
+    hysteriaInitConnectionReceiveWindow: Number(
+      quicParams.initConnectionReceiveWindow ?? HYSTERIA_QUIC_DEFAULTS.initConnectionReceiveWindow,
+    ),
+    hysteriaMaxConnectionReceiveWindow: Number(
+      quicParams.maxConnectionReceiveWindow ?? HYSTERIA_QUIC_DEFAULTS.maxConnectionReceiveWindow,
+    ),
+    hysteriaMaxIdleTimeout: Number(
+      quicParams.maxIdleTimeout ?? HYSTERIA_QUIC_DEFAULTS.maxIdleTimeout,
+    ),
+    hysteriaMaxIncomingStreams: Number(
+      quicParams.maxIncomingStreams ?? HYSTERIA_QUIC_DEFAULTS.maxIncomingStreams,
+    ),
     sockoptEnabled: Object.keys(sockopt).length > 0,
     sockoptAcceptProxyProtocol: Boolean(sockopt.acceptProxyProtocol),
     sockoptTcpFastOpen: Boolean(sockopt.tcpFastOpen),
@@ -3560,11 +4051,39 @@ function syncStreamEditorFromSettings() {
   }
 }
 
-function applyStreamEditorToSettings() {
+function applyStreamEditorToSettings(): boolean {
   const stream = parseInboundStreamSettingsText(inboundEditor.streamSettings);
   const network = isHysteriaProtocol(inboundEditor.protocol) ? 'hysteria' : streamEditor.network;
   const security = isHysteriaProtocol(inboundEditor.protocol) ? 'tls' : streamEditor.security;
   const existingTlsSettings = objectField(stream.tlsSettings);
+  const existingXhttpSettings = objectField(stream.xhttpSettings);
+  const xhttpInput = buildXhttpFormInput();
+  const hysteriaQuicInput = {
+    quicParamsEnabled: streamEditor.hysteriaQuicParamsEnabled,
+    udpHopEnabled: streamEditor.hysteriaUdpHopEnabled,
+    ports: streamEditor.hysteriaUdpHopPorts,
+    interval: streamEditor.hysteriaUdpHopInterval,
+    initStreamReceiveWindow: streamEditor.hysteriaInitStreamReceiveWindow,
+    maxStreamReceiveWindow: streamEditor.hysteriaMaxStreamReceiveWindow,
+    initConnectionReceiveWindow: streamEditor.hysteriaInitConnectionReceiveWindow,
+    maxConnectionReceiveWindow: streamEditor.hysteriaMaxConnectionReceiveWindow,
+    maxIdleTimeout: streamEditor.hysteriaMaxIdleTimeout,
+    maxIncomingStreams: streamEditor.hysteriaMaxIncomingStreams,
+  };
+  if (network === 'xhttp') {
+    const validationError = validateXhttpFormInput(xhttpInput);
+    if (validationError) {
+      error.value = validationError;
+      return false;
+    }
+  }
+  if (network === 'hysteria') {
+    const validationError = validateHysteriaQuicFormInput(hysteriaQuicInput);
+    if (validationError) {
+      error.value = validationError;
+      return false;
+    }
+  }
 
   stream.network = network;
   stream.security = security;
@@ -3624,17 +4143,7 @@ function applyStreamEditorToSettings() {
     };
   }
   if (network === 'xhttp') {
-    stream.xhttpSettings = {
-      path: streamEditor.xhttpPath || '/',
-      host: streamEditor.xhttpHost,
-      headers: streamEditor.xhttpHost ? { Host: streamEditor.xhttpHost } : {},
-      scMaxBufferedPosts: Math.max(0, Number(streamEditor.xhttpScMaxBufferedPosts || 0)),
-      scMaxEachPostBytes: streamEditor.xhttpScMaxEachPostBytes || '1000000',
-      scStreamUpServerSecs: streamEditor.xhttpScStreamUpServerSecs || '20-80',
-      noSSEHeader: streamEditor.xhttpNoSseHeader,
-      xPaddingBytes: streamEditor.xhttpXPaddingBytes || '100-1000',
-      mode: streamEditor.xhttpMode || 'auto',
-    };
+    stream.xhttpSettings = mergeXhttpSettings(existingXhttpSettings, xhttpInput);
   }
   if (network === 'hysteria') {
     stream.hysteriaSettings = {
@@ -3643,12 +4152,7 @@ function applyStreamEditorToSettings() {
       auth: streamEditor.hysteriaAuth,
       udpIdleTimeout: Math.max(0, Number(streamEditor.hysteriaUdpIdleTimeout || 0)),
     };
-    const streamWithUdpHop = applyHysteriaFinalmaskUdpHop(stream, {
-      quicParamsEnabled: streamEditor.hysteriaQuicParamsEnabled,
-      udpHopEnabled: streamEditor.hysteriaUdpHopEnabled,
-      ports: streamEditor.hysteriaUdpHopPorts,
-      interval: streamEditor.hysteriaUdpHopInterval,
-    });
+    const streamWithUdpHop = applyHysteriaFinalmaskUdpHop(stream, hysteriaQuicInput);
     Object.assign(stream, streamWithUdpHop);
     if (!streamWithUdpHop.finalmask) {
       delete stream.finalmask;
@@ -3703,6 +4207,40 @@ function applyStreamEditorToSettings() {
   }
 
   inboundEditor.streamSettings = stringifyJson(stream);
+  return true;
+}
+
+function buildXhttpFormInput(): XhttpFormInput {
+  return {
+    path: streamEditor.xhttpPath,
+    host: streamEditor.xhttpHost,
+    mode: streamEditor.xhttpMode,
+    noSSEHeader: streamEditor.xhttpNoSseHeader,
+    scMaxBufferedPosts: streamEditor.xhttpScMaxBufferedPosts,
+    scMaxEachPostBytes: streamEditor.xhttpScMaxEachPostBytes,
+    scStreamUpServerSecs: streamEditor.xhttpScStreamUpServerSecs,
+    xPaddingBytes: streamEditor.xhttpXPaddingBytes,
+    xPaddingObfsMode: streamEditor.xhttpXPaddingObfsMode,
+    xPaddingKey: streamEditor.xhttpXPaddingKey,
+    xPaddingHeader: streamEditor.xhttpXPaddingHeader,
+    xPaddingPlacement: streamEditor.xhttpXPaddingPlacement,
+    xPaddingMethod: streamEditor.xhttpXPaddingMethod,
+    uplinkHTTPMethod: streamEditor.xhttpUplinkHttpMethod,
+    sessionPlacement: streamEditor.xhttpSessionPlacement,
+    sessionKey: streamEditor.xhttpSessionKey,
+    seqPlacement: streamEditor.xhttpSeqPlacement,
+    seqKey: streamEditor.xhttpSeqKey,
+    uplinkDataPlacement: streamEditor.xhttpUplinkDataPlacement,
+    uplinkDataKey: streamEditor.xhttpUplinkDataKey,
+    uplinkChunkSize: streamEditor.xhttpUplinkChunkSize,
+    xmuxEnabled: streamEditor.xhttpXmuxEnabled,
+    xmuxMaxConcurrency: streamEditor.xhttpXmuxMaxConcurrency,
+    xmuxMaxConnections: streamEditor.xhttpXmuxMaxConnections,
+    xmuxCMaxReuseTimes: streamEditor.xhttpXmuxCMaxReuseTimes,
+    xmuxHMaxRequestTimes: streamEditor.xhttpXmuxHMaxRequestTimes,
+    xmuxHMaxReusableSecs: streamEditor.xhttpXmuxHMaxReusableSecs,
+    xmuxHKeepAlivePeriod: streamEditor.xhttpXmuxHKeepAlivePeriod,
+  };
 }
 
 function buildSockoptSettings(): Record<string, unknown> {
@@ -3729,18 +4267,30 @@ function buildTlsSettings(existingTlsSettings: Record<string, unknown>): Record<
     : [];
   const certificateFile = streamEditor.tlsCertificateFile.trim();
   const keyFile = streamEditor.tlsKeyFile.trim();
+  const inlineCertificate = streamEditor.tlsCertificate.trim();
+  const inlineKey = streamEditor.tlsPrivateKey.trim();
   const nextCertificates =
-    certificateFile || keyFile
+    inlineCertificate || inlineKey
       ? [
           {
-            certificateFile,
-            keyFile,
+            certificate: splitPemLines(inlineCertificate),
+            key: splitPemLines(inlineKey),
             oneTimeLoading: false,
             usage: 'encipherment',
             buildChain: false,
           },
         ]
-      : certificates;
+      : certificateFile || keyFile
+        ? [
+            {
+              certificateFile,
+              keyFile,
+              oneTimeLoading: false,
+              usage: 'encipherment',
+              buildChain: false,
+            },
+          ]
+        : certificates;
 
   return {
     serverName: streamEditor.tlsServerName,
@@ -3983,6 +4533,26 @@ function formatJsonText(text: string, fallback: object): string {
   }
 }
 
+function prepareInboundSettingsForEditing(text: string, fallback: Record<string, unknown>): string {
+  let parsed = fallback;
+  if (text.trim()) {
+    try {
+      const candidate = JSON.parse(text) as unknown;
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+        protectedInboundClients.value = [];
+        return text;
+      }
+      parsed = candidate as Record<string, unknown>;
+    } catch {
+      protectedInboundClients.value = [];
+      return text;
+    }
+  }
+  const separated = separateInboundClients(parsed);
+  protectedInboundClients.value = separated.clients;
+  return stringifyJson(separated.editorSettings);
+}
+
 function syncSelectedInbound() {
   if (!selectedInbound.value) {
     return;
@@ -4217,6 +4787,13 @@ function parseListText(value: string): string[] {
     .filter(Boolean);
 }
 
+function splitPemLines(value: string): string[] {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 function normalizeAllowedIp(value: string): string {
   const trimmed = value.trim();
   if (!trimmed || trimmed.includes('/')) {
@@ -4259,6 +4836,25 @@ function generateWireguardServerKeys() {
   const keypair = generateWireguardKeypair();
   wireguardEditor.secretKey = keypair.privateKey;
   wireguardEditor.pubKey = keypair.publicKey;
+}
+
+async function generateSelfSignedTlsCertificate() {
+  generatingSelfSignedCertificate.value = true;
+  error.value = '';
+  try {
+    const result = await generateSelfSignedCertificate(streamEditor.tlsServerName, {
+      notifyOnError: false,
+    });
+    streamEditor.tlsCertificateFile = '';
+    streamEditor.tlsKeyFile = '';
+    streamEditor.tlsCertificate = result.cert;
+    streamEditor.tlsPrivateKey = result.key;
+    void message.success('Self-signed certificate generated');
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : 'Failed to generate certificate';
+  } finally {
+    generatingSelfSignedCertificate.value = false;
+  }
 }
 
 function generateWireguardClientKeys() {
@@ -4375,7 +4971,12 @@ async function applyPanelDefaultTlsCertificateToEditor() {
   if (streamSettingsSnapshot !== inboundEditor.streamSettings) {
     return;
   }
-  if (streamEditor.tlsCertificateFile.trim() || streamEditor.tlsKeyFile.trim()) {
+  if (
+    streamEditor.tlsCertificateFile.trim() ||
+    streamEditor.tlsKeyFile.trim() ||
+    streamEditor.tlsCertificate.trim() ||
+    streamEditor.tlsPrivateKey.trim()
+  ) {
     return;
   }
 
@@ -4557,6 +5158,10 @@ function randomToken(length: number): string {
     token += alphabet[Math.floor(Math.random() * alphabet.length)];
   }
   return token;
+}
+
+function selectOptionsWithDefault(values: string[]) {
+  return [{ label: 'Default', value: '' }, ...values.map((value) => ({ label: value, value }))];
 }
 
 onMounted(() => {

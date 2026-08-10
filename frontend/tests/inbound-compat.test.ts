@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  HYSTERIA_QUIC_DEFAULTS,
   applyPanelDefaultTlsCertificate,
   applyHysteriaFinalmaskUdpHop,
   buildClientSubscriptionLinks,
@@ -9,9 +10,45 @@ import {
   defaultInboundSettings,
   defaultStreamSettings,
   generateBulkClientProfiles,
+  mergeXhttpSettings,
   mergeSubscriptionEndpointDefaults,
+  normalizeTunSettings,
+  restoreInboundClients,
+  resolveXhttpHost,
+  resolveXhttpExtraSettings,
+  separateInboundClients,
+  validateHysteriaQuicFormInput,
+  validateXhttpFormInput,
+  validateTunSettings,
 } from '../src/utils/inboundCompat.ts';
 import { protocolSupportsShareLink } from '../src/schemas/protocolRegistry.ts';
+
+test('advanced inbound settings isolate clients and restore them without data loss', () => {
+  const originalClients = [
+    { id: 'client-1', email: 'first@example.com', localExtension: { keep: true } },
+    { id: 'client-2', email: 'second@example.com' },
+  ];
+  const separated = separateInboundClients({
+    clients: originalClients,
+    decryption: 'none',
+    localSetting: { enabled: true },
+  });
+
+  assert.deepEqual(separated.editorSettings, {
+    decryption: 'none',
+    localSetting: { enabled: true },
+  });
+  assert.deepEqual(separated.clients, originalClients);
+  assert.deepEqual(
+    restoreInboundClients({ ...separated.editorSettings, encryption: 'none' }, separated.clients),
+    {
+      clients: originalClients,
+      decryption: 'none',
+      encryption: 'none',
+      localSetting: { enabled: true },
+    },
+  );
+});
 
 test('buildClientSubscriptionLinks returns enabled subscription endpoints for a client subId', () => {
   const links = buildClientSubscriptionLinks(
@@ -41,6 +78,68 @@ test('default proxy account settings include subscription id for HTTP and mixed'
     assert.equal(typeof accounts[0]?.subId, 'string');
     assert.ok(String(accounts[0]?.subId).length > 0);
   }
+});
+
+test('default TUN settings match the current Xray scalar MTU schema', () => {
+  assert.deepEqual(defaultInboundSettings('tun'), {
+    name: 'xray0',
+    mtu: 1500,
+    gateway: ['10.0.0.1/16'],
+    dns: [],
+    userLevel: 0,
+    autoSystemRoutingTable: [],
+    autoOutboundsInterface: 'auto',
+  });
+});
+
+test('normalizeTunSettings keeps unknown local fields while migrating legacy aliases', () => {
+  assert.deepEqual(
+    normalizeTunSettings({
+      name: ' xray-local ',
+      MTU: [1280, 1500],
+      Gateway: ['10.0.0.1/16', '10.0.0.1/16'],
+      DNS: ['1.1.1.1', ' 2606:4700:4700::1111 '],
+      userLevel: 2,
+      autoSystemRoutingTable: ['0.0.0.0/0'],
+      autoOutboundsInterface: ' eth0 ',
+      localExtension: { enabled: true },
+    }),
+    {
+      name: 'xray-local',
+      mtu: 1280,
+      gateway: ['10.0.0.1/16'],
+      dns: ['1.1.1.1', '2606:4700:4700::1111'],
+      userLevel: 2,
+      autoSystemRoutingTable: ['0.0.0.0/0'],
+      autoOutboundsInterface: 'eth0',
+      localExtension: { enabled: true },
+    },
+  );
+});
+
+test('validateTunSettings accepts IPv4 and IPv6 values and rejects invalid network input', () => {
+  const valid = normalizeTunSettings({
+    name: 'xray0',
+    mtu: 1500,
+    gateway: ['10.0.0.1/16', 'fc00::1/64'],
+    dns: ['1.1.1.1', '2606:4700:4700::1111'],
+    userLevel: 0,
+    autoSystemRoutingTable: ['0.0.0.0/0', '::/0'],
+    autoOutboundsInterface: 'auto',
+  });
+  assert.equal(validateTunSettings(valid), '');
+  assert.match(validateTunSettings(normalizeTunSettings({ ...valid, mtu: 0 })), /TUN MTU/);
+  assert.match(
+    validateTunSettings(normalizeTunSettings({ ...valid, userLevel: -1 })),
+    /user level/,
+  );
+  assert.match(validateTunSettings({ ...valid, gateway: ['10.0.0.1/99'] }), /gateway CIDR/);
+  assert.match(validateTunSettings({ ...valid, dns: ['1.1.1.999'] }), /DNS address/);
+  assert.match(validateTunSettings({ ...valid, dns: ['010.0.0.1'] }), /DNS address/);
+  assert.match(
+    validateTunSettings({ ...valid, autoSystemRoutingTable: ['not-a-prefix'] }),
+    /system route CIDR/,
+  );
 });
 
 test('protocol registry marks HTTP and mixed proxy inbounds as shareable', () => {
@@ -240,7 +339,6 @@ test('defaultStreamSettings keeps Hysteria2 on h3 without uTLS fingerprint', () 
   assert.equal(tlsClientSettings.fingerprint, '');
 });
 
-
 test('applyHysteriaFinalmaskUdpHop writes UDP Hop without dropping salamander obfs', () => {
   const stream = applyHysteriaFinalmaskUdpHop(
     {
@@ -254,6 +352,7 @@ test('applyHysteriaFinalmaskUdpHop writes UDP Hop without dropping salamander ob
       },
     },
     {
+      ...HYSTERIA_QUIC_DEFAULTS,
       quicParamsEnabled: true,
       udpHopEnabled: true,
       ports: '40000:45000',
@@ -269,6 +368,7 @@ test('applyHysteriaFinalmaskUdpHop writes UDP Hop without dropping salamander ob
       },
     ],
     quicParams: {
+      ...HYSTERIA_QUIC_DEFAULTS,
       udpHop: { ports: '40000-45000', interval: '5-10' },
     },
   });
@@ -286,6 +386,7 @@ test('applyHysteriaFinalmaskUdpHop removes only udpHop when disabled', () => {
       },
     },
     {
+      ...HYSTERIA_QUIC_DEFAULTS,
       quicParamsEnabled: true,
       udpHopEnabled: false,
       ports: '40000-45000',
@@ -295,7 +396,7 @@ test('applyHysteriaFinalmaskUdpHop removes only udpHop when disabled', () => {
 
   assert.deepEqual(stream.finalmask, {
     udp: [{ type: 'salamander', settings: { password: 'obfs-pass' } }],
-    quicParams: { congestion: 'bbr' },
+    quicParams: { congestion: 'bbr', ...HYSTERIA_QUIC_DEFAULTS },
   });
 });
 
@@ -311,6 +412,7 @@ test('applyHysteriaFinalmaskUdpHop removes all quicParams when QUIC Params is di
       },
     },
     {
+      ...HYSTERIA_QUIC_DEFAULTS,
       quicParamsEnabled: false,
       udpHopEnabled: true,
       ports: '40000-45000',
@@ -322,6 +424,223 @@ test('applyHysteriaFinalmaskUdpHop removes all quicParams when QUIC Params is di
     udp: [{ type: 'salamander', settings: { password: 'obfs-pass' } }],
   });
 });
+
+function defaultXhttpFormInput() {
+  return {
+    path: '/xhttp',
+    host: 'xhttp.example.com',
+    mode: 'packet-up',
+    noSSEHeader: true,
+    scMaxBufferedPosts: 8,
+    scMaxEachPostBytes: '1000000',
+    scStreamUpServerSecs: '20-80',
+    xPaddingBytes: '100-1000',
+    xPaddingObfsMode: true,
+    xPaddingKey: 'x_padding',
+    xPaddingHeader: 'X-Padding',
+    xPaddingPlacement: 'header',
+    xPaddingMethod: 'tokenish',
+    uplinkHTTPMethod: 'POST',
+    sessionPlacement: 'header',
+    sessionKey: 'x_session',
+    seqPlacement: 'query',
+    seqKey: 'x_seq',
+    uplinkDataPlacement: 'header',
+    uplinkDataKey: 'x_data',
+    uplinkChunkSize: 4096,
+    xmuxEnabled: true,
+    xmuxMaxConcurrency: '16-32',
+    xmuxMaxConnections: '',
+    xmuxCMaxReuseTimes: '10',
+    xmuxHMaxRequestTimes: '600-900',
+    xmuxHMaxReusableSecs: '1800-3000',
+    xmuxHKeepAlivePeriod: 30,
+  } as const;
+}
+
+test('resolveXhttpExtraSettings migrates legacy root fields without overriding nested values', () => {
+  const extra = resolveXhttpExtraSettings({
+    xPaddingBytes: '100-1000',
+    sessionKey: 'legacy-session',
+    extra: { sessionKey: 'nested-session', localExtra: { enabled: true } },
+  });
+
+  assert.equal(extra.xPaddingBytes, '100-1000');
+  assert.equal(extra.sessionKey, 'nested-session');
+  assert.deepEqual(extra.localExtra, { enabled: true });
+});
+
+test('resolveXhttpHost preserves root and nested legacy Host headers', () => {
+  assert.equal(resolveXhttpHost({ headers: { Host: 'root.example.com' } }), 'root.example.com');
+  assert.equal(
+    resolveXhttpHost({ extra: { headers: { host: 'nested.example.com' } } }),
+    'nested.example.com',
+  );
+  assert.equal(
+    resolveXhttpHost({
+      host: 'direct.example.com',
+      extra: { headers: { Host: 'nested.example.com' } },
+    }),
+    'direct.example.com',
+  );
+
+  const nestedLegacy = {
+    path: '/legacy',
+    mode: 'packet-up',
+    extra: { headers: { host: 'roundtrip.example.com', 'X-Local': 'keep' } },
+  };
+  const merged = mergeXhttpSettings(nestedLegacy, {
+    ...defaultXhttpFormInput(),
+    host: resolveXhttpHost(nestedLegacy),
+  });
+  assert.deepEqual((merged.extra as Record<string, unknown>).headers, {
+    host: 'roundtrip.example.com',
+    'X-Local': 'keep',
+  });
+});
+
+test('mergeXhttpSettings writes v1.11.4 extra schema and preserves unknown local fields', () => {
+  const result = mergeXhttpSettings(
+    {
+      path: '/old',
+      mode: 'auto',
+      headers: { Host: 'old.example.com' },
+      xPaddingBytes: 'legacy-padding',
+      rootExtension: { enabled: true },
+      extra: { localExtra: { keep: 'yes' } },
+    },
+    defaultXhttpFormInput(),
+  );
+
+  assert.equal(result.path, '/xhttp');
+  assert.equal(result.host, 'xhttp.example.com');
+  assert.equal(result.headers, undefined);
+  assert.deepEqual(result.rootExtension, { enabled: true });
+  assert.deepEqual(result.extra, {
+    localExtra: { keep: 'yes' },
+    headers: { Host: 'xhttp.example.com' },
+    xPaddingBytes: '100-1000',
+    noSSEHeader: true,
+    scMaxBufferedPosts: 8,
+    scMaxEachPostBytes: '1000000',
+    scStreamUpServerSecs: '20-80',
+    xPaddingObfsMode: true,
+    xPaddingKey: 'x_padding',
+    xPaddingHeader: 'X-Padding',
+    xPaddingPlacement: 'header',
+    xPaddingMethod: 'tokenish',
+    uplinkHTTPMethod: 'POST',
+    sessionPlacement: 'header',
+    sessionKey: 'x_session',
+    seqPlacement: 'query',
+    seqKey: 'x_seq',
+    uplinkDataPlacement: 'header',
+    uplinkDataKey: 'x_data',
+    uplinkChunkSize: 4096,
+    xmux: {
+      maxConcurrency: '16-32',
+      cMaxReuseTimes: '10',
+      hMaxRequestTimes: '600-900',
+      hMaxReusableSecs: '1800-3000',
+      hKeepAlivePeriod: 30,
+    },
+  });
+});
+
+test('mergeXhttpSettings preserves hidden conditional values while removing only disabled XMUX', () => {
+  const input = defaultXhttpFormInput();
+  const result = mergeXhttpSettings(
+    {
+      extra: {
+        xPaddingKey: 'old',
+        sessionKey: 'old',
+        seqKey: 'old',
+        uplinkDataKey: 'old',
+        xmux: { maxConcurrency: 'old' },
+        localExtra: 'keep',
+      },
+    },
+    {
+      ...input,
+      mode: 'stream-up',
+      xPaddingObfsMode: false,
+      sessionPlacement: 'path',
+      seqPlacement: 'path',
+      uplinkDataPlacement: '',
+      xmuxEnabled: false,
+    },
+  );
+
+  const extra = result.extra as Record<string, unknown>;
+  assert.equal(extra.xPaddingKey, 'x_padding');
+  assert.equal(extra.sessionKey, 'x_session');
+  assert.equal(extra.seqKey, 'x_seq');
+  assert.equal(extra.uplinkDataKey, 'x_data');
+  assert.equal(extra.xmux, undefined);
+  assert.equal(extra.localExtra, 'keep');
+});
+
+test('validateXhttpFormInput rejects unsupported placements and control characters', () => {
+  const input = defaultXhttpFormInput();
+  assert.equal(validateXhttpFormInput(input), '');
+  assert.match(validateXhttpFormInput({ ...input, sessionPlacement: 'body' }), /session placement/);
+  assert.match(validateXhttpFormInput({ ...input, path: '/x\nhttp' }), /control characters/);
+  assert.equal(validateXhttpFormInput({ ...input, xPaddingPlacement: 'cookie' }), '');
+  assert.equal(validateXhttpFormInput({ ...input, xPaddingPlacement: 'query' }), '');
+  assert.equal(validateXhttpFormInput({ ...input, uplinkDataPlacement: 'auto' }), '');
+  assert.equal(validateXhttpFormInput({ ...input, uplinkDataPlacement: 'cookie' }), '');
+  assert.match(
+    validateXhttpFormInput({ ...input, uplinkDataPlacement: 'query' }),
+    /uplink data placement/,
+  );
+  assert.match(
+    validateXhttpFormInput({ ...input, mode: 'stream-up', uplinkHTTPMethod: 'GET' }),
+    /only supported in packet-up mode/,
+  );
+  assert.match(
+    validateXhttpFormInput({ ...input, mode: 'stream-up', uplinkDataPlacement: 'header' }),
+    /only supported in packet-up mode/,
+  );
+  assert.match(
+    validateXhttpFormInput({ ...input, xmuxMaxConcurrency: 'abc' }),
+    /integer or integer range/,
+  );
+  assert.match(validateXhttpFormInput({ ...input, xPaddingBytes: '0-100' }), /greater than 0/);
+});
+
+test('validateHysteriaQuicFormInput matches Xray-core QUIC boundaries', () => {
+  const input = {
+    ...HYSTERIA_QUIC_DEFAULTS,
+    quicParamsEnabled: true,
+    udpHopEnabled: false,
+    ports: '',
+    interval: '',
+  };
+  assert.equal(validateHysteriaQuicFormInput(input), '');
+  assert.equal(
+    validateHysteriaQuicFormInput({
+      ...input,
+      initStreamReceiveWindow: 0,
+      maxStreamReceiveWindow: 16_384,
+      initConnectionReceiveWindow: 16_384,
+      maxConnectionReceiveWindow: 0,
+      maxIdleTimeout: 4,
+      maxIncomingStreams: 8,
+    }),
+    '',
+  );
+  assert.match(
+    validateHysteriaQuicFormInput({ ...input, initStreamReceiveWindow: 16_383 }),
+    /at least 16384/,
+  );
+  assert.match(validateHysteriaQuicFormInput({ ...input, maxIdleTimeout: 3 }), /between 4 and 120/);
+  assert.match(
+    validateHysteriaQuicFormInput({ ...input, maxIdleTimeout: 121 }),
+    /between 4 and 120/,
+  );
+  assert.match(validateHysteriaQuicFormInput({ ...input, maxIncomingStreams: 7 }), /at least 8/);
+});
+
 test('buildInboundShareLinks exports Hysteria2 UDP hop ports without default fp', () => {
   const links = buildInboundShareLinks({
     protocol: 'hysteria',
