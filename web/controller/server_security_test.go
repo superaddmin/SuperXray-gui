@@ -1,6 +1,10 @@
 package controller
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/gin-gonic/gin"
+)
 
 func TestValidateImportDBFileSizeRejectsOversizedUpload(t *testing.T) {
 	if err := validateImportDBFileSize(maxImportDBFileSize + 1); err == nil {
@@ -34,4 +38,18 @@ func TestValidateImportDBUploadMetadataRejectsUnsafeNames(t *testing.T) {
 			t.Fatalf("expected %q to be rejected", filename)
 		}
 	}
+}
+
+func TestServerRoutesExposeSelfSignedCertificateAsPost(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	controller := &ServerController{}
+	controller.initRouter(router.Group("/panel/api/server"))
+
+	for _, route := range router.Routes() {
+		if route.Method == "POST" && route.Path == "/panel/api/server/getNewSelfSignedCert" {
+			return
+		}
+	}
+	t.Fatal("self-signed certificate POST route is missing")
 }

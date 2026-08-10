@@ -756,6 +756,31 @@
             <AFormItem v-if="streamEditor.security === 'tls'" label="Key File">
               <AInput v-model:value="streamEditor.tlsKeyFile" />
             </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label="Inline Certificate">
+              <textarea
+                v-model="streamEditor.tlsCertificate"
+                class="json-editor compact-json-editor"
+                rows="5"
+                spellcheck="false"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label="Inline Private Key">
+              <textarea
+                v-model="streamEditor.tlsPrivateKey"
+                class="json-editor compact-json-editor"
+                rows="5"
+                spellcheck="false"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.security === 'tls'" label=" ">
+              <AButton
+                :loading="generatingSelfSignedCertificate"
+                @click="generateSelfSignedTlsCertificate"
+              >
+                <template #icon><SafetyCertificateOutlined /></template>
+                Generate Self-Signed Certificate
+              </AButton>
+            </AFormItem>
             <AFormItem v-if="streamEditor.security === 'tls'" label="Reject Unknown SNI">
               <ASwitch v-model:checked="streamEditor.tlsRejectUnknownSni" />
             </AFormItem>
@@ -1394,6 +1419,7 @@ import {
   PlusOutlined,
   QrcodeOutlined,
   ReloadOutlined,
+  SafetyCertificateOutlined,
   UserAddOutlined,
 } from '@ant-design/icons-vue';
 import {
@@ -1438,6 +1464,7 @@ import {
   updateInbound,
   updateInboundClient,
 } from '@/api/inbounds';
+import { generateSelfSignedCertificate } from '@/api/server';
 import { getAllSettings, getDefaultSettings } from '@/api/settings';
 import PageHeader from '@/components/PageHeader.vue';
 import FormSection from '@/components/FormSection.vue';
@@ -1575,6 +1602,8 @@ interface StreamEditorState {
   tlsFingerprint: string;
   tlsCertificateFile: string;
   tlsKeyFile: string;
+  tlsCertificate: string;
+  tlsPrivateKey: string;
   tlsRejectUnknownSni: boolean;
   tlsDisableSystemRoot: boolean;
   tlsEnableSessionResumption: boolean;
@@ -1700,6 +1729,7 @@ const sharePreviewFilename = ref('inbounds-export.txt');
 const inboundModalOpen = ref(false);
 const inboundModalMode = ref<InboundModalMode>('create');
 const savingInbound = ref(false);
+const generatingSelfSignedCertificate = ref(false);
 const busyInboundId = ref<number | null>(null);
 const importModalOpen = ref(false);
 const importInboundText = ref('');
@@ -3355,6 +3385,8 @@ function createStreamEditor(): StreamEditorState {
     tlsFingerprint: 'chrome',
     tlsCertificateFile: '',
     tlsKeyFile: '',
+    tlsCertificate: '',
+    tlsPrivateKey: '',
     tlsRejectUnknownSni: false,
     tlsDisableSystemRoot: false,
     tlsEnableSessionResumption: false,
@@ -3513,6 +3545,8 @@ function syncStreamEditorFromSettings() {
       defaultTlsFingerprintForProtocol(inboundEditor.protocol),
     tlsCertificateFile: stringField(firstCertificate.certificateFile),
     tlsKeyFile: stringField(firstCertificate.keyFile),
+    tlsCertificate: arrayField(firstCertificate.certificate).join('\n'),
+    tlsPrivateKey: arrayField(firstCertificate.key).join('\n'),
     tlsRejectUnknownSni: Boolean(tlsSettings.rejectUnknownSni),
     tlsDisableSystemRoot: Boolean(tlsSettings.disableSystemRoot),
     tlsEnableSessionResumption: Boolean(tlsSettings.enableSessionResumption),
@@ -3729,8 +3763,20 @@ function buildTlsSettings(existingTlsSettings: Record<string, unknown>): Record<
     : [];
   const certificateFile = streamEditor.tlsCertificateFile.trim();
   const keyFile = streamEditor.tlsKeyFile.trim();
+  const inlineCertificate = streamEditor.tlsCertificate.trim();
+  const inlineKey = streamEditor.tlsPrivateKey.trim();
   const nextCertificates =
-    certificateFile || keyFile
+    inlineCertificate || inlineKey
+      ? [
+          {
+            certificate: splitPemLines(inlineCertificate),
+            key: splitPemLines(inlineKey),
+            oneTimeLoading: false,
+            usage: 'encipherment',
+            buildChain: false,
+          },
+        ]
+      : certificateFile || keyFile
       ? [
           {
             certificateFile,
@@ -4217,6 +4263,13 @@ function parseListText(value: string): string[] {
     .filter(Boolean);
 }
 
+function splitPemLines(value: string): string[] {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
 function normalizeAllowedIp(value: string): string {
   const trimmed = value.trim();
   if (!trimmed || trimmed.includes('/')) {
@@ -4259,6 +4312,25 @@ function generateWireguardServerKeys() {
   const keypair = generateWireguardKeypair();
   wireguardEditor.secretKey = keypair.privateKey;
   wireguardEditor.pubKey = keypair.publicKey;
+}
+
+async function generateSelfSignedTlsCertificate() {
+  generatingSelfSignedCertificate.value = true;
+  error.value = '';
+  try {
+    const result = await generateSelfSignedCertificate(streamEditor.tlsServerName, {
+      notifyOnError: false,
+    });
+    streamEditor.tlsCertificateFile = '';
+    streamEditor.tlsKeyFile = '';
+    streamEditor.tlsCertificate = result.cert;
+    streamEditor.tlsPrivateKey = result.key;
+    void message.success('Self-signed certificate generated');
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : 'Failed to generate certificate';
+  } finally {
+    generatingSelfSignedCertificate.value = false;
+  }
 }
 
 function generateWireguardClientKeys() {
@@ -4375,7 +4447,12 @@ async function applyPanelDefaultTlsCertificateToEditor() {
   if (streamSettingsSnapshot !== inboundEditor.streamSettings) {
     return;
   }
-  if (streamEditor.tlsCertificateFile.trim() || streamEditor.tlsKeyFile.trim()) {
+  if (
+    streamEditor.tlsCertificateFile.trim() ||
+    streamEditor.tlsKeyFile.trim() ||
+    streamEditor.tlsCertificate.trim() ||
+    streamEditor.tlsPrivateKey.trim()
+  ) {
     return;
   }
 

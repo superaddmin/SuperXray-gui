@@ -69,6 +69,7 @@ func (a *ServerController) initRouter(g *gin.RouterGroup) {
 	g.POST("/xraylogs/:count", a.getXrayLogs)
 	g.POST("/importDB", a.importDB)
 	g.POST("/getNewEchCert", a.getNewEchCert)
+	g.POST("/getNewSelfSignedCert", a.getNewSelfSignedCert)
 }
 
 // refreshStatus updates the cached server status and collects CPU history.
@@ -376,6 +377,16 @@ func (a *ServerController) getNewEchCert(c *gin.Context) {
 		return
 	}
 	jsonObj(c, cert, nil)
+}
+
+// getNewSelfSignedCert generates an inline TLS certificate for the requested SANs.
+func (a *ServerController) getNewSelfSignedCert(c *gin.Context) {
+	certificate, err := a.serverService.GetNewSelfSignedCert(c.PostForm("sni"))
+	if err != nil {
+		jsonMsg(c, "generate self-signed certificate", err)
+		return
+	}
+	jsonObj(c, certificate, nil)
 }
 
 // getNewVlessEnc generates a new VLESS encryption key.

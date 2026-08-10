@@ -210,3 +210,12 @@ test('hysteria inbound form exposes QUIC Params UDP Hop controls and syncs final
   assert.match(source, /Object\.assign\(stream, streamWithUdpHop\)/);
   assert.match(source, /delete stream\.finalmask/);
 });
+
+test('TLS form generates and persists inline self-signed certificate material', () => {
+  assert.match(source, /generateSelfSignedCertificate/);
+  assert.match(source, /@click="generateSelfSignedTlsCertificate"/);
+  assert.match(source, /streamEditor\.tlsCertificate = result\.cert/);
+  assert.match(source, /streamEditor\.tlsPrivateKey = result\.key/);
+  assert.match(source, /certificate:\s*splitPemLines\(inlineCertificate\)/);
+  assert.match(source, /key:\s*splitPemLines\(inlineKey\)/);
+});

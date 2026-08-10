@@ -64,3 +64,8 @@ export interface XrayLogRequest {
   showBlocked: boolean;
   showProxy: boolean;
 }
+
+export interface SelfSignedCertificate {
+  cert: string;
+  key: string;
+}
