@@ -10,8 +10,11 @@ import {
   defaultInboundSettings,
   defaultStreamSettings,
   generateBulkClientProfiles,
+  mergeXhttpSettings,
   mergeSubscriptionEndpointDefaults,
   normalizeTunSettings,
+  resolveXhttpExtraSettings,
+  validateXhttpFormInput,
   validateTunSettings,
 } from '../src/utils/inboundCompat.ts';
 import { protocolSupportsShareLink } from '../src/schemas/protocolRegistry.ts';
@@ -391,6 +394,146 @@ test('applyHysteriaFinalmaskUdpHop removes all quicParams when QUIC Params is di
     udp: [{ type: 'salamander', settings: { password: 'obfs-pass' } }],
   });
 });
+
+function defaultXhttpFormInput() {
+  return {
+    path: '/xhttp',
+    host: 'xhttp.example.com',
+    mode: 'packet-up',
+    noSSEHeader: true,
+    scMaxBufferedPosts: 8,
+    scMaxEachPostBytes: '1000000',
+    scStreamUpServerSecs: '20-80',
+    xPaddingBytes: '100-1000',
+    xPaddingObfsMode: true,
+    xPaddingKey: 'x_padding',
+    xPaddingHeader: 'X-Padding',
+    xPaddingPlacement: 'header',
+    xPaddingMethod: 'tokenish',
+    uplinkHTTPMethod: 'POST',
+    sessionPlacement: 'header',
+    sessionKey: 'x_session',
+    seqPlacement: 'query',
+    seqKey: 'x_seq',
+    uplinkDataPlacement: 'header',
+    uplinkDataKey: 'x_data',
+    uplinkChunkSize: 4096,
+    xmuxEnabled: true,
+    xmuxMaxConcurrency: '16-32',
+    xmuxMaxConnections: '',
+    xmuxCMaxReuseTimes: '10',
+    xmuxHMaxRequestTimes: '600-900',
+    xmuxHMaxReusableSecs: '1800-3000',
+    xmuxHKeepAlivePeriod: 30,
+  } as const;
+}
+
+test('resolveXhttpExtraSettings migrates legacy root fields without overriding nested values', () => {
+  const extra = resolveXhttpExtraSettings({
+    xPaddingBytes: '100-1000',
+    sessionKey: 'legacy-session',
+    extra: { sessionKey: 'nested-session', localExtra: { enabled: true } },
+  });
+
+  assert.equal(extra.xPaddingBytes, '100-1000');
+  assert.equal(extra.sessionKey, 'nested-session');
+  assert.deepEqual(extra.localExtra, { enabled: true });
+});
+
+test('mergeXhttpSettings writes v1.11.4 extra schema and preserves unknown local fields', () => {
+  const result = mergeXhttpSettings(
+    {
+      path: '/old',
+      mode: 'auto',
+      headers: { Host: 'old.example.com' },
+      xPaddingBytes: 'legacy-padding',
+      rootExtension: { enabled: true },
+      extra: { localExtra: { keep: 'yes' } },
+    },
+    defaultXhttpFormInput(),
+  );
+
+  assert.equal(result.path, '/xhttp');
+  assert.equal(result.host, 'xhttp.example.com');
+  assert.equal(result.headers, undefined);
+  assert.deepEqual(result.rootExtension, { enabled: true });
+  assert.deepEqual(result.extra, {
+    localExtra: { keep: 'yes' },
+    headers: { Host: 'xhttp.example.com' },
+    xPaddingBytes: '100-1000',
+    noSSEHeader: true,
+    scMaxBufferedPosts: 8,
+    scMaxEachPostBytes: '1000000',
+    scStreamUpServerSecs: '20-80',
+    xPaddingObfsMode: true,
+    xPaddingKey: 'x_padding',
+    xPaddingHeader: 'X-Padding',
+    xPaddingPlacement: 'header',
+    xPaddingMethod: 'tokenish',
+    uplinkHTTPMethod: 'POST',
+    sessionPlacement: 'header',
+    sessionKey: 'x_session',
+    seqPlacement: 'query',
+    seqKey: 'x_seq',
+    uplinkDataPlacement: 'header',
+    uplinkDataKey: 'x_data',
+    uplinkChunkSize: 4096,
+    xmux: {
+      maxConcurrency: '16-32',
+      cMaxReuseTimes: '10',
+      hMaxRequestTimes: '600-900',
+      hMaxReusableSecs: '1800-3000',
+      hKeepAlivePeriod: 30,
+    },
+  });
+});
+
+test('mergeXhttpSettings preserves hidden conditional values while removing only disabled XMUX', () => {
+  const input = defaultXhttpFormInput();
+  const result = mergeXhttpSettings(
+    {
+      extra: {
+        xPaddingKey: 'old',
+        sessionKey: 'old',
+        seqKey: 'old',
+        uplinkDataKey: 'old',
+        xmux: { maxConcurrency: 'old' },
+        localExtra: 'keep',
+      },
+    },
+    {
+      ...input,
+      mode: 'stream-up',
+      xPaddingObfsMode: false,
+      sessionPlacement: 'path',
+      seqPlacement: 'path',
+      uplinkDataPlacement: '',
+      xmuxEnabled: false,
+    },
+  );
+
+  const extra = result.extra as Record<string, unknown>;
+  assert.equal(extra.xPaddingKey, 'x_padding');
+  assert.equal(extra.sessionKey, 'x_session');
+  assert.equal(extra.seqKey, 'x_seq');
+  assert.equal(extra.uplinkDataKey, 'x_data');
+  assert.equal(extra.xmux, undefined);
+  assert.equal(extra.localExtra, 'keep');
+});
+
+test('validateXhttpFormInput rejects unsupported placements and control characters', () => {
+  const input = defaultXhttpFormInput();
+  assert.equal(validateXhttpFormInput(input), '');
+  assert.match(
+    validateXhttpFormInput({ ...input, sessionPlacement: 'body' }),
+    /session placement/,
+  );
+  assert.match(
+    validateXhttpFormInput({ ...input, path: '/x\nhttp' }),
+    /control characters/,
+  );
+});
+
 test('buildInboundShareLinks exports Hysteria2 UDP hop ports without default fp', () => {
   const links = buildInboundShareLinks({
     protocol: 'hysteria',

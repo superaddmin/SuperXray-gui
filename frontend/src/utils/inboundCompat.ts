@@ -55,6 +55,37 @@ export interface HysteriaUdpHopFormInput {
   maxIncomingStreams: number;
 }
 
+export interface XhttpFormInput {
+  path: string;
+  host: string;
+  mode: string;
+  noSSEHeader: boolean;
+  scMaxBufferedPosts: number;
+  scMaxEachPostBytes: string;
+  scStreamUpServerSecs: string;
+  xPaddingBytes: string;
+  xPaddingObfsMode: boolean;
+  xPaddingKey: string;
+  xPaddingHeader: string;
+  xPaddingPlacement: string;
+  xPaddingMethod: string;
+  uplinkHTTPMethod: string;
+  sessionPlacement: string;
+  sessionKey: string;
+  seqPlacement: string;
+  seqKey: string;
+  uplinkDataPlacement: string;
+  uplinkDataKey: string;
+  uplinkChunkSize: number;
+  xmuxEnabled: boolean;
+  xmuxMaxConcurrency: string;
+  xmuxMaxConnections: string;
+  xmuxCMaxReuseTimes: string;
+  xmuxHMaxRequestTimes: string;
+  xmuxHMaxReusableSecs: string;
+  xmuxHKeepAlivePeriod: number;
+}
+
 export function mergeSubscriptionEndpointDefaults(
   settings: SubscriptionEndpointSettings,
   defaults: Partial<SubscriptionEndpointSettings>,
@@ -373,6 +404,165 @@ export function applyHysteriaFinalmaskUdpHop(
     delete next.finalmask;
   }
   return next;
+}
+
+const XHTTP_LEGACY_EXTRA_KEYS = [
+  'headers',
+  'scMaxBufferedPosts',
+  'scMaxEachPostBytes',
+  'scStreamUpServerSecs',
+  'noSSEHeader',
+  'serverMaxHeaderBytes',
+  'xPaddingBytes',
+  'xPaddingObfsMode',
+  'xPaddingKey',
+  'xPaddingHeader',
+  'xPaddingPlacement',
+  'xPaddingMethod',
+  'uplinkHTTPMethod',
+  'sessionPlacement',
+  'sessionKey',
+  'seqPlacement',
+  'seqKey',
+  'uplinkDataPlacement',
+  'uplinkDataKey',
+  'uplinkChunkSize',
+  'noGRPCHeader',
+  'scMinPostsIntervalMs',
+  'xmux',
+  'downloadSettings',
+] as const;
+
+export function resolveXhttpExtraSettings(
+  settings: Record<string, unknown>,
+): Record<string, unknown> {
+  const extra = { ...asRecord(settings.extra) };
+  for (const key of XHTTP_LEGACY_EXTRA_KEYS) {
+    if (extra[key] === undefined && settings[key] !== undefined) {
+      extra[key] = settings[key];
+    }
+  }
+  return extra;
+}
+
+export function mergeXhttpSettings(
+  settings: Record<string, unknown>,
+  input: XhttpFormInput,
+): Record<string, unknown> {
+  const next = { ...settings };
+  const extra = resolveXhttpExtraSettings(settings);
+  for (const key of XHTTP_LEGACY_EXTRA_KEYS) {
+    delete next[key];
+  }
+
+  next.path = input.path.trim() || '/';
+  setOptionalString(next, 'host', input.host);
+  next.mode = input.mode || 'auto';
+
+  const headers = { ...asRecord(extra.headers) };
+  if (Object.prototype.hasOwnProperty.call(headers, 'Host')) {
+    setOptionalString(headers, 'Host', input.host);
+  }
+  if (Object.keys(headers).length > 0) {
+    extra.headers = headers;
+  } else {
+    delete extra.headers;
+  }
+
+  setOptionalNonNegativeInteger(extra, 'scMaxBufferedPosts', input.scMaxBufferedPosts);
+  setOptionalString(extra, 'scMaxEachPostBytes', input.scMaxEachPostBytes);
+  setOptionalString(extra, 'scStreamUpServerSecs', input.scStreamUpServerSecs);
+  setOptionalBoolean(extra, 'noSSEHeader', input.noSSEHeader);
+  setOptionalString(extra, 'xPaddingBytes', input.xPaddingBytes);
+  setOptionalBoolean(extra, 'xPaddingObfsMode', input.xPaddingObfsMode);
+  setOptionalString(extra, 'xPaddingKey', input.xPaddingKey);
+  setOptionalString(extra, 'xPaddingHeader', input.xPaddingHeader);
+  setOptionalString(extra, 'xPaddingPlacement', input.xPaddingPlacement);
+  setOptionalString(extra, 'xPaddingMethod', input.xPaddingMethod);
+  setOptionalString(extra, 'uplinkHTTPMethod', input.uplinkHTTPMethod);
+  setOptionalString(extra, 'sessionPlacement', input.sessionPlacement);
+  setOptionalString(extra, 'sessionKey', input.sessionKey);
+  setOptionalString(extra, 'seqPlacement', input.seqPlacement);
+  setOptionalString(extra, 'seqKey', input.seqKey);
+  setOptionalString(extra, 'uplinkDataPlacement', input.uplinkDataPlacement);
+  setOptionalString(extra, 'uplinkDataKey', input.uplinkDataKey);
+  setOptionalNonNegativeInteger(extra, 'uplinkChunkSize', input.uplinkChunkSize);
+
+  if (input.xmuxEnabled) {
+    const xmux = { ...asRecord(extra.xmux) };
+    setOptionalString(xmux, 'maxConcurrency', input.xmuxMaxConcurrency);
+    setOptionalString(xmux, 'maxConnections', input.xmuxMaxConnections);
+    if (input.xmuxMaxConnections.trim()) {
+      delete xmux.maxConcurrency;
+    } else if (input.xmuxMaxConcurrency.trim()) {
+      delete xmux.maxConnections;
+    }
+    setOptionalString(xmux, 'cMaxReuseTimes', input.xmuxCMaxReuseTimes);
+    setOptionalString(xmux, 'hMaxRequestTimes', input.xmuxHMaxRequestTimes);
+    setOptionalString(xmux, 'hMaxReusableSecs', input.xmuxHMaxReusableSecs);
+    setOptionalNonNegativeInteger(xmux, 'hKeepAlivePeriod', input.xmuxHKeepAlivePeriod);
+    extra.xmux = xmux;
+  } else {
+    delete extra.xmux;
+  }
+
+  if (Object.keys(extra).length > 0) {
+    next.extra = extra;
+  } else {
+    delete next.extra;
+  }
+  return next;
+}
+
+export function validateXhttpFormInput(input: XhttpFormInput): string {
+  if (hasControlCharacter(input.path) || hasControlCharacter(input.host)) {
+    return 'XHTTP path and host must not contain control characters';
+  }
+  if (!['auto', 'packet-up', 'stream-up', 'stream-one'].includes(input.mode)) {
+    return `Unsupported XHTTP mode: ${input.mode}`;
+  }
+  const optionChecks: Array<[string, string, readonly string[]]> = [
+    ['padding placement', input.xPaddingPlacement, ['', 'queryInHeader', 'header']],
+    ['padding method', input.xPaddingMethod, ['', 'repeat-x', 'tokenish']],
+    ['uplink HTTP method', input.uplinkHTTPMethod, ['', 'POST', 'PUT', 'GET']],
+    ['session placement', input.sessionPlacement, ['', 'path', 'header', 'cookie', 'query']],
+    ['sequence placement', input.seqPlacement, ['', 'path', 'header', 'cookie', 'query']],
+    ['uplink data placement', input.uplinkDataPlacement, ['', 'body', 'header', 'query']],
+  ];
+  for (const [label, value, allowed] of optionChecks) {
+    if (!allowed.includes(value)) {
+      return `Unsupported XHTTP ${label}: ${value}`;
+    }
+  }
+  const integerChecks: Array<[string, number]> = [
+    ['max buffered posts', input.scMaxBufferedPosts],
+    ['uplink chunk size', input.uplinkChunkSize],
+    ['XMUX keep-alive period', input.xmuxHKeepAlivePeriod],
+  ];
+  for (const [label, value] of integerChecks) {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      return `XHTTP ${label} must be a non-negative integer`;
+    }
+  }
+  const textChecks = [
+    input.scMaxEachPostBytes,
+    input.scStreamUpServerSecs,
+    input.xPaddingBytes,
+    input.xPaddingKey,
+    input.xPaddingHeader,
+    input.sessionKey,
+    input.seqKey,
+    input.uplinkDataKey,
+    input.xmuxMaxConcurrency,
+    input.xmuxMaxConnections,
+    input.xmuxCMaxReuseTimes,
+    input.xmuxHMaxRequestTimes,
+    input.xmuxHMaxReusableSecs,
+  ];
+  if (textChecks.some((value) => value.length > 256 || hasControlCharacter(value))) {
+    return 'XHTTP text values must be at most 256 characters without control characters';
+  }
+  return '';
 }
 
 export function normalizeTunSettings(settings: InboundSettings): InboundSettings {
@@ -1178,6 +1368,35 @@ function normalizeStringList(value: unknown): string[] {
 function nonNegativeInteger(value: unknown, fallback: number): number {
   const number = Number(value);
   return Number.isSafeInteger(number) && number >= 0 ? number : fallback;
+}
+
+function setOptionalString(target: Record<string, unknown>, key: string, value: string) {
+  const trimmed = value.trim();
+  if (trimmed) {
+    target[key] = trimmed;
+  } else {
+    delete target[key];
+  }
+}
+
+function setOptionalBoolean(target: Record<string, unknown>, key: string, value: boolean) {
+  if (value) {
+    target[key] = true;
+  } else {
+    delete target[key];
+  }
+}
+
+function setOptionalNonNegativeInteger(
+  target: Record<string, unknown>,
+  key: string,
+  value: number,
+) {
+  if (Number.isSafeInteger(value) && value > 0) {
+    target[key] = value;
+  } else {
+    delete target[key];
+  }
 }
 
 function hasControlCharacter(value: string): boolean {

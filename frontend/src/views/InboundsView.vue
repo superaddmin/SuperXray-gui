@@ -778,6 +778,150 @@
             <AFormItem v-if="streamEditor.network === 'xhttp'" label="Padding Bytes">
               <AInput v-model:value="streamEditor.xhttpXPaddingBytes" />
             </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Padding Obfuscation">
+              <ASwitch v-model:checked="streamEditor.xhttpXPaddingObfsMode" />
+            </AFormItem>
+            <AFormItem
+              v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpXPaddingObfsMode"
+              label="Padding Key"
+            >
+              <AInput v-model:value="streamEditor.xhttpXPaddingKey" placeholder="x_padding" />
+            </AFormItem>
+            <AFormItem
+              v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpXPaddingObfsMode"
+              label="Padding Header"
+            >
+              <AInput v-model:value="streamEditor.xhttpXPaddingHeader" placeholder="X-Padding" />
+            </AFormItem>
+            <AFormItem
+              v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpXPaddingObfsMode"
+              label="Padding Placement"
+            >
+              <ASelect
+                v-model:value="streamEditor.xhttpXPaddingPlacement"
+                :options="xhttpPaddingPlacementOptions"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpXPaddingObfsMode"
+              label="Padding Method"
+            >
+              <ASelect
+                v-model:value="streamEditor.xhttpXPaddingMethod"
+                :options="xhttpPaddingMethodOptions"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Uplink HTTP Method">
+              <ASelect
+                v-model:value="streamEditor.xhttpUplinkHttpMethod"
+                :options="xhttpUplinkMethodOptions"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Session Placement">
+              <ASelect
+                v-model:value="streamEditor.xhttpSessionPlacement"
+                :options="xhttpPlacementOptions"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                streamEditor.network === 'xhttp' &&
+                  streamEditor.xhttpSessionPlacement &&
+                  streamEditor.xhttpSessionPlacement !== 'path'
+              "
+              label="Session Key"
+            >
+              <AInput v-model:value="streamEditor.xhttpSessionKey" placeholder="x_session" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Sequence Placement">
+              <ASelect
+                v-model:value="streamEditor.xhttpSeqPlacement"
+                :options="xhttpPlacementOptions"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                streamEditor.network === 'xhttp' &&
+                  streamEditor.xhttpSeqPlacement &&
+                  streamEditor.xhttpSeqPlacement !== 'path'
+              "
+              label="Sequence Key"
+            >
+              <AInput v-model:value="streamEditor.xhttpSeqKey" placeholder="x_seq" />
+            </AFormItem>
+            <AFormItem
+              v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpMode === 'packet-up'"
+              label="Uplink Data Placement"
+            >
+              <ASelect
+                v-model:value="streamEditor.xhttpUplinkDataPlacement"
+                :options="xhttpUplinkDataPlacementOptions"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                streamEditor.network === 'xhttp' &&
+                  streamEditor.xhttpMode === 'packet-up' &&
+                  streamEditor.xhttpUplinkDataPlacement &&
+                  streamEditor.xhttpUplinkDataPlacement !== 'body'
+              "
+              label="Uplink Data Key"
+            >
+              <AInput v-model:value="streamEditor.xhttpUplinkDataKey" placeholder="x_data" />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                streamEditor.network === 'xhttp' &&
+                  streamEditor.xhttpMode === 'packet-up' &&
+                  streamEditor.xhttpUplinkDataPlacement &&
+                  streamEditor.xhttpUplinkDataPlacement !== 'body'
+              "
+              label="Uplink Chunk Size"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.xhttpUplinkChunkSize"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="XMUX">
+              <ASwitch v-model:checked="streamEditor.xhttpXmuxEnabled" />
+            </AFormItem>
+            <template
+              v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpXmuxEnabled"
+            >
+              <AFormItem label="XMUX Max Concurrency">
+                <AInput
+                  v-model:value="streamEditor.xhttpXmuxMaxConcurrency"
+                  placeholder="16-32"
+                />
+              </AFormItem>
+              <AFormItem label="XMUX Max Connections">
+                <AInput v-model:value="streamEditor.xhttpXmuxMaxConnections" placeholder="0" />
+              </AFormItem>
+              <AFormItem label="XMUX Max Reuse Times">
+                <AInput v-model:value="streamEditor.xhttpXmuxCMaxReuseTimes" placeholder="0" />
+              </AFormItem>
+              <AFormItem label="XMUX Max Request Times">
+                <AInput
+                  v-model:value="streamEditor.xhttpXmuxHMaxRequestTimes"
+                  placeholder="600-900"
+                />
+              </AFormItem>
+              <AFormItem label="XMUX Max Reusable Seconds">
+                <AInput
+                  v-model:value="streamEditor.xhttpXmuxHMaxReusableSecs"
+                  placeholder="1800-3000"
+                />
+              </AFormItem>
+              <AFormItem label="XMUX Keep Alive Period">
+                <AInputNumber
+                  v-model:value="streamEditor.xhttpXmuxHKeepAlivePeriod"
+                  :min="0"
+                  class="full-width"
+                />
+              </AFormItem>
+            </template>
             <AFormItem v-if="streamEditor.security === 'tls'" label="TLS SNI">
               <AInput v-model:value="streamEditor.tlsServerName" />
             </AFormItem>
@@ -978,8 +1122,8 @@
             <AFormItem
               v-if="
                 isHysteriaProtocol(inboundEditor.protocol) &&
-                streamEditor.hysteriaQuicParamsEnabled &&
-                streamEditor.hysteriaUdpHopEnabled
+                  streamEditor.hysteriaQuicParamsEnabled &&
+                  streamEditor.hysteriaUdpHopEnabled
               "
               label="Hop Ports"
             >
@@ -988,8 +1132,8 @@
             <AFormItem
               v-if="
                 isHysteriaProtocol(inboundEditor.protocol) &&
-                streamEditor.hysteriaQuicParamsEnabled &&
-                streamEditor.hysteriaUdpHopEnabled
+                  streamEditor.hysteriaQuicParamsEnabled &&
+                  streamEditor.hysteriaUdpHopEnabled
               "
               label="Hop Interval"
             >
@@ -1627,15 +1771,19 @@ import {
   getShadowsocksMethod,
   isShadowsocks2022Method,
   isSingleUserShadowsocks2022,
+  mergeXhttpSettings,
   mergeSubscriptionEndpointDefaults,
   normalizeTunSettings,
   parseInboundSettings,
   parseInboundSniffingSettings,
   parseInboundStreamSettings,
   resolveInboundHost,
+  resolveXhttpExtraSettings,
   stringifyJson,
   type PanelDefaultTlsCertificate,
+  type XhttpFormInput,
   validateTunSettings,
+  validateXhttpFormInput,
 } from '@/utils/inboundCompat';
 import {
   normalizeRealityServerSettings,
@@ -1723,6 +1871,26 @@ interface StreamEditorState {
   xhttpScMaxEachPostBytes: string;
   xhttpScStreamUpServerSecs: string;
   xhttpXPaddingBytes: string;
+  xhttpXPaddingObfsMode: boolean;
+  xhttpXPaddingKey: string;
+  xhttpXPaddingHeader: string;
+  xhttpXPaddingPlacement: string;
+  xhttpXPaddingMethod: string;
+  xhttpUplinkHttpMethod: string;
+  xhttpSessionPlacement: string;
+  xhttpSessionKey: string;
+  xhttpSeqPlacement: string;
+  xhttpSeqKey: string;
+  xhttpUplinkDataPlacement: string;
+  xhttpUplinkDataKey: string;
+  xhttpUplinkChunkSize: number;
+  xhttpXmuxEnabled: boolean;
+  xhttpXmuxMaxConcurrency: string;
+  xhttpXmuxMaxConnections: string;
+  xhttpXmuxCMaxReuseTimes: string;
+  xhttpXmuxHMaxRequestTimes: string;
+  xhttpXmuxHMaxReusableSecs: string;
+  xhttpXmuxHKeepAlivePeriod: number;
   tlsServerName: string;
   tlsMinVersion: string;
   tlsMaxVersion: string;
@@ -2013,6 +2181,11 @@ const xhttpModeOptions = ['auto', 'packet-up', 'stream-up', 'stream-one'].map((v
   label: value,
   value,
 }));
+const xhttpPaddingPlacementOptions = selectOptionsWithDefault(['queryInHeader', 'header']);
+const xhttpPaddingMethodOptions = selectOptionsWithDefault(['repeat-x', 'tokenish']);
+const xhttpUplinkMethodOptions = selectOptionsWithDefault(['POST', 'PUT', 'GET']);
+const xhttpPlacementOptions = selectOptionsWithDefault(['path', 'header', 'cookie', 'query']);
+const xhttpUplinkDataPlacementOptions = selectOptionsWithDefault(['body', 'header', 'query']);
 const tlsVersionOptions = ['1.0', '1.1', '1.2', '1.3'].map((value) => ({
   label: value,
   value,
@@ -2431,7 +2604,9 @@ async function submitInbound() {
       return;
     }
   } else if (protocolSupportsStream(inboundEditor.protocol)) {
-    applyStreamEditorToSettings();
+    if (!applyStreamEditorToSettings()) {
+      return;
+    }
     await applyPanelDefaultTlsCertificateToEditor();
   }
   if (inboundClientSectionVisible.value) {
@@ -3530,10 +3705,30 @@ function createStreamEditor(): StreamEditorState {
     xhttpHost: '',
     xhttpMode: 'auto',
     xhttpNoSseHeader: false,
-    xhttpScMaxBufferedPosts: 30,
-    xhttpScMaxEachPostBytes: '1000000',
-    xhttpScStreamUpServerSecs: '20-80',
-    xhttpXPaddingBytes: '100-1000',
+    xhttpScMaxBufferedPosts: 0,
+    xhttpScMaxEachPostBytes: '',
+    xhttpScStreamUpServerSecs: '',
+    xhttpXPaddingBytes: '',
+    xhttpXPaddingObfsMode: false,
+    xhttpXPaddingKey: '',
+    xhttpXPaddingHeader: '',
+    xhttpXPaddingPlacement: '',
+    xhttpXPaddingMethod: '',
+    xhttpUplinkHttpMethod: '',
+    xhttpSessionPlacement: '',
+    xhttpSessionKey: '',
+    xhttpSeqPlacement: '',
+    xhttpSeqKey: '',
+    xhttpUplinkDataPlacement: '',
+    xhttpUplinkDataKey: '',
+    xhttpUplinkChunkSize: 0,
+    xhttpXmuxEnabled: false,
+    xhttpXmuxMaxConcurrency: '16-32',
+    xhttpXmuxMaxConnections: '',
+    xhttpXmuxCMaxReuseTimes: '',
+    xhttpXmuxHMaxRequestTimes: '600-900',
+    xhttpXmuxHMaxReusableSecs: '1800-3000',
+    xhttpXmuxHKeepAlivePeriod: 0,
     tlsServerName: '',
     tlsMinVersion: '1.2',
     tlsMaxVersion: '1.3',
@@ -3696,6 +3891,8 @@ function syncStreamEditorFromSettings() {
   const grpcSettings = objectField(stream.grpcSettings);
   const httpupgradeSettings = objectField(stream.httpupgradeSettings);
   const xhttpSettings = objectField(stream.xhttpSettings);
+  const xhttpExtra = resolveXhttpExtraSettings(xhttpSettings);
+  const xhttpXmux = objectField(xhttpExtra.xmux);
   const kcpSettings = objectField(stream.kcpSettings);
   const sockopt = objectField(stream.sockopt);
   const tcpSettings = objectField(stream.tcpSettings);
@@ -3729,11 +3926,31 @@ function syncStreamEditorFromSettings() {
     xhttpPath: stringField(xhttpSettings.path) || '/',
     xhttpHost: stringField(xhttpSettings.host),
     xhttpMode: stringField(xhttpSettings.mode) || 'auto',
-    xhttpNoSseHeader: Boolean(xhttpSettings.noSSEHeader),
-    xhttpScMaxBufferedPosts: Number(xhttpSettings.scMaxBufferedPosts || 30),
-    xhttpScMaxEachPostBytes: stringField(xhttpSettings.scMaxEachPostBytes) || '1000000',
-    xhttpScStreamUpServerSecs: stringField(xhttpSettings.scStreamUpServerSecs) || '20-80',
-    xhttpXPaddingBytes: stringField(xhttpSettings.xPaddingBytes) || '100-1000',
+    xhttpNoSseHeader: Boolean(xhttpExtra.noSSEHeader),
+    xhttpScMaxBufferedPosts: Number(xhttpExtra.scMaxBufferedPosts ?? 0),
+    xhttpScMaxEachPostBytes: stringField(xhttpExtra.scMaxEachPostBytes),
+    xhttpScStreamUpServerSecs: stringField(xhttpExtra.scStreamUpServerSecs),
+    xhttpXPaddingBytes: stringField(xhttpExtra.xPaddingBytes),
+    xhttpXPaddingObfsMode: Boolean(xhttpExtra.xPaddingObfsMode),
+    xhttpXPaddingKey: stringField(xhttpExtra.xPaddingKey),
+    xhttpXPaddingHeader: stringField(xhttpExtra.xPaddingHeader),
+    xhttpXPaddingPlacement: stringField(xhttpExtra.xPaddingPlacement),
+    xhttpXPaddingMethod: stringField(xhttpExtra.xPaddingMethod),
+    xhttpUplinkHttpMethod: stringField(xhttpExtra.uplinkHTTPMethod),
+    xhttpSessionPlacement: stringField(xhttpExtra.sessionPlacement),
+    xhttpSessionKey: stringField(xhttpExtra.sessionKey),
+    xhttpSeqPlacement: stringField(xhttpExtra.seqPlacement),
+    xhttpSeqKey: stringField(xhttpExtra.seqKey),
+    xhttpUplinkDataPlacement: stringField(xhttpExtra.uplinkDataPlacement),
+    xhttpUplinkDataKey: stringField(xhttpExtra.uplinkDataKey),
+    xhttpUplinkChunkSize: Number(xhttpExtra.uplinkChunkSize ?? 0),
+    xhttpXmuxEnabled: xhttpExtra.xmux !== undefined && xhttpExtra.xmux !== null,
+    xhttpXmuxMaxConcurrency: stringField(xhttpXmux.maxConcurrency) || '16-32',
+    xhttpXmuxMaxConnections: stringField(xhttpXmux.maxConnections),
+    xhttpXmuxCMaxReuseTimes: stringField(xhttpXmux.cMaxReuseTimes),
+    xhttpXmuxHMaxRequestTimes: stringField(xhttpXmux.hMaxRequestTimes) || '600-900',
+    xhttpXmuxHMaxReusableSecs: stringField(xhttpXmux.hMaxReusableSecs) || '1800-3000',
+    xhttpXmuxHKeepAlivePeriod: Number(xhttpXmux.hKeepAlivePeriod ?? 0),
     tlsServerName: stringField(tlsSettings.serverName),
     tlsMinVersion: stringField(tlsSettings.minVersion) || '1.2',
     tlsMaxVersion: stringField(tlsSettings.maxVersion) || '1.3',
@@ -3812,11 +4029,20 @@ function syncStreamEditorFromSettings() {
   }
 }
 
-function applyStreamEditorToSettings() {
+function applyStreamEditorToSettings(): boolean {
   const stream = parseInboundStreamSettingsText(inboundEditor.streamSettings);
   const network = isHysteriaProtocol(inboundEditor.protocol) ? 'hysteria' : streamEditor.network;
   const security = isHysteriaProtocol(inboundEditor.protocol) ? 'tls' : streamEditor.security;
   const existingTlsSettings = objectField(stream.tlsSettings);
+  const existingXhttpSettings = objectField(stream.xhttpSettings);
+  const xhttpInput = buildXhttpFormInput();
+  if (network === 'xhttp') {
+    const validationError = validateXhttpFormInput(xhttpInput);
+    if (validationError) {
+      error.value = validationError;
+      return false;
+    }
+  }
 
   stream.network = network;
   stream.security = security;
@@ -3876,17 +4102,7 @@ function applyStreamEditorToSettings() {
     };
   }
   if (network === 'xhttp') {
-    stream.xhttpSettings = {
-      path: streamEditor.xhttpPath || '/',
-      host: streamEditor.xhttpHost,
-      headers: streamEditor.xhttpHost ? { Host: streamEditor.xhttpHost } : {},
-      scMaxBufferedPosts: Math.max(0, Number(streamEditor.xhttpScMaxBufferedPosts || 0)),
-      scMaxEachPostBytes: streamEditor.xhttpScMaxEachPostBytes || '1000000',
-      scStreamUpServerSecs: streamEditor.xhttpScStreamUpServerSecs || '20-80',
-      noSSEHeader: streamEditor.xhttpNoSseHeader,
-      xPaddingBytes: streamEditor.xhttpXPaddingBytes || '100-1000',
-      mode: streamEditor.xhttpMode || 'auto',
-    };
+    stream.xhttpSettings = mergeXhttpSettings(existingXhttpSettings, xhttpInput);
   }
   if (network === 'hysteria') {
     stream.hysteriaSettings = {
@@ -3961,6 +4177,40 @@ function applyStreamEditorToSettings() {
   }
 
   inboundEditor.streamSettings = stringifyJson(stream);
+  return true;
+}
+
+function buildXhttpFormInput(): XhttpFormInput {
+  return {
+    path: streamEditor.xhttpPath,
+    host: streamEditor.xhttpHost,
+    mode: streamEditor.xhttpMode,
+    noSSEHeader: streamEditor.xhttpNoSseHeader,
+    scMaxBufferedPosts: streamEditor.xhttpScMaxBufferedPosts,
+    scMaxEachPostBytes: streamEditor.xhttpScMaxEachPostBytes,
+    scStreamUpServerSecs: streamEditor.xhttpScStreamUpServerSecs,
+    xPaddingBytes: streamEditor.xhttpXPaddingBytes,
+    xPaddingObfsMode: streamEditor.xhttpXPaddingObfsMode,
+    xPaddingKey: streamEditor.xhttpXPaddingKey,
+    xPaddingHeader: streamEditor.xhttpXPaddingHeader,
+    xPaddingPlacement: streamEditor.xhttpXPaddingPlacement,
+    xPaddingMethod: streamEditor.xhttpXPaddingMethod,
+    uplinkHTTPMethod: streamEditor.xhttpUplinkHttpMethod,
+    sessionPlacement: streamEditor.xhttpSessionPlacement,
+    sessionKey: streamEditor.xhttpSessionKey,
+    seqPlacement: streamEditor.xhttpSeqPlacement,
+    seqKey: streamEditor.xhttpSeqKey,
+    uplinkDataPlacement: streamEditor.xhttpUplinkDataPlacement,
+    uplinkDataKey: streamEditor.xhttpUplinkDataKey,
+    uplinkChunkSize: streamEditor.xhttpUplinkChunkSize,
+    xmuxEnabled: streamEditor.xhttpXmuxEnabled,
+    xmuxMaxConcurrency: streamEditor.xhttpXmuxMaxConcurrency,
+    xmuxMaxConnections: streamEditor.xhttpXmuxMaxConnections,
+    xmuxCMaxReuseTimes: streamEditor.xhttpXmuxCMaxReuseTimes,
+    xmuxHMaxRequestTimes: streamEditor.xhttpXmuxHMaxRequestTimes,
+    xmuxHMaxReusableSecs: streamEditor.xhttpXmuxHMaxReusableSecs,
+    xmuxHKeepAlivePeriod: streamEditor.xhttpXmuxHKeepAlivePeriod,
+  };
 }
 
 function buildSockoptSettings(): Record<string, unknown> {
@@ -4858,6 +5108,13 @@ function randomToken(length: number): string {
     token += alphabet[Math.floor(Math.random() * alphabet.length)];
   }
   return token;
+}
+
+function selectOptionsWithDefault(values: string[]) {
+  return [
+    { label: 'Default', value: '' },
+    ...values.map((value) => ({ label: value, value })),
+  ];
 }
 
 onMounted(() => {

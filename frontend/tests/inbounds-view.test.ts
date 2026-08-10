@@ -232,6 +232,19 @@ test('TUN form normalizes current Xray fields while preserving the source settin
   assert.match(source, /validateTunSettings\(settings\)/);
 });
 
+test('XHTTP form exposes v1.11.4 extra and XMUX controls with a preserving merge path', () => {
+  assert.match(source, /xhttpXPaddingObfsMode/);
+  assert.match(source, /xhttpXPaddingPlacement/);
+  assert.match(source, /xhttpUplinkHttpMethod/);
+  assert.match(source, /xhttpSessionPlacement/);
+  assert.match(source, /xhttpSeqPlacement/);
+  assert.match(source, /xhttpUplinkDataPlacement/);
+  assert.match(source, /xhttpXmuxEnabled/);
+  assert.match(source, /resolveXhttpExtraSettings/);
+  assert.match(source, /mergeXhttpSettings\(existingXhttpSettings, xhttpInput\)/);
+  assert.match(source, /validateXhttpFormInput\(xhttpInput\)/);
+});
+
 test('TLS form generates and persists inline self-signed certificate material', () => {
   assert.match(source, /generateSelfSignedCertificate/);
   assert.match(source, /@click="generateSelfSignedTlsCertificate"/);
