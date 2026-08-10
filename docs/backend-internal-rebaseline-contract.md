@@ -251,21 +251,23 @@ frontend build
 | `history_of_seeders` | seeders | 保留兼容，引入 `schema_migrations` 后只作历史记录 |
 | `custom_geo_resources` | `CustomGeoService` | 归 resource repository，保留 SSRF/path 校验 |
 
-### 5.2 Phase 2 迁移准备
+### 5.2 迁移管理表（已落地）
 
-Phase 2 开始前必须先补两张管理表：
+两张管理表已在当前代码中实现，由 `database/db.go` 的 `initModels()` 和 `recordBaselineMigration()` 维护：
 
 ```text
 schema_migrations(version, name, checksum, applied_at, duration_ms, status)
 migration_events(id, version, direction, started_at, finished_at, error, backup_path)
 ```
 
-验收口径：
+对应模型为 `model.SchemaMigration` 和 `model.MigrationEvent`。`InitDB` 会在 `AutoMigrate` 后调用 `recordBaselineMigration()`，幂等记录 baseline 迁移版本 `202606260001`，使用 `FirstOrCreate` 保证重复执行只读状态、不重复写数据。
+
+验收口径（当前实现已满足前 3 项）：
 
 1. 空库启动能自动创建当前所有表和管理表。
 2. 旧库启动不会丢失 `inbounds.settings`、client stats、settings KV。
 3. migration 可重复执行，重复执行只读状态，不重复写数据。
-4. 任何 destructive migration 必须先创建备份路径并记录到 `migration_events`。
+4. 任何 destructive migration 必须先创建备份路径并记录到 `migration_events`（后续 destructive migration 需遵循此约束）。
 
 ## 6. Xray-core v26.3.27 集成约束
 
@@ -295,7 +297,7 @@ migration_events(id, version, direction, started_at, finished_at, error, backup_
 
 Phase 2 从数据层开始，建议最小步骤如下：
 
-1. 新增 `database` 迁移管理表和幂等迁移 runner，暂不改变业务表。
+1. ~~新增 `database` 迁移管理表和幂等迁移 runner，暂不改变业务表。~~ **已完成**：`SchemaMigration`、`MigrationEvent` 模型和 `recordBaselineMigration()` 已落地，后续迁移按此框架继续。
 2. 为 `User`、`Inbound`、`Setting`、`Traffic` 建 repository interface 和 GORM 实现。
 3. 把 `xray.ClientTraffic` 的持久化模型从 runtime 包依赖中拆出来，先做类型别名或适配器过渡。
 4. 给空库、旧库、重复迁移、失败回滚补集成测试。

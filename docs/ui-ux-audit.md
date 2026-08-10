@@ -5,6 +5,8 @@
 测试方式：本地启动面板，使用 Playwright 在 1440x900、390x844 视口执行视觉检查、可访问性快照、DOM 尺寸取证与截图。
 参考基线：WCAG 2.2 AA。W3C 当前发布页显示 [WCAG 2.2](https://www.w3.org/TR/WCAG22/) 是 Recommendation，最新发布版本为 2024-12-12；[WAI 概览](https://www.w3.org/WAI/standards-guidelines/wcag/)说明 WCAG 2.2 由可感知、可操作、可理解、健壮四类原则组织。
 
+> **状态更新（2026-08-10）**：Legacy HTML UI 已正式退役。`web/html`、`web/assets` 目录已移除，`/panel/legacy/*` 路由不再注册（默认返回 `404 Not Found`），回归测试 `TestXUIControllerDoesNotRegisterLegacyPanelRoutes` 守护此边界。本文中“已完成的高优先级修复”及“分级诊断”各条目所引用的 `web/html/*.html`、`web/html/common/page.html`、`web/assets/css/custom.min.css` 等路径均为历史 Legacy HTML UI 的修复记录，仅作为问题诊断与设计决策的留档；当前 UI 事实以 Vue 3 新 UI（`frontend/src/`）为准，相关功能对账见 [Legacy -> Vue UI 功能对账表](legacy-vue-ui-parity-audit.md)，系统架构见 [系统架构设计](architecture.md)。
+
 ## 2026-05-16 新 UI 增量审计结论
 
 审计范围：Vue 3 新 UI 的 Xray 页面、入站页顶部动作区、全局 Header、移动端抽屉导航与触控目标。
@@ -36,7 +38,9 @@
 - 本轮只改前端 UI、前端测试、文档和构建产物。
 - MVP 仍只通过现有 Xray 模板保存路径落地，不新增 `egress_*` 数据库表，不新增 `/panel/api/egress/*`，不接管 CoreManager，不触碰 sing-box 生产路径。
 
-## 已完成的高优先级修复
+## 已完成的高优先级修复（历史 Legacy HTML UI 记录）
+
+> 以下修复针对已退役的 Legacy HTML UI（`web/html/*`）。文件路径仅作历史留档，不再可访问；对应体验问题是否在新 Vue UI 中重新出现，以 [Legacy -> Vue UI 功能对账表](legacy-vue-ui-parity-audit.md) 和当前 `frontend/src/` 实现为准。
 
 ### P0：系统状态桌面端关键指标被折叠面板覆盖
 
@@ -236,7 +240,7 @@ rememberSecurityAlertDismissed() {
 
 ## 后续实施路线
 
-1. P0 已完成：修复系统状态首屏覆盖与仪表盘宽度。
+1. P0 已完成（Legacy HTML UI）：修复系统状态首屏覆盖与仪表盘宽度。新 Vue UI 需独立验证同类问题。
 2. P1：调整深色主题主色文本 token，保证导航、链接、标签页激活态达到 4.5:1。
 3. P1：Xray/设置移动端标签改为移动专用选择器或“更多”菜单。
 4. P1：安全警报支持持久关闭与移动端两行截断。

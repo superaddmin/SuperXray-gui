@@ -2,6 +2,8 @@
 
 审计日期：2026-05-18
 
+> **状态更新（2026-08-10）**：Legacy HTML UI 已正式退役。`web/html`、`web/assets` 目录已移除，`/panel/legacy/*` 页面路由不再注册（默认 `NoRoute` 返回 `404 Not Found`），回归测试 `TestXUIControllerDoesNotRegisterLegacyPanelRoutes` 守护此边界。本文中涉及 “legacy fallback 保留”、“`/panel/legacy/*` 必须可访问” 等描述已过时，当前事实以 [系统架构设计](architecture.md) 和 [API 接口说明](api.md) 为准。
+
 审计范围：
 
 - Legacy UI：`web/html/*.html`、`web/html/modals/*`、`web/html/settings/**`、`web/assets/js/**`
@@ -14,14 +16,14 @@
 
 ## 1. 总体结论
 
-当前 Vue UI 已经从“只读骨架”推进到“默认入口 + 核心 Xray/Inbounds/Settings 工作流可用 + legacy fallback 保留”的状态。
+当前 Vue UI 已经从“只读骨架”推进到“默认入口 + 核心 Xray/Inbounds/Settings 工作流可用 + legacy HTML UI 已退役”的状态。
 
 ```text
 /panel/ 默认新 Vue UI
   -> Dashboard / Logs / Cores / Xray / Inbounds / Settings
   -> 继续使用 legacy API 和 model.Inbound
-  -> /panel/legacy/* 保留回退
   -> /panel/ui/* 保留新 UI 兼容入口
+  -> /panel/legacy/* 已退役，路由不再注册
 ```
 
 与 2026-05-13 的旧审计相比，当前最重要变化：
@@ -35,8 +37,8 @@
 仍需注意：
 
 - 新 UI 是新的工作台，不再逐项复刻 legacy 的所有弹窗位置；部分入口已重组。
-- Legacy UI 仍是兼容和回滚边界，不能删除。
-- 新 UI 写入必须继续保持 legacy UI 可读。
+- Legacy HTML UI 已退役，`web/html`、`web/assets` 和 `/panel/legacy/*` 路由不再保留。
+- 新 UI 写入必须继续保持旧 API 和 `model.Inbound` 兼容数据可读。
 
 ---
 
@@ -55,7 +57,7 @@
 | `/panel/inbounds` | 已迁移 | Inbounds 管理 |
 | `/panel/settings` | 已迁移 | 设置 |
 | `/panel/ui/*` | 兼容入口 | 仍指向新 UI |
-| `/panel/legacy/*` | 保留 | legacy fallback |
+| `/panel/legacy/*` | 已退役 | 路由不再注册，返回 `404 Not Found` |
 
 ### 2.2 Vue Router
 
@@ -250,9 +252,9 @@
 
 | 风险 | 当前要求 |
 |---|---|
-| 新 UI 写入破坏 legacy UI | 所有 Inbound/Xray/Settings 写入必须保持旧 API 和旧数据模型兼容 |
+| 新 UI 写入破坏旧 API 兼容 | 所有 Inbound/Xray/Settings 写入必须保持旧 API 和旧数据模型兼容 |
 | CoreManager 越界 | `default-xray` 生命周期不能通过 CoreManager |
-| legacy fallback 被误删 | `/panel/legacy/*` 必须可访问 |
+| Legacy UI 被误恢复 | `/panel/legacy/*` 必须保持退役，不得重新注册路由或恢复 `web/html`、`web/assets` |
 | 日志/配置 XSS | 不使用 `v-html`、`innerHTML`、`insertAdjacentHTML` 渲染外部内容 |
 
 ### P1：建议继续体验补齐
@@ -284,7 +286,7 @@
 4. Inbounds 新增、编辑、克隆、导出分享链接、导出订阅链接、QR、批量添加客户端、复制客户端、重置流量、删除。
 5. Xray 加载模板、结构化编辑、保存、重启、查看 result。
 6. Settings 保存、更新用户、数据库下载、数据库导入校验失败路径。
-7. `/panel/legacy/`、`/panel/legacy/inbounds`、`/panel/legacy/settings`、`/panel/legacy/xray` 可访问。
+7. `/panel/legacy/`、`/panel/legacy/inbounds`、`/panel/legacy/settings`、`/panel/legacy/xray` 返回 `404 Not Found`，确认 Legacy UI 保持退役（由 `TestXUIControllerDoesNotRegisterLegacyPanelRoutes` 守护）。
 8. `/panel/api/*` 未登录返回 404。
 9. 缺失或错误 CSRF token 的 POST 返回 403。
 10. 新 UI 日志/配置预览不执行 HTML。
@@ -298,7 +300,7 @@
 ```text
 核心日常工作流已迁移
   -> 新 UI 已成为默认入口
-  -> legacy UI 保留回退
+  -> legacy HTML UI 已正式退役，路由不再注册
   -> Xray 和 Inbounds 页面已具备大量结构化增强能力
   -> 后续重点从“补缺”转向“回归稳定、体验一致和阶段门禁”
 ```

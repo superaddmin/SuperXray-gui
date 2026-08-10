@@ -64,8 +64,9 @@
 2. 按 `config.IsDebug()` 决定 GORM logger。
 3. 使用 SQLite driver 打开数据库。
 4. 调用 `initModels()` 执行 `AutoMigrate`。
-5. 如果 `users` 表为空，创建默认 `admin/admin`，密码以 bcrypt 保存。
-6. 执行 `runSeeders`，把历史明文用户密码迁移到 bcrypt，并记录 `HistoryOfSeeders`。
+5. 调用 `recordBaselineMigration()`，幂等记录 baseline 迁移版本到 `schema_migrations` 和 `migration_events`。
+6. 如果 `users` 表为空，创建默认 `admin/admin`，密码以 bcrypt 保存。
+7. 执行 `runSeeders`，把历史明文用户密码迁移到 bcrypt，并记录 `HistoryOfSeeders`。
 
 ### 3.2 迁移模型
 
@@ -80,6 +81,8 @@
 &xray.ClientTraffic{}
 &model.HistoryOfSeeders{}
 &model.CustomGeoResource{}
+&model.SchemaMigration{}
+&model.MigrationEvent{}
 ```
 
 ### 3.3 核心模型
@@ -95,6 +98,8 @@
 | `HistoryOfSeeders` | 种子历史 |
 | `Setting` | 数据库键值设置 |
 | `CustomGeoResource` | 自定义 Geo 资源 |
+| `SchemaMigration` | 数据库迁移版本记录，幂等记录 baseline 迁移 |
+| `MigrationEvent` | 迁移执行事件审计，用于回滚规划 |
 | `Client` | 嵌入 `Inbound.Settings` JSON 的客户端结构，不是独立表 |
 
 支持的 `Protocol` 常量：

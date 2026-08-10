@@ -178,9 +178,9 @@ SuperXray-gui/
 │   ├── global/                     # 全局变量与接口
 │   ├── web.go                      # Gin engine、中间件、路由注册
 │   ├── ui.go                       # 新 UI 托管与 runtime config 注入
+│   ├── api_v1_test.go
 │   ├── cron_test.go
 │   ├── server_security_test.go
-│   ├── sidebar_component_test.go
 │   ├── ui_test.go
 │   └── service/config.json         # Xray 默认模板
 ├── xray/                           # Xray API 和进程集成

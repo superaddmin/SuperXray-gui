@@ -182,6 +182,8 @@ legacy Xray 生命周期仍由 `web/service/XrayService` 和 `ServerController` 
 | `xray.ClientTraffic` | 客户端流量统计 |
 | `model.HistoryOfSeeders` | 种子迁移历史 |
 | `model.CustomGeoResource` | 自定义 GeoIP/GeoSite 资源 |
+| `model.SchemaMigration` | 数据库迁移版本记录，幂等记录 baseline 迁移 |
+| `model.MigrationEvent` | 迁移执行事件审计，用于回滚规划 |
 
 ### 5.2 Active Xray 写模型
 
