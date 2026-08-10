@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+### Added
+
+- 选择性集成 `alireza0/x-ui v1.11.4`：新增受登录与 CSRF 保护的 ECDSA P-256 自签名证书生成接口，以及 Vue TLS 内联证书/私钥填写能力。
+- 补齐 Hysteria QUIC、TUN、XHTTP 扩展与 XMUX 结构化配置，兼容旧字段并保留未知 JSON 扩展。
+
+### Changed
+
+- 同步 `alireza0/x-ui v1.11.4` 的 Go 依赖基线；保留 SuperXray `3.4.3` 版本体系、Vue UI、WARP Matrix、订阅、Gateway Egress、CoreManager 隔离和 `database/model.Inbound` 活跃写模型。
+- 将前端 `axios` 与 `vite` 提升到已修复版本，并更新受影响的间接依赖锁定，消除本轮审核发现的高危 npm advisories。
+- 为 TUN、Hysteria QUIC、XHTTP/XMUX 与自签名证书界面补齐中英文映射和回归测试。
+
 ### Fixed
 
 - 区分面板出站代理的 `SOCKS5` 本地 DNS 与 `SOCKS5H` 代理端 DNS 语义，并在 Vue 设置页提供明确的代理类型选择。

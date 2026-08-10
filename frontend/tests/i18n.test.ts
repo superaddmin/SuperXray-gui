@@ -95,6 +95,21 @@ test('translates inbound drawer and rule editor terms reviewed for bilingual UI'
     ['TCP Header', 'TCP 头部', 'TCP Header'],
     ['Sockopt Enabled', '启用 Sockopt', 'Sockopt Enabled'],
     ['Sync JSON', '同步 JSON', 'Sync JSON'],
+    [
+      'Client records stay outside advanced JSON to prevent conflicting edits.',
+      '客户端记录与高级 JSON 分开管理，避免编辑冲突。',
+      'Client records stay outside advanced JSON to prevent conflicting edits.',
+    ],
+    [
+      'Advanced settings remain editable; client records are protected and managed separately.',
+      '高级设置仍可编辑；客户端记录受保护并单独管理。',
+      'Advanced settings remain editable; client records are protected and managed separately.',
+    ],
+    [
+      'Manage clients with the client form instead of Settings JSON',
+      '请使用客户端表单管理客户端，不要在设置 JSON 中编辑',
+      'Manage clients with the client form instead of Settings JSON',
+    ],
     ['Settings JSON', '设置 JSON', 'Settings JSON'],
     ['Stream Settings JSON', '传输设置 JSON', 'Stream Settings JSON'],
     ['Sniffing JSON', '嗅探 JSON', 'Sniffing JSON'],
@@ -185,6 +200,59 @@ test('translates inbound subpage actions, beginner hints, and advanced transport
       '粘贴旧版入站 JSON 对象。系统会通过现有 Xray API 和数据模型导入。',
       'Paste a legacy inbound JSON object. It will be imported through the existing Xray API and data model.',
     ],
+  ] as const;
+
+  for (const [source, zhCN, enUS] of reviewedTerms) {
+    assert.equal(translateDomText(source, 'zh-CN'), zhCN);
+    assert.equal(translateDomText(zhCN, 'en-US'), enUS);
+  }
+});
+
+test('translates v1.11.4 TUN, XHTTP, XMUX, TLS, and Hysteria fields', () => {
+  const reviewedTerms = [
+    ['TUN Settings', 'TUN 设置', 'TUN Settings'],
+    [
+      'Interface addresses, DNS and routing fields stay synchronized with the current Xray TUN schema.',
+      '接口地址、DNS 与路由字段会与当前 Xray TUN 结构保持同步。',
+      'Interface addresses, DNS and routing fields stay synchronized with the current Xray TUN schema.',
+    ],
+    ['MTU', 'MTU', 'MTU'],
+    ['Gateway CIDRs', '网关 CIDR', 'Gateway CIDRs'],
+    ['DNS Addresses', 'DNS 地址', 'DNS Addresses'],
+    ['User Level', '用户级别', 'User Level'],
+    ['Auto System Route CIDRs', '自动系统路由 CIDR', 'Auto System Route CIDRs'],
+    ['Outbounds Interface', '出站接口', 'Outbounds Interface'],
+    ['Padding Obfuscation', '填充混淆', 'Padding Obfuscation'],
+    ['Padding Key', '填充键', 'Padding Key'],
+    ['Padding Header', '填充请求头', 'Padding Header'],
+    ['Padding Placement', '填充位置', 'Padding Placement'],
+    ['Padding Method', '填充方式', 'Padding Method'],
+    ['Uplink HTTP Method', '上行 HTTP 方法', 'Uplink HTTP Method'],
+    ['Session Placement', '会话标识位置', 'Session Placement'],
+    ['Session Key', '会话键', 'Session Key'],
+    ['Sequence Placement', '序列标识位置', 'Sequence Placement'],
+    ['Sequence Key', '序列键', 'Sequence Key'],
+    ['Uplink Data Placement', '上行数据位置', 'Uplink Data Placement'],
+    ['Uplink Data Key', '上行数据键', 'Uplink Data Key'],
+    ['Uplink Chunk Size', '上行分块大小', 'Uplink Chunk Size'],
+    ['XMUX', 'XMUX', 'XMUX'],
+    ['XMUX Max Concurrency', 'XMUX 最大并发数', 'XMUX Max Concurrency'],
+    ['XMUX Max Connections', 'XMUX 最大连接数', 'XMUX Max Connections'],
+    ['XMUX Max Reuse Times', 'XMUX 最大复用次数', 'XMUX Max Reuse Times'],
+    ['XMUX Max Request Times', 'XMUX 最大请求次数', 'XMUX Max Request Times'],
+    ['XMUX Max Reusable Seconds', 'XMUX 最大可复用秒数', 'XMUX Max Reusable Seconds'],
+    ['XMUX Keep Alive Period', 'XMUX 保活周期', 'XMUX Keep Alive Period'],
+    ['Inline Certificate', '内联证书', 'Inline Certificate'],
+    ['Inline Private Key', '内联私钥', 'Inline Private Key'],
+    ['Generate Self-Signed Certificate', '生成自签名证书', 'Generate Self-Signed Certificate'],
+    ['Self-signed certificate generated', '自签名证书已生成', 'Self-signed certificate generated'],
+    ['Failed to generate certificate', '生成证书失败', 'Failed to generate certificate'],
+    ['Initial Stream Window', '初始流接收窗口', 'Initial Stream Window'],
+    ['Max Stream Window', '最大流接收窗口', 'Max Stream Window'],
+    ['Initial Connection Window', '初始连接接收窗口', 'Initial Connection Window'],
+    ['Max Connection Window', '最大连接接收窗口', 'Max Connection Window'],
+    ['Max Idle Timeout', '最大空闲超时', 'Max Idle Timeout'],
+    ['Max Incoming Streams', '最大入站流数', 'Max Incoming Streams'],
   ] as const;
 
   for (const [source, zhCN, enUS] of reviewedTerms) {

@@ -683,26 +683,28 @@ func applyShareNetworkParams(stream map[string]any, streamNetwork string, params
 		applyPathAndHostParams(httpupgrade, params)
 	case "xhttp":
 		xhttp, _ := stream["xhttpSettings"].(map[string]any)
-		applyPathAndHostParams(xhttp, params)
-		params["mode"], _ = xhttp["mode"].(string)
-		applyXhttpPaddingParams(xhttp, params)
+		applyXhttpShareParams(xhttp, params)
 	}
 }
 
-func applyXhttpPaddingObj(xhttp map[string]any, obj map[string]any) {
-	// VMess base64 JSON supports arbitrary keys; copy the padding
-	// settings through so clients can match the server's xhttp
-	// xPaddingBytes range and, when the admin opted into obfs
-	// mode, the custom key / header / placement / method.
-	if xpb, ok := xhttp["xPaddingBytes"].(string); ok && len(xpb) > 0 {
+func applyXhttpShareObj(xhttp map[string]any, obj map[string]any) {
+	effective, extra := resolveXhttpShareSettings(xhttp)
+	applyPathAndHostObj(effective, obj)
+	obj["mode"], _ = effective["mode"].(string)
+	if xpb, ok := effective["xPaddingBytes"].(string); ok && len(xpb) > 0 {
 		obj["x_padding_bytes"] = xpb
 	}
-	if obfs, ok := xhttp["xPaddingObfsMode"].(bool); ok && obfs {
+	if obfs, ok := effective["xPaddingObfsMode"].(bool); ok && obfs {
 		obj["xPaddingObfsMode"] = true
 		for _, field := range []string{"xPaddingKey", "xPaddingHeader", "xPaddingPlacement", "xPaddingMethod"} {
-			if v, ok := xhttp[field].(string); ok && len(v) > 0 {
+			if v, ok := effective[field].(string); ok && len(v) > 0 {
 				obj[field] = v
 			}
+		}
+	}
+	if len(extra) > 0 {
+		if encoded, err := json.Marshal(extra); err == nil {
+			obj["extra"] = string(encoded)
 		}
 	}
 }
@@ -739,9 +741,7 @@ func applyVmessNetworkParams(stream map[string]any, network string, obj map[stri
 		applyPathAndHostObj(httpupgrade, obj)
 	case "xhttp":
 		xhttp, _ := stream["xhttpSettings"].(map[string]any)
-		applyPathAndHostObj(xhttp, obj)
-		obj["mode"], _ = xhttp["mode"].(string)
-		applyXhttpPaddingObj(xhttp, obj)
+		applyXhttpShareObj(xhttp, obj)
 	}
 }
 
@@ -1105,8 +1105,58 @@ func searchKey(data any, key string) (any, bool) {
 	return nil, false
 }
 
-// applyXhttpPaddingParams copies the xPadding* fields from an xhttpSettings
-// map into the URL query params of a vless:// / trojan:// / ss:// link.
+var xhttpShareExtraKeys = []string{
+	"headers",
+	"scMaxBufferedPosts",
+	"scMaxEachPostBytes",
+	"scStreamUpServerSecs",
+	"noSSEHeader",
+	"serverMaxHeaderBytes",
+	"xPaddingBytes",
+	"xPaddingObfsMode",
+	"xPaddingKey",
+	"xPaddingHeader",
+	"xPaddingPlacement",
+	"xPaddingMethod",
+	"uplinkHTTPMethod",
+	"sessionPlacement",
+	"sessionKey",
+	"seqPlacement",
+	"seqKey",
+	"uplinkDataPlacement",
+	"uplinkDataKey",
+	"uplinkChunkSize",
+	"noGRPCHeader",
+	"scMinPostsIntervalMs",
+	"xmux",
+	"downloadSettings",
+}
+
+func resolveXhttpShareSettings(xhttp map[string]any) (map[string]any, map[string]any) {
+	extra := map[string]any{}
+	nested, _ := xhttp["extra"].(map[string]any)
+	for _, key := range xhttpShareExtraKeys {
+		if value, exists := nested[key]; exists {
+			extra[key] = value
+			continue
+		}
+		if value, exists := xhttp[key]; exists {
+			extra[key] = value
+		}
+	}
+
+	effective := map[string]any{}
+	maps.Copy(effective, extra)
+	for _, key := range []string{"path", "host", "mode"} {
+		if value, exists := xhttp[key]; exists {
+			effective[key] = value
+		}
+	}
+	return effective, extra
+}
+
+// applyXhttpShareParams carries the effective XHTTP extra settings into
+// vless://, trojan://, and ss:// links while retaining the legacy flat padding field.
 //
 // Before this helper existed, only path / host / mode were propagated,
 // so a server configured with a non-default xPaddingBytes (e.g. 80-600)
@@ -1126,29 +1176,16 @@ func searchKey(data any, key string) (any, bool) {
 //
 // Anything that doesn't map to a non-empty value is skipped, so simple
 // inbounds (no custom padding) produce exactly the same URL as before.
-func applyXhttpPaddingParams(xhttp map[string]any, params map[string]string) {
+func applyXhttpShareParams(xhttp map[string]any, params map[string]string) {
 	if xhttp == nil {
 		return
 	}
+	effective, extra := resolveXhttpShareSettings(xhttp)
+	applyPathAndHostParams(effective, params)
+	params["mode"], _ = effective["mode"].(string)
 
-	if xpb, ok := xhttp["xPaddingBytes"].(string); ok && len(xpb) > 0 {
+	if xpb, ok := effective["xPaddingBytes"].(string); ok && len(xpb) > 0 {
 		params["x_padding_bytes"] = xpb
-	}
-
-	extra := map[string]any{}
-	if xpb, ok := xhttp["xPaddingBytes"].(string); ok && len(xpb) > 0 {
-		extra["xPaddingBytes"] = xpb
-	}
-	if obfs, ok := xhttp["xPaddingObfsMode"].(bool); ok && obfs {
-		extra["xPaddingObfsMode"] = true
-		// The obfs-mode-only fields: only populate the ones the admin
-		// actually set, so xray-core falls back to its own defaults for
-		// the rest instead of seeing spurious empty strings.
-		for _, field := range []string{"xPaddingKey", "xPaddingHeader", "xPaddingPlacement", "xPaddingMethod"} {
-			if v, ok := xhttp[field].(string); ok && len(v) > 0 {
-				extra[field] = v
-			}
-		}
 	}
 
 	if len(extra) > 0 {

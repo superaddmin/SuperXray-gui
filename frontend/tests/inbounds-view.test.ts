@@ -23,9 +23,17 @@ test('new inbound submit syncs default client into settings JSON', () => {
   assert.match(source, /function applyInboundClientEditorToSettings\(\)/);
   assert.match(
     source,
-    /settings\.clients = \[\{ \.\.\.existingClient, \.\.\.client \}, \.\.\.clients\.slice\(1\)\]/,
+    /protectedInboundClients\.value = \[\{ \.\.\.existingClient, \.\.\.client \}, \.\.\.clients\.slice\(1\)\]/,
   );
   assert.match(source, /client\.flow = editor\.flow \|\| ''/);
+});
+
+test('advanced settings isolate client records and restore them only at submit', () => {
+  assert.match(source, /prepareInboundSettingsForEditing\(inbound\.settings, parsedSettings\)/);
+  assert.match(source, /const separated = separateInboundClients\(parsed\)/);
+  assert.match(source, /protectedInboundClients\.value = separated\.clients/);
+  assert.match(source, /restoreInboundClients\(editorSettings, protectedInboundClients\.value\)/);
+  assert.match(source, /Manage clients with the client form instead of Settings JSON/);
 });
 
 test('gateway proxy templates expose local HTTP and SOCKS5 exits', () => {
@@ -206,7 +214,10 @@ test('hysteria inbound form exposes QUIC Params UDP Hop controls and syncs final
   assert.match(source, /const udpHop = objectField\(quicParams\.udpHop\)/);
   assert.match(source, /hysteriaUdpHopPorts:\s*stringField\(udpHop\.ports\)/);
   assert.match(source, /applyHysteriaFinalmaskUdpHop/);
-  assert.match(source, /const streamWithUdpHop = applyHysteriaFinalmaskUdpHop\(stream, \{/);
+  assert.match(
+    source,
+    /const streamWithUdpHop = applyHysteriaFinalmaskUdpHop\(stream, hysteriaQuicInput\)/,
+  );
   assert.match(source, /Object\.assign\(stream, streamWithUdpHop\)/);
   assert.match(source, /delete stream\.finalmask/);
 });

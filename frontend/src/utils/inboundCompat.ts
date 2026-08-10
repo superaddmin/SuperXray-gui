@@ -151,6 +151,26 @@ export function parseInboundSettings(inbound: Pick<Inbound, 'settings'>): Inboun
   return parseJsonObject<InboundSettings>(inbound.settings, { clients: [] });
 }
 
+export function separateInboundClients(settings: Record<string, unknown>): {
+  editorSettings: Record<string, unknown>;
+  clients: unknown[];
+} {
+  const editorSettings = { ...settings };
+  const clients = Array.isArray(editorSettings.clients) ? [...editorSettings.clients] : [];
+  delete editorSettings.clients;
+  return { editorSettings, clients };
+}
+
+export function restoreInboundClients(
+  editorSettings: Record<string, unknown>,
+  clients: readonly unknown[],
+): Record<string, unknown> {
+  return {
+    ...editorSettings,
+    clients: [...clients],
+  };
+}
+
 export function parseInboundStreamSettings(
   inbound: Pick<Inbound, 'streamSettings'>,
 ): InboundStreamSettings {
@@ -406,6 +426,45 @@ export function applyHysteriaFinalmaskUdpHop(
   return next;
 }
 
+export function validateHysteriaQuicFormInput(input: HysteriaUdpHopFormInput): string {
+  if (!input.quicParamsEnabled) {
+    return '';
+  }
+
+  const integerChecks: Array<[string, number]> = [
+    ['initial stream receive window', input.initStreamReceiveWindow],
+    ['max stream receive window', input.maxStreamReceiveWindow],
+    ['initial connection receive window', input.initConnectionReceiveWindow],
+    ['max connection receive window', input.maxConnectionReceiveWindow],
+    ['max idle timeout', input.maxIdleTimeout],
+    ['max incoming streams', input.maxIncomingStreams],
+  ];
+  for (const [label, value] of integerChecks) {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      return `Hysteria QUIC ${label} must be a non-negative integer`;
+    }
+  }
+
+  const windowChecks: Array<[string, number]> = [
+    ['initial stream receive window', input.initStreamReceiveWindow],
+    ['max stream receive window', input.maxStreamReceiveWindow],
+    ['initial connection receive window', input.initConnectionReceiveWindow],
+    ['max connection receive window', input.maxConnectionReceiveWindow],
+  ];
+  for (const [label, value] of windowChecks) {
+    if (value > 0 && value < 16_384) {
+      return `Hysteria QUIC ${label} must be 0 or at least 16384`;
+    }
+  }
+  if (input.maxIdleTimeout !== 0 && (input.maxIdleTimeout < 4 || input.maxIdleTimeout > 120)) {
+    return 'Hysteria QUIC max idle timeout must be 0 or between 4 and 120';
+  }
+  if (input.maxIncomingStreams > 0 && input.maxIncomingStreams < 8) {
+    return 'Hysteria QUIC max incoming streams must be 0 or at least 8';
+  }
+  return '';
+}
+
 const XHTTP_LEGACY_EXTRA_KEYS = [
   'headers',
   'scMaxBufferedPosts',
@@ -445,6 +504,16 @@ export function resolveXhttpExtraSettings(
   return extra;
 }
 
+export function resolveXhttpHost(settings: Record<string, unknown>): string {
+  const directHost = stringValue(settings.host).trim();
+  if (directHost) {
+    return directHost;
+  }
+  const headers = asRecord(resolveXhttpExtraSettings(settings).headers);
+  const hostKey = Object.keys(headers).find((key) => key.toLowerCase() === 'host');
+  return hostKey ? stringValue(headers[hostKey]).trim() : '';
+}
+
 export function mergeXhttpSettings(
   settings: Record<string, unknown>,
   input: XhttpFormInput,
@@ -460,8 +529,9 @@ export function mergeXhttpSettings(
   next.mode = input.mode || 'auto';
 
   const headers = { ...asRecord(extra.headers) };
-  if (Object.prototype.hasOwnProperty.call(headers, 'Host')) {
-    setOptionalString(headers, 'Host', input.host);
+  const hostHeaderKey = Object.keys(headers).find((key) => key.toLowerCase() === 'host');
+  if (hostHeaderKey) {
+    setOptionalString(headers, hostHeaderKey, input.host);
   }
   if (Object.keys(headers).length > 0) {
     extra.headers = headers;
@@ -479,7 +549,7 @@ export function mergeXhttpSettings(
   setOptionalString(extra, 'xPaddingHeader', input.xPaddingHeader);
   setOptionalString(extra, 'xPaddingPlacement', input.xPaddingPlacement);
   setOptionalString(extra, 'xPaddingMethod', input.xPaddingMethod);
-  setOptionalString(extra, 'uplinkHTTPMethod', input.uplinkHTTPMethod);
+  setOptionalString(extra, 'uplinkHTTPMethod', input.uplinkHTTPMethod.toUpperCase());
   setOptionalString(extra, 'sessionPlacement', input.sessionPlacement);
   setOptionalString(extra, 'sessionKey', input.sessionKey);
   setOptionalString(extra, 'seqPlacement', input.seqPlacement);
@@ -522,17 +592,27 @@ export function validateXhttpFormInput(input: XhttpFormInput): string {
     return `Unsupported XHTTP mode: ${input.mode}`;
   }
   const optionChecks: Array<[string, string, readonly string[]]> = [
-    ['padding placement', input.xPaddingPlacement, ['', 'queryInHeader', 'header']],
+    [
+      'padding placement',
+      input.xPaddingPlacement,
+      ['', 'cookie', 'header', 'query', 'queryInHeader'],
+    ],
     ['padding method', input.xPaddingMethod, ['', 'repeat-x', 'tokenish']],
     ['uplink HTTP method', input.uplinkHTTPMethod, ['', 'POST', 'PUT', 'GET']],
     ['session placement', input.sessionPlacement, ['', 'path', 'header', 'cookie', 'query']],
     ['sequence placement', input.seqPlacement, ['', 'path', 'header', 'cookie', 'query']],
-    ['uplink data placement', input.uplinkDataPlacement, ['', 'body', 'header', 'query']],
+    ['uplink data placement', input.uplinkDataPlacement, ['', 'auto', 'body', 'cookie', 'header']],
   ];
   for (const [label, value, allowed] of optionChecks) {
     if (!allowed.includes(value)) {
       return `Unsupported XHTTP ${label}: ${value}`;
     }
+  }
+  if (input.uplinkHTTPMethod === 'GET' && input.mode !== 'packet-up') {
+    return 'XHTTP uplink HTTP method GET is only supported in packet-up mode';
+  }
+  if (['cookie', 'header'].includes(input.uplinkDataPlacement) && input.mode !== 'packet-up') {
+    return `XHTTP uplink data placement ${input.uplinkDataPlacement} is only supported in packet-up mode`;
   }
   const integerChecks: Array<[string, number]> = [
     ['max buffered posts', input.scMaxBufferedPosts],
@@ -542,6 +622,32 @@ export function validateXhttpFormInput(input: XhttpFormInput): string {
   for (const [label, value] of integerChecks) {
     if (!Number.isSafeInteger(value) || value < 0) {
       return `XHTTP ${label} must be a non-negative integer`;
+    }
+  }
+  if (input.uplinkChunkSize > 2_147_483_647) {
+    return 'XHTTP uplink chunk size must fit a signed 32-bit integer';
+  }
+  const rangeChecks: Array<[string, string, boolean]> = [
+    ['each post bytes', input.scMaxEachPostBytes, false],
+    ['stream-up server seconds', input.scStreamUpServerSecs, false],
+    ['padding bytes', input.xPaddingBytes, true],
+    ['XMUX max concurrency', input.xmuxMaxConcurrency, false],
+    ['XMUX max connections', input.xmuxMaxConnections, false],
+    ['XMUX max reuse times', input.xmuxCMaxReuseTimes, false],
+    ['XMUX max request times', input.xmuxHMaxRequestTimes, false],
+    ['XMUX max reusable seconds', input.xmuxHMaxReusableSecs, false],
+  ];
+  for (const [label, value, positive] of rangeChecks) {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const range = parseCoreInt32Range(trimmed);
+    if (!range) {
+      return `XHTTP ${label} must be an integer or integer range`;
+    }
+    if (positive && (range[0] <= 0 || range[1] <= 0)) {
+      return `XHTTP ${label} values must be greater than 0`;
     }
   }
   const textChecks = [
@@ -1353,8 +1459,32 @@ function normalizeHopRange(value: string): string {
   return value.trim().replace(/^(\d+)\s*:\s*(\d+)$/, '$1-$2');
 }
 
+function parseCoreInt32Range(value: string): [number, number] | null {
+  const match = /^(-?\d+)(?:-(-?\d+))?$/.exec(value);
+  if (!match) {
+    return null;
+  }
+  const left = Number(match[1]);
+  const right = Number(match[2] ?? match[1]);
+  if (
+    !Number.isSafeInteger(left) ||
+    !Number.isSafeInteger(right) ||
+    left < -2_147_483_648 ||
+    left > 2_147_483_647 ||
+    right < -2_147_483_648 ||
+    right > 2_147_483_647
+  ) {
+    return null;
+  }
+  return left <= right ? [left, right] : [right, left];
+}
+
 function normalizeStringList(value: unknown): string[] {
-  const values = Array.isArray(value) ? value : typeof value === 'string' ? value.split(/[\n,]/) : [];
+  const values = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(/[\n,]/)
+      : [];
   return [
     ...new Set(
       values

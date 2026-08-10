@@ -622,12 +622,7 @@
               <AInput v-model:value="tunEditor.name" placeholder="xray0" />
             </AFormItem>
             <AFormItem label="MTU">
-              <AInputNumber
-                v-model:value="tunEditor.mtu"
-                :min="1"
-                :max="9000"
-                class="full-width"
-              />
+              <AInputNumber v-model:value="tunEditor.mtu" :min="1" :max="9000" class="full-width" />
             </AFormItem>
             <AFormItem label="Gateway CIDRs">
               <AInput v-model:value="tunEditor.gateway" placeholder="10.0.0.1/16, fc00::1/64" />
@@ -887,14 +882,9 @@
             <AFormItem v-if="streamEditor.network === 'xhttp'" label="XMUX">
               <ASwitch v-model:checked="streamEditor.xhttpXmuxEnabled" />
             </AFormItem>
-            <template
-              v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpXmuxEnabled"
-            >
+            <template v-if="streamEditor.network === 'xhttp' && streamEditor.xhttpXmuxEnabled">
               <AFormItem label="XMUX Max Concurrency">
-                <AInput
-                  v-model:value="streamEditor.xhttpXmuxMaxConcurrency"
-                  placeholder="16-32"
-                />
+                <AInput v-model:value="streamEditor.xhttpXmuxMaxConcurrency" placeholder="16-32" />
               </AFormItem>
               <AFormItem label="XMUX Max Connections">
                 <AInput v-model:value="streamEditor.xhttpXmuxMaxConnections" placeholder="0" />
@@ -1210,10 +1200,10 @@
           v-if="inboundClientSectionVisible"
           eyebrow="Client"
           title="Default Client"
-          description="Create the first client for protocols that require one. Apply keeps the form and raw settings JSON in sync."
+          description="Client records stay outside advanced JSON to prevent conflicting edits."
         >
           <template #actions>
-            <AButton size="small" @click="syncInboundClientEditorFromSettings">Sync JSON</AButton>
+            <AButton size="small" @click="syncInboundClientEditorFromSettings">Reset</AButton>
             <AButton size="small" @click="applyInboundClientEditorToSettings">Apply</AButton>
           </template>
           <div class="form-grid client-form-grid">
@@ -1305,7 +1295,7 @@
         <FormSection
           eyebrow="Advanced"
           title="Advanced JSON"
-          description="Raw legacy JSON remains editable for compatibility and advanced Xray options."
+          description="Advanced settings remain editable; client records are protected and managed separately."
         >
           <div class="form-json-stack">
             <div class="json-section">
@@ -1777,12 +1767,16 @@ import {
   parseInboundSettings,
   parseInboundSniffingSettings,
   parseInboundStreamSettings,
+  restoreInboundClients,
   resolveInboundHost,
+  resolveXhttpHost,
   resolveXhttpExtraSettings,
+  separateInboundClients,
   stringifyJson,
   type PanelDefaultTlsCertificate,
   type XhttpFormInput,
   validateTunSettings,
+  validateHysteriaQuicFormInput,
   validateXhttpFormInput,
 } from '@/utils/inboundCompat';
 import {
@@ -2085,6 +2079,7 @@ const wireguardEditor = reactive<WireguardEditorState>(createWireguardEditor());
 const tunEditor = reactive<TunEditorState>(createTunEditor());
 const streamEditor = reactive<StreamEditorState>(createStreamEditor());
 const inboundClientEditor = reactive<ClientEditorState>(createClientEditor());
+const protectedInboundClients = ref<unknown[]>([]);
 const clientEditor = reactive<ClientEditorState>(createClientEditor());
 const bulkClientForm = reactive<BulkClientFormState>(createBulkClientForm());
 
@@ -2181,11 +2176,21 @@ const xhttpModeOptions = ['auto', 'packet-up', 'stream-up', 'stream-one'].map((v
   label: value,
   value,
 }));
-const xhttpPaddingPlacementOptions = selectOptionsWithDefault(['queryInHeader', 'header']);
+const xhttpPaddingPlacementOptions = selectOptionsWithDefault([
+  'queryInHeader',
+  'cookie',
+  'header',
+  'query',
+]);
 const xhttpPaddingMethodOptions = selectOptionsWithDefault(['repeat-x', 'tokenish']);
 const xhttpUplinkMethodOptions = selectOptionsWithDefault(['POST', 'PUT', 'GET']);
 const xhttpPlacementOptions = selectOptionsWithDefault(['path', 'header', 'cookie', 'query']);
-const xhttpUplinkDataPlacementOptions = selectOptionsWithDefault(['body', 'header', 'query']);
+const xhttpUplinkDataPlacementOptions = selectOptionsWithDefault([
+  'auto',
+  'body',
+  'cookie',
+  'header',
+]);
 const tlsVersionOptions = ['1.0', '1.1', '1.2', '1.3'].map((value) => ({
   label: value,
   value,
@@ -2395,6 +2400,10 @@ watch(
   (protocol) => {
     if (inboundModalMode.value === 'create') {
       inboundEditor.settings = stringifyJson(defaultInboundSettings(protocol));
+      inboundEditor.settings = prepareInboundSettingsForEditing(
+        inboundEditor.settings,
+        defaultInboundSettings(protocol),
+      );
       inboundEditor.streamSettings = stringifyJson(defaultStreamSettings(protocol));
       Object.assign(inboundClientEditor, createClientEditor(protocol));
       syncWireguardEditorFromSettings();
@@ -2497,6 +2506,10 @@ async function refreshClientActivity() {
 function openCreateInbound() {
   inboundModalMode.value = 'create';
   Object.assign(inboundEditor, createInboundEditor());
+  inboundEditor.settings = prepareInboundSettingsForEditing(
+    inboundEditor.settings,
+    defaultInboundSettings(inboundEditor.protocol),
+  );
   Object.assign(inboundClientEditor, createClientEditor(inboundEditor.protocol));
   syncWireguardEditorFromSettings();
   syncTunEditorFromSettings();
@@ -2519,6 +2532,10 @@ function openGatewayProxyTemplate(template: GatewayProxyTemplate) {
     }),
   );
   inboundModalMode.value = 'create';
+  inboundEditor.settings = prepareInboundSettingsForEditing(
+    inboundEditor.settings,
+    defaultInboundSettings(protocol),
+  );
   Object.assign(inboundClientEditor, createClientEditor(protocol));
   syncWireguardEditorFromSettings();
   syncTunEditorFromSettings();
@@ -2574,6 +2591,7 @@ async function submitImportInbound() {
 
 function openEditInbound(record: Inbound | Record<string, unknown>) {
   const inbound = asInbound(record);
+  const parsedSettings = parseInboundSettings(inbound);
   inboundModalMode.value = 'edit';
   Object.assign(inboundEditor, {
     id: inbound.id,
@@ -2585,7 +2603,7 @@ function openEditInbound(record: Inbound | Record<string, unknown>) {
     totalGB: bytesToGb(inbound.total),
     expiryTime: inbound.expiryTime || 0,
     trafficReset: inbound.trafficReset || 'never',
-    settings: formatJsonText(inbound.settings, parseInboundSettings(inbound)),
+    settings: prepareInboundSettingsForEditing(inbound.settings, parsedSettings),
     streamSettings: formatJsonText(inbound.streamSettings, parseInboundStreamSettings(inbound)),
     sniffing: formatJsonText(inbound.sniffing, parseInboundSniffingSettings(inbound)),
   });
@@ -2612,15 +2630,23 @@ async function submitInbound() {
   if (inboundClientSectionVisible.value) {
     applyInboundClientEditorToSettings();
   }
-  const settings = normalizeJsonEditorText(inboundEditor.settings, 'Settings JSON');
+  const normalizedSettings = normalizeJsonEditorText(inboundEditor.settings, 'Settings JSON');
   const streamSettings = normalizeJsonEditorText(
     inboundEditor.streamSettings,
     'Stream Settings JSON',
   );
   const sniffing = normalizeJsonEditorText(inboundEditor.sniffing, 'Sniffing JSON');
-  if (!settings || !streamSettings || !sniffing) {
+  if (!normalizedSettings || !streamSettings || !sniffing) {
     return;
   }
+  const editorSettings = parseInboundSettingsText(normalizedSettings);
+  if (inboundClientSectionVisible.value && Object.hasOwn(editorSettings, 'clients')) {
+    error.value = 'Manage clients with the client form instead of Settings JSON';
+    return;
+  }
+  const settings = inboundClientSectionVisible.value
+    ? stringifyJson(restoreInboundClients(editorSettings, protectedInboundClients.value))
+    : normalizedSettings;
   if (!inboundEditor.port || inboundEditor.port < 1 || inboundEditor.port > 65535) {
     error.value = 'Port must be between 1 and 65535';
     return;
@@ -3845,8 +3871,7 @@ function applyWireguardEditorToSettings() {
 }
 
 function syncInboundClientEditorFromSettings() {
-  const settings = parseInboundSettingsText(inboundEditor.settings);
-  const clients = Array.isArray(settings.clients) ? settings.clients : [];
+  const clients = protectedInboundClients.value;
   const client = objectField(clients[0]);
   const fallback = createClientEditor(inboundEditor.protocol);
   Object.assign(inboundClientEditor, {
@@ -3870,12 +3895,10 @@ function syncInboundClientEditorFromSettings() {
 }
 
 function applyInboundClientEditorToSettings() {
-  const settings = parseInboundSettingsText(inboundEditor.settings);
-  const clients = Array.isArray(settings.clients) ? settings.clients : [];
+  const clients = protectedInboundClients.value;
   const existingClient = objectField(clients[0]);
   const client = buildClientPayloadFromEditor(inboundClientEditor);
-  settings.clients = [{ ...existingClient, ...client }, ...clients.slice(1)];
-  inboundEditor.settings = stringifyJson(settings);
+  protectedInboundClients.value = [{ ...existingClient, ...client }, ...clients.slice(1)];
 }
 
 function syncStreamEditorFromSettings() {
@@ -3924,7 +3947,7 @@ function syncStreamEditorFromSettings() {
     httpupgradePath: stringField(httpupgradeSettings.path) || '/',
     httpupgradeHost: stringField(httpupgradeSettings.host),
     xhttpPath: stringField(xhttpSettings.path) || '/',
-    xhttpHost: stringField(xhttpSettings.host),
+    xhttpHost: resolveXhttpHost(xhttpSettings),
     xhttpMode: stringField(xhttpSettings.mode) || 'auto',
     xhttpNoSseHeader: Boolean(xhttpExtra.noSSEHeader),
     xhttpScMaxBufferedPosts: Number(xhttpExtra.scMaxBufferedPosts ?? 0),
@@ -3936,7 +3959,7 @@ function syncStreamEditorFromSettings() {
     xhttpXPaddingHeader: stringField(xhttpExtra.xPaddingHeader),
     xhttpXPaddingPlacement: stringField(xhttpExtra.xPaddingPlacement),
     xhttpXPaddingMethod: stringField(xhttpExtra.xPaddingMethod),
-    xhttpUplinkHttpMethod: stringField(xhttpExtra.uplinkHTTPMethod),
+    xhttpUplinkHttpMethod: stringField(xhttpExtra.uplinkHTTPMethod).toUpperCase(),
     xhttpSessionPlacement: stringField(xhttpExtra.sessionPlacement),
     xhttpSessionKey: stringField(xhttpExtra.sessionKey),
     xhttpSeqPlacement: stringField(xhttpExtra.seqPlacement),
@@ -3994,8 +4017,7 @@ function syncStreamEditorFromSettings() {
       quicParams.maxStreamReceiveWindow ?? HYSTERIA_QUIC_DEFAULTS.maxStreamReceiveWindow,
     ),
     hysteriaInitConnectionReceiveWindow: Number(
-      quicParams.initConnectionReceiveWindow ??
-        HYSTERIA_QUIC_DEFAULTS.initConnectionReceiveWindow,
+      quicParams.initConnectionReceiveWindow ?? HYSTERIA_QUIC_DEFAULTS.initConnectionReceiveWindow,
     ),
     hysteriaMaxConnectionReceiveWindow: Number(
       quicParams.maxConnectionReceiveWindow ?? HYSTERIA_QUIC_DEFAULTS.maxConnectionReceiveWindow,
@@ -4036,8 +4058,27 @@ function applyStreamEditorToSettings(): boolean {
   const existingTlsSettings = objectField(stream.tlsSettings);
   const existingXhttpSettings = objectField(stream.xhttpSettings);
   const xhttpInput = buildXhttpFormInput();
+  const hysteriaQuicInput = {
+    quicParamsEnabled: streamEditor.hysteriaQuicParamsEnabled,
+    udpHopEnabled: streamEditor.hysteriaUdpHopEnabled,
+    ports: streamEditor.hysteriaUdpHopPorts,
+    interval: streamEditor.hysteriaUdpHopInterval,
+    initStreamReceiveWindow: streamEditor.hysteriaInitStreamReceiveWindow,
+    maxStreamReceiveWindow: streamEditor.hysteriaMaxStreamReceiveWindow,
+    initConnectionReceiveWindow: streamEditor.hysteriaInitConnectionReceiveWindow,
+    maxConnectionReceiveWindow: streamEditor.hysteriaMaxConnectionReceiveWindow,
+    maxIdleTimeout: streamEditor.hysteriaMaxIdleTimeout,
+    maxIncomingStreams: streamEditor.hysteriaMaxIncomingStreams,
+  };
   if (network === 'xhttp') {
     const validationError = validateXhttpFormInput(xhttpInput);
+    if (validationError) {
+      error.value = validationError;
+      return false;
+    }
+  }
+  if (network === 'hysteria') {
+    const validationError = validateHysteriaQuicFormInput(hysteriaQuicInput);
     if (validationError) {
       error.value = validationError;
       return false;
@@ -4111,18 +4152,7 @@ function applyStreamEditorToSettings(): boolean {
       auth: streamEditor.hysteriaAuth,
       udpIdleTimeout: Math.max(0, Number(streamEditor.hysteriaUdpIdleTimeout || 0)),
     };
-    const streamWithUdpHop = applyHysteriaFinalmaskUdpHop(stream, {
-      quicParamsEnabled: streamEditor.hysteriaQuicParamsEnabled,
-      udpHopEnabled: streamEditor.hysteriaUdpHopEnabled,
-      ports: streamEditor.hysteriaUdpHopPorts,
-      interval: streamEditor.hysteriaUdpHopInterval,
-      initStreamReceiveWindow: streamEditor.hysteriaInitStreamReceiveWindow,
-      maxStreamReceiveWindow: streamEditor.hysteriaMaxStreamReceiveWindow,
-      initConnectionReceiveWindow: streamEditor.hysteriaInitConnectionReceiveWindow,
-      maxConnectionReceiveWindow: streamEditor.hysteriaMaxConnectionReceiveWindow,
-      maxIdleTimeout: streamEditor.hysteriaMaxIdleTimeout,
-      maxIncomingStreams: streamEditor.hysteriaMaxIncomingStreams,
-    });
+    const streamWithUdpHop = applyHysteriaFinalmaskUdpHop(stream, hysteriaQuicInput);
     Object.assign(stream, streamWithUdpHop);
     if (!streamWithUdpHop.finalmask) {
       delete stream.finalmask;
@@ -4251,16 +4281,16 @@ function buildTlsSettings(existingTlsSettings: Record<string, unknown>): Record<
           },
         ]
       : certificateFile || keyFile
-      ? [
-          {
-            certificateFile,
-            keyFile,
-            oneTimeLoading: false,
-            usage: 'encipherment',
-            buildChain: false,
-          },
-        ]
-      : certificates;
+        ? [
+            {
+              certificateFile,
+              keyFile,
+              oneTimeLoading: false,
+              usage: 'encipherment',
+              buildChain: false,
+            },
+          ]
+        : certificates;
 
   return {
     serverName: streamEditor.tlsServerName,
@@ -4501,6 +4531,26 @@ function formatJsonText(text: string, fallback: object): string {
   } catch {
     return text;
   }
+}
+
+function prepareInboundSettingsForEditing(text: string, fallback: Record<string, unknown>): string {
+  let parsed = fallback;
+  if (text.trim()) {
+    try {
+      const candidate = JSON.parse(text) as unknown;
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+        protectedInboundClients.value = [];
+        return text;
+      }
+      parsed = candidate as Record<string, unknown>;
+    } catch {
+      protectedInboundClients.value = [];
+      return text;
+    }
+  }
+  const separated = separateInboundClients(parsed);
+  protectedInboundClients.value = separated.clients;
+  return stringifyJson(separated.editorSettings);
 }
 
 function syncSelectedInbound() {
@@ -5111,10 +5161,7 @@ function randomToken(length: number): string {
 }
 
 function selectOptionsWithDefault(values: string[]) {
-  return [
-    { label: 'Default', value: '' },
-    ...values.map((value) => ({ label: value, value })),
-  ];
+  return [{ label: 'Default', value: '' }, ...values.map((value) => ({ label: value, value }))];
 }
 
 onMounted(() => {

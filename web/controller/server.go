@@ -20,9 +20,10 @@ import (
 var filenameRegex = regexp.MustCompile(`^[a-zA-Z0-9_\-.]+$`)
 
 const (
-	maxImportDBFileSize    int64 = service.MaxImportDBFileSize
-	maxImportDBRequestSize int64 = service.MaxImportDBFileSize + 1024*1024
-	minImportDBFileSize    int64 = 16
+	maxImportDBFileSize          int64 = service.MaxImportDBFileSize
+	maxImportDBRequestSize       int64 = service.MaxImportDBFileSize + 1024*1024
+	maxSelfSignedCertRequestSize int64 = 4 * 1024
+	minImportDBFileSize          int64 = 16
 )
 
 // ServerController handles server management and status-related operations.
@@ -381,7 +382,28 @@ func (a *ServerController) getNewEchCert(c *gin.Context) {
 
 // getNewSelfSignedCert generates an inline TLS certificate for the requested SANs.
 func (a *ServerController) getNewSelfSignedCert(c *gin.Context) {
-	certificate, err := a.serverService.GetNewSelfSignedCert(c.PostForm("sni"))
+	c.Header("Cache-Control", "no-store")
+	c.Header("Pragma", "no-cache")
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxSelfSignedCertRequestSize)
+
+	var err error
+	switch c.ContentType() {
+	case "", "application/x-www-form-urlencoded":
+		err = c.Request.ParseForm()
+	case "multipart/form-data":
+		err = c.Request.ParseMultipartForm(maxSelfSignedCertRequestSize)
+		if c.Request.MultipartForm != nil {
+			defer c.Request.MultipartForm.RemoveAll()
+		}
+	default:
+		err = fmt.Errorf("unsupported content type %q", c.ContentType())
+	}
+	if err != nil {
+		jsonMsg(c, "parse self-signed certificate request", err)
+		return
+	}
+
+	certificate, err := a.serverService.GetNewSelfSignedCert(c.Request.PostForm.Get("sni"))
 	if err != nil {
 		jsonMsg(c, "generate self-signed certificate", err)
 		return

@@ -2,10 +2,13 @@ package service
 
 import (
 	"crypto/ecdsa"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"net"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -47,8 +50,14 @@ func TestGetNewSelfSignedCertCreatesServerCertificate(t *testing.T) {
 		t.Fatalf("private key type = %T", privateKeyValue)
 	}
 	publicKey, ok := certificate.PublicKey.(*ecdsa.PublicKey)
-	if !ok || privateKey.PublicKey.X.Cmp(publicKey.X) != 0 || privateKey.PublicKey.Y.Cmp(publicKey.Y) != 0 {
+	if !ok || !privateKey.PublicKey.Equal(publicKey) {
 		t.Fatal("certificate public key does not match the private key")
+	}
+	if _, err := tls.X509KeyPair([]byte(result.Cert), []byte(result.Key)); err != nil {
+		t.Fatalf("load generated TLS key pair: %v", err)
+	}
+	if err := certificate.VerifyHostname("example.com"); err != nil {
+		t.Fatalf("verify generated certificate hostname: %v", err)
 	}
 }
 
@@ -67,5 +76,33 @@ func TestNormalizeSelfSignedServerNamesRejectsInvalidDNSNames(t *testing.T) {
 		if _, err := normalizeSelfSignedServerNames(value); err == nil {
 			t.Fatalf("accepted invalid server name %q", value)
 		}
+	}
+}
+
+func TestNormalizeSelfSignedServerNamesEnforcesEntryAndLengthLimits(t *testing.T) {
+	validNames := make([]string, maxSelfSignedNames)
+	for index := range validNames {
+		validNames[index] = fmt.Sprintf("host-%d.example.com", index)
+	}
+	if _, err := normalizeSelfSignedServerNames(strings.Join(validNames, ",")); err != nil {
+		t.Fatalf("accepted names at entry limit: %v", err)
+	}
+
+	tooManyNames := append(validNames, "extra.example.com")
+	if _, err := normalizeSelfSignedServerNames(strings.Join(tooManyNames, ",")); err == nil {
+		t.Fatal("expected names above entry limit to be rejected")
+	}
+
+	labels := strings.Repeat("a", 63) + "." + strings.Repeat("b", 63) + "." +
+		strings.Repeat("c", 63) + "." + strings.Repeat("d", 61)
+	exactLimit := strings.Join([]string{labels, labels, labels, labels}, ",") + strings.Repeat(" ", 9)
+	if len(exactLimit) != maxSelfSignedNamesLength {
+		t.Fatalf("test input length = %d", len(exactLimit))
+	}
+	if _, err := normalizeSelfSignedServerNames(exactLimit); err != nil {
+		t.Fatalf("accepted names at length limit: %v", err)
+	}
+	if _, err := normalizeSelfSignedServerNames(exactLimit + " "); err == nil {
+		t.Fatal("expected names above length limit to be rejected")
 	}
 }
