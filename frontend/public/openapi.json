@@ -1948,6 +1948,35 @@
         ]
       }
     },
+    "/panel/api/server/getNewSelfSignedCert": {
+      "post": {
+        "operationId": "getNewSelfSignedCert",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/EchCertForm"
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Generate an inline self-signed TLS certificate for the provided DNS or IP SANs.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
     "/panel/api/server/getNewUUID": {
       "get": {
         "operationId": "getNewUUID",

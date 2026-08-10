@@ -1,0 +1,1 @@
+import{o as e,t}from"./endpoints-BIuq6Mxf.js";function n(n){return e(t.settings.all,{},n)}function r(n){return e(t.settings.defaultSettings,{},n)}function i(n,r){return e(t.settings.update,s(n),r)}function a(n,r){return e(t.settings.updateUser,{...n},r)}function o(n){return e(t.settings.restartPanel,{},n)}function s(e){return{...e}}export{a,i,r as n,o as r,n as t};
