@@ -227,7 +227,7 @@ api.Use(middleware.CSRFMiddleware())
 
 ### 5.6 `SettingController`
 
-路径前缀 `/panel/setting`，使用 CSRF：
+路径前缀 `/panel/setting`（通过 `XUIController` 注册，仅要求登录，不要求 CSRF token）和 `/panel/api/setting`（通过 `APIController` 注册，要求 CSRF token）。两者是同一 `SettingController` 实例在不同路由组下的双注册。以下路由适用于两个路径前缀：
 
 | 路由 | 方法 | 说明 |
 |---|---|---|
@@ -242,7 +242,7 @@ api.Use(middleware.CSRFMiddleware())
 
 ### 5.7 `XraySettingController`
 
-路径前缀 `/panel/xray`，使用 CSRF：
+路径前缀 `/panel/xray`（通过 `XUIController` 注册，仅要求登录，不要求 CSRF token）和 `/panel/api/xray`（通过 `APIController` 注册，要求 CSRF token）。两者是同一 `XraySettingController` 实例在不同路由组下的双注册。以下路由适用于两个路径前缀：
 
 - 读取和保存 Xray JSON 模板。
 - 读取 outbound 流量。

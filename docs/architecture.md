@@ -301,11 +301,14 @@ flowchart TD
 
 ```go
 type Hub struct {
-    clients    map[*Client]bool
-    broadcast  chan []byte
-    register   chan *Client
-    unregister chan *Client
-    mu         sync.RWMutex
+    clients        map[*Client]bool
+    broadcast      chan []byte
+    register       chan *Client
+    unregister     chan *Client
+    mu             sync.RWMutex
+    ctx            context.Context
+    cancel         context.CancelFunc
+    workerPoolSize int
 }
 ```
 

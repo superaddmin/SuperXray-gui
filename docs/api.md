@@ -13,7 +13,7 @@
 
 ### 1.1 Base Path
 
-Web 面板所有路由都挂在配置项 `webBasePath` 下。文档中的路径以源码默认 `webBasePath=/` 展示；如果运行时配置为 `/xui/`，则：
+Web 面板所有路由都挂在配置项 `webBasePath` 下。文档中的路径以 `webBasePath=/` 展示（约定为文档描述方便，非运行时默认值）；如果运行时配置为 `/xui/`，则：
 
 | 文档路径 | 实际路径示例 |
 |---|---|
@@ -49,7 +49,7 @@ window.__SUPERXRAY_UI_CONFIG__ = {
 
 ### 1.3 CSRF
 
-`/panel/api/*`、`/panel/setting/*`、`/panel/xray/*` 均启用 `CSRFMiddleware`。安全方法 `GET`、`HEAD`、`OPTIONS`、`TRACE` 直接放行；其他方法必须满足：
+`/panel/api/*` 路由组启用 `CSRFMiddleware`，覆盖 `/panel/api/*`、`/panel/api/setting/*`、`/panel/api/xray/*` 等路径。`/panel/setting/*` 和 `/panel/xray/*`（通过 `XUIController` 注册）仅要求登录，不要求 CSRF token。安全方法 `GET`、`HEAD`、`OPTIONS`、`TRACE` 直接放行；其他方法必须满足：
 
 - 请求头 `X-CSRF-Token` 或 `X-XSRF-Token` 等于当前 Session 内的 token。
 - 如果请求带 `Origin` 或 `Referer`，其 scheme 和 host 必须与当前请求同源。
@@ -148,6 +148,7 @@ HTTP 状态码为 `403`。
 | `GET` | `/panel/assets/*path` | 新 UI 构建资源 |
 | `GET` | `/panel/ui` | 兼容入口，重定向到 `/panel/ui/` |
 | `GET` | `/panel/ui/*path` | 新 UI 兼容入口 |
+| `GET` | `/panel/api/openapi.json` | 新 UI OpenAPI 规范 JSON 文件，用于 API 文档页；需登录 |
 
 ### 2.2 已退役 Legacy UI
 
@@ -250,7 +251,7 @@ HTTP 状态码为 `403`。
 
 ## 4. 设置 API
 
-路径前缀：`/panel/setting`。所有非安全方法需要 CSRF token。
+路径前缀：`/panel/setting`（通过 `XUIController` 注册，仅要求登录，不要求 CSRF token）和 `/panel/api/setting`（通过 `APIController` 注册，要求 CSRF token）。两者是同一 `SettingController` 实例在不同路由组下的双注册，功能一致。非安全方法通过 `/panel/api/setting` 访问时需要 CSRF token。
 
 ### POST `/panel/setting/all`
 
@@ -303,7 +304,7 @@ HTTP 状态码为 `403`。
 
 ## 5. Xray 设置 API
 
-路径前缀：`/panel/xray`。非安全方法需要 CSRF token。
+路径前缀：`/panel/xray`（通过 `XUIController` 注册，仅要求登录，不要求 CSRF token）和 `/panel/api/xray`（通过 `APIController` 注册，要求 CSRF token）。两者是同一 `XraySettingController` 实例在不同路由组下的双注册。非安全方法通过 `/panel/api/xray` 访问时需要 CSRF token。
 
 ### POST `/panel/xray/`
 
@@ -415,6 +416,7 @@ HTTP 状态码为 `403`。
 | 方法 | 路径 | 请求 | 响应 |
 |---|---|---|---|
 | `GET` | `/list` | 无 | 当前用户所有 Inbound |
+| `GET` | `/options` | 无 | 轻量级 Inbound 选项列表，用于选择器/API 客户端 |
 | `GET` | `/get/:id` | `id` path int | 单个 Inbound |
 | `POST` | `/add` | `model.Inbound` 表单/JSON 绑定 | 保存后的 Inbound |
 | `POST` | `/update/:id` | `model.Inbound` 表单/JSON 绑定 | 通用响应 |
