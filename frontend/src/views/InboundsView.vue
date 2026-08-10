@@ -608,6 +608,49 @@
         </FormSection>
 
         <FormSection
+          v-if="inboundEditor.protocol === 'tun'"
+          eyebrow="Protocol"
+          title="TUN Settings"
+          description="Interface addresses, DNS and routing fields stay synchronized with the current Xray TUN schema."
+        >
+          <template #actions>
+            <AButton size="small" @click="syncTunEditorFromSettings">Sync JSON</AButton>
+            <AButton size="small" @click="applyTunEditorToSettings">Apply</AButton>
+          </template>
+          <div class="form-grid">
+            <AFormItem label="Interface Name">
+              <AInput v-model:value="tunEditor.name" placeholder="xray0" />
+            </AFormItem>
+            <AFormItem label="MTU">
+              <AInputNumber
+                v-model:value="tunEditor.mtu"
+                :min="1"
+                :max="9000"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem label="Gateway CIDRs">
+              <AInput v-model:value="tunEditor.gateway" placeholder="10.0.0.1/16, fc00::1/64" />
+            </AFormItem>
+            <AFormItem label="DNS Addresses">
+              <AInput v-model:value="tunEditor.dns" placeholder="1.1.1.1, 2606:4700:4700::1111" />
+            </AFormItem>
+            <AFormItem label="User Level">
+              <AInputNumber v-model:value="tunEditor.userLevel" :min="0" class="full-width" />
+            </AFormItem>
+            <AFormItem label="Auto System Route CIDRs">
+              <AInput
+                v-model:value="tunEditor.autoSystemRoutingTable"
+                placeholder="0.0.0.0/0, ::/0"
+              />
+            </AFormItem>
+            <AFormItem label="Outbounds Interface">
+              <AInput v-model:value="tunEditor.autoOutboundsInterface" placeholder="auto" />
+            </AFormItem>
+          </div>
+        </FormSection>
+
+        <FormSection
           v-if="protocolSupportsStream(inboundEditor.protocol)"
           eyebrow="Transport"
           title="Transport Settings"
@@ -859,6 +902,78 @@
               label="UDP Hop"
             >
               <ASwitch v-model:checked="streamEditor.hysteriaUdpHopEnabled" />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
+              label="Initial Stream Window"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.hysteriaInitStreamReceiveWindow"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
+              label="Max Stream Window"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.hysteriaMaxStreamReceiveWindow"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
+              label="Initial Connection Window"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.hysteriaInitConnectionReceiveWindow"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
+              label="Max Connection Window"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.hysteriaMaxConnectionReceiveWindow"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
+              label="Max Idle Timeout"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.hysteriaMaxIdleTimeout"
+                :min="0"
+                class="full-width"
+              />
+            </AFormItem>
+            <AFormItem
+              v-if="
+                isHysteriaProtocol(inboundEditor.protocol) && streamEditor.hysteriaQuicParamsEnabled
+              "
+              label="Max Incoming Streams"
+            >
+              <AInputNumber
+                v-model:value="streamEditor.hysteriaMaxIncomingStreams"
+                :min="0"
+                class="full-width"
+              />
             </AFormItem>
             <AFormItem
               v-if="
@@ -1490,6 +1605,7 @@ import type {
 import type { PanelSettings } from '@/types/settings';
 import { formatBytes, formatCount } from '@/utils/format';
 import {
+  HYSTERIA_QUIC_DEFAULTS,
   SHADOWSOCKS_METHOD_OPTIONS,
   applyHysteriaFinalmaskUdpHop,
   applyPanelDefaultTlsCertificate,
@@ -1512,12 +1628,14 @@ import {
   isShadowsocks2022Method,
   isSingleUserShadowsocks2022,
   mergeSubscriptionEndpointDefaults,
+  normalizeTunSettings,
   parseInboundSettings,
   parseInboundSniffingSettings,
   parseInboundStreamSettings,
   resolveInboundHost,
   stringifyJson,
   type PanelDefaultTlsCertificate,
+  validateTunSettings,
 } from '@/utils/inboundCompat';
 import {
   normalizeRealityServerSettings,
@@ -1564,6 +1682,16 @@ interface WireguardEditorState {
   secretKey: string;
   pubKey: string;
   noKernelTun: boolean;
+}
+
+interface TunEditorState {
+  name: string;
+  mtu: number;
+  gateway: string;
+  dns: string;
+  userLevel: number;
+  autoSystemRoutingTable: string;
+  autoOutboundsInterface: string;
 }
 
 interface StreamEditorState {
@@ -1628,6 +1756,12 @@ interface StreamEditorState {
   hysteriaUdpHopEnabled: boolean;
   hysteriaUdpHopPorts: string;
   hysteriaUdpHopInterval: string;
+  hysteriaInitStreamReceiveWindow: number;
+  hysteriaMaxStreamReceiveWindow: number;
+  hysteriaInitConnectionReceiveWindow: number;
+  hysteriaMaxConnectionReceiveWindow: number;
+  hysteriaMaxIdleTimeout: number;
+  hysteriaMaxIncomingStreams: number;
   sockoptEnabled: boolean;
   sockoptAcceptProxyProtocol: boolean;
   sockoptTcpFastOpen: boolean;
@@ -1780,6 +1914,7 @@ const menuDangerActionKeys = new Set<HeaderActionKey>([
 
 const inboundEditor = reactive<InboundEditorState>(createInboundEditor());
 const wireguardEditor = reactive<WireguardEditorState>(createWireguardEditor());
+const tunEditor = reactive<TunEditorState>(createTunEditor());
 const streamEditor = reactive<StreamEditorState>(createStreamEditor());
 const inboundClientEditor = reactive<ClientEditorState>(createClientEditor());
 const clientEditor = reactive<ClientEditorState>(createClientEditor());
@@ -2090,6 +2225,7 @@ watch(
       inboundEditor.streamSettings = stringifyJson(defaultStreamSettings(protocol));
       Object.assign(inboundClientEditor, createClientEditor(protocol));
       syncWireguardEditorFromSettings();
+      syncTunEditorFromSettings();
       syncStreamEditorFromSettings();
       syncInboundClientEditorFromSettings();
       void applyPanelDefaultTlsCertificateToEditor();
@@ -2190,6 +2326,7 @@ function openCreateInbound() {
   Object.assign(inboundEditor, createInboundEditor());
   Object.assign(inboundClientEditor, createClientEditor(inboundEditor.protocol));
   syncWireguardEditorFromSettings();
+  syncTunEditorFromSettings();
   syncStreamEditorFromSettings();
   syncInboundClientEditorFromSettings();
   inboundModalOpen.value = true;
@@ -2211,6 +2348,7 @@ function openGatewayProxyTemplate(template: GatewayProxyTemplate) {
   inboundModalMode.value = 'create';
   Object.assign(inboundClientEditor, createClientEditor(protocol));
   syncWireguardEditorFromSettings();
+  syncTunEditorFromSettings();
   syncStreamEditorFromSettings();
   syncInboundClientEditorFromSettings();
   inboundModalOpen.value = true;
@@ -2279,6 +2417,7 @@ function openEditInbound(record: Inbound | Record<string, unknown>) {
     sniffing: formatJsonText(inbound.sniffing, parseInboundSniffingSettings(inbound)),
   });
   syncWireguardEditorFromSettings();
+  syncTunEditorFromSettings();
   syncStreamEditorFromSettings();
   syncInboundClientEditorFromSettings();
   inboundModalOpen.value = true;
@@ -2287,6 +2426,10 @@ function openEditInbound(record: Inbound | Record<string, unknown>) {
 async function submitInbound() {
   if (inboundEditor.protocol === 'wireguard') {
     applyWireguardEditorToSettings();
+  } else if (inboundEditor.protocol === 'tun') {
+    if (!applyTunEditorToSettings()) {
+      return;
+    }
   } else if (protocolSupportsStream(inboundEditor.protocol)) {
     applyStreamEditorToSettings();
     await applyPanelDefaultTlsCertificateToEditor();
@@ -2360,6 +2503,7 @@ function formatInboundJson(field: InboundJsonField) {
     inboundEditor[field] = formatted;
     if (field === 'settings') {
       syncWireguardEditorFromSettings();
+      syncTunEditorFromSettings();
     }
     if (field === 'streamSettings') {
       syncStreamEditorFromSettings();
@@ -3348,6 +3492,18 @@ function createWireguardEditor(): WireguardEditorState {
   };
 }
 
+function createTunEditor(): TunEditorState {
+  return {
+    name: 'xray0',
+    mtu: 1500,
+    gateway: '10.0.0.1/16',
+    dns: '',
+    userLevel: 0,
+    autoSystemRoutingTable: '',
+    autoOutboundsInterface: 'auto',
+  };
+}
+
 function createStreamEditor(): StreamEditorState {
   return {
     network: 'tcp',
@@ -3411,6 +3567,12 @@ function createStreamEditor(): StreamEditorState {
     hysteriaUdpHopEnabled: false,
     hysteriaUdpHopPorts: '',
     hysteriaUdpHopInterval: '',
+    hysteriaInitStreamReceiveWindow: HYSTERIA_QUIC_DEFAULTS.initStreamReceiveWindow,
+    hysteriaMaxStreamReceiveWindow: HYSTERIA_QUIC_DEFAULTS.maxStreamReceiveWindow,
+    hysteriaInitConnectionReceiveWindow: HYSTERIA_QUIC_DEFAULTS.initConnectionReceiveWindow,
+    hysteriaMaxConnectionReceiveWindow: HYSTERIA_QUIC_DEFAULTS.maxConnectionReceiveWindow,
+    hysteriaMaxIdleTimeout: HYSTERIA_QUIC_DEFAULTS.maxIdleTimeout,
+    hysteriaMaxIncomingStreams: HYSTERIA_QUIC_DEFAULTS.maxIncomingStreams,
     sockoptEnabled: false,
     sockoptAcceptProxyProtocol: false,
     sockoptTcpFastOpen: false,
@@ -3436,6 +3598,43 @@ function syncWireguardEditorFromSettings() {
     pubKey: stringField(settings.pubKey),
     noKernelTun: Boolean(settings.noKernelTun),
   });
+}
+
+function syncTunEditorFromSettings() {
+  const settings = normalizeTunSettings(parseInboundSettingsText(inboundEditor.settings));
+  Object.assign(tunEditor, {
+    name: stringField(settings.name) || 'xray0',
+    mtu: Number(settings.mtu || 1500),
+    gateway: arrayField(settings.gateway).join(', '),
+    dns: arrayField(settings.dns).join(', '),
+    userLevel: Number(settings.userLevel || 0),
+    autoSystemRoutingTable: arrayField(settings.autoSystemRoutingTable).join(', '),
+    autoOutboundsInterface: stringField(settings.autoOutboundsInterface),
+  });
+}
+
+function applyTunEditorToSettings(): boolean {
+  const normalizedSettingsText = normalizeJsonEditorText(inboundEditor.settings, 'Settings JSON');
+  if (!normalizedSettingsText) {
+    return false;
+  }
+  const settings = normalizeTunSettings({
+    ...parseInboundSettingsText(normalizedSettingsText),
+    name: tunEditor.name,
+    mtu: tunEditor.mtu,
+    gateway: parseListText(tunEditor.gateway),
+    dns: parseListText(tunEditor.dns),
+    userLevel: tunEditor.userLevel,
+    autoSystemRoutingTable: parseListText(tunEditor.autoSystemRoutingTable),
+    autoOutboundsInterface: tunEditor.autoOutboundsInterface,
+  });
+  const validationError = validateTunSettings(settings);
+  if (validationError) {
+    error.value = validationError;
+    return false;
+  }
+  inboundEditor.settings = stringifyJson(settings);
+  return true;
 }
 
 function applyWireguardEditorToSettings() {
@@ -3571,6 +3770,25 @@ function syncStreamEditorFromSettings() {
     hysteriaUdpHopEnabled: Object.keys(udpHop).length > 0,
     hysteriaUdpHopPorts: stringField(udpHop.ports),
     hysteriaUdpHopInterval: stringField(udpHop.interval),
+    hysteriaInitStreamReceiveWindow: Number(
+      quicParams.initStreamReceiveWindow ?? HYSTERIA_QUIC_DEFAULTS.initStreamReceiveWindow,
+    ),
+    hysteriaMaxStreamReceiveWindow: Number(
+      quicParams.maxStreamReceiveWindow ?? HYSTERIA_QUIC_DEFAULTS.maxStreamReceiveWindow,
+    ),
+    hysteriaInitConnectionReceiveWindow: Number(
+      quicParams.initConnectionReceiveWindow ??
+        HYSTERIA_QUIC_DEFAULTS.initConnectionReceiveWindow,
+    ),
+    hysteriaMaxConnectionReceiveWindow: Number(
+      quicParams.maxConnectionReceiveWindow ?? HYSTERIA_QUIC_DEFAULTS.maxConnectionReceiveWindow,
+    ),
+    hysteriaMaxIdleTimeout: Number(
+      quicParams.maxIdleTimeout ?? HYSTERIA_QUIC_DEFAULTS.maxIdleTimeout,
+    ),
+    hysteriaMaxIncomingStreams: Number(
+      quicParams.maxIncomingStreams ?? HYSTERIA_QUIC_DEFAULTS.maxIncomingStreams,
+    ),
     sockoptEnabled: Object.keys(sockopt).length > 0,
     sockoptAcceptProxyProtocol: Boolean(sockopt.acceptProxyProtocol),
     sockoptTcpFastOpen: Boolean(sockopt.tcpFastOpen),
@@ -3682,6 +3900,12 @@ function applyStreamEditorToSettings() {
       udpHopEnabled: streamEditor.hysteriaUdpHopEnabled,
       ports: streamEditor.hysteriaUdpHopPorts,
       interval: streamEditor.hysteriaUdpHopInterval,
+      initStreamReceiveWindow: streamEditor.hysteriaInitStreamReceiveWindow,
+      maxStreamReceiveWindow: streamEditor.hysteriaMaxStreamReceiveWindow,
+      initConnectionReceiveWindow: streamEditor.hysteriaInitConnectionReceiveWindow,
+      maxConnectionReceiveWindow: streamEditor.hysteriaMaxConnectionReceiveWindow,
+      maxIdleTimeout: streamEditor.hysteriaMaxIdleTimeout,
+      maxIncomingStreams: streamEditor.hysteriaMaxIncomingStreams,
     });
     Object.assign(stream, streamWithUdpHop);
     if (!streamWithUdpHop.finalmask) {

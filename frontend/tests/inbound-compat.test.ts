@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  HYSTERIA_QUIC_DEFAULTS,
   applyPanelDefaultTlsCertificate,
   applyHysteriaFinalmaskUdpHop,
   buildClientSubscriptionLinks,
@@ -10,6 +11,8 @@ import {
   defaultStreamSettings,
   generateBulkClientProfiles,
   mergeSubscriptionEndpointDefaults,
+  normalizeTunSettings,
+  validateTunSettings,
 } from '../src/utils/inboundCompat.ts';
 import { protocolSupportsShareLink } from '../src/schemas/protocolRegistry.ts';
 
@@ -41,6 +44,68 @@ test('default proxy account settings include subscription id for HTTP and mixed'
     assert.equal(typeof accounts[0]?.subId, 'string');
     assert.ok(String(accounts[0]?.subId).length > 0);
   }
+});
+
+test('default TUN settings match the current Xray scalar MTU schema', () => {
+  assert.deepEqual(defaultInboundSettings('tun'), {
+    name: 'xray0',
+    mtu: 1500,
+    gateway: ['10.0.0.1/16'],
+    dns: [],
+    userLevel: 0,
+    autoSystemRoutingTable: [],
+    autoOutboundsInterface: 'auto',
+  });
+});
+
+test('normalizeTunSettings keeps unknown local fields while migrating legacy aliases', () => {
+  assert.deepEqual(
+    normalizeTunSettings({
+      name: ' xray-local ',
+      MTU: [1280, 1500],
+      Gateway: ['10.0.0.1/16', '10.0.0.1/16'],
+      DNS: ['1.1.1.1', ' 2606:4700:4700::1111 '],
+      userLevel: 2,
+      autoSystemRoutingTable: ['0.0.0.0/0'],
+      autoOutboundsInterface: ' eth0 ',
+      localExtension: { enabled: true },
+    }),
+    {
+      name: 'xray-local',
+      mtu: 1280,
+      gateway: ['10.0.0.1/16'],
+      dns: ['1.1.1.1', '2606:4700:4700::1111'],
+      userLevel: 2,
+      autoSystemRoutingTable: ['0.0.0.0/0'],
+      autoOutboundsInterface: 'eth0',
+      localExtension: { enabled: true },
+    },
+  );
+});
+
+test('validateTunSettings accepts IPv4 and IPv6 values and rejects invalid network input', () => {
+  const valid = normalizeTunSettings({
+    name: 'xray0',
+    mtu: 1500,
+    gateway: ['10.0.0.1/16', 'fc00::1/64'],
+    dns: ['1.1.1.1', '2606:4700:4700::1111'],
+    userLevel: 0,
+    autoSystemRoutingTable: ['0.0.0.0/0', '::/0'],
+    autoOutboundsInterface: 'auto',
+  });
+  assert.equal(validateTunSettings(valid), '');
+  assert.match(validateTunSettings(normalizeTunSettings({ ...valid, mtu: 0 })), /TUN MTU/);
+  assert.match(
+    validateTunSettings(normalizeTunSettings({ ...valid, userLevel: -1 })),
+    /user level/,
+  );
+  assert.match(validateTunSettings({ ...valid, gateway: ['10.0.0.1/99'] }), /gateway CIDR/);
+  assert.match(validateTunSettings({ ...valid, dns: ['1.1.1.999'] }), /DNS address/);
+  assert.match(validateTunSettings({ ...valid, dns: ['010.0.0.1'] }), /DNS address/);
+  assert.match(
+    validateTunSettings({ ...valid, autoSystemRoutingTable: ['not-a-prefix'] }),
+    /system route CIDR/,
+  );
 });
 
 test('protocol registry marks HTTP and mixed proxy inbounds as shareable', () => {
@@ -254,6 +319,7 @@ test('applyHysteriaFinalmaskUdpHop writes UDP Hop without dropping salamander ob
       },
     },
     {
+      ...HYSTERIA_QUIC_DEFAULTS,
       quicParamsEnabled: true,
       udpHopEnabled: true,
       ports: '40000:45000',
@@ -269,6 +335,7 @@ test('applyHysteriaFinalmaskUdpHop writes UDP Hop without dropping salamander ob
       },
     ],
     quicParams: {
+      ...HYSTERIA_QUIC_DEFAULTS,
       udpHop: { ports: '40000-45000', interval: '5-10' },
     },
   });
@@ -286,6 +353,7 @@ test('applyHysteriaFinalmaskUdpHop removes only udpHop when disabled', () => {
       },
     },
     {
+      ...HYSTERIA_QUIC_DEFAULTS,
       quicParamsEnabled: true,
       udpHopEnabled: false,
       ports: '40000-45000',
@@ -295,7 +363,7 @@ test('applyHysteriaFinalmaskUdpHop removes only udpHop when disabled', () => {
 
   assert.deepEqual(stream.finalmask, {
     udp: [{ type: 'salamander', settings: { password: 'obfs-pass' } }],
-    quicParams: { congestion: 'bbr' },
+    quicParams: { congestion: 'bbr', ...HYSTERIA_QUIC_DEFAULTS },
   });
 });
 
@@ -311,6 +379,7 @@ test('applyHysteriaFinalmaskUdpHop removes all quicParams when QUIC Params is di
       },
     },
     {
+      ...HYSTERIA_QUIC_DEFAULTS,
       quicParamsEnabled: false,
       udpHopEnabled: true,
       ports: '40000-45000',

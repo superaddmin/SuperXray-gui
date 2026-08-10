@@ -14,6 +14,15 @@ const SHADOWSOCKS_2022_AES_128_GCM = '2022-blake3-aes-128-gcm';
 const SHADOWSOCKS_2022_SINGLE_USER = '2022-blake3-chacha20-poly1305';
 const SHADOWSOCKS_DEFAULT_KEY_BYTES = 32;
 
+export const HYSTERIA_QUIC_DEFAULTS = {
+  initStreamReceiveWindow: 8_388_608,
+  maxStreamReceiveWindow: 8_388_608,
+  initConnectionReceiveWindow: 20_971_520,
+  maxConnectionReceiveWindow: 20_971_520,
+  maxIdleTimeout: 30,
+  maxIncomingStreams: 1_024,
+} as const;
+
 export interface SubscriptionEndpointSettings {
   subEnable: boolean;
   subJsonEnable: boolean;
@@ -38,6 +47,12 @@ export interface HysteriaUdpHopFormInput {
   udpHopEnabled: boolean;
   ports: string;
   interval: string;
+  initStreamReceiveWindow: number;
+  maxStreamReceiveWindow: number;
+  initConnectionReceiveWindow: number;
+  maxConnectionReceiveWindow: number;
+  maxIdleTimeout: number;
+  maxIncomingStreams: number;
 }
 
 export function mergeSubscriptionEndpointDefaults(
@@ -192,8 +207,8 @@ export function defaultInboundSettings(protocol: XrayEditableInboundProtocol): I
   if (protocol === 'tun') {
     return {
       name: 'xray0',
-      mtu: [1500, 1280],
-      gateway: [],
+      mtu: 1500,
+      gateway: ['10.0.0.1/16'],
       dns: [],
       userLevel: 0,
       autoSystemRoutingTable: [],
@@ -314,6 +329,31 @@ export function applyHysteriaFinalmaskUdpHop(
     return next;
   }
 
+  quicParams.initStreamReceiveWindow = nonNegativeInteger(
+    input.initStreamReceiveWindow,
+    HYSTERIA_QUIC_DEFAULTS.initStreamReceiveWindow,
+  );
+  quicParams.maxStreamReceiveWindow = nonNegativeInteger(
+    input.maxStreamReceiveWindow,
+    HYSTERIA_QUIC_DEFAULTS.maxStreamReceiveWindow,
+  );
+  quicParams.initConnectionReceiveWindow = nonNegativeInteger(
+    input.initConnectionReceiveWindow,
+    HYSTERIA_QUIC_DEFAULTS.initConnectionReceiveWindow,
+  );
+  quicParams.maxConnectionReceiveWindow = nonNegativeInteger(
+    input.maxConnectionReceiveWindow,
+    HYSTERIA_QUIC_DEFAULTS.maxConnectionReceiveWindow,
+  );
+  quicParams.maxIdleTimeout = nonNegativeInteger(
+    input.maxIdleTimeout,
+    HYSTERIA_QUIC_DEFAULTS.maxIdleTimeout,
+  );
+  quicParams.maxIncomingStreams = nonNegativeInteger(
+    input.maxIncomingStreams,
+    HYSTERIA_QUIC_DEFAULTS.maxIncomingStreams,
+  );
+
   if (input.quicParamsEnabled && input.udpHopEnabled && ports) {
     quicParams.udpHop = interval ? { ports, interval } : { ports };
     finalmask.quicParams = quicParams;
@@ -333,6 +373,71 @@ export function applyHysteriaFinalmaskUdpHop(
     delete next.finalmask;
   }
   return next;
+}
+
+export function normalizeTunSettings(settings: InboundSettings): InboundSettings {
+  const normalized = { ...settings };
+  const rawMtu = normalized.mtu ?? normalized.MTU;
+  const mtu = Array.isArray(rawMtu) ? rawMtu[0] : rawMtu;
+  const autoOutboundsInterface = stringValue(normalized.autoOutboundsInterface).trim();
+
+  normalized.name = stringValue(normalized.name).trim() || 'xray0';
+  normalized.mtu = mtu === undefined || mtu === null || mtu === '' ? 1500 : Number(mtu);
+  normalized.gateway = normalizeStringList(normalized.gateway ?? normalized.Gateway);
+  normalized.dns = normalizeStringList(normalized.dns ?? normalized.DNS);
+  normalized.userLevel =
+    normalized.userLevel === undefined || normalized.userLevel === null
+      ? 0
+      : Number(normalized.userLevel);
+  normalized.autoSystemRoutingTable = normalizeStringList(normalized.autoSystemRoutingTable);
+  if (autoOutboundsInterface) {
+    normalized.autoOutboundsInterface = autoOutboundsInterface;
+  } else {
+    delete normalized.autoOutboundsInterface;
+  }
+  delete normalized.MTU;
+  delete normalized.Gateway;
+  delete normalized.DNS;
+  return normalized;
+}
+
+export function validateTunSettings(settings: InboundSettings): string {
+  const name = stringValue(settings.name).trim();
+  if (!name || name.length > 128 || hasControlCharacter(name)) {
+    return 'TUN interface name must be 1-128 characters without control characters';
+  }
+
+  const mtu = Number(settings.mtu);
+  if (!Number.isInteger(mtu) || mtu < 1 || mtu > 9_000) {
+    return 'TUN MTU must be an integer between 1 and 9000';
+  }
+
+  const userLevel = Number(settings.userLevel);
+  if (!Number.isInteger(userLevel) || userLevel < 0 || userLevel > 4_294_967_295) {
+    return 'TUN user level must be an unsigned 32-bit integer';
+  }
+
+  for (const gateway of normalizeStringList(settings.gateway)) {
+    if (!isValidIpPrefix(gateway)) {
+      return `Invalid TUN gateway CIDR: ${gateway}`;
+    }
+  }
+  for (const dns of normalizeStringList(settings.dns)) {
+    if (!isValidIpAddress(dns)) {
+      return `Invalid TUN DNS address: ${dns}`;
+    }
+  }
+  for (const route of normalizeStringList(settings.autoSystemRoutingTable)) {
+    if (!isValidIpPrefix(route)) {
+      return `Invalid TUN system route CIDR: ${route}`;
+    }
+  }
+
+  const outboundInterface = stringValue(settings.autoOutboundsInterface).trim();
+  if (outboundInterface.length > 128 || hasControlCharacter(outboundInterface)) {
+    return 'TUN outbound interface must be at most 128 characters without control characters';
+  }
+  return '';
 }
 
 export function defaultSniffingSettings(): InboundSniffingSettings {
@@ -1056,6 +1161,88 @@ function hysteriaHopPorts(finalmask: unknown): string {
 
 function normalizeHopRange(value: string): string {
   return value.trim().replace(/^(\d+)\s*:\s*(\d+)$/, '$1-$2');
+}
+
+function normalizeStringList(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : typeof value === 'string' ? value.split(/[\n,]/) : [];
+  return [
+    ...new Set(
+      values
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function nonNegativeInteger(value: unknown, fallback: number): number {
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= 0 ? number : fallback;
+}
+
+function hasControlCharacter(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0) || 0;
+    return codePoint <= 31 || codePoint === 127;
+  });
+}
+
+function isValidIpPrefix(value: string): boolean {
+  const separator = value.lastIndexOf('/');
+  if (separator <= 0 || separator !== value.indexOf('/')) {
+    return false;
+  }
+  const address = value.slice(0, separator);
+  const prefixText = value.slice(separator + 1);
+  if (!/^\d+$/.test(prefixText) || !isValidIpAddress(address)) {
+    return false;
+  }
+  const prefix = Number(prefixText);
+  return prefix >= 0 && prefix <= (address.includes(':') ? 128 : 32);
+}
+
+function isValidIpAddress(value: string): boolean {
+  return isValidIpv4(value) || isValidIpv6(value);
+}
+
+function isValidIpv4(value: string): boolean {
+  const parts = value.split('.');
+  return (
+    parts.length === 4 &&
+    parts.every(
+      (part) =>
+        /^\d{1,3}$/.test(part) &&
+        (part === '0' || !part.startsWith('0')) &&
+        Number(part) >= 0 &&
+        Number(part) <= 255,
+    )
+  );
+}
+
+function isValidIpv6(value: string): boolean {
+  if (!value.includes(':') || value.includes('%') || (value.match(/::/g) || []).length > 1) {
+    return false;
+  }
+
+  const compressed = value.includes('::');
+  const halves = value.split('::');
+  const groups = halves.flatMap((half) => (half ? half.split(':') : []));
+  let groupCount = 0;
+  for (let index = 0; index < groups.length; index += 1) {
+    const group = groups[index];
+    if (group.includes('.')) {
+      if (index !== groups.length - 1 || !isValidIpv4(group)) {
+        return false;
+      }
+      groupCount += 2;
+      continue;
+    }
+    if (!/^[0-9a-fA-F]{1,4}$/.test(group)) {
+      return false;
+    }
+    groupCount += 1;
+  }
+  return compressed ? groupCount < 8 : groupCount === 8;
 }
 
 function serializeShareableFinalMask(finalmask: unknown): string {

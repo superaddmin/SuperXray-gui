@@ -211,6 +211,27 @@ test('hysteria inbound form exposes QUIC Params UDP Hop controls and syncs final
   assert.match(source, /delete stream\.finalmask/);
 });
 
+test('hysteria QUIC form uses the v1.11.4 receive window and stream defaults', () => {
+  assert.match(source, /HYSTERIA_QUIC_DEFAULTS/);
+  assert.match(source, /hysteriaInitStreamReceiveWindow/);
+  assert.match(source, /hysteriaMaxStreamReceiveWindow/);
+  assert.match(source, /hysteriaInitConnectionReceiveWindow/);
+  assert.match(source, /hysteriaMaxConnectionReceiveWindow/);
+  assert.match(source, /hysteriaMaxIdleTimeout/);
+  assert.match(source, /hysteriaMaxIncomingStreams/);
+});
+
+test('TUN form normalizes current Xray fields while preserving the source settings object', () => {
+  assert.match(source, /title="TUN Settings"/);
+  assert.match(source, /v-model:value="tunEditor\.gateway"/);
+  assert.match(source, /v-model:value="tunEditor\.dns"/);
+  assert.match(source, /v-model:value="tunEditor\.autoSystemRoutingTable"/);
+  assert.match(source, /v-model:value="tunEditor\.autoOutboundsInterface"/);
+  assert.match(source, /normalizeTunSettings\(\{/);
+  assert.match(source, /\.\.\.parseInboundSettingsText\(normalizedSettingsText\)/);
+  assert.match(source, /validateTunSettings\(settings\)/);
+});
+
 test('TLS form generates and persists inline self-signed certificate material', () => {
   assert.match(source, /generateSelfSignedCertificate/);
   assert.match(source, /@click="generateSelfSignedTlsCertificate"/);
