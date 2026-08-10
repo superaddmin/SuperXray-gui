@@ -570,8 +570,31 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 `POST /panel/api/server/getNewEchCert`
 
 | 字段 | 类型 | 必填 | 说明 |
-|---|---|---|---|
+|---|---|---|---|---|
 | `sni` | string | 是 | ECH 证书使用的 SNI |
+
+### 7.6 自签名证书
+
+`POST /panel/api/server/getNewSelfSignedCert`
+
+生成 ECDSA P-256 自签名 TLS 服务器证书，有效期一年，证书和私钥均以 PEM 格式返回。
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `sni` | string | 否 | 逗号分隔的 SAN 名称，支持 DNS 名和 IP 地址；最多 16 个，总长不超过 1024 字符；为空时使用 `localhost, 127.0.0.1, ::1` |
+
+成功响应示例：
+
+```json
+{
+  "success": true,
+  "msg": "",
+  "obj": {
+    "cert": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----",
+    "key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+  }
+}
+```
 
 ---
 
