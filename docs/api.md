@@ -591,7 +591,7 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
   "msg": "",
   "obj": {
     "cert": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----",
-    "key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
+    "key": "<PRIVATE_KEY_PEM>"
   }
 }
 ```
