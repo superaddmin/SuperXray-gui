@@ -83,12 +83,28 @@ export const GATEWAY_EGRESS_MVP_PROFILES: GatewayEgressMvpProfile[] = [
 ];
 
 const PLATFORM_DOMAINS: Record<GatewayEgressPlatform, string[]> = {
-  openai: ['domain:api.openai.com', 'domain:chatgpt.com', 'domain:chat.openai.com'],
-  anthropic: ['domain:api.anthropic.com', 'domain:claude.ai'],
+  openai: [
+    'domain:api.openai.com',
+    'domain:chatgpt.com',
+    'domain:chat.openai.com',
+    'domain:openai.com',
+    'domain:oaistatic.com',
+    'domain:oaiusercontent.com',
+    'domain:sora.com',
+    'domain:openai.azure.com',
+  ],
+  anthropic: [
+    'domain:api.anthropic.com',
+    'domain:claude.ai',
+    'domain:anthropic.com',
+    'domain:claude.com',
+  ],
   gemini: [
     'domain:generativelanguage.googleapis.com',
     'domain:cloudcode-pa.googleapis.com',
     'domain:aiplatform.googleapis.com',
+    'domain:aistudio.google.com',
+    'domain:gemini.google.com',
   ],
 };
 

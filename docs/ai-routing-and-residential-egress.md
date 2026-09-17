@@ -118,12 +118,32 @@ tag 包含 "residential"
     "domain:chatgpt.com",
     "domain:oaistatic.com",
     "domain:oaiusercontent.com",
+    "domain:sora.com",
+    "domain:openai.azure.com",
     "domain:anthropic.com",
     "domain:claude.ai",
+    "domain:claude.com",
     "domain:aistudio.google.com",
     "domain:generativelanguage.googleapis.com",
     "domain:makersuite.google.com",
-    "domain:gemini.google.com"
+    "domain:gemini.google.com",
+    "domain:cloudcode-pa.googleapis.com",
+    "domain:aiplatform.googleapis.com",
+    "domain:openrouter.ai",
+    "domain:x.ai",
+    "domain:grok.com",
+    "domain:perplexity.ai",
+    "domain:groq.com",
+    "domain:mistral.ai",
+    "domain:cohere.com",
+    "domain:fireworks.ai",
+    "domain:together.xyz",
+    "domain:huggingface.co",
+    "domain:cursor.com",
+    "domain:cursor.sh",
+    "domain:githubcopilot.com",
+    "domain:codeium.com",
+    "domain:windsurf.com"
   ]
 }
 ```
@@ -140,12 +160,32 @@ tag 包含 "residential"
     "domain:chatgpt.com",
     "domain:oaistatic.com",
     "domain:oaiusercontent.com",
+    "domain:sora.com",
+    "domain:openai.azure.com",
     "domain:anthropic.com",
     "domain:claude.ai",
+    "domain:claude.com",
     "domain:aistudio.google.com",
     "domain:generativelanguage.googleapis.com",
     "domain:makersuite.google.com",
-    "domain:gemini.google.com"
+    "domain:gemini.google.com",
+    "domain:cloudcode-pa.googleapis.com",
+    "domain:aiplatform.googleapis.com",
+    "domain:openrouter.ai",
+    "domain:x.ai",
+    "domain:grok.com",
+    "domain:perplexity.ai",
+    "domain:groq.com",
+    "domain:mistral.ai",
+    "domain:cohere.com",
+    "domain:fireworks.ai",
+    "domain:together.xyz",
+    "domain:huggingface.co",
+    "domain:cursor.com",
+    "domain:cursor.sh",
+    "domain:githubcopilot.com",
+    "domain:codeium.com",
+    "domain:windsurf.com"
   ]
 }
 ```
@@ -159,6 +199,14 @@ tag 包含 "residential"
 - 其他已有规则跟在后面。
 
 默认不设置 balancer `fallbackTag`。住宅出口不可用时，请求应失败关闭，而不是自动直连。
+
+维护域名清单时必须同步改三处，否则会出现重复或残留规则：
+
+- `frontend/src/utils/xrayCompat.ts` 的 `AI_RESIDENTIAL_DOMAINS`。
+- 同文件的 `isAiResidentialDomainCandidate` 关键词表：它决定哪些旧规则会被识别并替换，新增域名若不命中关键词就不会被清理。
+- `frontend/tests/xray-compat.test.ts` 中断言域名清单的用例。
+
+不要加入 `domain:google.com`、`domain:googleapis.com` 这类整域规则，副作用过大；Google 侧只加具体 API 子域。
 
 ---
 
@@ -299,9 +347,9 @@ Host 校验会拒绝：
 
 | platform | domains |
 |---|---|
-| `openai` | `domain:api.openai.com`、`domain:chatgpt.com`、`domain:chat.openai.com` |
-| `anthropic` | `domain:api.anthropic.com`、`domain:claude.ai` |
-| `gemini` | `domain:generativelanguage.googleapis.com`、`domain:cloudcode-pa.googleapis.com`、`domain:aiplatform.googleapis.com` |
+| `openai` | `domain:api.openai.com`、`domain:chatgpt.com`、`domain:chat.openai.com`、`domain:openai.com`、`domain:oaistatic.com`、`domain:oaiusercontent.com`、`domain:sora.com`、`domain:openai.azure.com` |
+| `anthropic` | `domain:api.anthropic.com`、`domain:claude.ai`、`domain:anthropic.com`、`domain:claude.com` |
+| `gemini` | `domain:generativelanguage.googleapis.com`、`domain:cloudcode-pa.googleapis.com`、`domain:aiplatform.googleapis.com`、`domain:aistudio.google.com`、`domain:gemini.google.com` |
 
 区域 profile 只按 inboundTag 绑定到对应 egress group。
 

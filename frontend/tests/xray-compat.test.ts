@@ -337,6 +337,8 @@ test('ai residential routing uses a balancer and keeps google domains narrowed t
       'domain:generativelanguage.googleapis.com',
       'domain:makersuite.google.com',
       'domain:gemini.google.com',
+      'domain:cloudcode-pa.googleapis.com',
+      'domain:aiplatform.googleapis.com',
     ],
   );
 });

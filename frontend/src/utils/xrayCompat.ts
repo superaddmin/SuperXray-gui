@@ -172,16 +172,41 @@ export interface ResidentialIpRow extends JsonObject {
 
 export const AI_RESIDENTIAL_BALANCER_TAG = 'ai-residential';
 export const AI_RESIDENTIAL_DOMAINS = [
+  // OpenAI / ChatGPT
   'domain:openai.com',
   'domain:chatgpt.com',
   'domain:oaistatic.com',
   'domain:oaiusercontent.com',
+  'domain:sora.com',
+  'domain:openai.azure.com',
+  // Anthropic / Claude
   'domain:anthropic.com',
   'domain:claude.ai',
+  'domain:claude.com',
+  // Google / Gemini: keep concrete API subdomains, never the google.com / googleapis.com roots
   'domain:aistudio.google.com',
   'domain:generativelanguage.googleapis.com',
   'domain:makersuite.google.com',
   'domain:gemini.google.com',
+  'domain:cloudcode-pa.googleapis.com',
+  'domain:aiplatform.googleapis.com',
+  // Third-party model APIs and aggregators
+  'domain:openrouter.ai',
+  'domain:x.ai',
+  'domain:grok.com',
+  'domain:perplexity.ai',
+  'domain:groq.com',
+  'domain:mistral.ai',
+  'domain:cohere.com',
+  'domain:fireworks.ai',
+  'domain:together.xyz',
+  'domain:huggingface.co',
+  // Coding assistants and IDE plugins
+  'domain:cursor.com',
+  'domain:cursor.sh',
+  'domain:githubcopilot.com',
+  'domain:codeium.com',
+  'domain:windsurf.com',
 ];
 
 export const DNS_PRESET_OPTIONS: DnsPresetOption[] = [
@@ -1032,16 +1057,39 @@ function isManagedAiResidentialRule(rule: JsonObject, residentialTags: string[])
 function isAiResidentialDomainCandidate(domain: string): boolean {
   const lowered = domain.toLowerCase();
   return [
+    // OpenAI / ChatGPT
     'openai',
     'chatgpt',
     'oaistatic',
     'oaiusercontent',
+    'sora',
+    'openai.azure',
+    // Anthropic / Claude
     'anthropic',
     'claude',
+    // Google / Gemini
     'google',
     'gemini',
     'generativelanguage',
     'makersuite',
+    'cloudcode',
+    'aiplatform',
+    // Third-party model APIs and aggregators
+    'openrouter',
+    'x.ai',
+    'grok',
+    'perplexity',
+    'groq',
+    'mistral',
+    'cohere',
+    'fireworks',
+    'together',
+    'huggingface',
+    // Coding assistants and IDE plugins
+    'cursor',
+    'githubcopilot',
+    'codeium',
+    'windsurf',
   ].some((term) => lowered.includes(term));
 }
 
