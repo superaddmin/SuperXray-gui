@@ -7,6 +7,16 @@ import (
 	"time"
 )
 
+const (
+	requestMetricsMaxStatusDimensions = 64
+	requestMetricsMaxRouteDimensions  = 256
+	requestMetricsMaxMethodLength     = 32
+	requestMetricsMaxRouteLength      = 512
+	requestMetricsOverflowDimension   = "<overflow>"
+	requestMetricsOversizedMethod     = "<oversized-method>"
+	requestMetricsOversizedRoute      = "<oversized-route>"
+)
+
 // RequestMetricsSnapshot captures request counters for read-only reporting.
 type RequestMetricsSnapshot struct {
 	Total            int64                           `json:"total"`
@@ -66,8 +76,23 @@ func (s *RequestMetricsStore) RequestCompleted(method string, route string, stat
 		s.inFlight--
 	}
 	s.total++
-	s.statusCount[strconv.Itoa(status)]++
-	key := method + " " + route
+	statusKey := boundedMetricDimension(
+		s.statusCount,
+		strconv.Itoa(status),
+		requestMetricsMaxStatusDimensions,
+	)
+	s.statusCount[statusKey]++
+	if len(method) > requestMetricsMaxMethodLength {
+		method = requestMetricsOversizedMethod
+	}
+	if len(route) > requestMetricsMaxRouteLength {
+		route = requestMetricsOversizedRoute
+	}
+	key := boundedMetricDimension(
+		s.routeCount,
+		method+" "+route,
+		requestMetricsMaxRouteDimensions,
+	)
 	s.routeCount[key]++
 	s.routeLatency[key] += duration
 	s.latency += duration
@@ -111,4 +136,14 @@ func copyInt64Map(src map[string]int64) map[string]int64 {
 		dst[k] = v
 	}
 	return dst
+}
+
+func boundedMetricDimension(counts map[string]int64, key string, limit int) string {
+	if _, exists := counts[key]; exists {
+		return key
+	}
+	if limit <= 1 || len(counts) >= limit-1 {
+		return requestMetricsOverflowDimension
+	}
+	return key
 }

@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -102,5 +103,48 @@ func TestStructuredRequestLoggerEmitsSafeRequestFields(t *testing.T) {
 	completed := metrics.completed[0]
 	if completed.method != http.MethodGet || completed.route != "/items/:id" || completed.status != http.StatusCreated || completed.duration != 125*time.Millisecond {
 		t.Fatalf("completed metrics = %#v, want GET /items/:id %d 125ms", completed, http.StatusCreated)
+	}
+}
+
+func TestStructuredRequestLoggerCollapsesUnmatchedPaths(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var entries []RequestLogEntry
+	metrics := &fakeRequestMetricsRecorder{}
+	router := gin.New()
+	router.Use(StructuredRequestLoggerMiddleware(RequestLogOptions{
+		Metrics: metrics,
+		Log: func(entry RequestLogEntry) {
+			entries = append(entries, entry)
+		},
+	}))
+
+	for _, path := range []string{"/scanner/one", "/scanner/two"} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "http://example.test"+path, nil))
+		if recorder.Code != http.StatusNotFound {
+			t.Fatalf("status for %q = %d, want %d", path, recorder.Code, http.StatusNotFound)
+		}
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("log entries = %d, want 2", len(entries))
+	}
+	for _, entry := range entries {
+		if entry.Path != unmatchedRoute || entry.Route != unmatchedRoute {
+			t.Fatalf("unmatched request fields = path %q route %q, want %q", entry.Path, entry.Route, unmatchedRoute)
+		}
+		if strings.Contains(entry.Path, "scanner") || strings.Contains(entry.Route, "scanner") {
+			t.Fatalf("unmatched request leaked raw path: %#v", entry)
+		}
+	}
+
+	if len(metrics.completed) != 2 {
+		t.Fatalf("metrics completed = %d, want 2", len(metrics.completed))
+	}
+	for _, completed := range metrics.completed {
+		if completed.route != unmatchedRoute {
+			t.Fatalf("metrics route = %q, want %q", completed.route, unmatchedRoute)
+		}
 	}
 }

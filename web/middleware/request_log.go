@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const unmatchedRoute = "<unmatched>"
+
 // RequestLogEntry captures a structured view of a completed request.
 type RequestLogEntry struct {
 	RequestID  string
@@ -59,7 +61,7 @@ func StructuredRequestLoggerMiddleware(opts RequestLogOptions) gin.HandlerFunc {
 		duration := finished.Sub(started)
 		route := c.FullPath()
 		if route == "" {
-			route = c.Request.URL.Path
+			route = unmatchedRoute
 		}
 		entry := RequestLogEntry{
 			RequestID:  RequestID(c),
