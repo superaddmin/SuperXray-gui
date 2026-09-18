@@ -30,24 +30,10 @@ type OutboundService struct{}
 var testSemaphore sync.Mutex
 
 func (s *OutboundService) AddTraffic(traffics []*xray.Traffic, clientTraffics []*xray.ClientTraffic) (error, bool) {
-	var err error
-	db := database.GetDB()
-	tx := db.Begin()
-
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
-
-	err = s.addOutboundTraffic(tx, traffics)
-	if err != nil {
-		return err, false
-	}
-
-	return nil, false
+	err := database.GetDB().Transaction(func(tx *gorm.DB) error {
+		return s.addOutboundTraffic(tx, traffics)
+	})
+	return err, false
 }
 
 func (s *OutboundService) addOutboundTraffic(tx *gorm.DB, traffics []*xray.Traffic) error {

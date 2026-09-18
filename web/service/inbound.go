@@ -1359,47 +1359,59 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 }
 
 func (s *InboundService) AddTraffic(inboundTraffics []*xray.Traffic, clientTraffics []*xray.ClientTraffic) (error, bool) {
-	var err error
-	db := database.GetDB()
-	tx := db.Begin()
+	var needRestart bool
+	var runtimeMutationAttempted bool
+	var renewedClients int64
+	var disabledClients int64
+	var disabledInbounds int64
 
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
+	err := database.GetDB().Transaction(func(tx *gorm.DB) error {
+		if err := s.addInboundTraffic(tx, inboundTraffics); err != nil {
+			return fmt.Errorf("add inbound traffic: %w", err)
 		}
-	}()
-	err = s.addInboundTraffic(tx, inboundTraffics)
+		if err := s.addClientTraffic(tx, clientTraffics); err != nil {
+			return fmt.Errorf("add client traffic: %w", err)
+		}
+
+		stepRestart, count, err := s.autoRenewClientsTracked(tx, &runtimeMutationAttempted)
+		needRestart = needRestart || stepRestart
+		if err != nil {
+			return fmt.Errorf("renew clients: %w", err)
+		}
+		renewedClients = count
+
+		stepRestart, count, err = s.disableInvalidClientsTracked(tx, &runtimeMutationAttempted)
+		needRestart = needRestart || stepRestart
+		if err != nil {
+			return fmt.Errorf("disable invalid clients: %w", err)
+		}
+		disabledClients = count
+
+		stepRestart, count, err = s.disableInvalidInboundsTracked(tx, &runtimeMutationAttempted)
+		needRestart = needRestart || stepRestart
+		if err != nil {
+			return fmt.Errorf("disable invalid inbounds: %w", err)
+		}
+		disabledInbounds = count
+		return nil
+	})
 	if err != nil {
-		return err, false
-	}
-	err = s.addClientTraffic(tx, clientTraffics)
-	if err != nil {
-		return err, false
+		if runtimeMutationAttempted {
+			needRestart = true
+		}
+		return err, needRestart
 	}
 
-	needRestart0, count, err := s.autoRenewClients(tx)
-	if err != nil {
-		logger.Warning("Error in renew clients:", err)
-	} else if count > 0 {
-		logger.Debugf("%v clients renewed", count)
+	if renewedClients > 0 {
+		logger.Debugf("%v clients renewed", renewedClients)
 	}
-
-	needRestart1, count, err := s.disableInvalidClients(tx)
-	if err != nil {
-		logger.Warning("Error in disabling invalid clients:", err)
-	} else if count > 0 {
-		logger.Debugf("%v clients disabled", count)
+	if disabledClients > 0 {
+		logger.Debugf("%v clients disabled", disabledClients)
 	}
-
-	needRestart2, count, err := s.disableInvalidInbounds(tx)
-	if err != nil {
-		logger.Warning("Error in disabling invalid inbounds:", err)
-	} else if count > 0 {
-		logger.Debugf("%v inbounds disabled", count)
+	if disabledInbounds > 0 {
+		logger.Debugf("%v inbounds disabled", disabledInbounds)
 	}
-	return nil, (needRestart0 || needRestart1 || needRestart2)
+	return nil, needRestart
 }
 
 func (s *InboundService) addInboundTraffic(tx *gorm.DB, traffics []*xray.Traffic) error {
@@ -1467,12 +1479,15 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 		}
 	}
 
-	// Set onlineUsers
-	p.SetOnlineClients(onlineClients)
-
 	err = s.inbounds().SaveClientTraffics(tx, dbClientTraffics)
 	if err != nil {
 		logger.Warning("AddClientTraffic update data ", err)
+		return err
+	}
+
+	// Set onlineUsers after the database update succeeds.
+	if p != nil {
+		p.SetOnlineClients(onlineClients)
 	}
 
 	return nil
@@ -1531,6 +1546,7 @@ func (s *InboundService) adjustTraffics(tx *gorm.DB, dbClientTraffics []*xray.Cl
 		if err != nil {
 			logger.Warning("AddClientTraffic update inbounds ", err)
 			logger.Error(inbounds)
+			return nil, err
 		}
 	}
 
@@ -1538,6 +1554,10 @@ func (s *InboundService) adjustTraffics(tx *gorm.DB, dbClientTraffics []*xray.Cl
 }
 
 func (s *InboundService) autoRenewClients(tx *gorm.DB) (bool, int64, error) {
+	return s.autoRenewClientsTracked(tx, nil)
+}
+
+func (s *InboundService) autoRenewClientsTracked(tx *gorm.DB, runtimeMutationAttempted *bool) (bool, int64, error) {
 	// check for time expired
 	now := time.Now().Unix() * 1000
 	var err, err1 error
@@ -1627,6 +1647,9 @@ func (s *InboundService) autoRenewClients(tx *gorm.DB) (bool, int64, error) {
 			}
 			defer s.xrayApi.Close()
 			for _, clientToAdd := range clientsToAdd {
+				if runtimeMutationAttempted != nil {
+					*runtimeMutationAttempted = true
+				}
 				err1 = s.xrayApi.AddUser(clientToAdd.protocol, clientToAdd.tag, clientToAdd.client)
 				if err1 != nil {
 					needRestart = true
@@ -1638,6 +1661,10 @@ func (s *InboundService) autoRenewClients(tx *gorm.DB) (bool, int64, error) {
 }
 
 func (s *InboundService) disableInvalidInbounds(tx *gorm.DB) (bool, int64, error) {
+	return s.disableInvalidInboundsTracked(tx, nil)
+}
+
+func (s *InboundService) disableInvalidInboundsTracked(tx *gorm.DB, runtimeMutationAttempted *bool) (bool, int64, error) {
 	now := time.Now().Unix() * 1000
 	needRestart := false
 
@@ -1653,6 +1680,9 @@ func (s *InboundService) disableInvalidInbounds(tx *gorm.DB) (bool, int64, error
 			} else {
 				defer s.xrayApi.Close()
 				for _, tag := range tags {
+					if runtimeMutationAttempted != nil {
+						*runtimeMutationAttempted = true
+					}
 					err1 := s.xrayApi.DelInbound(tag)
 					if err1 == nil {
 						logger.Debug("Inbound disabled by api:", tag)
@@ -1670,6 +1700,10 @@ func (s *InboundService) disableInvalidInbounds(tx *gorm.DB) (bool, int64, error
 }
 
 func (s *InboundService) disableInvalidClients(tx *gorm.DB) (bool, int64, error) {
+	return s.disableInvalidClientsTracked(tx, nil)
+}
+
+func (s *InboundService) disableInvalidClientsTracked(tx *gorm.DB, runtimeMutationAttempted *bool) (bool, int64, error) {
 	now := time.Now().Unix() * 1000
 	needRestart := false
 
@@ -1685,6 +1719,9 @@ func (s *InboundService) disableInvalidClients(tx *gorm.DB) (bool, int64, error)
 			} else {
 				defer s.xrayApi.Close()
 				for _, result := range results {
+					if runtimeMutationAttempted != nil {
+						*runtimeMutationAttempted = true
+					}
 					err1 := s.xrayApi.RemoveUser(result.Tag, result.Email)
 					if err1 == nil {
 						logger.Debug("Client disabled by api:", result.Email)
