@@ -118,7 +118,7 @@ func (s *ServerService) validateXrayConfigForGeofileUpdate() error {
 	}
 
 	if _, err := runXrayCommand("run", "-test", "-config", tempPath); err != nil {
-		return fmt.Errorf("Xray configuration validation failed: %w", err)
+		return fmt.Errorf("xray configuration validation failed: %w", err)
 	}
 	return nil
 }
@@ -393,16 +393,16 @@ func (u geofileUpdater) update(fileName string) error {
 
 	rollbackErr := u.rollback(records)
 	if rollbackErr != nil {
-		return fmt.Errorf("Xray restart failed after geofile update: %v; rollback failed: %w", restartErr, rollbackErr)
+		return fmt.Errorf("xray restart failed after geofile update: %v; rollback failed: %w", restartErr, rollbackErr)
 	}
 	restoreRestartErr := u.restart()
 	if restoreRestartErr != nil {
 		return fmt.Errorf(
-			"Xray restart failed after geofile update: %v; geofiles were rolled back but restoring Xray failed: %w",
+			"xray restart failed after geofile update: %v; geofiles were rolled back but restoring Xray failed: %w",
 			restartErr, restoreRestartErr,
 		)
 	}
-	return fmt.Errorf("Xray restart failed after geofile update and the previous geofiles were restored: %w", restartErr)
+	return fmt.Errorf("xray restart failed after geofile update and the previous geofiles were restored: %w", restartErr)
 }
 
 func validateGeofile(path, fileName string) error {

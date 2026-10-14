@@ -440,9 +440,9 @@ func (t *Tgbot) createRobustFastHTTPClient(proxyUrl string) *fasthttp.Client {
 		DisableHeaderNamesNormalizing: false,
 		DisablePathNormalizing:        false,
 		// Retry on connection errors
-		RetryIf: func(request *fasthttp.Request) bool {
-			// Retry on connection errors for GET requests
-			return string(request.Header.Method()) == "GET" || string(request.Header.Method()) == "POST"
+		RetryIfErr: func(request *fasthttp.Request, _ int, _ error) (bool, bool) {
+			// Keep GET/POST retries within the original request timeout.
+			return false, string(request.Header.Method()) == "GET" || string(request.Header.Method()) == "POST"
 		},
 	}
 
