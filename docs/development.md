@@ -2,6 +2,7 @@
 
 > **目标读者**：贡献者 / 维护者 / 自动化 Agent
 > **适用版本**：`v3.4.3`
+> **源码核对日期**：2026-10-14
 > **事实来源**：`go.mod`、`.env.example`、`frontend/package.json`、`.github/workflows/*`、`.codex/project.toml`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [部署指南](deployment.md)
 
@@ -38,12 +39,13 @@
 go 1.26.5
 ```
 
-本地构建需要 CGO，因为项目使用 SQLite。
+本地构建需要 CGO 和当前目标平台的 C 编译器，因为项目使用 SQLite。Windows 可使用已配置的 MinGW GCC；Linux 使用 GCC。Go module 缓存属于工具链目录，不随项目清理。
 
 常用命令：
 
 ```bash
 go mod download
+go mod tidy -diff
 go test ./...
 go vet ./...
 go build -o bin/SuperXray.exe ./main.go
@@ -55,10 +57,13 @@ Linux 发布包由 GitHub Actions 使用交叉编译和对应交叉编译器构�
 
 新 UI 在 `frontend/`，脚本来自 `frontend/package.json`：
 
+Vite 8 要求 Node.js `20.19+` 或 `22.12+`；本仓库测试使用 Node 类型剥离参数，建议统一使用 Node.js `22.12+`。根目录与 `frontend/` 各有独立的 npm 锁文件：根目录用于 Playwright E2E，前端目录用于 Vue 构建，分别执行 `npm ci`。
+
 | 命令 | 作用 |
 |---|---|
 | `npm run dev` | Vite dev server |
-| `npm run build` | `vue-tsc -b && vite build` |
+| `npm run gen:openapi` | 从 `docs/openapi/panel-api.yaml` 导出 `frontend/public/openapi.json` |
+| `npm run build` | `npm run gen:openapi && vue-tsc -b && vite build` |
 | `npm run preview` | 预览构建产物 |
 | `npm run test` | 运行 TS 单测 |
 | `npm run typecheck` | `vue-tsc -b --noEmit` |
@@ -84,6 +89,10 @@ XUI_LOG_FOLDER=/var/log/x-ui
 XUI_BIN_FOLDER=bin
 ```
 
+其中 `/etc/x-ui` 与 `/var/log/x-ui` 是 Linux 示例路径。Windows 本地开发应使用下面的工作区路径或显式绝对路径，不能直接按 Linux 示例推断存储位置。未设置目录变量时，Windows DB 使用可执行程序目录（`go run` 临时程序按当前工作目录回退），日志使用当前工作目录下的 `log/`；Linux 分别为 `/etc/x-ui`、`/var/log/x-ui`。
+
+注意 `main.go` 先初始化日志再调用 `godotenv.Load()`。只在 `.env` 中设置 `XUI_DEBUG/XUI_LOG_LEVEL/XUI_LOG_FOLDER` 不会影响当次首次日志初始化；PowerShell 可在启动前设置 `$env:XUI_DEBUG = 'true'`，Linux shell 使用 `export XUI_DEBUG=true`。数据库等后续配置读取使用加载后的环境。
+
 本地开发可创建 `.env`：
 
 ```bash
@@ -104,6 +113,8 @@ SUPERXRAY_SING_BOX_LOG_FOLDER=x-ui
 
 未设置时，sing-box 默认读取 `config.GetBinFolderPath()` 下的二进制和配置，并使用 `config.GetLogFolder()`。
 
+安装与管理脚本的环境覆盖独立于 Go 设置：`XUI_MAIN_FOLDER`（默认 `/usr/local/x-ui`）、`XUI_SERVICE`（默认 `/etc/systemd/system`）、`XUI_SCRIPT_REPO`（安装/管理脚本来源）、`XUI_RELEASE_REPO`（安装包来源）、`XUI_LEGACY_REPO`（管理脚本的历史版本来源）。仓库默认均为 `superaddmin/SuperXray-gui`。Docker 的 `XUI_ENABLE_FAIL2BAN=true` 控制入口是否启动 fail2ban；`XRAY_VMESS_AEAD_FORCED` 传递给核心进程，不是面板字段。
+
 ---
 
 ## 3. 本地启动
@@ -114,14 +125,19 @@ SUPERXRAY_SING_BOX_LOG_FOLDER=x-ui
 go run main.go
 ```
 
-首次数据库为空时会创建默认用户 `admin/admin`。生产部署必须立即修改默认账户、端口、base path 和 HTTPS 设置；一键安装脚本通常会生成随机安全值。
+源码树的 `bin/` 不提供 Xray 或 sing-box 运行核心；启动前应准备与目标平台匹配的核心二进制及需要的 Geo 数据。启动面板成功不代表 Xray 启动成功，应检查状态和日志；官方 Linux 发布包由工作流装配这些运行文件。
+
+首次数据库为空时会创建默认用户 `admin/admin`，面板设置默认端口 `2053`、`webBasePath=/super/`；配置前缀下的 `/panel/login` 即默认登录 URL `http://127.0.0.1:2053/super/panel/login`。部署时必须修改默认账户，并核对端口、base path 和 HTTPS 设置；一键安装脚本通常会生成随机安全值。
 
 ### 3.2 前端开发
 
-新 UI 源码位于 `frontend/src`，构建产物嵌入到 `web/ui`。常规开发有两种路径：
+新 UI 源码位于 `frontend/src`，构建产物嵌入到 `web/ui`。常规开发使用以下路径：
 
-1. 改 Go/API：直接跑后端即可。
-2. 改 Vue 3 新 UI：在 `frontend/` 运行 `npm run dev` 或 `npm run build`，再由 Go 托管构建产物。
+1. 改 Go/API：直接跑后端；修改面板 OpenAPI 源契约后，另运行 `npm run gen:openapi` 并构建前端。
+2. 改 Vue 3 新 UI：在 `frontend/` 执行 `npm ci` 后运行 `npm run build`，然后重新执行 `go run main.go`，或重新 `go build` 并启动新二进制。Go embed 在编译时读取产物，只重启旧二进制不会更新 UI。
+3. `npm run dev` 只启动 Vite。当前 `vite.config.ts` 没有后端代理，开发页也没有 Go 注入的 session/CSRF/runtime config；它适用于独立页面开发，完整鉴权与 API 流程应使用 Go 托管路径。
+
+`web/ui` 是受版本控制的 Go embed 输入，不能作为普通缓存删除；修改源码后应从 `frontend/` 重建，禁止手改压缩 bundle。`frontend/public/openapi.json` 是生成文件，`docs/openapi/panel-api.yaml` 是源契约。后端版本化 API 的源契约独立位于 `docs/openapi/api-v1.yaml`。
 
 如果改动影响后端注入 runtime config、base path、CSP 或静态资源缓存，需要同时验证 Go 托管路径：
 
@@ -159,6 +175,7 @@ SuperXray-gui/
 │   │   ├── types/
 │   │   ├── utils/                  # Xray/Inbound 兼容工具
 │   │   └── views/
+│   ├── public/                    # favicon、QRious、生成的 OpenAPI JSON
 │   └── tests/
 ├── logger/                         # 日志系统
 ├── sub/                            # 独立订阅服务
@@ -189,11 +206,16 @@ SuperXray-gui/
 │   ├── 00-governance/
 │   ├── 01-strategy/
 │   ├── 02-architecture/
-│   └── 03-ui-design/
-└── .github/workflows/              # release/docker/codeql/cache cleanup
+│   ├── 03-ui-design/
+│   └── 04-ui-first-execution/       # 阶段交付与门禁记录
+├── scripts/                        # 脱敏扫描、Gateway 验证脚本
+├── tools/openapiexport/            # 面板 OpenAPI YAML -> JSON 导出
+├── tests/e2e/                      # Playwright 用例
+├── package.json / package-lock.json # 根目录 E2E 工具依赖
+└── .github/workflows/              # release/docker/test-arm64/codeql
 ```
 
-文档体系规划入口是 `plans/00-governance/documentation-system-plan.md`。`docs/superpowers/*` 是历史规格、计划和评审材料，除非任务明确要求，不应把它们改写成当前运行手册。
+文档体系规划入口是 `plans/00-governance/documentation-system-plan.md`。历史阶段材料保留在 `plans/`；当前仓库不含 `docs/superpowers/`，旧文档提及的相关设计路径不能作为可执行实现入口。公开文档索引见 [docs/README.md](README.md)。
 
 ---
 
@@ -252,6 +274,7 @@ go build -o bin/SuperXray.exe ./main.go
 cd frontend
 npm run typecheck
 npm run lint
+npm run format
 npm run test
 npm run build
 ```
@@ -347,20 +370,24 @@ PR 至少包含：
 
 触发：
 
-- `main` 相关路径变更。
-- tag push。
+- Pull Request。
+- 任意分支满足 `paths` 过滤的 push（不只 `main`）。
+- `v*.*.*` tag push。
+- `workflow_dispatch` 手动运行。
 
 关键步骤：
 
 1. `release_gate.py --ci --metadata-only` 校验版本、CHANGELOG 和 release metadata。
-2. 设置 Go。
-3. 针对 Linux `amd64` / `arm64` 构建 `xui-release`。
+2. 脱敏扫描、Go 格式检查、`go vet`、OpenAPI 契约测试、staticcheck、`go test -race -shuffle=on ./...`。
+3. 设置 Go 和 CGO 工具链，针对 Linux `amd64` / `arm64` 构建 `xui-release`。
 4. 下载 Xray release `v26.3.27`。
 5. 下载 Geo 数据文件。
 6. 打包：
    - `x-ui-linux-amd64.tar.gz`
    - `x-ui-linux-arm64.tar.gz`
-7. tag push 时上传 GitHub Release。
+7. 普通运行上传 Actions Artifact；tag push 才生成 CHANGELOG release notes 并上传 GitHub Release。
+
+当前 Release 与 Docker 构建使用仓库内 `web/ui`，没有自动执行 npm/Vite 构建。前端或面板 OpenAPI 变更需先本地构建并同步 `web/ui`。发布前检查入口为 `.codex/skills/superxray-release-cicd/scripts/release_gate.py`。
 
 发布前推荐：
 

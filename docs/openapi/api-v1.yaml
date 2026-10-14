@@ -1,16 +1,20 @@
 openapi: 3.1.0
 info:
   title: SuperXray Versioned API
-  version: 0.1.0
+  version: 3.4.3
+  x-source-audit-date: '2026-10-14'
   description: |
     Machine-readable contract for the versioned SuperXray API surface.
     Runtime deployments may prepend the configured webBasePath before these paths.
+    These three GET endpoints are public and use a per-client fixed-window limit of 120 requests per minute.
+    Live and ready both return HTTP 200 read-only snapshots even when Xray is stopped or in error.
+    Readiness does not probe database availability or external dependencies.
 servers:
   - url: "{webBasePath}"
-    description: Runtime web base path. Use / for the source default.
+    description: Runtime web base path. The current source default is /super/.
     variables:
       webBasePath:
-        default: /
+        default: /super/
 tags:
   - name: Health
     description: Side-effect-free process and runtime health probes.
@@ -69,7 +73,7 @@ components:
         type: string
         minLength: 1
         maxLength: 128
-      description: Optional client-provided request id. The server echoes it when valid, otherwise generates one.
+      description: Optional client-provided request id. Leading/trailing whitespace is trimmed; the value must be at most 128 UTF-8 bytes and contain no control characters. Valid values are echoed; otherwise the server generates one.
   responses:
     HealthResponse:
       description: Unified successful API response containing a health report.
@@ -283,11 +287,15 @@ components:
           format: int64
         byStatus:
           type: object
+          maxProperties: 64
+          description: Bounded status counters including the overflow bucket. Process-local and reset on restart.
           additionalProperties:
             type: integer
             format: int64
         byRoute:
           type: object
+          maxProperties: 256
+          description: Bounded METHOD and registered route labels. Unmatched paths use <unmatched>; new dimensions beyond capacity use <overflow>.
           additionalProperties:
             $ref: '#/components/schemas/RouteMetricsSnapshot'
         averageLatencyMs:

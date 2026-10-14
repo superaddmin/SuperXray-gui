@@ -2,6 +2,7 @@
 
 > **目标读者**：需要同时维护 SuperXray 服务器节点、OpenWrt/Passwall 分流、AI 平台出口质量与排障流程的开发者 / 运维人员  
 > **适用版本**：`v3.4.3`
+> **核对日期**：2026-10-14。本仓库实现服务器侧 Xray 模板、订阅和 Gateway CSV；OpenWrt/Passwall、SSID、网段及外部 Gateway 均为部署环境，以下拓扑与命令是验证模板，不能证明现场已经配置成功。
 > **相关文档**：[部署指南](deployment.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md) | [OpenWrt / Passwall AI 路由实战手册](passwall-openwrt-ai-routing-playbook.md)
 
 ---
@@ -20,7 +21,7 @@
 
 常见对象：
 
-- `85.155.178.115`
+- `<SERVER_IP>`
 - Web 面板
 - Sub Server
 - Xray / 容器 / systemd 服务
@@ -64,16 +65,18 @@
 - 网段：通常是 `192.168.5.0/24`
 - 目标：
   - 普通流量直连
-  - AI / GFW 域名走稳定代理节点（例如 `85.155.178.115`）
+  - AI / GFW 域名走 `<PRIMARY_PROXY_HOST>`
 
 ### USA WiFi
 
 - 网段：通常是 `192.168.52.0/24`
 - 目标：
   - 保持全代理
-  - 独立承载美国出口需求（例如 `35.87.239.230`）
+  - 独立承载美国出口需求，绑定 `<US_PROXY_HOST>`
 
 ### 为什么要分开
+
+这些网段和 SSID 只是规划示例；现场历史案例见 Passwall 手册。名称含 USA 不等于全代理，出口国家也不能由节点名称证明。
 
 这样做的收益是：
 
@@ -86,7 +89,7 @@
 
 ## 3. 标准验证顺序
 
-## 3.1 客户端视角
+### 3.1 客户端视角
 
 先回答：
 
@@ -98,13 +101,13 @@
 最小命令：
 
 ```bash
-curl https://api.ipify.org
-curl -I https://api.openai.com/v1/models
-curl -I https://chatgpt.com/cdn-cgi/trace
+curl --connect-timeout 5 --max-time 30 https://api.ipify.org
+curl --connect-timeout 5 --max-time 30 -sS -o /dev/null -w 'HTTP %{http_code}\n' https://api.openai.com/v1/models
+curl --connect-timeout 5 --max-time 30 https://chatgpt.com/cdn-cgi/trace
 nslookup api.openai.com <gateway-ip>
 ```
 
-## 3.2 中间设备视角
+### 3.2 中间设备视角
 
 再回答：
 
@@ -124,7 +127,9 @@ iwinfo
 cat /tmp/dhcp.leases
 ```
 
-## 3.3 服务器视角
+上述链名和缓存路径适用于相应 Passwall/iptables 版本；不存在时先核对安装版本与运行进程，fw4/nftables 环境使用 `nft list ruleset` 核对实际链和计数。`uci show` 与进程参数可能包含节点凭据，只在本地受控环境查看，分享前脱敏。
+
+### 3.3 服务器视角
 
 最后确认：
 
@@ -136,10 +141,12 @@ cat /tmp/dhcp.leases
 
 ```bash
 docker exec <container> /app/x-ui -v
-docker logs <container> --tail 100
+docker logs --tail 100 <container>
 curl https://api.ipify.org
 ss -lntp
 ```
+
+这是 Docker 部署示例；systemd 部署使用 `systemctl is-active x-ui`、`journalctl -u x-ui -n 100 --no-pager` 与实际安装路径。服务器直连 IP 正常只能证明基础网络，还需通过目标 inbound/outbound 验证真实客户端路径。API 返回 `401` 等通常仅证明 HTTP 可达，不代表账号、模型调用或流式请求成功；GET trace 才能读取回显的 `ip`/`colo`。
 
 ---
 
@@ -179,9 +186,11 @@ cat /tmp/etc/passwall/var
 看 OpenWrt 本地显式 SOCKS 或对应 `us` ACL：
 
 ```bash
-curl -x socks5h://127.0.0.1:1081 https://api.ipify.org
+curl --connect-timeout 5 --max-time 30 -x socks5h://<OPENWRT_SOCKS_HOST>:<OPENWRT_SOCKS_PORT> https://api.ipify.org
 uci show passwall | grep "@acl_rule"
 ```
+
+显式 SOCKS 结果只代表该端口链路；还要从实际 USA WiFi 客户端产生请求并观察对应透明代理 ACL 计数，才能判定 WiFi 分流策略。
 
 ### 场景 D：页面能开，但模型接口不行
 

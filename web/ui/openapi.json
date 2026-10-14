@@ -35,6 +35,16 @@
           "type": "string"
         }
       },
+      "CoreIDPath": {
+        "description": "String core instance identifier such as default-xray or experimental-sing-box.",
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
       "CountPath": {
         "in": "path",
         "name": "count",
@@ -53,12 +63,29 @@
           "type": "string"
         }
       },
+      "EmbeddedClientIDPath": {
+        "description": "Matches settings.clients[].id, usually a UUID; this is not an inbound id.",
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
       "FileNamePath": {
         "in": "path",
         "name": "fileName",
         "required": true,
         "schema": {
-          "pattern": "^[a-zA-Z0-9_\\\\-.]+$",
+          "enum": [
+            "geoip.dat",
+            "geosite.dat",
+            "geoip_IR.dat",
+            "geosite_IR.dat",
+            "geoip_RU.dat",
+            "geosite_RU.dat"
+          ],
           "type": "string"
         }
       },
@@ -69,6 +96,24 @@
         "schema": {
           "minimum": 1,
           "type": "integer"
+        }
+      },
+      "InboundScopeIDPath": {
+        "description": "Positive inbound id, or -1 for all inbounds.",
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "oneOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "const": -1,
+              "type": "integer"
+            }
+          ]
         }
       },
       "VersionPath": {
@@ -263,6 +308,34 @@
         },
         "required": true
       },
+      "SelfSignedCertForm": {
+        "content": {
+          "application/x-www-form-urlencoded": {
+            "schema": {
+              "properties": {
+                "sni": {
+                  "description": "Comma-separated DNS or IP SANs, at most 16 entries. Empty uses localhost, 127.0.0.1 and ::1.",
+                  "maxLength": 1024,
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "multipart/form-data": {
+            "schema": {
+              "properties": {
+                "sni": {
+                  "maxLength": 1024,
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            }
+          }
+        },
+        "required": false
+      },
       "TestOutboundForm": {
         "content": {
           "application/x-www-form-urlencoded": {
@@ -401,13 +474,26 @@
               "csrfFailed": {
                 "value": {
                   "msg": "CSRF validation failed",
-                  "obj": null,
                   "success": false
                 }
               }
             },
             "schema": {
-              "$ref": "#/components/schemas/LegacyResponse"
+              "properties": {
+                "msg": {
+                  "const": "CSRF validation failed",
+                  "type": "string"
+                },
+                "success": {
+                  "const": false,
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "success",
+                "msg"
+              ],
+              "type": "object"
             }
           }
         },
@@ -428,11 +514,242 @@
       "AllSetting": {
         "additionalProperties": true,
         "description": "Legacy panel settings payload mirrored by web/entity.AllSetting.",
+        "properties": {
+          "datepicker": {
+            "type": "string"
+          },
+          "expireDiff": {
+            "type": "integer"
+          },
+          "externalTrafficInformEnable": {
+            "type": "boolean"
+          },
+          "externalTrafficInformURI": {
+            "type": "string"
+          },
+          "ldapAutoCreate": {
+            "type": "boolean"
+          },
+          "ldapAutoDelete": {
+            "type": "boolean"
+          },
+          "ldapBaseDN": {
+            "type": "string"
+          },
+          "ldapBindDN": {
+            "type": "string"
+          },
+          "ldapDefaultExpiryDays": {
+            "type": "integer"
+          },
+          "ldapDefaultLimitIP": {
+            "type": "integer"
+          },
+          "ldapDefaultTotalGB": {
+            "type": "integer"
+          },
+          "ldapEnable": {
+            "type": "boolean"
+          },
+          "ldapFlagField": {
+            "type": "string"
+          },
+          "ldapHost": {
+            "type": "string"
+          },
+          "ldapInboundTags": {
+            "type": "string"
+          },
+          "ldapInvertFlag": {
+            "type": "boolean"
+          },
+          "ldapPassword": {
+            "type": "string"
+          },
+          "ldapPort": {
+            "type": "integer"
+          },
+          "ldapSyncCron": {
+            "type": "string"
+          },
+          "ldapTruthyValues": {
+            "type": "string"
+          },
+          "ldapUseTLS": {
+            "type": "boolean"
+          },
+          "ldapUserAttr": {
+            "type": "string"
+          },
+          "ldapUserFilter": {
+            "type": "string"
+          },
+          "ldapVlessField": {
+            "type": "string"
+          },
+          "pageSize": {
+            "type": "integer"
+          },
+          "panelProxy": {
+            "type": "string"
+          },
+          "remarkModel": {
+            "type": "string"
+          },
+          "sessionMaxAge": {
+            "type": "integer"
+          },
+          "subAnnounce": {
+            "type": "string"
+          },
+          "subCertFile": {
+            "type": "string"
+          },
+          "subClashEnable": {
+            "type": "boolean"
+          },
+          "subClashPath": {
+            "type": "string"
+          },
+          "subClashURI": {
+            "type": "string"
+          },
+          "subDomain": {
+            "type": "string"
+          },
+          "subEnable": {
+            "type": "boolean"
+          },
+          "subEnableRouting": {
+            "type": "boolean"
+          },
+          "subEncrypt": {
+            "type": "boolean"
+          },
+          "subJsonEnable": {
+            "type": "boolean"
+          },
+          "subJsonFragment": {
+            "type": "string"
+          },
+          "subJsonMux": {
+            "type": "string"
+          },
+          "subJsonNoises": {
+            "type": "string"
+          },
+          "subJsonPath": {
+            "type": "string"
+          },
+          "subJsonRules": {
+            "type": "string"
+          },
+          "subJsonURI": {
+            "type": "string"
+          },
+          "subKeyFile": {
+            "type": "string"
+          },
+          "subListen": {
+            "type": "string"
+          },
+          "subPath": {
+            "type": "string"
+          },
+          "subPort": {
+            "type": "integer"
+          },
+          "subProfileUrl": {
+            "type": "string"
+          },
+          "subRoutingRules": {
+            "type": "string"
+          },
+          "subShowInfo": {
+            "type": "boolean"
+          },
+          "subSupportUrl": {
+            "type": "string"
+          },
+          "subTitle": {
+            "type": "string"
+          },
+          "subURI": {
+            "type": "string"
+          },
+          "subUpdates": {
+            "type": "integer"
+          },
+          "tgBotAPIServer": {
+            "type": "string"
+          },
+          "tgBotBackup": {
+            "type": "boolean"
+          },
+          "tgBotChatId": {
+            "type": "string"
+          },
+          "tgBotEnable": {
+            "type": "boolean"
+          },
+          "tgBotLoginNotify": {
+            "type": "boolean"
+          },
+          "tgBotProxy": {
+            "type": "string"
+          },
+          "tgBotToken": {
+            "type": "string"
+          },
+          "tgCpu": {
+            "type": "integer"
+          },
+          "tgLang": {
+            "type": "string"
+          },
+          "tgRunTime": {
+            "type": "string"
+          },
+          "timeLocation": {
+            "type": "string"
+          },
+          "trafficDiff": {
+            "type": "integer"
+          },
+          "twoFactorEnable": {
+            "type": "boolean"
+          },
+          "twoFactorToken": {
+            "type": "string"
+          },
+          "webBasePath": {
+            "type": "string"
+          },
+          "webCertFile": {
+            "type": "string"
+          },
+          "webDomain": {
+            "type": "string"
+          },
+          "webKeyFile": {
+            "type": "string"
+          },
+          "webListen": {
+            "type": "string"
+          },
+          "webPort": {
+            "type": "integer"
+          }
+        },
         "type": "object"
       },
       "ClientTraffic": {
         "additionalProperties": true,
         "properties": {
+          "allTime": {
+            "format": "int64",
+            "type": "integer"
+          },
           "down": {
             "format": "int64",
             "type": "integer"
@@ -453,8 +770,16 @@
           "inboundId": {
             "type": "integer"
           },
+          "lastOnline": {
+            "format": "int64",
+            "type": "integer"
+          },
           "reset": {
             "type": "integer"
+          },
+          "subId": {
+            "description": "Enriched projection, not a persisted ClientTraffic column.",
+            "type": "string"
           },
           "total": {
             "format": "int64",
@@ -463,6 +788,10 @@
           "up": {
             "format": "int64",
             "type": "integer"
+          },
+          "uuid": {
+            "description": "Enriched projection, not a persisted ClientTraffic column.",
+            "type": "string"
           }
         },
         "type": "object"
@@ -516,6 +845,10 @@
       "Inbound": {
         "additionalProperties": true,
         "properties": {
+          "allTime": {
+            "format": "int64",
+            "type": "integer"
+          },
           "clientStats": {
             "items": {
               "$ref": "#/components/schemas/ClientTraffic"
@@ -536,6 +869,10 @@
           "id": {
             "type": "integer"
           },
+          "lastTrafficResetTime": {
+            "format": "int64",
+            "type": "integer"
+          },
           "listen": {
             "type": "string"
           },
@@ -546,13 +883,15 @@
             "enum": [
               "vmess",
               "vless",
+              "tunnel",
+              "http",
               "trojan",
               "shadowsocks",
-              "dokodemo-door",
-              "socks",
-              "http",
-              "hysteria2",
-              "wireguard"
+              "mixed",
+              "wireguard",
+              "tun",
+              "hysteria",
+              "hysteria2"
             ],
             "type": "string"
           },
@@ -578,11 +917,12 @@
             "format": "int64",
             "type": "integer"
           },
+          "trafficReset": {
+            "description": "Reset schedule, usually never, hourly, daily, weekly or monthly.",
+            "type": "string"
+          },
           "up": {
             "format": "int64",
-            "type": "integer"
-          },
-          "userId": {
             "type": "integer"
           }
         },
@@ -711,7 +1051,8 @@
   "info": {
     "description": "Machine-readable contract for the Vue panel API implemented by the local Go/Gin backend.\nRuntime deployments may prepend the configured webBasePath before these paths.\nThe legacy response envelope is web/entity.Msg: success, msg, obj.\n",
     "title": "SuperXray Panel API",
-    "version": "3.4.3"
+    "version": "3.4.3",
+    "x-source-audit-date": "2026-10-14"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -768,7 +1109,7 @@
         "operationId": "getCoreInstance",
         "parameters": [
           {
-            "$ref": "#/components/parameters/IDPath"
+            "$ref": "#/components/parameters/CoreIDPath"
           }
         ],
         "responses": {
@@ -795,7 +1136,7 @@
         "operationId": "restartCoreInstance",
         "parameters": [
           {
-            "$ref": "#/components/parameters/IDPath"
+            "$ref": "#/components/parameters/CoreIDPath"
           }
         ],
         "responses": {
@@ -826,7 +1167,7 @@
         "operationId": "startCoreInstance",
         "parameters": [
           {
-            "$ref": "#/components/parameters/IDPath"
+            "$ref": "#/components/parameters/CoreIDPath"
           }
         ],
         "responses": {
@@ -857,7 +1198,7 @@
         "operationId": "getCoreStatus",
         "parameters": [
           {
-            "$ref": "#/components/parameters/IDPath"
+            "$ref": "#/components/parameters/CoreIDPath"
           }
         ],
         "responses": {
@@ -884,7 +1225,7 @@
         "operationId": "stopCoreInstance",
         "parameters": [
           {
-            "$ref": "#/components/parameters/IDPath"
+            "$ref": "#/components/parameters/CoreIDPath"
           }
         ],
         "responses": {
@@ -915,7 +1256,7 @@
         "operationId": "validateCoreInstance",
         "parameters": [
           {
-            "$ref": "#/components/parameters/IDPath"
+            "$ref": "#/components/parameters/CoreIDPath"
           }
         ],
         "responses": {
@@ -1292,7 +1633,7 @@
         "operationId": "deleteDepletedClients",
         "parameters": [
           {
-            "$ref": "#/components/parameters/IDPath"
+            "$ref": "#/components/parameters/InboundScopeIDPath"
           }
         ],
         "responses": {
@@ -1377,7 +1718,7 @@
         "operationId": "getClientTrafficsById",
         "parameters": [
           {
-            "$ref": "#/components/parameters/IDPath"
+            "$ref": "#/components/parameters/EmbeddedClientIDPath"
           }
         ],
         "responses": {
@@ -1393,7 +1734,7 @@
             "cookieAuth": []
           }
         ],
-        "summary": "Get client traffic records by inbound id.",
+        "summary": "Get traffic records for emails whose embedded clients.id matches the provided string identifier.",
         "tags": [
           "Inbounds"
         ]
@@ -1529,7 +1870,7 @@
         "operationId": "resetAllClientTraffics",
         "parameters": [
           {
-            "$ref": "#/components/parameters/IDPath"
+            "$ref": "#/components/parameters/InboundScopeIDPath"
           }
         ],
         "responses": {
@@ -1952,7 +2293,7 @@
       "post": {
         "operationId": "getNewSelfSignedCert",
         "requestBody": {
-          "$ref": "#/components/requestBodies/EchCertForm"
+          "$ref": "#/components/requestBodies/SelfSignedCertForm"
         },
         "responses": {
           "200": {
@@ -2781,11 +3122,11 @@
   ],
   "servers": [
     {
-      "description": "Runtime panel base path. Use / for the source default; deployments may use /xui/ or another configured prefix.",
+      "description": "Runtime panel base path. The current source default is /super/; deployments may configure another prefix.",
       "url": "{webBasePath}",
       "variables": {
         "webBasePath": {
-          "default": "/"
+          "default": "/super/"
         }
       }
     }

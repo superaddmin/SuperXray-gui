@@ -4,28 +4,29 @@
 > 交接方：Super-Code-Gateway 项目组。  
 > 文档日期：2026-05-16。  
 > 目标：把由 SuperXray-gui 负责的 VPN 层、代理入口、平台专属出口、国家/地区出口和监控验收要求完整拆出，作为跨项目实施依据。
+> 代码复核日期：2026-10-14。本文保留原交接目标与历史现场记录；下文“需要、必须、应”描述验收要求，不表示功能已实现。外部 Gateway、服务器拓扑及历史截图未在本轮重新实测，当前本仓库能力以第 0.3 节为准。
 
 ## 0. SuperXray-gui 项目内落地裁定（2026-05-16）
 
 本交接文档作为跨项目目标、边界和验收清单保留，但不能作为当前仓库一次性全量实现规格。结合 SuperXray-gui 现阶段 UI-first / Xray parity 边界，执行拆分如下：
 
-- MVP 只做 Xray 兼容配置生成与本机端口登记，不新增数据库模型，不接管 CoreManager，不碰 sing-box 生产路径。当前实现边界与运维方式见：`docs/ai-routing-and-residential-egress.md`。
-- Phase 10+ 才评审完整出口治理子系统，包含 `egress_groups`、`egress_nodes`、`egress_probe_results`、`egress_switch_events` 的 schema/API/UI 与探测、切换、审计能力。设计草案见：`docs/superpowers/specs/2026-05-16-phase10-egress-governance-design.md`。
+- MVP 只做 Xray 兼容配置生成与 CSV 登记清单，不会自动向 Gateway 登记端口，不新增数据库模型，不接管 legacy Xray 生命周期，不碰 sing-box 生产路径。当前实现边界与运维方式见：[AI 分流与住宅出口运行手册](ai-routing-and-residential-egress.md)。
+- Phase 10+ 才评审完整出口治理子系统，包含 `egress_groups`、`egress_nodes`、`egress_probe_results`、`egress_switch_events` 的 schema/API/UI 与探测、切换、审计能力。原交接引用的出口治理设计草案未包含在当前仓库；有效阶段门禁见 [路线图](../plans/01-strategy/ui-first-xray-stable-multi-core-roadmap.md) 和 [阶段状态](../plans/STATUS.md)。
 - 若下文愿景描述与本节阶段裁定冲突，以本节和上述两个拆分文档为当前执行边界。
 
 2026-05-16 已批准 MVP 进入实施，但必须把“网络可达 host 策略”作为生成前置条件：
 
 - 生成器必须区分 `listenHost` 与 `manifestHost`。`listenHost` 是 Xray inbound 实际监听地址，`manifestHost` 是 Super-Code-Gateway CSV 代理登记地址。
 - 默认同网络命名空间场景可使用 `listenHost=127.0.0.1`、`manifestHost=127.0.0.1`。
-- 当前 Docker bridge + 宿主机 x-ui 形态下，`manifestHost` 必须替换为 Gateway 容器实际可达的 host，例如 `host.docker.internal`、宿主网桥地址或经评审确认的服务名。
+- Docker bridge + 宿主机 x-ui 形态下，`manifestHost` 必须替换为 Gateway 容器实际可达的 host，例如经配置解析的 `host.docker.internal`、宿主网桥地址或服务名；Linux Docker 通常需要显式 `host-gateway` 映射。
 - 当前阶段暂缓 `egress_*` 数据库与 `/panel/api/egress/*` API，仅保留 Phase 10+ 设计评审。
-- 不接管 CoreManager，不碰 sing-box 生产路径；`default-xray` 仍是只读观察实例，不支持通过 CoreManager 生命周期接管，代码边界见 `web/service/core_service.go:62` 起的 `default-xray` 实例定义。
+- 不通过 CoreManager 接管 legacy Xray，不碰 sing-box 生产路径；`default-xray` 仍是只读观察实例，代码边界见 `web/service/core_service.go` 的 `defaultXrayAdapter` 与 `unsupportedDefaultXrayLifecycle`。
 
 ### 0.1 实际服务器运行态审查摘要
 
-2026-05-16 已对当前同服服务器做只读运行态审查，结论如下：
+原交接记录记载 2026-05-16 的同服服务器只读审查，以下仅为当时快照；本轮无法从仓库证明该服务器现在仍保持相同部署与状态：
 
-| 检查项 | 当前服务器事实 | 对本文档的影响 |
+| 检查项 | 2026-05-16 历史现场记录 | 对本文档的影响 |
 |---|---|---|
 | 部署拓扑 | `Super-Code-Gateway` 运行在 Docker 容器中，`SuperXray-gui/x-ui` 以 systemd 服务运行在宿主机 | 两者不是同一网络命名空间，不能直接把所有 `127.0.0.1` 示例当成当前部署可用地址 |
 | Gateway 可消费入口 | 未发现 `1080/8081/11801/11802/11803/11901/11981` 等 SOCKS/HTTP 入口监听 | MVP 必须先生成并落地 Gateway-facing Xray inbound |
@@ -48,13 +49,26 @@ MVP 入口已经完成前端落地并在 Xray 页前置：
 - 中文界面首屏、Gateway MVP 操作和移动端表单已经改为显式 i18n 文案；顶部 Header 玻璃背景 token 已覆盖 Ant 默认样式。
 - 移动端抽屉提供显式关闭按钮，打开后自动聚焦“关闭导航”，工作区导航按钮保持 44px 高度且无横向溢出。
 
-桌面视图：
+2026-05-16 历史桌面视图（当前布局以 Vue 源码与重新构建后的页面为准）：
 
 ![Xray 工作区与 Gateway 出口 MVP](assets/xray-mvp-desktop.png)
 
-移动视图：
+2026-05-16 历史移动视图：
 
 ![Gateway 出口 MVP 移动端表单](assets/xray-mvp-mobile.png)
+
+### 0.3 当前代码核对结果（2026-10-14）
+
+| 能力 | 当前实现与限制 | 代码依据 |
+|---|---|---|
+| 配置与清单 | 5 个 SOCKS、`noauth`、TCP-only 入口；端口 `11801/11802/11803/11901/11981`，默认 loopback；CSV `health_status=manual-check` | `frontend/src/utils/gatewayEgressMvp.ts` |
+| 出口与路由 | 缺失 tag 时添加 `freedom` 占位，同名 outbound 保留；平台按 inboundTag+domain 路由，区域按 inboundTag 放行任意目标，最后加入 `blocked` 保护 | `mergeGatewayEgressMvpConfig` |
+| 保存与生效 | 当前 Vue SDK 用 `POST /panel/api/xray/update` 写入 `settings.xrayTemplateConfig`；旧 `/panel/xray/update` 保留为兼容入口，两者均要求登录与 CSRF；JSON 解码不等于内核完整校验，保存后提示显式重启 | `frontend/src/api/endpoints.ts`、`frontend/src/views/XrayView.vue`、`web/controller/xray_setting.go`、`web/service/xray_setting.go` |
+| 核心实例 | `default-xray` 可读，拒绝通过 CoreManager 执行 Validate/Start/Stop/Restart；sing-box 为隔离实验入口 | `web/service/core_service.go` |
+| 验证工具 | 只读脚本检查监听、部分防火墙文本、配置和基础网络 timing；不执行自动治理、国家检测、真实模型推理或回滚 | `scripts/gateway-egress-validate.sh` |
+| 未实现交接目标 | 自动探测持久化、健康状态机、主备切换、账号粘性、`egress_*` 指标与 API、HTTP 入口生成 | 本文第 10–16 节与 Phase 10+ 验收项为目标 |
+
+host 校验不证明地址私有或连通；生成器按 tag 覆盖入口而不检查端口冲突，既有 `blocked` tag 也不会被校验为 blackhole。CSV 由当前表单生成，不读取已运行配置。替换所有平台/区域占位出口，核对规则顺序及来源限制，再保存、重启和实测；详情见 [治理执行手册](gateway-egress-timeout-remediation-runbook.md)。
 
 ## 1. 背景
 
@@ -64,7 +78,7 @@ Super-Code-Gateway 已经具备 AI API 网关、账号管理、代理登记、�
 - 账号区域：`region_code`
 - 区域代理池：`account_region_proxy_bindings`
 
-前端联动点位于：
+原交接提供的外部 Super-Code-Gateway 前端联动点（不在 SuperXray-gui 仓库内，本轮未复核）位于：
 
 - `frontend/src/components/account/CreateAccountModal.vue`
   - `ProxySelector` 负责选择账号手动代理。
@@ -167,7 +181,7 @@ fallback-stable
 
 ### 4.1 Docker 同服部署地址裁定
 
-上面的 `127.0.0.1` 拓扑只在 Gateway 与 SuperXray-gui 处于同一网络命名空间时成立。当前实测服务器中，Gateway 在 Docker bridge 网络内，SuperXray-gui/x-ui 在宿主机网络内，因此：
+上面的 `127.0.0.1` 拓扑只在 Gateway 与 Xray 处于同一网络命名空间时成立。若部署与历史记录一致，即 Gateway 在 Docker bridge 内、x-ui 在宿主机网络内，则：
 
 - Gateway 容器内的 `127.0.0.1` 指向 Gateway 容器自身。
 - 宿主机 Xray 的 `127.0.0.1:<port>` 默认不会被 Gateway 容器访问到。
@@ -180,7 +194,7 @@ fallback-stable
 | Gateway 使用 host network | `127.0.0.1` | `127.0.0.1` | 适合单机 Linux，但会改变容器隔离和端口映射 |
 | Docker `host-gateway` | Docker 网桥可达地址或受控内网地址 | `host.docker.internal` 或宿主网关地址 | 推荐用于保持 Docker bridge 的部署，防火墙只允许 Gateway 容器网段访问 |
 | SuperXray-gui 容器化 | 容器内受控监听地址或服务绑定地址，当前 MVP 禁止 `0.0.0.0` 通配监听 | `superxray` 或同网络服务名 | 推荐用于长期可维护部署；如确需通配监听，必须进入 Phase 10+ 或专项安全评审 |
-| Gateway sidecar 代理 | `127.0.0.1` | `127.0.0.1` | 可控性强，但需要调整部署编排 |
+| 共享网络命名空间的 sidecar | `127.0.0.1` | `127.0.0.1` | 只有显式共享网络命名空间时成立；普通同网 Docker 容器不能共享 loopback |
 
 MVP 文档中生成的 `127.0.0.1` 清单是“同命名空间默认模板”。如果生产部署继续采用当前 Docker bridge + 宿主机 x-ui 形态，最终导出的 Gateway CSV 必须替换为实际可达 host，并附带端口安全说明；当前 MVP 生成器会拒绝空 host、通配 host 和带协议/path 的 host。
 
@@ -189,6 +203,8 @@ MVP 文档中生成的 `127.0.0.1` 清单是“同命名空间默认模板”。
 ## 5. 本机代理入口要求
 
 ### 5.1 必须监听本机地址
+
+以下 `1080/8081` 是原交接逻辑示例，MVP 实际仅生成第 0.3 节的 5 个 SOCKS 端口，不生成 HTTP CONNECT 入口。loopback 优先；跨命名空间访问必须选择第 4.1 节的受控网络方案并限制来源。
 
 必须：
 
@@ -223,17 +239,19 @@ gateway-http-in
 
 ### 5.4 端口安全验收
 
+当前 MVP 应检查 `11801/11802/11803/11901/11981`。下面 PowerShell 命令适用于 Windows；Linux 使用 `ss -lntp`，逐端口检查，不把找到一个监听当作全部通过。
+
 SuperXray-gui 项目组需要提供以下命令输出或等价截图：
 
 ```powershell
 Get-NetTCPConnection -State Listen |
-  Where-Object { $_.LocalPort -in 1080,8081 } |
+  Where-Object { $_.LocalPort -in 11801,11802,11803,11901,11981 } |
   Select-Object LocalAddress,LocalPort,OwningProcess,State
 ```
 
 验收条件：
 
-- `LocalAddress` 只能是 `127.0.0.1` 或 `::1`。
+- `LocalAddress` 优先为 loopback；受控内网地址必须有有效来源限制和拒绝其他来源的证据。
 - 不允许出现 `0.0.0.0`。
 - 不允许公网 IP 监听。
 
@@ -640,7 +658,7 @@ region-jp-primary
 
 ### 12.3 账号创建联动
 
-`frontend/src/components/account/CreateAccountModal.vue` 创建账号时已经包含：
+原交接记录的外部 Gateway `frontend/src/components/account/CreateAccountModal.vue` 创建账号字段如下；该文件不在本仓库，部署前须由 Gateway 项目复核：
 
 - `proxy_id`
 - `region_code`
@@ -662,7 +680,7 @@ SuperXray-gui 需要保证这些代理端口背后的出口组稳定可用。
 
 ## 13. 配置示例
 
-以下为逻辑示例，不限定 SuperXray-gui 必须使用某一种内核。无论底层是 Xray、sing-box、mihomo、Clash Meta 或其他实现，都需要提供等价能力。
+以下 YAML 是跨项目治理目标的伪配置，不能粘贴到当前 Xray 模板或视为任何内核的有效 schema。当前 MVP 只生成 Xray JSON；可执行结构见 [运行手册](ai-routing-and-residential-egress.md)。其他内核的等价实现需独立评审，不改变当前 sing-box 实验边界。
 
 ### 13.1 入口示例
 
@@ -960,19 +978,19 @@ SuperXray-gui 至少需要暴露或可查询以下指标：
 
 ### 19.1 MVP 必须通过
 
-MVP 只验收 Xray 兼容配置生成、本机入口和 Gateway 对接清单，不验收完整治理平台能力。
+MVP 只验收 Xray 兼容配置生成、本机入口和 Gateway 对接清单，不验收完整治理平台能力。以下为待在部署环境勾选的清单，本轮没有执行这些远端验收。
 
-- [ ] 可在 Xray 模板中生成 Gateway-facing SOCKS/HTTP inbound。
+- [ ] 可在 Xray 模板中生成 Gateway-facing SOCKS inbound（HTTP 为后续目标）。
 - [ ] 生成的默认 inbound 只监听 `127.0.0.1` 或实施方案指定的受控内网地址。
 - [ ] 生成器支持 `listenHost` 与 `manifestHost` 两个独立参数，并禁止混用。
 - [ ] 生成端口包含 `11801`、`11802`、`11803`、`11901`、`11981` 或经评审确认的等价规划。
 - [ ] 生成 OpenAI、Anthropic、Gemini 平台域名规则，并避免全局 `MATCH -> PROXY`。
-- [ ] 生成未匹配流量的最终拒绝规则，避免本机入口变成通用开放代理。
+- [ ] 平台入口未匹配流量被最终拒绝；区域入口的目标范围和来源限制已单独评审并验证。
 - [ ] 生成 Gateway 代理登记 CSV，包含协议、host、端口、平台、区域、预期国家和出口组。
 - [ ] 已按第 4.1 节选择 Docker 同服网络方案，CSV 中的 `manifestHost` 对 Gateway 容器实际可达。
 - [ ] Gateway 可登记并访问 SuperXray-gui 生成的本机代理入口。
 - [ ] OpenAI、Anthropic、Gemini 基础网络探测可达，失败时有明确错误类型。
-- [ ] 代理凭据、token、UUID、私钥、公钥和住宅出口密码不进入日志、截图、CSV 或前端可见状态。
+- [ ] 代理凭据、token、UUID、私钥和住宅出口密码不进入日志、截图或 CSV；管理员可见的完整配置通过鉴权传输并受访问控制保护。
 - [ ] Xray 配置保存前可回退到旧模板，保存后可通过既有 x-ui/Xray 流程重启验证。
 
 ### 19.2 Phase 10+ 必须通过
@@ -1015,12 +1033,15 @@ SuperXray-gui 项目组需要交付：
 
 ## 21. 代理登记清单模板
 
+以下为当前生成器的默认 CSV；`manual-check` 不表示健康，国家和地区字段不表示已检测。非同网络命名空间时替换 `host`，登记前逐项实测。
+
 ```csv
 name,protocol,host,port,platform,region_code,expected_country_code,egress_group,health_status,notes
-openai-us-primary,socks5h,127.0.0.1,11801,openai,US,US,openai-egress,healthy,OpenAI 主出口
-anthropic-us-primary,socks5h,127.0.0.1,11802,anthropic,US,US,anthropic-egress,healthy,Anthropic 主出口
-gemini-us-primary,socks5h,127.0.0.1,11803,gemini,US,US,gemini-egress,healthy,Gemini 主出口
-region-jp-primary,socks5h,127.0.0.1,11981,,JP,JP,region-jp,healthy,日本区账号出口
+openai-us-primary,socks5h,127.0.0.1,11801,openai,US,US,openai-egress,manual-check,OpenAI MVP local exit (same-network)
+anthropic-us-primary,socks5h,127.0.0.1,11802,anthropic,US,US,anthropic-egress,manual-check,Anthropic MVP local exit (same-network)
+gemini-us-primary,socks5h,127.0.0.1,11803,gemini,US,US,gemini-egress,manual-check,Gemini MVP local exit (same-network)
+region-us-primary,socks5h,127.0.0.1,11901,,US,US,region-us,manual-check,US region MVP local exit (same-network)
+region-jp-primary,socks5h,127.0.0.1,11981,,JP,JP,region-jp,manual-check,JP region MVP local exit (same-network)
 ```
 
 ## 22. 工单模板
@@ -1077,6 +1098,17 @@ Super-Code-Gateway 已支持账号手动代理和账号区域代理池。现在�
 ## 24. 参考依据
 
 ### 24.1 内部依据
+
+本仓库当前依据：
+
+- [AI 分流与住宅出口运行手册](ai-routing-and-residential-egress.md)
+- [阶段状态](../plans/STATUS.md)
+- `frontend/src/utils/gatewayEgressMvp.ts`
+- `frontend/tests/gateway-egress-mvp.test.ts`
+- `web/service/core_service.go`
+- `scripts/gateway-egress-validate.sh`
+
+原交接引用的以下资料属于外部 Super-Code-Gateway 项目，当前 SuperXray-gui 仓库未提供这些路径，本轮未核验外部内容：
 
 - `OPENAI_GATEWAY_TOPOLOGY_CN.md`
 - `docs/OPENAI_ACCESS_STABILITY_PLAN_CN.md`

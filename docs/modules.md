@@ -2,6 +2,7 @@
 
 > **目标读者**：后端 / 前端维护者
 > **适用版本**：`v3.4.3`
+> **源码核对日期**：2026-10-14
 > **事实来源**：`main.go`、`config/`、`database/`、`web/`、`sub/`、`core/`、`frontend/src`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md)
 
@@ -25,8 +26,8 @@
 
 `runWebServer` 的关键链路：
 
-1. 读取 `.env`。
-2. 根据 `XUI_DEBUG` / `XUI_LOG_LEVEL` 初始化日志级别。
+1. 根据进程环境中的 `XUI_DEBUG` / `XUI_LOG_LEVEL` 初始化日志级别。
+2. 读取 `.env`；这一步晚于 logger 初始化，仅写入 `.env` 的日志变量不会回溯修改已初始化级别。
 3. 调用 `database.InitDB(config.GetDBPath())`。
 4. 创建并启动 `web.Server`。
 5. 创建并启动 `sub.Server`；如果 `subEnable=false`，订阅服务直接不监听。
@@ -41,7 +42,7 @@
 | 函数 | 环境变量 | 默认行为 |
 |---|---|---|
 | `GetVersion()` | 无 | 读取 `config/version`，当前 `3.4.3` |
-| `GetAssetVersion()` | 构建注入 `buildHash` | `version.buildHash`，未注入时使用启动时间戳 |
+| `GetAssetVersion()` | 构建注入 `buildHash` | 返回 `version.buildHash`；未注入时 `config.init()` 使用启动初始化时的十六进制 UnixNano 填充 hash |
 | `GetName()` | 无 | 读取 `config/name`，当前 `x-ui` |
 | `IsDebug()` | `XUI_DEBUG` | 值为 `true` 时启用 debug |
 | `GetLogLevel()` | `XUI_LOG_LEVEL` | debug 模式固定 `debug`，否则默认 `info` |
@@ -102,6 +103,8 @@
 | `MigrationEvent` | 迁移执行事件审计，用于回滚规划 |
 | `Client` | 嵌入 `Inbound.Settings` JSON 的客户端结构，不是独立表 |
 
+`database/repository.go` 已提供 `UserRepository`、`SettingRepository`、`InboundRepository` 和 GORM 实现；`NewRepositories` 聚合这三个边界。`UserService`、`SettingService`、`InboundService` 支持构造注入，未注入时从全局 DB 惰性创建实现。入站事务和 Xray 副作用仍由 service 协调；Repository 当前仍接受 `*gorm.DB` 并引用 `xray.ClientTraffic`，尚未迁入目标 `internal/` 层。
+
 支持的 `Protocol` 常量：
 
 ```go
@@ -136,6 +139,7 @@ mixed, wireguard, tun, hysteria, hysteria2
 | `web/ui.go` | 注册新 UI `/panel/*`、`/panel/ui/*` 和 `/panel/assets/*path` |
 | `web/controller/xui.go` | 初始化设置和 Xray 控制器，提供 `/panel/csrf-token` |
 | `web/controller/api.go` | 注册 `/panel/api/*` |
+| `web/controller/v1.go` | 注册公开 `/api/v1/health/live`、`/api/v1/health/ready`、`/api/v1/metrics` |
 | `web/controller/setting.go` | 注册 `/panel/setting/*` |
 | `web/controller/xray_setting.go` | 注册 `/panel/xray/*` |
 
@@ -146,6 +150,8 @@ mixed, wireguard, tun, hysteria, hysteria2
 | 中间件 | 作用 |
 |---|---|
 | `SecurityHeadersMiddleware` | CSP、frame、content-type、referrer 安全头 |
+| `RequestIDMiddleware` | 校验/生成 `X-Request-ID`，写入响应头和 Gin context |
+| `StructuredRequestLoggerMiddleware` | 记录请求与进程内指标，未知路径归并为 `<unmatched>` |
 | `DomainValidatorMiddleware` | 可选 Host 白名单 |
 | `gzip.Gzip` | HTTP 压缩 |
 | `sessions.Sessions("SuperXray", store)` | Cookie Session |
@@ -154,6 +160,10 @@ mixed, wireguard, tun, hysteria, hysteria2
 | `locale.LocalizerMiddleware` | Web 国际化 |
 | `RedirectMiddleware` | 兼容旧路径重定向 |
 | `CSRFMiddleware` | API 状态变更防护 |
+
+### 4.4 版本化观测接口
+
+`V1Controller` 的三个 GET 接口公开访问，每客户端固定窗口默认每分钟 120 次。`web/entity.APIResponse` 提供 `success/requestId/data/error` 响应，`RequestIDMiddleware` 和 `StructuredRequestLoggerMiddleware` 在 Web engine 级注册。`HealthService` 的 live/ready 都只是只读快照，Xray 未运行仍返回 HTTP 200；`RequestMetricsStore` 统计面板请求且在进程重启后清零。具体返回与容量限制见 [API 接口说明](api.md) 和 [运行时可靠性](runtime-reliability.md)。
 
 ---
 
@@ -206,6 +216,7 @@ api.Use(middleware.CSRFMiddleware())
 - `CoreController`：`/panel/api/cores`
 - `CustomGeoController`：`/panel/api/custom-geo`
 - `BackuptoTgbot`：`POST /panel/api/backuptotgbot`
+- `SettingController` / `XraySettingController`：`/panel/api/setting/*`、`/panel/api/xray/*`，与兼容组分别创建控制器实例
 
 ### 5.5 `InboundController`
 
@@ -227,7 +238,7 @@ api.Use(middleware.CSRFMiddleware())
 
 ### 5.6 `SettingController`
 
-路径前缀 `/panel/setting`（通过 `XUIController` 注册，仅要求登录，不要求 CSRF token）和 `/panel/api/setting`（通过 `APIController` 注册，要求 CSRF token）。两者是同一 `SettingController` 实例在不同路由组下的双注册。以下路由适用于两个路径前缀：
+路径前缀 `/panel/setting`（通过 `XUIController` 注册）和 `/panel/api/setting`（通过 `APIController` 注册）。控制器内部启用 CSRF，因此两组均要求登录且 POST 必须带 token；未登录分别使用页面鉴权和 API 隐藏式 404。两者分别创建实例并复用相同实现。以下路由适用于两个路径前缀：
 
 | 路由 | 方法 | 说明 |
 |---|---|---|
@@ -242,7 +253,7 @@ api.Use(middleware.CSRFMiddleware())
 
 ### 5.7 `XraySettingController`
 
-路径前缀 `/panel/xray`（通过 `XUIController` 注册，仅要求登录，不要求 CSRF token）和 `/panel/api/xray`（通过 `APIController` 注册，要求 CSRF token）。两者是同一 `XraySettingController` 实例在不同路由组下的双注册。以下路由适用于两个路径前缀：
+路径前缀 `/panel/xray`（通过 `XUIController` 注册）和 `/panel/api/xray`（通过 `APIController` 注册）。控制器内部启用 CSRF，因此两组均要求登录且 POST 必须带 token。两者分别创建实例并复用相同实现。以下路由适用于两个路径前缀：
 
 - 读取和保存 Xray JSON 模板。
 - 读取 outbound 流量。
@@ -441,6 +452,8 @@ type Hub struct {
 
 `sub.Server` 是独立 HTTP 服务。它在 `subEnable=true` 时启动，按数据库设置读取：
 
+源码默认 `subEnable=true`、JSON 关闭、Clash 开启；三个订阅路径默认 `/sub/`、`/json/`、`/clash/`，独立于面板 `/super/` 前缀。
+
 - `subPath`
 - `subJsonPath`
 - `subClashPath`
@@ -455,7 +468,7 @@ type Hub struct {
 
 | 路由 | 条件 | 说明 |
 |---|---|---|
-| `<subPath>:subid` | 始终 | URI/Base64 或 HTML 订阅页 |
+| `<subPath>:subid` | 始终 | URI/Base64，WireGuard Peer 输出配置文本 |
 | `<subPath>:subid/diagnose` | 始终 | URI 订阅诊断 |
 | `<subJsonPath>:subid` | `subJsonEnable=true` | Xray JSON 订阅 |
 | `<subJsonPath>:subid/diagnose` | `subJsonEnable=true` | JSON 订阅诊断 |
@@ -463,6 +476,8 @@ type Hub struct {
 | `<subClashPath>:subid/diagnose` | `subClashEnable=true` | Clash 订阅诊断 |
 
 `target` 查询参数可把 `/sub/:subid` 自动路由到 JSON 或 Clash 输出；目标格式未启用时回退 URI 输出。
+
+当前订阅控制器不提供 HTML 页面；`Accept: text/html`、`html`、`view` 参数不改变输出格式。HTTP/Mixed 代理账户的分享与订阅由 `sub/proxy_account_subscription.go`、前端 `inboundCompat.ts` 处理，WireGuard 由 `sub/wireguard_subscription.go` 处理。
 
 ---
 
@@ -498,6 +513,7 @@ type Hub struct {
 - `XrayView`
 - `InboundsView`
 - `SettingsView`
+- `ApiDocsView`（读取需登录的 `/panel/api/openapi.json`）
 - `NotFoundView`
 
 ### 10.4 Xray 兼容工具
@@ -511,7 +527,7 @@ type Hub struct {
 - DNS policy、runtime policy、observatory、burst observatory。
 - WARP Matrix 和协议工具输出。
 
-这些工具只修改模板 JSON；保存仍走 `/panel/xray/update`。
+这些工具只修改模板 JSON；当前 Vue SDK 的读取与保存分别走 `/panel/api/xray/` 与 `/panel/api/xray/update`，兼容 `/panel/xray/*` 路径继续存在。
 
 ### 10.5 Inbound 兼容工具
 
@@ -519,7 +535,7 @@ type Hub struct {
 
 - 可编辑协议注册表：VMess、VLESS、Tunnel、HTTP、Trojan、Shadowsocks、Mixed、WireGuard、Tun、Hysteria、Hysteria2。
 - 协议能力：clients、stream、tls、sniffing、shareLink。
-- 分享链接生成：vmess、vless、trojan、shadowsocks、hysteria、wireguard。
+- 分享链接生成：vmess、vless、trojan、shadowsocks、hysteria/hysteria2、wireguard、HTTP/Mixed 代理账户。
 - 客户端订阅链接生成：`subURI`、可选 `subJsonURI`、可选 `subClashURI`。
 - 批量客户端生成，数量限制为 1 到 500。
 

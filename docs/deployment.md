@@ -2,6 +2,7 @@
 
 > **目标读者**：准备在 VPS、云服务器或自建 Linux 主机上部署 SuperXray 的运维人员 / 开发者
 > **适用版本**：`v3.4.3`
+> **源码核对日期**：2026-10-14；安装步骤面向 Linux shell，PowerShell 开发命令见 [开发指南](development.md)。镜像/Release 是否已发布需到远端实际核实。
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md) | [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
 ---
@@ -30,7 +31,7 @@ SuperXray 是一个基于 Web 的 Xray-core 管理面板，后端使用 Go 编�
 |------|----------|------|----------|
 | 一键脚本安装 | 大多数 Linux 服务器 | 自动安装依赖、下载 Release、配置服务、生成安全初始信息 | 需要服务器能访问 GitHub；安装过程会交互式询问端口和证书 |
 | GHCR 镜像部署 | 已有容器化运维体系 | 直接拉取官方镜像，便于迁移和回滚 | 使用 `network_mode: host`，且不会自动随机化初始账号 |
-| 本地 Docker Compose 构建 | 需要验证本地源码或自定义镜像 | 与仓库 `docker-compose.yml` 保持一致 | 需要本机具备 Docker Buildx，更新时需重新构建 |
+| 本地 Docker Compose 构建 | 需要验证本地源码或自定义镜像 | 与仓库 `docker-compose.yml` 保持一致 | 需要 Docker Engine 和 Compose；跨架构镜像才需要额外 Buildx/QEMU，更新时需重新构建 |
 | 手动构建 / 二进制部署 | 二次开发、内网构建、审计后上线 | 可完全控制 amd64 / arm64 构建产物 | 当前官方 Release 只发布 Linux `amd64` / `arm64` |
 
 建议优先选择 **一键脚本安装**。如果服务器不能访问 GitHub，可以在可访问网络的机器上下载 Release 包和脚本后再离线分发。
@@ -166,13 +167,16 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 
 ### 4.2 安装过程中的关键选择
 
-脚本检测到默认账号 `admin/admin` 或默认路径 `/` 时，会自动加强初始安全配置：
+`install.sh` 的 `config_after_install` 按已有配置分支处理：
 
-- 生成随机用户名。
-- 生成随机密码。
-- 生成随机 `webBasePath`。
-- 询问是否自定义面板端口；如果不自定义，会随机选择 `1024-62000` 内的端口。
-- 引导配置 SSL 证书。
+| 已有状态 | 实际初始化行为 |
+|---|---|
+| 去掉开头 `/` 后的路径长度小于 4，且仍是默认凭据 | 随机用户名、密码和路径；询问端口，未自定义时随机选择 `1024-62000` |
+| 路径过短，但账号已修改 | 仅生成新路径，保留账号和端口 |
+| 路径长度足够，但仍是默认凭据 | 仅随机用户名、密码，保留路径和端口 |
+| 账号已修改且路径长度足够 | 保留账号、路径和端口 |
+
+当前空库默认路径 `/super/` 已满足长度检查，因此通常只随机用户名/密码，保留 `2053` 和 `/super/`。缺少证书时脚本提供 SSL 配置引导；是否成功必须以证书加载日志与实际 HTTPS 握手为准，菜单输出不能替代验证。需要随机路径或其他端口时，可在安装后用管理命令设置。
 
 安装完成时终端会输出类似信息：
 
@@ -180,8 +184,8 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 Username:    <随机用户名>
 Password:    <随机密码>
 Port:        <面板端口>
-WebBasePath: <随机路径>
-Access URL:  https://<域名或IP>:<端口>/<随机路径>
+WebBasePath: <当前路径>
+Access URL:  https://<域名或IP>:<端口>/<当前路径>
 ```
 
 这段输出只出现一次，务必保存到密码管理器。如果忘记，可以通过 `x-ui` 管理菜单重置用户名、密码和 Web 路径。
@@ -502,6 +506,8 @@ cd SuperXray-gui
 docker compose up -d --build
 ```
 
+`Dockerfile` 只构建 Go 和下载运行核心，不运行 npm/Vite。只修改后端时可使用已提交的 `web/ui`；修改前端或面板 OpenAPI 后，先用 Node.js `22.12+` 在 `frontend/` 执行 `npm ci && npm run build`，再构建镜像。`web/ui` 必须保留为 Go embed 输入。
+
 如果想复用官方 GHCR 镜像，把 Compose 中的 `build:` 段替换为：
 
 ```yaml
@@ -528,7 +534,7 @@ network_mode: host
 
 ### 7.4 Docker 初始安全设置
 
-Docker 入口不会执行一键脚本里的随机化配置。首次启动后，源码默认账号仍可能是 `admin/admin`、面板端口仍是 `2053`、路径仍是 `/`。请立即修改：
+Docker 入口不会执行一键脚本里的随机化配置。空数据库首次启动使用源码默认账号 `admin/admin`、面板端口 `2053`、`webBasePath=/super/`，登录页为 `/super/panel/login`。已有数据库保留原配置，不会重置为默认值。请立即修改默认账号并核对访问设置：
 
 以下命令按 Compose 示例的 `container_name: 3xui_app` 编写；如果使用上面的 `docker run --name superxray-gui`，请把 `3xui_app` 替换为 `superxray-gui`。
 
@@ -560,10 +566,13 @@ docker compose restart 3xui
 更新前先备份数据库和证书：
 
 ```bash
+docker compose stop 3xui
 mkdir -p backup
 cp -a db "backup/db-$(date +%F-%H%M%S)"
 cp -a cert "backup/cert-$(date +%F-%H%M%S)"
 ```
+
+使用 `docker run` 时将停止命令改为 `docker stop superxray-gui`，更新后启动替换后的容器。数据库复制期间应保持服务停止；只备份不更新时，复制完使用 `docker compose start 3xui` 或 `docker start superxray-gui`。
 
 GHCR 镜像部署：
 
@@ -627,7 +636,7 @@ TAG="$(curl -fsSL https://api.github.com/repos/superaddmin/SuperXray-gui/release
   | sed -E 's/.*"([^"]+)".*/\1/')"
 
 if [ -z "${TAG}" ]; then
-  echo "Failed to resolve latest release tag. Set TAG manually, for example: TAG=v2.x.x" >&2
+  echo "Failed to resolve latest release tag. Set TAG manually, for example: TAG=v3.4.3" >&2
   exit 1
 fi
 
@@ -684,6 +693,8 @@ sh ./DockerInit.sh "${XUI_ARCH}"
 ```
 
 `DockerInit.sh` 会下载对应架构的 Xray-core，并把 `geoip.dat`、`geosite.dat`、`geoip_IR.dat`、`geosite_IR.dat`、`geoip_RU.dat`、`geosite_RU.dat` 放入 `build/bin/`。
+
+以上使用仓库内已提交的 `web/ui`。如有前端或 OpenAPI 改动，应先在 `frontend/` 执行 `npm ci && npm run build` 再编译 Go；构建目录中的本地脚本、备份和配置不能视为打包输入。
 
 安装源码构建产物：
 
@@ -845,11 +856,12 @@ systemctl daemon-reload
 | 设置 | 默认值 | 建议 |
 |------|--------|------|
 | Web 端口 | `2053` | 可随机或仅本机监听 |
-| Web 路径 | `/` | 改为随机路径 |
+| Web 路径 | `/super/` | 改为随机路径；已有数据库以保存值为准 |
 | 订阅端口 | `2096` | 可通过反代收敛到 `443` |
 | 订阅路径 | `/sub/` | 可按需修改 |
-| JSON 路径 | `/json/` | 如不用可关闭 |
-| Clash 路径 | `/clash/` | 如不用可关闭 |
+| 订阅服务开关 | `true` | 独立监听；不需要时关闭 |
+| JSON 路径 / 开关 | `/json/` / `false` | 启用 JSON 输出后注册 |
+| Clash 路径 / 开关 | `/clash/` / `true` | 如不用可关闭 |
 | Session 过期 | `360` 分钟 | 按安全要求缩短 |
 | Telegram Bot | 关闭 | 需要通知/备份时再启用 |
 | LDAP | 关闭 | 企业统一认证时再启用 |
@@ -866,7 +878,7 @@ systemctl daemon-reload
 
 新 UI 的入站列表已经补齐旧 UI 的关键导出入口：顶部支持“导出全部分享链接”和“导出全部订阅”，单个入站行支持“导出链接”“导出订阅”“导出入站 JSON”“QR”“Clone”“Reset”“Edit”“Delete”。当订阅开关已启用但 `subURI`、`subJsonURI` 或 `subClashURI` 尚未持久化时，新 UI 会读取后端默认值补齐公开 URI，再生成订阅链接；如果仍然为空，应先在 **设置 → 订阅设置** 中执行默认值填充或手动填写公开地址。
 
-浏览器直接打开 `/sub/<subId>` 时，订阅服务会返回旧版兼容的可视化订阅页，展示订阅状态、流量、过期时间、普通 URI 订阅二维码、JSON/Clash 订阅二维码和 Android/iOS 客户端导入菜单。客户端订阅程序访问同一地址时仍按原有协议返回 Base64 或明文链接列表，不改变 v2rayN、Shadowrocket 等客户端的导入行为。
+订阅 HTML 可视页已随旧 UI 退役。浏览器和订阅客户端访问 `/sub/<subId>` 都接收 Base64 或明文链接（由 `subEncrypt` 控制，默认 `true`）；`target=xray`、`target=mihomo/stash` 可在对应输出开关启用时切换为 JSON/YAML，关闭时回退 URI。诊断 JSON 使用对应路径的 `/<subId>/diagnose`，二维码/分享在新 UI 的客户端操作中生成。
 
 订阅端口的开放策略：
 
@@ -966,11 +978,16 @@ x-ui update-all-geofiles
 ### 11.2 Docker 部署更新
 
 ```bash
+docker compose stop 3xui
+mkdir -p backup
 cp -a db "backup/db-$(date +%F-%H%M%S)"
+cp -a cert "backup/cert-$(date +%F-%H%M%S)"
 git pull
 docker compose up -d --build
 docker compose logs -f 3xui
 ```
+
+以上针对仓库源码构建部署；GHCR 镜像部署在备份后使用 `docker compose pull && docker compose up -d`。更新失败时恢复旧镜像/源码版本和备份，再启动服务。
 
 ### 11.3 日常巡检
 
@@ -1025,9 +1042,9 @@ x-ui
 
 使用：
 
-- `6. Reset Username & Password`
-- `7. Reset Web Base Path`
-- `10. View Current Settings`
+- `6. 重置用户名和密码`
+- `7. 重置 Web 基础路径`
+- `10. 查看当前配置`
 
 也可以直接调用二进制：
 
@@ -1064,7 +1081,7 @@ journalctl -u x-ui -n 100 --no-pager
 x-ui restart-xray
 journalctl -u x-ui -n 200 --no-pager
 tail -n 200 /var/log/x-ui/3xui.log
-ss -tulpen | grep <Xray端口>
+ss -tulpen | grep ':<Xray端口>'
 ```
 
 常见原因：

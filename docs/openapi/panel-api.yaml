@@ -1,17 +1,18 @@
 openapi: 3.1.0
 info:
   title: SuperXray Panel API
-  version: 0.1.0
+  version: 3.4.3
+  x-source-audit-date: '2026-10-14'
   description: |
     Machine-readable contract for the Vue panel API implemented by the local Go/Gin backend.
     Runtime deployments may prepend the configured webBasePath before these paths.
     The legacy response envelope is web/entity.Msg: success, msg, obj.
 servers:
   - url: "{webBasePath}"
-    description: Runtime panel base path. Use / for the source default; deployments may use /xui/ or another configured prefix.
+    description: Runtime panel base path. The current source default is /super/; deployments may configure another prefix.
     variables:
       webBasePath:
-        default: /
+        default: /super/
 tags:
   - name: Inbounds
     description: Legacy Xray inbound and client management backed by database/model.Inbound.
@@ -116,10 +117,10 @@ paths:
   /panel/api/inbounds/getClientTrafficsById/{id}:
     get:
       tags: [Inbounds]
-      summary: Get client traffic records by inbound id.
+      summary: Get traffic records for emails whose embedded clients.id matches the provided string identifier.
       operationId: getClientTrafficsById
       parameters:
-        - $ref: '#/components/parameters/IDPath'
+        - $ref: '#/components/parameters/EmbeddedClientIDPath'
       security:
         - cookieAuth: []
       responses:
@@ -326,7 +327,7 @@ paths:
       summary: Reset all client traffic counters in one inbound.
       operationId: resetAllClientTraffics
       parameters:
-        - $ref: '#/components/parameters/IDPath'
+        - $ref: '#/components/parameters/InboundScopeIDPath'
       security:
         - cookieAuth: []
           csrfToken: []
@@ -343,7 +344,7 @@ paths:
       summary: Delete depleted clients in one inbound.
       operationId: deleteDepletedClients
       parameters:
-        - $ref: '#/components/parameters/IDPath'
+        - $ref: '#/components/parameters/InboundScopeIDPath'
       security:
         - cookieAuth: []
           csrfToken: []
@@ -717,7 +718,7 @@ paths:
       summary: Generate an inline self-signed TLS certificate for the provided DNS or IP SANs.
       operationId: getNewSelfSignedCert
       requestBody:
-        $ref: '#/components/requestBodies/EchCertForm'
+        $ref: '#/components/requestBodies/SelfSignedCertForm'
       security:
         - cookieAuth: []
           csrfToken: []
@@ -746,7 +747,7 @@ paths:
       summary: Get one core instance by id.
       operationId: getCoreInstance
       parameters:
-        - $ref: '#/components/parameters/IDPath'
+        - $ref: '#/components/parameters/CoreIDPath'
       security:
         - cookieAuth: []
       responses:
@@ -760,7 +761,7 @@ paths:
       summary: Get one core instance status by id.
       operationId: getCoreStatus
       parameters:
-        - $ref: '#/components/parameters/IDPath'
+        - $ref: '#/components/parameters/CoreIDPath'
       security:
         - cookieAuth: []
       responses:
@@ -774,7 +775,7 @@ paths:
       summary: Validate one core instance without broadening the legacy lifecycle boundary.
       operationId: validateCoreInstance
       parameters:
-        - $ref: '#/components/parameters/IDPath'
+        - $ref: '#/components/parameters/CoreIDPath'
       security:
         - cookieAuth: []
           csrfToken: []
@@ -791,7 +792,7 @@ paths:
       summary: Start one guarded core instance when allowed by the current phase gates.
       operationId: startCoreInstance
       parameters:
-        - $ref: '#/components/parameters/IDPath'
+        - $ref: '#/components/parameters/CoreIDPath'
       security:
         - cookieAuth: []
           csrfToken: []
@@ -808,7 +809,7 @@ paths:
       summary: Stop one guarded core instance when allowed by the current phase gates.
       operationId: stopCoreInstance
       parameters:
-        - $ref: '#/components/parameters/IDPath'
+        - $ref: '#/components/parameters/CoreIDPath'
       security:
         - cookieAuth: []
           csrfToken: []
@@ -825,7 +826,7 @@ paths:
       summary: Restart one guarded core instance when allowed by the current phase gates.
       operationId: restartCoreInstance
       parameters:
-        - $ref: '#/components/parameters/IDPath'
+        - $ref: '#/components/parameters/CoreIDPath'
       security:
         - cookieAuth: []
           csrfToken: []
@@ -1197,10 +1198,37 @@ components:
       schema:
         type: integer
         minimum: 1
+    InboundScopeIDPath:
+      name: id
+      in: path
+      required: true
+      description: Positive inbound id, or -1 for all inbounds.
+      schema:
+        oneOf:
+          - type: integer
+            minimum: 1
+          - type: integer
+            const: -1
+    CoreIDPath:
+      name: id
+      in: path
+      required: true
+      description: String core instance identifier such as default-xray or experimental-sing-box.
+      schema:
+        type: string
+        minLength: 1
     ClientIDPath:
       name: clientId
       in: path
       required: true
+      schema:
+        type: string
+        minLength: 1
+    EmbeddedClientIDPath:
+      name: id
+      in: path
+      required: true
+      description: Matches settings.clients[].id, usually a UUID; this is not an inbound id.
       schema:
         type: string
         minLength: 1
@@ -1238,7 +1266,7 @@ components:
       required: true
       schema:
         type: string
-        pattern: '^[a-zA-Z0-9_\\-.]+$'
+        enum: [geoip.dat, geosite.dat, geoip_IR.dat, geosite_IR.dat, geoip_RU.dat, geosite_RU.dat]
     ActionPath:
       name: action
       in: path
@@ -1335,6 +1363,24 @@ components:
             properties:
               sni:
                 type: string
+    SelfSignedCertForm:
+      required: false
+      content:
+        application/x-www-form-urlencoded:
+          schema:
+            type: object
+            properties:
+              sni:
+                type: string
+                maxLength: 1024
+                description: Comma-separated DNS or IP SANs, at most 16 entries. Empty uses localhost, 127.0.0.1 and ::1.
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              sni:
+                type: string
+                maxLength: 1024
     CustomGeoForm:
       required: true
       content:
@@ -1444,13 +1490,20 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/LegacyResponse'
+            type: object
+            required: [success, msg]
+            properties:
+              success:
+                type: boolean
+                const: false
+              msg:
+                type: string
+                const: CSRF validation failed
           examples:
             csrfFailed:
               value:
                 success: false
                 msg: CSRF validation failed
-                obj: null
     AuthNotFound:
       description: Unauthenticated /panel/api requests intentionally return 404 to hide API existence.
   schemas:
@@ -1495,8 +1548,6 @@ components:
       properties:
         id:
           type: integer
-        userId:
-          type: integer
         up:
           type: integer
           format: int64
@@ -1506,11 +1557,20 @@ components:
         total:
           type: integer
           format: int64
+        allTime:
+          type: integer
+          format: int64
         remark:
           type: string
         enable:
           type: boolean
         expiryTime:
+          type: integer
+          format: int64
+        trafficReset:
+          type: string
+          description: Reset schedule, usually never, hourly, daily, weekly or monthly.
+        lastTrafficResetTime:
           type: integer
           format: int64
         listen:
@@ -1519,7 +1579,7 @@ components:
           type: integer
         protocol:
           type: string
-          enum: [vmess, vless, trojan, shadowsocks, dokodemo-door, socks, http, hysteria2, wireguard]
+          enum: [vmess, vless, tunnel, http, trojan, shadowsocks, mixed, wireguard, tun, hysteria, hysteria2]
         settings:
           type: string
           description: Legacy JSON string stored on database/model.Inbound.
@@ -1547,10 +1607,19 @@ components:
           type: boolean
         email:
           type: string
+        uuid:
+          type: string
+          description: Enriched projection, not a persisted ClientTraffic column.
+        subId:
+          type: string
+          description: Enriched projection, not a persisted ClientTraffic column.
         up:
           type: integer
           format: int64
         down:
+          type: integer
+          format: int64
+        allTime:
           type: integer
           format: int64
         expiryTime:
@@ -1561,6 +1630,9 @@ components:
           format: int64
         reset:
           type: integer
+        lastOnline:
+          type: integer
+          format: int64
     CopyInboundClientsRequest:
       type: object
       required: [sourceInboundId]
@@ -1601,6 +1673,157 @@ components:
       type: object
       additionalProperties: true
       description: Legacy panel settings payload mirrored by web/entity.AllSetting.
+      properties:
+        webListen:
+          type: string
+        webDomain:
+          type: string
+        webPort:
+          type: integer
+        webCertFile:
+          type: string
+        webKeyFile:
+          type: string
+        webBasePath:
+          type: string
+        sessionMaxAge:
+          type: integer
+        panelProxy:
+          type: string
+        pageSize:
+          type: integer
+        expireDiff:
+          type: integer
+        trafficDiff:
+          type: integer
+        remarkModel:
+          type: string
+        datepicker:
+          type: string
+        tgBotEnable:
+          type: boolean
+        tgBotToken:
+          type: string
+        tgBotProxy:
+          type: string
+        tgBotAPIServer:
+          type: string
+        tgBotChatId:
+          type: string
+        tgRunTime:
+          type: string
+        tgBotBackup:
+          type: boolean
+        tgBotLoginNotify:
+          type: boolean
+        tgCpu:
+          type: integer
+        tgLang:
+          type: string
+        timeLocation:
+          type: string
+        twoFactorEnable:
+          type: boolean
+        twoFactorToken:
+          type: string
+        subEnable:
+          type: boolean
+        subJsonEnable:
+          type: boolean
+        subTitle:
+          type: string
+        subSupportUrl:
+          type: string
+        subProfileUrl:
+          type: string
+        subAnnounce:
+          type: string
+        subEnableRouting:
+          type: boolean
+        subRoutingRules:
+          type: string
+        subListen:
+          type: string
+        subPort:
+          type: integer
+        subPath:
+          type: string
+        subDomain:
+          type: string
+        subCertFile:
+          type: string
+        subKeyFile:
+          type: string
+        subUpdates:
+          type: integer
+        externalTrafficInformEnable:
+          type: boolean
+        externalTrafficInformURI:
+          type: string
+        subEncrypt:
+          type: boolean
+        subShowInfo:
+          type: boolean
+        subURI:
+          type: string
+        subJsonPath:
+          type: string
+        subJsonURI:
+          type: string
+        subClashEnable:
+          type: boolean
+        subClashPath:
+          type: string
+        subClashURI:
+          type: string
+        subJsonFragment:
+          type: string
+        subJsonNoises:
+          type: string
+        subJsonMux:
+          type: string
+        subJsonRules:
+          type: string
+        ldapEnable:
+          type: boolean
+        ldapHost:
+          type: string
+        ldapPort:
+          type: integer
+        ldapUseTLS:
+          type: boolean
+        ldapBindDN:
+          type: string
+        ldapPassword:
+          type: string
+        ldapBaseDN:
+          type: string
+        ldapUserFilter:
+          type: string
+        ldapUserAttr:
+          type: string
+        ldapVlessField:
+          type: string
+        ldapSyncCron:
+          type: string
+        ldapFlagField:
+          type: string
+        ldapTruthyValues:
+          type: string
+        ldapInvertFlag:
+          type: boolean
+        ldapInboundTags:
+          type: string
+        ldapAutoCreate:
+          type: boolean
+        ldapAutoDelete:
+          type: boolean
+        ldapDefaultTotalGB:
+          type: integer
+        ldapDefaultExpiryDays:
+          type: integer
+        ldapDefaultLimitIP:
+          type: integer
     UpdateUserForm:
       type: object
       required: [oldUsername, oldPassword, newUsername, newPassword]

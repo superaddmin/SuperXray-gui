@@ -1,5 +1,11 @@
 # alireza0/x-ui v1.11.4 集成记录
 
+> 文档性质：2026-08-10 上游集成过程留档；代码复核日期：2026-10-14。历史提交、路径、SHA256 与执行流程保留，不表示本轮重复集成、合并、推送或重新运行全部验证。
+
+当前仓库仍为产品 `config/version=3.4.3`、Go `1.26.5`、Vue/Vite 源码 `frontend/src` 和构建目录 `web/ui`。`default-xray` 仍拒绝 CoreManager 生命周期操作，Gateway MVP 仍仅生成 Xray JSON 和 CSV。自签证书、Hysteria/TUN、XHTTP/XMUX 相关实现与测试保留，功能事实分别见 `web/service/self_signed_cert.go`、`frontend/src/utils/inboundCompat.ts`。
+
+本轮本地引用核对：供应方 tag 固定到下列 v1.11.4 提交，备份分支仍指向 `807f6280e32b2dba88cbcf910c40a40fe3e1fb9f`，集成分支仍存在，`alireza0-xui` push URL 为 `DISABLED`。历史记录中的外部 bundle 和集成 worktree 路径当前不存在；bundle SHA256 未重新计算，不能依赖这些路径直接恢复。供应方远端状态和历史测试结果未重跑，回滚前重新定位有效备份并备份运行数据。
+
 ## 1. 目标与结论
 
 本次集成完整抓取 `alireza0/x-ui v1.11.4` Git 对象，再按功能移植到 SuperXray。两个仓库没有共同祖先，因此不使用 `--allow-unrelated-histories` 直接合并文件树，避免上游旧 HTML UI、数据模型和发布元数据覆盖本地实现。
@@ -28,7 +34,7 @@ bundle: F:\SuperXray-backups\SuperXray-main-20260810-193827.bundle
 bundle SHA256: 0E9E82BF86F14A22A0FA133E836FB3347CE8A5E6E840455BCEEE17BA7C2DA8AD
 ```
 
-回滚引用和 bundle 在合并后继续保留。恢复前先停止写入并备份运行数据库；代码回滚优先使用 `git revert`，不改写已经推送的 `main` 历史。
+历史集成时要求保留回滚引用和 bundle；当前可用性以文首复核结果为准。恢复前先停止写入并备份运行数据库；代码回滚优先使用 `git revert`，不改写已经推送的 `main` 历史。
 
 ## 3. 状态与远程检查
 
@@ -43,6 +49,8 @@ git fsck --full
 ```
 
 配置只读供应方远程：
+
+以下是当时的初始化命令；已存在 `alireza0-xui` 时先核对配置，不重复执行 `git remote add`。本文所有写入分支、bundle、worktree、合并及推送命令都是历史步骤，不应在已有变更的工作区直接整段执行。
 
 ```powershell
 git remote add alireza0-xui https://github.com/alireza0/x-ui.git
@@ -113,7 +121,7 @@ git ls-files -u
 git diff --cc
 ```
 
-按所有权处理：源码逐段合并；`web/ui` 不手工解冲突，而是在源文件合并并通过测试后执行 `npm run build` 重新生成；`go.mod/go.sum` 使用 `go mod tidy` 和 `go mod verify` 校验；OpenAPI 以 `docs/openapi/panel-api.yaml` 为事实源重新生成。
+按所有权处理：源码逐段合并；`web/ui` 不手工解冲突，而是在 `frontend` 源文件合并并通过测试后进入 `frontend` 执行 `npm run build` 重新生成；`go.mod/go.sum` 使用 `go mod tidy` 和 `go mod verify` 校验；OpenAPI 以 `docs/openapi/panel-api.yaml` 为事实源，运行 `go run ./tools/openapiexport` 重新生成 `frontend/public/openapi.json`。
 
 ## 7. 合并与推送
 
@@ -146,6 +154,8 @@ git ls-remote origin refs/heads/main
 ```
 
 ## 8. 最终验证
+
+以下为历史集成验证清单，不是 2026-10-14 的执行结果；当前重新集成时逐项记录退出码，完整发布门禁与 Linux 产物验证按 [上游同步策略](upstream-sync-policy.md) 及发布工作流执行。
 
 ```powershell
 go mod verify

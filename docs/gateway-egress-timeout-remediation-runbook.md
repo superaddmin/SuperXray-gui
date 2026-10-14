@@ -2,6 +2,7 @@
 
 > 适用范围：SuperXray-gui 负责的 Xray 侧 Gateway-facing 出口、Gateway 登记清单、测试服务器验证和生产灰度发布。
 > 当前边界：只使用既有 Xray 模板保存路径和 legacy Xray 生命周期，不新增 `egress_*` 表，不迁移 `model.Inbound`，不让 CoreManager 接管生产 Xray。
+> 代码核对日期：2026-10-14。本文是执行与验收模板，本轮没有远端测试或生产部署；80 秒是待复现症状，不能由本仓库判定根因。事实依据：`frontend/src/utils/gatewayEgressMvp.ts`、`frontend/src/views/XrayView.vue`、`web/controller/xray_setting.go`、`scripts/gateway-egress-validate.sh`。
 
 ## 1. 执行目标
 
@@ -41,6 +42,8 @@ Client
 - 主 Xray 与 Gateway 日志不得记录 Prompt、Authorization、Cookie、API Key、代理密码或私钥。
 - 测试服务器必须完成“备份、部署、验证、回滚、恢复验证”的闭环后，才允许进入生产灰度。
 
+这是部署验收要求。现有模板保存和 MVP host 校验没有实现完整的 URL allowlist、DNS 重绑定防御或防火墙配置；只读脚本主要检查明显的私网/本地 host 字符串，不能替代这些检查。
+
 ## 3. 测试服务器前置条件
 
 测试服务器需要准备：
@@ -63,8 +66,9 @@ Client
 
 1. 在 Gateway 出口 MVP 中设置 `listenHost`、`manifestHost` 和策略标签。
 2. 生成 Xray 配置。
-3. 保存 Xray 模板。
-4. 手动重启 Xray。
+3. 按 4.2 节替换平台与地区占位出口，并完成统计、DNS 和探测配置。
+4. 核对端口冲突、规则顺序与来源限制后保存模板。
+5. 在保存后的确认框中显式重启，或使用既有 Xray 运行控制重启。
 
 预期生成端口：
 
@@ -86,6 +90,8 @@ Client
 
 这些 outbound 不得继续是带 `_gatewayEgressMvp` 标记的 `freedom` 占位。生产前至少应有主出口；推荐每个平台 1 主 1 备，并通过手工或后续治理层实现切换。
 
+`region-us` 与 `region-jp` 同样可能是直连占位，启用前也须替换。生成器保留已存在的同名 outbound，不验证其国家、可用性或主备关系；CSV 恒为 `manual-check`，不提供自动探测或切换。区域入口按 inboundTag 放行任意目标，需另行限制受信任调用方和目标范围。
+
 ### 4.3 启用统计、DNS 与 Observatory
 
 在 Xray 模板中启用：
@@ -99,7 +105,7 @@ SOCKS 场景下，Gateway 侧登记协议应使用 `socks5h`，避免在 Gateway
 
 ### 4.4 Gateway 超时和连接池策略
 
-Gateway 侧建议把超时拆开配置：
+外部 Gateway 侧建议把超时拆开配置；下表是排障起点，具体支持的配置项和数值须到 Gateway 项目验证，本仓库不会设置这些超时：
 
 | 阶段 | 建议值 |
 |---|---:|
@@ -125,18 +131,18 @@ GET /image/jobs/:job_id
 
 同步链路只用于短请求和状态查询；长时间模型推理不应占用 Gateway 入口连接池。
 
+`/image/jobs` 和 job 状态接口是外部 Gateway 的建议契约，SuperXray-gui 没有这些接口。
+
 ## 5. 只读验证脚本
 
 在测试服务器仓库目录运行：
 
 ```bash
-chmod +x scripts/gateway-egress-validate.sh
-
 GATEWAY_EGRESS_HOST=host.docker.internal \
 GATEWAY_CONTAINER=<gateway-container-name> \
 GATEWAY_ALLOWED_SOURCE_CIDR=<gateway-container-cidr> \
 XRAY_CONFIG=/usr/local/x-ui/bin/config.json \
-scripts/gateway-egress-validate.sh
+bash scripts/gateway-egress-validate.sh
 ```
 
 同网络命名空间可省略 `GATEWAY_CONTAINER`，并使用：
@@ -144,7 +150,7 @@ scripts/gateway-egress-validate.sh
 ```bash
 GATEWAY_EGRESS_HOST=127.0.0.1 \
 XRAY_CONFIG=/usr/local/x-ui/bin/config.json \
-scripts/gateway-egress-validate.sh
+bash scripts/gateway-egress-validate.sh
 ```
 
 生产预检查应显式启用生产模式：
@@ -155,7 +161,7 @@ GATEWAY_EGRESS_HOST=<gateway-reachable-host> \
 GATEWAY_CONTAINER=<gateway-container-name> \
 GATEWAY_ALLOWED_SOURCE_CIDR=<gateway-container-cidr> \
 XRAY_CONFIG=/usr/local/x-ui/bin/config.json \
-scripts/gateway-egress-validate.sh
+bash scripts/gateway-egress-validate.sh
 ```
 
 脚本只做只读检查：
@@ -167,6 +173,10 @@ scripts/gateway-egress-validate.sh
 - `curl --socks5-hostname` 输出 `connect/tls/ttfb/total` timing。
 - 使用 `https://example.com` 做负向探测，确认平台入口不会退化成通用开放代理。
 - 可选 `docker exec` 从 Gateway 容器内验证 `manifestHost` 可达。
+
+脚本退出码非零表示累计失败；输出 `failures=0` 时仍须逐项处理 warnings。默认 `CURL_CONNECT_TIMEOUT=5`、`CURL_MAX_TIME=30`，只测基础网络，不测生图或 SSE。可以用 `GATEWAY_EGRESS_PORTS` 和三个平台端口变量匹配现场规划；脚本需要 Bash、curl、ss，以及 jq 或 python3，检查容器和防火墙还依赖 Docker 与 nft/iptables 工具及读取权限。
+
+验收时必须补齐以下人工证据：脚本监听检查只确认端口集合中找到监听，不能证明五个端口全部存在；防火墙检查按端口或 CIDR 匹配文本，不能证明规则顺序和拒绝策略有效；平台探测接受非零 HTTP 状态，不能证明授权/模型调用成功；负向探测失败也可能由代理整体不可用造成，需同时具备正向成功证据。探测 URL 检查不解析 DNS；容器探测当前只验证 OpenAI 端口。脚本不测出口国家、IP 稳定性、AI 域名规则覆盖、真实生图超时率或回滚结果。
 
 ## 6. 通过判据
 
@@ -190,6 +200,7 @@ scripts/gateway-egress-validate.sh
 生产部署前必须具备：
 
 - 测试服务器验证脚本零失败。
+- 所有 warnings 已解释，五个入口、有效来源限制、真实出口和业务请求具备独立验证证据。
 - 测试 Gateway 生图流量连续通过，且超时率下降。
 - 生产 Xray 配置和数据库已备份。
 - Gateway CSV 中 `manifestHost` 已确认对生产 Gateway 可达。
@@ -201,7 +212,7 @@ scripts/gateway-egress-validate.sh
 生产发布顺序：
 
 1. 导入或保存 Xray 模板。
-2. 替换真实 outbound。
+2. 确认模板中真实 outbound 已在保存前替换并校验。
 3. 重启 Xray。
 4. 导入 Gateway 代理清单。
 5. 只给测试账号或 5% 以下流量启用。

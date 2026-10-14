@@ -1,10 +1,12 @@
 # 后端 internal 重基线契约
 
-> **执行依据：** 本文作为当前后端 `internal/` 重基线事实契约；多内核架构路线见 `plans/02-architecture/backend-multi-core-architecture-plan.md`
+> **文档性质：** 本文保留后端重基线的目标设计，并标注当前实现；`internal/` 目录图是待迁移目标，不是现存目录。多内核架构路线见 `plans/02-architecture/backend-multi-core-architecture-plan.md`。
+>
+> **源码核对日期：** 2026-10-14，依据 `database/db.go`、`database/repository.go`、`web/entity/api.go`、`web/controller/v1.go`、`web/service/*` 与相关测试。
 >
 > **适用范围：** SuperXray-gui 当前 Go 后端，含 `web/`、`sub/`、`database/`、`xray/`、`core/`、`config/`、`main.go`
 >
-> **版本约束：** 运行时 Xray-core release tag 固定为 `v26.3.27`。该 release tag 不等同于 `github.com/xtls/xray-core` Go module 版本。
+> **版本约束：** 仓库安装/打包默认 Xray-core release tag 为 `v26.3.27`，面板允许安装其他版本。release tag 不等同于 `github.com/xtls/xray-core` Go module 版本。
 
 本文是后端重基线的第一份可执行契约。它不要求一次性搬迁目录，而是先固定目标 `internal/` 边界、依赖方向、API 契约和迁移验收口径。后续代码迁移必须以本文为约束，避免在 controller、service、database、xray runtime 之间继续扩大隐式耦合。
 
@@ -14,11 +16,11 @@
 |---|---|---|
 | `main.go` | CLI、日志初始化、DB 初始化、Web/Sub server 生命周期、信号处理 | 入口应薄化，保留装配和生命周期，不继续承载业务命令细节 |
 | `config/` | 本地路径、版本、日志级别、环境变量读取 | 可直接演进为 `internal/config` 的本地配置层 |
-| `database/` | SQLite/GORM 初始化、AutoMigrate、seeders、全局 DB | 先补版本化迁移，再拆 repository |
+| `database/` | SQLite/GORM 初始化、AutoMigrate、seeders、全局 DB、baseline 记录、typed repository | baseline 管理表和 User/Setting/Inbound repository 已实现；继续收敛事务/runtime 耦合 |
 | `database/model/` | `User`、`Inbound`、`Setting`、流量与 Geo 模型 | 当前仍是活跃写模型，不能直接替换 |
 | `web/web.go` | Gin engine、中间件、Session、locale、WebSocket、cron、UI、Xray 启停 | 应拆成 `internal/web` 的装配层和 `internal/service` 的业务层 |
 | `web/controller/` | 页面/API 控制器、参数绑定、统一响应、鉴权入口 | 应迁入 `internal/controller`，禁止继续下沉业务计算 |
-| `web/service/` | 设置、用户、入站、Xray、服务器、Geo、TG Bot 等业务逻辑 | 应迁入 `internal/service`，并通过接口依赖 database/xray/notifier |
+| `web/service/` | 设置、用户、入站、Xray、服务器、Geo、TG Bot 等业务逻辑 | User/Setting/Inbound 已支持 repository 注入；迁入 `internal/service` 尚未完成 |
 | `web/job/` | Xray 状态、流量、IP、重置、LDAP、告警等定时任务 | 调度归 `internal/web`，业务动作归 `internal/service` |
 | `web/middleware/` | 安全头、CSRF、Host 校验、重定向 | 应归 `internal/web/middleware` 或 `internal/web` |
 | `web/ui.go`、`web/ui/` | Vue 静态资源 go:embed 托管和 runtime config 注入 | 保留在 `internal/web` 作为发布装配边界 |
@@ -27,6 +29,8 @@
 | `core/` | 多核心抽象和 sing-box 实验适配 | Phase 10 前只读/实验边界保持不变，不接管 legacy Xray 生命周期 |
 
 ## 2. 目标 internal 包边界
+
+本节及第 4 节流程图描述迁移目标。当前源码仍使用根级 `web/`、`database/`、`sub/`、`xray/` 等包，不能据此假定已实现以下依赖隔离。
 
 ```text
 internal/
@@ -92,15 +96,13 @@ internal/controller -> internal/api
 
 ### 3.2 新契约
 
-新增接口必须优先进入版本化命名空间，建议路径为 `/api/v1/*`。标准响应：
+当前已实现公开 `GET /api/v1/health/live`、`GET /api/v1/health/ready` 和 `GET /api/v1/metrics`，统一响应来自 `web/entity.APIResponse`。新增接口的目标路径为 `/api/v1/*`。当前成功响应：
 
 ```json
 {
   "success": true,
-  "data": {},
-  "error": null,
-  "code": "OK",
-  "requestId": "req_..."
+  "requestId": "req_...",
+  "data": {}
 }
 ```
 
@@ -109,20 +111,23 @@ internal/controller -> internal/api
 ```json
 {
   "success": false,
-  "data": null,
+  "requestId": "req_...",
   "error": {
-    "code": "VALIDATION_FAILED",
-    "message": "invalid request payload",
-    "details": {}
-  },
-  "code": "VALIDATION_FAILED",
-  "requestId": "req_..."
+    "code": "NOT_FOUND",
+    "message": "route not found"
+  }
 }
 ```
 
-### 3.3 错误码分层
+`data/error/requestId` 使用 `omitempty`；当前没有顶层 `code`。请求 ID 由 engine 中间件提供，错误的 `details` 仅在有实际数据时输出。机器契约见 [Versioned API OpenAPI](openapi/api-v1.yaml)。健康接口返回只读快照，Xray 停止或出错不改变 HTTP 200；这不等于完整依赖就绪检查。
 
-| 范围 | 示例 | HTTP 状态 | 说明 |
+### 3.3 当前错误码与后续分层目标
+
+当前枚举仅有 `UNAUTHORIZED`、`FORBIDDEN`、`NOT_FOUND`、`RATE_LIMITED`、`VALIDATION_ERROR`、`INTERNAL_ERROR`。V1 路由未匹配返回 `NOT_FOUND/404`，每客户端每分钟默认 120 次固定窗口限流返回 `RATE_LIMITED/429` 与 `Retry-After`；其他枚举为已定义的可复用错误类型，不能视为已经存在对应业务 API。
+
+以下领域错误分层是后续设计候选，尚未由 `APIErrorCode` 实现；落地时须同时调整代码、OpenAPI 和调用方：
+
+| 目标范围 | 候选示例 | 目标 HTTP 状态 | 说明 |
 |---|---|---|---|
 | `AUTH_*` | `AUTH_UNAUTHENTICATED`、`AUTH_FORBIDDEN`、`AUTH_CSRF_FAILED` | 401/403/404 | 登录、权限、CSRF、隐藏 API |
 | `VALIDATION_*` | `VALIDATION_FAILED`、`VALIDATION_UNSUPPORTED_PROTOCOL` | 400/422 | DTO 和业务输入校验 |
@@ -171,9 +176,9 @@ UI
   -> websocket invalidate / traffic refresh
 ```
 
-当前事实：`InboundService` 直接操作 `model.Inbound` 和 `xray.XrayAPI`，写入后通过 `XrayService.SetToNeedRestart` 或 controller 广播触发刷新。
+当前事实：`InboundService` 通过 `InboundRepository` 读写 `model.Inbound`，仍持有 `xray.XrayAPI` 并自行协调 GORM 事务与 Xray 副作用；写入后通过 `XrayService.SetToNeedRestart` 或 controller 广播触发刷新。
 
-迁移要求：先抽 `InboundRepository` 与 `XrayRuntime` 接口，再迁移 controller。不能先改表结构。
+迁移要求：继续减少 repository 的 `*gorm.DB`/`xray.ClientTraffic` 耦合，抽出 `XrayRuntime` 接口，再迁移 controller。不能先改表结构。
 
 ### 4.3 流量统计与计费
 
@@ -257,16 +262,16 @@ frontend build
 
 ```text
 schema_migrations(version, name, checksum, applied_at, duration_ms, status)
-migration_events(id, version, direction, started_at, finished_at, error, backup_path)
+migration_events(id, version, direction, started_at, finished_at, status, error, backup_path)
 ```
 
-对应模型为 `model.SchemaMigration` 和 `model.MigrationEvent`。`InitDB` 会在 `AutoMigrate` 后调用 `recordBaselineMigration()`，幂等记录 baseline 迁移版本 `202606260001`，使用 `FirstOrCreate` 保证重复执行只读状态、不重复写数据。
+对应模型为 `model.SchemaMigration` 和 `model.MigrationEvent`。`InitDB` 在 `AutoMigrate` 后调用 `recordBaselineMigration()`，在事务中幂等记录 baseline 版本 `202606260001`，`FirstOrCreate` 避免同一版本及 up 事件重复插入。它只是当前 schema 的 baseline 标记，不是具备版本队列、down 执行或失败恢复的通用 migration runner；重复初始化仍会调用 AutoMigrate。
 
 验收口径（当前实现已满足前 3 项）：
 
 1. 空库启动能自动创建当前所有表和管理表。
 2. 旧库启动不会丢失 `inbounds.settings`、client stats、settings KV。
-3. migration 可重复执行，重复执行只读状态，不重复写数据。
+3. baseline 记录可重复执行，不重复插入管理记录；不能将整个 InitDB 称为只读操作。
 4. 任何 destructive migration 必须先创建备份路径并记录到 `migration_events`（后续 destructive migration 需遵循此约束）。
 
 ## 6. Xray-core v26.3.27 集成约束
@@ -282,7 +287,9 @@ migration_events(id, version, direction, started_at, finished_at, error, backup_
 
 当前 `xray.Process` 仍直接写 `config.json` 并启动外部二进制。Phase 4 迁移时先抽接口，不直接让 `core.Manager` 接管 legacy Xray 生命周期。
 
-## 7. Phase 1 验收清单
+## 7. 重基线设计文档核对清单
+
+此处“完成”表示设计内容已写入本文，不表示目标包迁移、运行时动作集或阶段门禁已通过；本文的重基线分步编号也不替代 UI-first Phase 9/10 门禁。
 
 | 验收项 | 状态 | 证据 |
 |---|---|---|
@@ -295,10 +302,10 @@ migration_events(id, version, direction, started_at, finished_at, error, backup_
 
 ## 8. 下一阶段执行队列
 
-Phase 2 从数据层开始，建议最小步骤如下：
+数据层后续最小步骤如下：
 
-1. ~~新增 `database` 迁移管理表和幂等迁移 runner，暂不改变业务表。~~ **已完成**：`SchemaMigration`、`MigrationEvent` 模型和 `recordBaselineMigration()` 已落地，后续迁移按此框架继续。
-2. 为 `User`、`Inbound`、`Setting`、`Traffic` 建 repository interface 和 GORM 实现。
+1. **已实现 baseline 记录**：`SchemaMigration`、`MigrationEvent` 与 `recordBaselineMigration()`；通用版本队列和回滚 runner 尚未实现。
+2. **已实现三个 repository**：`User`、`Inbound`、`Setting` 接口及 GORM 实现，并接入相应服务；独立 Traffic repository 尚未实现。
 3. 把 `xray.ClientTraffic` 的持久化模型从 runtime 包依赖中拆出来，先做类型别名或适配器过渡。
-4. 给空库、旧库、重复迁移、失败回滚补集成测试。
-5. 只有 Phase 2 验收通过后，再进入 API/middleware 重构。
+4. 保留 `database/db_migration_test.go` 的空库、旧数据保留、重复 baseline 回归；后续新增 destructive migration 时补备份与失败回滚测试。
+5. `/api/v1` 与请求 ID/日志/限流中间件已落地；后续扩大迁移仍须完成对应数据层和兼容性验收，保持 `default-xray` 只读与旧模型写路径边界。

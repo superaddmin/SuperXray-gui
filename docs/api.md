@@ -2,10 +2,13 @@
 
 > **目标读者**：集成开发者 / 前端维护者
 > **适用版本**：`v3.4.3`
+> **源码核对日期**：2026-10-14（静态契约与现有回归测试；部署配置和外部服务需在目标环境验证）
 > **事实来源**：`web/controller/*`、`web/ui.go`、`web/middleware/security.go`、`web/websocket/*`、`sub/*`、`frontend/src/api/*`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [部署指南](deployment.md) | [Panel OpenAPI](openapi/panel-api.yaml) | [Versioned API OpenAPI](openapi/api-v1.yaml)
 
 > **文档职责**：本文保留为面向维护者的人类说明；`docs/openapi/panel-api.yaml` 是 Vue 面板 API 的机器契约，用于路由漂移测试，并通过 `tools/openapiexport` 生成 `frontend/public/openapi.json`，再由 Vite 输出到 `web/ui/openapi.json`。`docs/openapi/api-v1.yaml` 是新增 `/api/v1/*` 版本化 API 的机器契约。
+
+Panel OpenAPI 只覆盖 `/panel/api/*` 的 74 个操作，不含页面、认证、兼容组、WebSocket 和独立订阅服务。机器契约范围外的 20 个面板操作（根/登录/2FA/登出 4 个、CSRF token 1 个、设置 6 个、Xray 9 个）均在下文逐项说明。
 
 ---
 
@@ -13,7 +16,9 @@
 
 ### 1.1 Base Path
 
-Web 面板所有路由都挂在配置项 `webBasePath` 下。文档中的路径以 `webBasePath=/` 展示（约定为文档描述方便，非运行时默认值）；如果运行时配置为 `/xui/`，则：
+Web 面板业务路由挂在配置项 `webBasePath` 下。文档中的路径以 `webBasePath=/` 展示（约定为文档描述方便，非运行时默认值）；如果运行时配置为 `/xui/`，则：
+
+源码默认 `webBasePath` 是 `/super/`，例如默认登录路径为 `/super/panel/login`、默认状态 API 为 `/super/panel/api/server/status`。安装或管理员可修改配置，实际值以当前数据库设置为准。
 
 | 文档路径 | 实际路径示例 |
 |---|---|
@@ -38,7 +43,7 @@ window.__SUPERXRAY_UI_CONFIG__ = {
 
 ### 1.2 认证与会话
 
-面板使用 Cookie Session，Cookie 名为 `SuperXray`。会话 Cookie 为 `HttpOnly`、`SameSite=Lax`，在 HTTPS 请求或 `X-Forwarded-Proto: https` 下设置 `Secure`。
+面板使用 Cookie Session，Cookie 名为 `SuperXray`，Path 为运行时 `webBasePath`，启用 `HttpOnly`、`SameSite=Lax`。服务器配置了面板证书和私钥时，会话默认带 `Secure`；登出时删除 Cookie 的 `Secure` 根据当前 TLS 请求或 `X-Forwarded-Proto: https` 决定。单独由反向代理终止 HTTPS 的部署须核对实际 Cookie 属性。
 
 认证流程：
 
@@ -47,9 +52,11 @@ window.__SUPERXRAY_UI_CONFIG__ = {
 3. 后续 API 请求携带 Cookie；`/panel/api/*` 未登录统一返回 `404 Not Found`，用于隐藏 API 存在性。
 4. 普通页面未登录会重定向到登录页；Ajax 页面 API 可能返回 `401` 或通用 JSON 错误，取决于控制器所在路由组。
 
+`GET /panel/csrf-token` 可在登录后获取 token，返回通用响应的字符串 `obj`。该端点属于页面鉴权组，未登录 Ajax 返回 `401`，普通请求重定向到根路径。
+
 ### 1.3 CSRF
 
-`/panel/api/*` 路由组启用 `CSRFMiddleware`，覆盖 `/panel/api/*`、`/panel/api/setting/*`、`/panel/api/xray/*` 等路径。`/panel/setting/*` 和 `/panel/xray/*`（通过 `XUIController` 注册）仅要求登录，不要求 CSRF token。安全方法 `GET`、`HEAD`、`OPTIONS`、`TRACE` 直接放行；其他方法必须满足：
+`/panel/api/*` 路由组启用 `CSRFMiddleware`。设置与 Xray 控制器也各自在自己的路由组启用该中间件，因此 `/panel/setting/*`、`/panel/xray/*` 兼容组的非安全方法同样要求 CSRF token。即使 POST 只是读取设置或模板，也需 token。安全方法 `GET`、`HEAD`、`OPTIONS`、`TRACE` 直接放行；其他方法必须满足：
 
 - 请求头 `X-CSRF-Token` 或 `X-XSRF-Token` 等于当前 Session 内的 token。
 - 如果请求带 `Origin` 或 `Referer`，其 scheme 和 host 必须与当前请求同源。
@@ -150,6 +157,8 @@ HTTP 状态码为 `403`。
 | `GET` | `/panel/ui/*path` | 新 UI 兼容入口 |
 | `GET` | `/panel/api/openapi.json` | 新 UI OpenAPI 规范 JSON 文件，用于 API 文档页；需登录 |
 
+辅助 `GET /.well-known/appspecific/com.chrome.devtools.json` 直接注册在 engine 上，不带 `webBasePath`，公开返回 HTTP 200 和空 JSON 对象；它不属于 Panel OpenAPI 的业务契约。
+
 ### 2.2 已退役 Legacy UI
 
 旧 HTML UI 已退役，`web/html`、`web/assets` 和 `/panel/legacy*` 页面路由不再注册；默认 `NoRoute` 会返回 `404 Not Found`。新 Vue UI、登录接口、面板 API、`/panel/setting/*` 与 `/panel/xray/*` 控制器仍保留。
@@ -165,6 +174,8 @@ HTTP 状态码为 `403`。
 | `GET` | `/api/v1/health/live` | 面板进程存活检查 |
 | `GET` | `/api/v1/health/ready` | 面板就绪检查，并包含只读 Xray 运行时快照 |
 | `GET` | `/api/v1/metrics` | 面板进程请求指标快照，返回统一响应壳 |
+
+上述三个端点公开访问，不要求 Session 或 CSRF。`live` 和 `ready` 都返回 HTTP `200` 和只读运行时/指标快照，区别为 `data.status` 的 `live` / `ready`；Xray 停止或出错不会把 ready 改为 `503`。Xray 状态枚举是 `running`、`stop`、`error`，与 Core API 的 `stopped` 不同。这些探针没有执行数据库就绪、外部依赖可用性或订阅可用性检查。
 
 成功响应示例：
 
@@ -203,7 +214,7 @@ HTTP 状态码为 `403`。
 
 `/api/v1` 当前默认按客户端固定窗口限流为每分钟 120 次。超过限额时返回 HTTP `429`、统一错误壳和 `Retry-After` 响应头。未命中路由会返回 HTTP `404` 和统一错误壳；旧页面和 `/panel/api` 仍保持原有 `404` 行为。
 
-`/api/v1/metrics` 返回与 `/api/v1/health/ready` 中 `metrics` 字段一致的只读快照，方便外部监控和调试工具直接拉取当前请求计数、状态码分布、路由维度聚合和平均延迟。
+`/api/v1/metrics` 返回与健康响应中 `metrics` 字段相同结构的只读快照。指标统计整个面板 HTTP 请求，存在进程内存中，重启后清零；未匹配路径归并为 `<unmatched>`，路由/状态维度上限和溢出规则见 [运行时可靠性](runtime-reliability.md)。响应生成时当前请求尚未完成，可能反映在 `inFlight` 中；连续请求的数值不保证相同。
 
 ---
 
@@ -226,7 +237,7 @@ HTTP 状态码为 `403`。
 ```json
 {
   "success": true,
-  "msg": "",
+  "msg": "<本地化登录成功提示>",
   "obj": null
 }
 ```
@@ -251,7 +262,7 @@ HTTP 状态码为 `403`。
 
 ## 4. 设置 API
 
-路径前缀：`/panel/setting`（通过 `XUIController` 注册，仅要求登录，不要求 CSRF token）和 `/panel/api/setting`（通过 `APIController` 注册，要求 CSRF token）。两者是同一 `SettingController` 实例在不同路由组下的双注册，功能一致。非安全方法通过 `/panel/api/setting` 访问时需要 CSRF token。
+路径前缀：`/panel/setting`（通过 `XUIController` 注册）和 `/panel/api/setting`（通过 `APIController` 注册）。两组均要求登录与非安全方法的 CSRF token；页面兼容组未登录 Ajax 返回 401/普通请求重定向，API 组未登录返回 404。两者分别创建 `SettingController` 实例并复用同一实现。当前 Vue SDK 使用 `/panel/api/setting/*`。
 
 ### POST `/panel/setting/all`
 
@@ -304,7 +315,7 @@ HTTP 状态码为 `403`。
 
 ## 5. Xray 设置 API
 
-路径前缀：`/panel/xray`（通过 `XUIController` 注册，仅要求登录，不要求 CSRF token）和 `/panel/api/xray`（通过 `APIController` 注册，要求 CSRF token）。两者是同一 `XraySettingController` 实例在不同路由组下的双注册。非安全方法通过 `/panel/api/xray` 访问时需要 CSRF token。
+路径前缀：`/panel/xray`（通过 `XUIController` 注册）和 `/panel/api/xray`（通过 `APIController` 注册）。两组均要求登录与非安全方法的 CSRF token；两者分别创建 `XraySettingController` 实例并复用同一实现。当前 Vue SDK 使用 `/panel/api/xray/*`。
 
 ### POST `/panel/xray/`
 
@@ -419,7 +430,7 @@ HTTP 状态码为 `403`。
 | `GET` | `/options` | 无 | 轻量级 Inbound 选项列表，用于选择器/API 客户端 |
 | `GET` | `/get/:id` | `id` path int | 单个 Inbound |
 | `POST` | `/add` | `model.Inbound` 表单/JSON 绑定 | 保存后的 Inbound |
-| `POST` | `/update/:id` | `model.Inbound` 表单/JSON 绑定 | 通用响应 |
+| `POST` | `/update/:id` | `model.Inbound` 表单/JSON 绑定 | 保存后的 Inbound |
 | `POST` | `/del/:id` | `id` path int | 通用响应 |
 | `POST` | `/import` | `data` 表单字段 | 通用响应 |
 
@@ -458,6 +469,8 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 
 `model.Client` 不独立建表，存放在 `Inbound.Settings` 的 clients JSON 内。
 
+流量字段使用 bytes，正值 `expiryTime` 与 `lastTrafficResetTime` 使用 Unix milliseconds。协议常量及 Vue 可编辑注册表为 `vmess`、`vless`、`tunnel`、`http`、`trojan`、`shadowsocks`、`mixed`、`wireguard`、`tun`、`hysteria`、`hysteria2`；`hysteria2` 生成 Xray 运行配置时规范化为 `hysteria`。WireGuard Peer 存在 `settings.peers` 中。`userId` 不对 JSON 暴露，新增时由当前 Session 写入。
+
 ### 6.2 Client 管理
 
 | 方法 | 路径 | 请求 |
@@ -475,7 +488,7 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | `GET` | `/getClientTraffics/:email` | 按 email 查询客户端流量 |
-| `GET` | `/getClientTrafficsById/:id` | 按 Inbound ID 查询客户端流量 |
+| `GET` | `/getClientTrafficsById/:id` | 按 `settings.clients[].id` 字符串（通常 UUID）检索 email 对应的流量列表；不是 Inbound ID |
 | `POST` | `/:id/resetClientTraffic/:email` | 重置单客户端流量 |
 | `POST` | `/resetAllTraffics` | 重置全部 Inbound 流量 |
 | `POST` | `/resetAllClientTraffics/:id` | 重置指定 Inbound 下所有客户端；新 UI 也会传 `-1` 表示全局 |
@@ -531,7 +544,7 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 | `POST` | `/updateGeofile` | 更新全部 Geo 文件 |
 | `POST` | `/updateGeofile/:fileName` | 更新指定 Geo 文件，文件名由服务层校验 |
 
-`updateGeofile/:fileName` 只接受安全文件名，不允许路径分隔符或遍历片段。
+`updateGeofile/:fileName` 只接受 `geoip.dat`、`geosite.dat`、`geoip_IR.dat`、`geosite_IR.dat`、`geoip_RU.dat`、`geosite_RU.dat`；省略参数时更新全部。控制器先检查安全 `.dat` 文件名，服务层再执行固定名单校验；下载、预检与恢复规则见 [运行时可靠性](runtime-reliability.md)。
 
 ### 7.3 日志
 
@@ -622,7 +635,7 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 | `mode` | string | `legacy` 或 `experimental` |
 | `source` | string | 实例来源 |
 | `lifecycleOwner` | string | 生命周期负责方 |
-| `status` | object | `state`、`version`、`pid`、`error` 等 |
+| `status` | object | `state`、`version`、可选 `pid/errorMsg/binary/config/updatedAt` |
 | `capabilities` | object | `read/write/validate/start/stop/restart/lifecycleViaCoreManager` |
 | `writeSupported` | bool | 是否支持通过该 API 写配置 |
 | `managerAttached` | bool | 是否挂在 CoreManager 生命周期 |
@@ -678,7 +691,7 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 
 ### POST `/panel/api/backuptotgbot`
 
-调用 Telegram Bot 服务向管理员发送数据库备份。该操作要求登录、CSRF token 和已启用 TG Bot。
+调用 Telegram Bot 服务向管理员发送数据库备份。该操作要求登录和 CSRF token；实际发送取决于 TG Bot 配置和服务状态，控制器本身不确认发送结果。
 
 ---
 
@@ -693,7 +706,7 @@ ws://<host>:<webPort>/<webBasePath>ws
 wss://<host>:<webPort>/<webBasePath>ws
 ```
 
-例如默认路径为 `/ws`，`webBasePath=/xui/` 时为 `/xui/ws`。连接必须携带已登录 Session Cookie。
+文档根路径示例为 `/ws`，源码默认路径为 `/super/ws`，`webBasePath=/xui/` 时为 `/xui/ws`。连接必须携带已登录 Session Cookie，未登录返回 401。
 
 ### 11.2 消息结构
 
@@ -727,6 +740,8 @@ wss://<host>:<webPort>/<webBasePath>ws
 
 订阅服务由 `sub.Server` 独立监听，只有 `subEnable=true` 时启动。它不使用面板登录认证，但可配置独立监听地址、端口、证书和域名校验。
 
+源码默认 `subEnable=true`、`subJsonEnable=false`、`subClashEnable=true`；订阅路径独立于 `webBasePath`，实际启用格式和入口以当前设置为准。
+
 默认路径来自设置：
 
 | 设置 | 默认语义 | 路由 |
@@ -743,12 +758,14 @@ GET /json/:subid/diagnose
 GET /clash/:subid/diagnose
 ```
 
+诊断直接返回 JSON，包含 `subId/target/format/supportedFormats/supportedProtocols/totalInbounds/outputNodes/skippedNodes/warnings/skipReasons`；跳过项包含 `inboundId/protocol/reason`，不返回完整客户端凭证。数据库读取失败返回 500 和 `error`。普通格式生成失败或没有可输出内容则返回 HTTP 400、文本 `Error!`。
+
 ### 12.1 GET `/sub/:subid`
 
 行为：
 
 - 默认返回协议链接列表；`subEncrypt=true` 时返回 Base64 编码，否则返回明文。
-- 当 `Accept` 包含 `text/html`、`?html=1` 或 `?view=html` 时，渲染可视化订阅页面。
+- WireGuard Peer 会生成 WireGuard 配置文本，并进入同一明文/Base64 输出流程；当前没有 HTML 订阅页面，`Accept: text/html`、`?html=1`、`?view=html` 不切换输出格式。
 - 当存在 `target` 查询参数时，会按目标 profile 自动选择格式；例如 `target=xray` 优先 JSON，`target=mihomo` 或 `target=stash` 优先 Clash。对应格式未启用时回退到 URI 输出。
 
 ### 12.2 GET `/json/:subid`

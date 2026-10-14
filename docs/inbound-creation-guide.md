@@ -1,278 +1,120 @@
 # 入站规则创建填写教程
 
-> 目标读者：面板管理员
-> 适用场景：在 Web 面板的“入站列表”中点击“添加入站”，创建新的 Xray 入站规则。
+> 目标读者：面板管理员。源码核对日期：2026-10-14，适用版本：`v3.4.3`。
+> 事实来源：`frontend/src/views/InboundsView.vue`、`frontend/src/schemas/protocolRegistry.ts`、`frontend/src/utils/inboundCompat.ts`、`frontend/src/utils/realitySettings.ts`、`web/controller/inbound.go`、`web/service/protocol_validation.go`、`database/repository.go`。
 
----
+打开运行时 `webBasePath + "panel/inbounds"`，点击 `New Inbound`（中文界面对应“添加入站”）。页面使用当前 Vue 表单，下文保留源码中的英文标签便于对照。编辑已有入站时 Protocol 禁用。
 
 ## 1. 创建前准备
 
-创建入站前先确认三件事：
+确认服务器端口、防火墙和安全组已放行，端口没有被系统服务或其他入站占用，客户端支持所选协议和传输。面板保存成功只表示配置已接受；连接可用性还要检查 Xray 运行状态、监听端口和客户端配置。
 
-1. 服务器防火墙、安全组或云厂商端口已放行。
-2. 计划使用的端口没有被其他入站或系统服务占用。
-3. 已确定协议、传输方式和安全方式，例如 `VLESS + TCP + Reality`、`VLESS + WebSocket + TLS`、`Trojan + TLS`、`Shadowsocks`。
+当前协议选择器包含 VMess、VLESS、Tunnel、HTTP、Trojan、Shadowsocks、Mixed、WireGuard、Tun、Hysteria2 和 Hysteria2 Legacy Alias。Hysteria2 常规保存为 `hysteria` 且 `settings.version=2`，导入别名 `hysteria2` 也可识别，生成 Xray 配置时统一为 `hysteria`。
 
-如果只是验证面板是否能创建入站，建议先用默认 `vless`，只修改备注、端口和客户端 Email，其他高级项保持默认。确认可以保存后，再逐步开启 Reality、TLS、WebSocket、Sniffing、IP 限制等高级功能。
-
----
-
-## 2. 按页面顺序填写
-
-### 2.1 基础信息
-
-| 字段 | 是否必填 | 填写规则 |
-|------|----------|----------|
-| 启用 | 否 | 打开后创建成功会尝试同步到正在运行的 Xray；关闭后只保存配置。 |
-| 备注 | 建议填写 | 用于在入站列表中识别规则，例如 `vless-reality-443`。 |
-| 协议 | 必填 | 创建后一般不能直接改协议；选错建议删除后重新创建。 |
-| 监听 IP | 可留空 | 留空或 `0.0.0.0` 表示监听所有 IPv4 地址；只想本机访问可填 `127.0.0.1`。 |
-| 端口 | 必填 | 范围 `1-65535`，同一监听地址下必须唯一。 |
-| 总流量 | 可为 `0` | `0` 表示入站整体不限流量；客户端仍可单独限流。 |
-| 周期流量重置 | 可保持默认 | `never` 表示不自动重置；也可选择 hourly/daily/weekly/monthly。 |
-| 到期时间 | 可留空 | 留空表示入站永不过期。 |
-
-常见错误：
-
-- `Port already exists`：端口已被其他入站占用，换端口或删除旧入站。
-- 端口填 `443`、`8443`、`2053` 等常用端口前，先确认系统服务和反向代理没有占用。
-
-### 2.2 连接方式
-
-这一组决定客户端能否看到某些后续字段，尤其是 VLESS 的 Flow。
+## 2. Basic Inbound
 
 | 字段 | 填写规则 |
-|------|----------|
-| 传输 | 常见值是 `TCP (RAW)`、`WebSocket`、`gRPC`、`HTTPUpgrade`、`XHTTP`、`mKCP`。服务端和客户端必须一致。 |
-| 安全 | 可选 `none`、`Reality`、`TLS`。Reality 只在 VLESS/Trojan 且部分传输方式下显示。 |
+| --- | --- |
+| Protocol | 新建时默认 `vless`；编辑时不可改变。 |
+| Remark | 用于识别入站，可留空。 |
+| Listen | 留空生成 Xray 配置时使用 `0.0.0.0`；仅本机访问填写 `127.0.0.1`。 |
+| Port | UI 接受 `1..65535`，默认随机端口。 |
+| Traffic Limit GB | UI 按 GiB 换算为 bytes 保存，`0` 表示入站整体不限量。 |
+| Expiry Timestamp | Unix milliseconds，`0` 表示不过期；当前是数字输入框。 |
+| Traffic Reset | 文本输入，默认 `never`；可用 `never/hourly/daily/weekly/monthly`。 |
+| Enable | 默认打开；打开后后端尝试同步 Xray，失败时设置需要重启标志。关闭时保存禁用配置。 |
 
-Flow 的真实显示条件：
+端口冲突判断同时考虑监听地址。通配监听（空、`0.0.0.0`、`::`、`::0`）与任意相同端口冲突；指定地址与同地址或通配监听的相同端口冲突。该判断检查面板数据库，不能替代系统端口检查。
 
-1. 协议必须是 `vless`。
-2. 传输必须是 `TCP (RAW)`。
-3. 安全必须选择 `Reality` 或 `TLS`。
+## 3. 协议与 Transport Settings
 
-只有三项同时满足时，客户端区域才会显示 `Flow` 下拉框。它不是按钮，也不会在 WebSocket、gRPC、XHTTP 等传输下显示。
+VMess、VLESS、Trojan、Shadowsocks、Hysteria 支持 Transport Settings。HTTP、Mixed、Tunnel、WireGuard、Tun 不显示该表单。协议注册表中的 TLS 能力标记与表单显示并非完整的 Xray 支持矩阵，组合最终须通过后端和目标核心校验。
 
-### 2.3 客户端
+| Network | 主要字段 |
+| --- | --- |
+| `tcp` | TCP Proxy Protocol、TCP Header（`none/http`）。 |
+| `ws` | WS Path、WS Host、WS Heartbeat Period、WS Proxy Protocol。 |
+| `grpc` | gRPC Service、gRPC Authority、gRPC Multi Mode。 |
+| `httpupgrade` | HTTPUpgrade Path、Host、Proxy Protocol。 |
+| `xhttp` | Path、Host、Mode、HTTP Header/Padding、Session/Sequence/Data Placement、XMux；与客户端参数一致。 |
+| `kcp` | MTU、TTI、上下行容量、窗口等 mKCP 参数。 |
+| `hysteria` | Hysteria 专用 UDP/QUIC 传输，仅 Hysteria 协议显示。 |
 
-多用户协议会在“添加入站”时默认创建一个客户端。常见多用户协议包括 VMess、VLESS、Trojan、Shadowsocks 多用户模式和 Hysteria。WireGuard 使用 `Peer` 管理客户端，字段位置不同，但订阅识别也依赖 Email、启用状态和订阅 ID。
+普通协议的 Security 下拉包含 `none/tls/reality`；Hysteria 固定为 `hysteria` Network 和 `tls` Security。选项可见不表示每种组合都能在目标核心工作。
 
-| 字段 | 适用协议 | 填写规则 |
-|------|----------|----------|
-| 启用 | 全部客户端协议 | 关闭后该客户端不会生效。 |
-| Email | 多用户协议 | 必填，建议全局唯一；可用字母、数字、点和短横线。 |
-| Email | WireGuard Peer | 用于订阅备注和后续识别；建议填写唯一值。 |
-| ID | VMess / VLESS | 必须是 UUID。点击同步图标可自动生成。 |
-| Password | Trojan / Shadowsocks | 必填。点击同步图标可自动生成。 |
-| Auth Password | Hysteria | 必填。点击同步图标可自动生成。 |
-| PrivateKey / PublicKey | WireGuard Peer | 必须是有效 WireGuard key；点击同步图标可自动生成。 |
-| Security | VMess | 通常保持 `auto`。 |
-| Subscription / Sub ID | 开启订阅后显示、WireGuard Peer | 订阅 ID，留默认随机值即可；WireGuard 订阅按 Peer 的 `subId` 匹配。 |
-| Telegram ChatID | 开启 Telegram Bot 后显示 | 只能填数字；不知道就留空或填 `0`。 |
-| Comment | 可选 | 客户端备注。 |
-| IP Limit | 开启 IP 限制后显示 | `0` 表示不限 IP 数量。 |
-| Flow | 仅 VLESS + TCP + TLS/Reality 显示 | Reality/Vision 常用 `xtls-rprx-vision`；不确定时先选 `none`。 |
-| 客户端总流量 | 可为 `0` | `0` 表示该客户端不限流量。 |
-| 延迟启动 | 可选 | 打开后按“天数”计算首次使用后的到期时间。 |
-| 到期时间 | 可留空 | 留空表示该客户端永不过期。 |
-| 续期天数 | 设置到期时间后显示 | 到期后自动续期的天数，`0` 表示不自动续期。 |
+结构化区的 `Sync JSON` 从 JSON 读取字段，`Apply` 将字段写回 JSON；提交时也会应用当前结构化字段。Sockopt 包含域名策略、标记、TCP 参数、Dialer Proxy、Interface Name、Trusted X-Forwarded-For 等高级项，按实际部署填写。
 
-关键规则：
+### 3.1 TLS / Reality
 
-- VMess/VLESS 的 `ID` 必须是合法 UUID。
-- VLESS 的 `Flow` 只能用于 TCP + TLS/Reality。
-- Trojan/Shadowsocks 的 `Password` 不能为空。
-- Shadowsocks 2022 method 的服务端 key 和客户端 key 必须是匹配算法长度的 Base64。
-- Hysteria 的 `Auth Password` 不能为空。
-- WireGuard Peer 的 key 和 Allowed IPs 必须有效，否则订阅导出会跳过该 Peer。
-- Email 不要重复；重复会影响流量统计、订阅和客户端检索。
-- Telegram ChatID 必须是数字，不要填文字、空格或带引号的内容。
+TLS 使用 Certificate File + Key File，或者 Inline Certificate + Inline Private Key，成对填写真实证书与私钥。两种都填写时，构建逻辑优先采用内联内容。TLS SNI、ALPN、Fingerprint、Min/Max Version、ECH、Reject Unknown SNI、Disable System Root、Session Resumption 都在 Transport Settings 中。
 
-### 2.4 协议高级
+`Generate Self-Signed Certificate` 调用面板证书 API，并填充内联证书和私钥；客户端需要相应的信任配置。Hysteria 新建/提交还可从面板默认 TLS 证书路径补齐空的证书字段；已有字段不会被默认值覆盖。
 
-不同协议会显示不同高级项：
+Reality 填写 Target（`host:port`）、Server Names（逗号分隔）、Private Key 和 Short IDs；Public Key、SpiderX、ML-DSA-65 相关字段用于客户端兼容信息。已登录可调用 `GET /panel/api/server/getNewX25519Cert` 获取密钥；当前入站 Reality 表单没有旧 UI 的 `Get New Cert` 按钮。
 
-| 区域 | 说明 |
-|------|------|
-| VLESS Authentication / decryption / encryption | 这是 VLESS 协议级认证/加密字段，不是 Reality/TLS 的“安全”。普通 VLESS + Reality/TLS 场景通常保持默认。 |
-| Fallbacks | TCP 且未启用 VLESS Authentication 时显示；用于把不匹配流量转发到其他服务。不会配置时不要添加。 |
-| Vision Seed | 选择 VLESS Flow 为 `xtls-rprx-vision` 或 `xtls-rprx-vision-udp443` 后显示；不理解用途时保持默认。 |
-| Shadowsocks Method | 需要和客户端支持的加密方式一致。 |
-| Hysteria 参数 | 偏 UDP/QUIC 场景，需确认运营商和防火墙允许 UDP。 |
+Short ID 按 Xray 要求填写合法十六进制，客户端 SNI、公钥和 Short ID 必须与服务端一致。当前 `realitySettings.ts` 仅清理空白/列表、补默认目标和名称，并检查私钥与 Short IDs 非空；目标和名称格式、密钥与十六进制有效性还须由实际核心验收。
 
-### 2.5 传输高级
+### 3.2 WireGuard / Tun / 其他协议
 
-| 传输 | 重点字段 |
-|------|----------|
-| TCP (RAW) | 通常不需要额外路径；HTTP 伪装只在明确需要时配置。 |
-| WebSocket | Path 必须以 `/` 开头；Host 通常填域名。 |
-| gRPC | Service Name 要和客户端一致。 |
-| HTTPUpgrade / XHTTP | Path、Host、Header 要和客户端一致。 |
-| mKCP | 网络环境敏感；如果运营商限制 UDP，创建成功也可能无法连接。 |
-| Sockopt / TCP Masks / External Proxy | 都属于高级网络选项；没有明确部署需求时保持默认。 |
+WireGuard 显示 MTU、noKernelTun、Server Private Key、Server Public Key；`Generate` 生成服务端密钥。Peer 存放于 Settings JSON 的 `peers`，已有入站可在客户端详情中添加、编辑 Peer。新建提交要求服务端密钥和至少一个 Peer。
 
-填写传输字段时，最重要的是“服务端和客户端一致”。Path、Host、SNI、Service Name、Reality Short ID 中任意一项不一致，都可能导致入站创建成功但客户端无法连接。
+Peer 使用 Email、Enable、Sub ID、Private/Public Key、Allowed IPs（CIDR）、可选 Pre-shared Key 和 Keep Alive。订阅按 Peer 的 `subId` 匹配；无效 key/CIDR 会使生成失败或 Peer 被跳过。普通订阅生成 WireGuard 配置文本并遵循明文/Base64 设置，JSON 生成 Xray outbound，Clash 生成 Mihomo proxy。
 
-### 2.6 TLS / Reality 高级
+Tun 显示 Interface Name、MTU、Gateway CIDRs、DNS Addresses、User Level、Auto System Route CIDRs、Outbounds Interface。创建前确认目标系统、权限与核心支持 TUN；其他协议的未结构化字段在 Settings JSON 中编辑。
 
-| 安全方式 | 填写规则 |
-|----------|----------|
-| TLS | SNI 要匹配域名；证书路径或证书内容必须真实可用；私钥和证书必须成对。 |
-| Reality | Target、SNI、Private Key、Public Key、Short IDs 必须成组匹配。点击 `Get New Cert` 可生成 X25519 密钥。 |
+## 4. Default Client
 
-Reality 常见填写顺序：
+VMess、VLESS、Trojan、Shadowsocks、Hysteria 的客户端通过独立表单管理；WireGuard 使用 Peer，不显示 Default Client。HTTP/Mixed 使用 `settings.accounts`，不显示普通多用户客户端表单。
 
-1. 安全选择 `Reality`。
-2. Target 填目标站点，例如 `www.microsoft.com:443`。
-3. SNI 填目标域名，例如 `www.microsoft.com`。
-4. 点击 `Get New Cert` 生成私钥和公钥。
-5. Short IDs 保持随机值或点击同步图标重新生成。
-6. 如果需要 Vision，再回到客户端区域把 Flow 选为 `xtls-rprx-vision`。
+| 字段 | 填写规则 |
+| --- | --- |
+| Email | 不能为空，保持唯一，后端重复检查按大小写不敏感比较。 |
+| UUID | VMess/VLESS，合法 UUID；`Generate` 重新生成。 |
+| Password | Trojan/Shadowsocks，`Generate` 生成对应协议凭证。Shadowsocks 2022 AES method 使用规定长度的 Base64 key。 |
+| Auth | Hysteria 客户端认证，不能为空；可点击 `Generate`。 |
+| Security | VMess，默认 `auto`。 |
+| Flow | Default Client 仅在 VLESS + `tcp` + TLS/Reality 显示；常用 `xtls-rprx-vision`。 |
+| Method | Shadowsocks 客户端加密方式，须与服务端兼容。2022 单用户 method 不支持普通 clients 操作。 |
+| Traffic Limit GB | 换算为客户端 `totalGB` bytes 保存，`0` 表示不限量。 |
+| Expiry Timestamp | Unix milliseconds，`0` 表示不过期。 |
+| IP Limit | `0` 表示不限 IP，实际限制还依赖后端 IP 检查链。 |
+| Reset Days | 对应客户端 `reset`，到期自动续期天数，`0` 表示不续期。 |
+| Sub ID | 默认随机生成，无需等订阅开关开启才显示。 |
+| Enable / Comment | 控制客户端启用状态与备注。 |
 
-### 2.7 Sniffing
+客户端独立编辑弹窗的 Flow 对所有 VLESS 入站可见，后端仍校验组合。当前表单没有旧版 Telegram ChatID 或延迟启动开关；新客户端 payload 的 `tgId` 固定为 `0`。
 
-Sniffing 可保持默认。确认入站能创建并能连接后，再按需启用 HTTP/TLS/QUIC 识别、routeOnly、metadataOnly、排除域名或排除 IP。
+客户端记录从高级 Settings JSON 中隔离；提交时恢复 `settings.clients`，避免表单和 JSON 同时编辑同一数组。`Reset` 从已保护的记录加载，`Apply` 更新当前默认客户端；已有其他客户端保留。
 
----
+## 5. Advanced JSON
 
-## 3. 推荐最小创建流程
+页面提供 Settings JSON、Stream Settings JSON、Sniffing JSON 的编辑与 Format。必须填写 JSON 对象；有独立客户端表单的协议不能在 Settings JSON 中手工加入 `clients`，否则提示 `Manage clients with the client form instead of Settings JSON`。
 
-### 3.1 新手验证流程
+VLESS decryption/encryption、Trojan fallbacks、Shadowsocks 服务端 method/network 等未结构化协议项应在 Settings JSON 中编辑。当前没有独立的旧版 VLESS Authentication、Fallbacks 或 Vision Seed 面板。Sniffing 使用 JSON，支持项必须符合实际 Xray schema。
 
-1. 打开“入站列表”。
-2. 点击“添加入站”。
-3. 协议保持默认 `vless`。
-4. 备注填写 `test-vless`。
-5. 端口填写一个未占用端口，例如 `8443`。
-6. 传输保持 `TCP (RAW)`。
-7. 安全先保持 `none`。
-8. 客户端 Email 填写 `test@example`。
-9. ID 保持默认自动生成。
-10. Telegram ChatID 留空或填 `0`。
-11. 客户端总流量保持 `0`。
-12. 到期时间留空。
-13. 点击“创建”。
+## 6. 最小创建流程
 
-如果这一步成功，再逐步开启 TLS、Reality、WebSocket、IP 限制、订阅、流量重置等高级功能。不要一次性打开很多高级项，否则排查会困难。
+1. 点击 New Inbound，保持默认 VLESS、随机可用端口、Enable。
+2. 填 Remark 和唯一 Default Client Email，保持已生成 UUID。
+3. 验证保存链路时使用 `tcp + none`，流量和到期为 `0`；实际交付按部署需要配置 TLS/Reality。
+4. 点击弹窗确认按钮。检查列表、详情和 Xray result，必要时在 Xray 页重启。
+5. 导出分享链接/订阅链接，从实际客户端检查连接、日志和流量。
 
-### 3.2 VLESS + Reality + Vision
+VLESS + Reality + Vision 使用 `tcp`、`reality`，填写 Reality 参数后选择 Vision Flow。VLESS + WebSocket + TLS 使用 `ws`、`tls`、相同 Path/Host/SNI 和真实证书，Flow 留空。Trojan + TLS 填正确 Password 与证书。Shadowsocks 在 Settings JSON 中确认服务端 method，并使用匹配凭证。Hysteria2 要求 `settings.version=2`、`hysteria + tls`、可用证书和 Auth，同时放行 UDP。
 
-1. 协议选择 `vless`。
-2. 端口填写已放行端口，例如 `443`。
-3. 传输选择 `TCP (RAW)`。
-4. 安全选择 `Reality`。
-5. 客户端 Email 填唯一值，ID 保持自动生成。
-6. 客户端 Flow 选择 `xtls-rprx-vision`。
-7. Reality 区域填写 Target、SNI，点击 `Get New Cert` 生成密钥。
-8. Short IDs 保持随机值或重新生成。
-9. Sniffing 先保持默认。
+## 7. 常见报错与创建后检查
 
-### 3.3 VLESS + TLS + WebSocket
+| 错误 | 检查方向 |
+| --- | --- |
+| `Port already exists` | 核对监听地址和其他入站端口，另行检查系统端口占用。 |
+| `Duplicate email` | 换用唯一 email，包括仅大小写不同的重复值。 |
+| `empty client ID` | 核对 UUID、Trojan Password、Shadowsocks Email、Hysteria Auth；协议校验还会检查所需凭证。 |
+| `uuid is invalid` / `flow requires tcp with tls or reality` | UUID 格式和 Flow 的传输/安全组合。 |
+| `shadowsocks server key` / `shadowsocks client key` | 服务端和客户端 key 的 Base64 编码与长度。 |
+| `Hysteria2 requires TLS certificate file paths or inline certificate content` | 证书和私钥都要齐全。 |
+| `WireGuard requires at least one peer` | 确保 Settings JSON 中有 Peer，并核对 key/CIDR。 |
+| `json: cannot unmarshal string into Go value of type []model.Client` | 当前 `parseInboundClients` 只解析 `settings.clients`；检查运行二进制版本和导入结构，`clients` 应是数组。 |
 
-1. 协议选择 `vless`。
-2. 传输选择 `WebSocket`。
-3. 安全选择 `TLS`。
-4. 客户端 Email 填唯一值，ID 保持自动生成。
-5. WS Path 填写以 `/` 开头的路径，例如 `/vless`。
-6. Host 填写域名，例如 `example.com`。
-7. TLS SNI 填写同一个域名。
-8. 证书路径填服务器上真实存在的证书文件和私钥文件。
+手工调用 API 或 Import JSON 时，外层 `settings/streamSettings/sniffing` 是 JSON 字符串，`settings.clients` 内层是数组。导入 `data` 是单个 Inbound 对象，不是数组。完整接口见 [API 接口说明](api.md)。
 
-注意：WebSocket 场景不会显示 Flow，这是符合规则的。
-
-### 3.4 Trojan + TLS
-
-1. 协议选择 `trojan`。
-2. 端口填写已放行端口。
-3. 安全选择 `TLS`。
-4. 客户端 Password 保持自动生成或填写强密码。
-5. SNI 和证书路径按域名证书填写。
-6. 不确定 Fallbacks 时先不要添加。
-
-### 3.5 Shadowsocks
-
-1. 协议选择 `shadowsocks`。
-2. Method 保持默认或选择客户端支持的加密方式。
-3. Password 使用随机生成值。
-4. Network 一般保持 `tcp,udp`。
-5. 如果开启多用户模式，每个客户端必须有独立 Email 和 Password。
-6. 如果选择 `2022-*` method，不要手工随意改短 Password；它是 Base64 key，长度必须匹配算法。
-
-### 3.6 WireGuard
-
-1. 协议选择 `wireguard`。
-2. SecretKey / PublicKey 使用同步图标生成。
-3. 每个 Peer 填写 Email、启用状态和 Sub ID；订阅服务会按 Peer 的 Sub ID 导出。
-4. Peer PrivateKey / PublicKey 使用同步图标生成。
-5. Allowed IPs 至少保留一个有效 CIDR，例如 `10.0.0.2/32`。
-6. 开启订阅后，普通订阅会返回 WireGuard `.conf`；JSON 订阅会返回 Xray WireGuard outbound；Clash 订阅会返回 Mihomo WireGuard proxy。
-
----
-
-## 4. 常见报错与判断
-
-### `Port already exists`
-
-端口已被当前面板中的其他入站使用，或同一监听地址下已有相同端口。换端口或删除旧入站。
-
-### `Duplicate email`
-
-客户端 Email 已存在。每个客户端 Email 建议全局唯一。
-
-### `empty client ID`
-
-当前协议的客户端关键字段为空：
-
-- VMess/VLESS：检查 ID。
-- Trojan/Shadowsocks：检查 Password。
-- Hysteria：检查 Auth Password。
-
-### `uuid is invalid` / `flow requires tcp with tls or reality`
-
-VMess/VLESS 客户端 ID 不是合法 UUID，或 VLESS Flow 用在了 WebSocket、gRPC、XHTTP、无 TLS/Reality 等不支持组合。重新生成 ID，或把传输切回 TCP 并启用 TLS/Reality。
-
-### `shadowsocks server key` / `shadowsocks client key`
-
-Shadowsocks 2022 method 的服务端 Password 或客户端 Password 不是匹配长度的 Base64 key。点击同步图标重新生成，不要把普通短密码填进 2022 method。
-
-### `json: cannot unmarshal string into Go value of type []model.Client`
-
-如果是在标准“添加入站”页面填写后出现这个错误，高概率是旧版本后端解析 Bug，不是 Flow 没填，也不是普通填写错误。
-
-原因是旧后端把整个 `settings` 都按 `[]model.Client` 解析，但 VLESS settings 中除了 `clients` 数组，还会有 `decryption`、`encryption` 等字符串字段，解析到这些字符串时就会报错。
-
-正确后端行为是只解析 `settings.clients`：
-
-```json
-{
-  "clients": [
-    {
-      "id": "00000000-0000-4000-8000-000000000000",
-      "email": "test@example",
-      "enable": true,
-      "tgId": 0
-    }
-  ],
-  "decryption": "none",
-  "encryption": "none"
-}
-```
-
-如果仍复现：
-
-1. 确认后端已经更新到修复版本。
-2. 强制刷新浏览器页面，避免旧静态资源缓存。
-3. 打开浏览器开发者工具，检查 `/panel/api/inbounds/add` 请求中的 `settings` 字段。
-4. 如果是手工导入 JSON，确认 `clients` 是数组，不是带引号的 JSON 字符串。
-
----
-
-## 5. 创建后检查清单
-
-- 入站列表能看到新规则。
-- 端口、协议、备注和启用状态符合预期。
-- 客户端 Email、ID/Password/Auth 不为空。
-- 如果开启 TLS 或 Reality，客户端链接中的 SNI、Host、Path、Short ID 与服务端一致。
-- 如果开启订阅，订阅链接能拉取到该客户端。
-- 如果启用后无法连接，先检查防火墙、端口监听、Xray 日志，再检查客户端配置。
+确认列表字段与实际监听一致，凭证和订阅 ID 正确；TLS/Reality/Path/Host/SNI/Short ID 与客户端一致；订阅格式在 Settings 中启用且实际可拉取。检查日志、流量和出口。入站仍写入 `database/model.Inbound`，Core Instances 页面不会接管该 Xray 生命周期。

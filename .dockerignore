@@ -5,6 +5,7 @@
 .claude/
 .superpowers/
 .cache/
+.local/
 .playwright-mcp/
 
 # Secrets and local configuration
@@ -54,11 +55,15 @@ tests/e2e/.auth/
 superxray-*.png
 
 # Build artifacts and dependency caches
+build/
 bin/
 dist/
 release/
 node_modules/
 frontend/node_modules/
+__pycache__/
+*.pyc
+*.tsbuildinfo
 *.tar.gz
 *.exe
 main

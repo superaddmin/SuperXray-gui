@@ -1,9 +1,11 @@
 # 上游同步策略与落地雷达
 
-> 更新日期：2026-08-11
+> 代码核对日期：2026-10-14；上游雷达与移植决策快照日期：2026-08-11
 > 上游仓库：`MHSanaei/3x-ui`、`alireza0/x-ui`
-> 当前上游基线：`MHSanaei/3x-ui v3.3.1` = `b5ef412b8`；`alireza0/x-ui v1.11.4` = `73b050c95e3fb25128baedc8668d72a45a7b5b6f`
+> 已记录的供应方基线：`MHSanaei/3x-ui v3.3.1` = `b5ef412b8`；`alireza0/x-ui v1.11.4` = `73b050c95e3fb25128baedc8668d72a45a7b5b6f`。这些固定基线不代表上游最新版本。
 > 当前项目版本：`3.4.3`
+
+本轮只核对当前仓库、已有 Git 对象和远程配置，没有重新 fetch 或验证 GitHub 最新状态。当前本地 `upstream/main` 已不是上述供应方固定基线；执行同步时必须先记录实际 ref/提交，不沿用本节快照推断待移植差异。当前有效布局仍是 `web/`、`sub/`、`frontend/src`；`docs/backend-internal-rebaseline-contract.md` 描述后续架构契约，不是已经完成的 `internal/` 迁移。
 
 ## 1. 同步原则
 
@@ -20,7 +22,7 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、旧 HTML UI 退�
 
 ## 2. 已同步内容
 
-本轮已完成以下上游同步/衍生落地：
+以下是 2026-08-11 之前的同步/衍生落地记录。功能可由当前源码核对，但历史“测试通过”不代表本轮已重新执行或远端已部署：
 
 1. 记录 `MHSanaei/3x-ui upstream/main` 的合并基线。
 2. 移植 finalmask fragment 空/零长度防崩溃修复。
@@ -43,7 +45,7 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、旧 HTML UI 退�
 
 ## 3. 上游雷达清单
 
-当前上游 `3x-ui v3.3.1` 最近重点包括：
+已记录的上游 `3x-ui v3.3.1` 重点包括（历史候选及决策，不是当前远程变更扫描）：
 
 - `80e168787`：将 Xray `log.access` / `log.error` 约束在面板日志目录，修复 GHSA-jm48 任意文件写入风险；本项目已按当前 `web/service` 架构移植。
 - `eee652c4a` / `cd46730bb`：更新 `golang.org/x/net` 与前端 lock；本项目已同步 Go 依赖，前端 lock 因技术栈不同暂不采用。
@@ -95,8 +97,12 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、旧 HTML UI 退�
 
 ## 5. 标准执行流程
 
+先核对远程名称与供应方 URL；下列 `upstream` 只适用于已配置的 MHSanaei/3x-ui。另一个供应方使用 `alireza0-xui` 和独立 `vendor/alireza0-xui/*` tag，不混用两个供应方的基线。远程读取和发布执行是不同操作，本文命令不会自动授权推送。
+
 ```powershell
+git remote -v
 git fetch upstream main --prune
+git rev-parse upstream/main
 git log --oneline HEAD..upstream/main
 git log --oneline upstream/main..HEAD
 ```
@@ -115,6 +121,19 @@ python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metad
 ```
 
 5. 发布前跑全量验证和 secret scan。
+
+当前落地证据索引：
+
+| 功能 | 源码与回归入口 |
+|---|---|
+| 日志路径限制 | `web/service/xray.go`、`web/service/xray_log_path_test.go` |
+| 设置默认值与 panelProxy | `web/service/setting.go`、`web/service/setting_test.go`、`util/netproxy/`、`web/service/warp_security_test.go` |
+| 订阅规则和诊断 | `sub/subClashService.go`、`sub/subscription_diagnostic.go`、`sub/subscription_output_matrix_test.go` |
+| legacy 生命周期保护 | `web/service/core_service.go`、`web/service/core_service_test.go` |
+| 自签证书与上游协议表单 | `web/service/self_signed_cert.go`、`web/service/self_signed_cert_test.go`、`frontend/src/utils/inboundCompat.ts` |
+| Go 与 OpenAPI 元数据门禁 | `go.mod`、`.codex/skills/superxray-release-cicd/scripts/release_gate.py`、`tools/openapiexport/` |
+
+版本与依赖以 `config/version`、`go.mod`、`frontend/package.json` 和各自 lock 文件为事实源；供应方基线 tag 不替代产品版本。历史候选的外部实现和当前供应方发布状态需要重新抓取后审查。
 
 ## 6. 回滚策略
 

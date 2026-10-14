@@ -28,6 +28,7 @@
 .claude/
 .superpowers/
 .cache/
+.local/
 .playwright-mcp/
 .pytest_cache/
 .sync*

@@ -1,5 +1,20 @@
 # 前端 UI/UX 全量审计与优化指南
 
+> **文档性质**：历史视觉审计 + 当前源码对照；源码复核日期 2026-10-14。本次未重新启动浏览器执行视觉/无障碍验收，下文“实测”和截图仅代表各自审计日期，不代表当前构建实测结果。
+
+## 当前 Vue UI 实现对照
+
+| 能力 | 当前源码与验证入口 |
+|---|---|
+| 登录、Dashboard、日志、Core、Xray、入站、设置、API Docs 页面 | `frontend/src/router/index.ts`、`frontend/src/views/`；Go 页面鉴权见 `web/ui.go` |
+| 移动导航、关闭按钮和焦点 | `frontend/src/layouts/MainLayout.vue`、`frontend/tests/layout-accessibility.test.ts` |
+| 字体、Header、触控和响应式样式 | `frontend/src/styles/app.css`、`frontend/src/main.ts`、`frontend/tests/form-styles.test.ts` |
+| Gateway MVP 前置与工作区导航 | `frontend/src/views/XrayView.vue`、`frontend/tests/xray-view.test.ts` |
+| 配置和日志文本渲染、nonce/CSRF | `web/ui.go`、`web/middleware/security.go`、`frontend/src/api/request.ts`、Go UI/安全回归测试 |
+| 当前 UI 截图资料 | 仓库 `media/`；下文 `docs/assets/` 为 2026-05-16 历史截图 |
+
+历史 Legacy 路径以代码文本保留，不能作为当前文件链接或待修改入口。静态源码检查无法证明视觉对比度、键盘全流程或各视口没有溢出；这些结论需在 Go 托管的实际页面重新验证。当前功能对账见 [Legacy → Vue UI 对账](legacy-vue-ui-parity-audit.md)。
+
 审计日期：2026-05-02
 审计范围：登录页、系统状态、入站列表、面板设置、Xray 设置。
 测试方式：本地启动面板，使用 Playwright 在 1440x900、390x844 视口执行视觉检查、可访问性快照、DOM 尺寸取证与截图。
@@ -13,7 +28,7 @@
 
 参考视觉：继续沿用 digital-banking 风格基线，主色为深海军蓝背景、银行蓝主操作、绿色仅用于成功状态，字体为 Space Grotesk + DM Sans，组件半径保持 8px 运维控制台密度。
 
-最新截图：
+2026-05-16 审计截图（保留历史证据）：
 
 ![Xray 工作区与 Gateway 出口 MVP 桌面视图](assets/xray-mvp-desktop.png)
 
@@ -48,7 +63,7 @@
 
 影响：破坏首屏信息架构，F 型扫描路径中最重要的第一行指标不可见；同时阻断点击和视觉理解，是严重可用性问题。
 
-已修复：在 [web/html/index.html](../web/html/index.html#L240) 将第三层折叠区改为 `<a-col :span="24">`，让其独占完整行，避免覆盖前两层指标。
+历史修复：在 `web/html/index.html:240` 将第三层折叠区改为 `<a-col :span="24">`，让其独占完整行，避免覆盖前两层指标。
 
 ### P0：Ant Design Vue 仪表盘宽度传参错误
 
@@ -56,7 +71,7 @@
 
 影响：核心监控信息只剩标签，图形反馈失效；移动端首屏尤其明显。
 
-已修复：在 [web/html/index.html](../web/html/index.html#L70)、[web/html/index.html](../web/html/index.html#L91)、[web/html/index.html](../web/html/index.html#L181)、[web/html/index.html](../web/html/index.html#L186) 改为数字绑定 `:width="110"` / `:width="80"`。
+历史修复：在 `web/html/index.html:70`、`:91`、`:181`、`:186` 改为数字绑定 `:width="110"` / `:width="80"`。
 
 验证结果：修复后桌面端首个进度环尺寸为 110x110，第三层折叠面板下移到指标区之后；移动端无横向溢出，仪表盘恢复显示。
 
@@ -98,7 +113,7 @@
 
 ### P1：Xray/设置页移动端标签导航可发现性弱
 
-证据：Xray 页有 8 个一级标签，移动端横向滚动条在标签下方裸露，后续标签在首屏外；代码位于 [web/html/xray.html](../web/html/xray.html#L74)。公共样式在 [web/html/common/page.html](../web/html/common/page.html#L36) 为标签容器启用了横向滚动，但没有提供当前页数、更多菜单或渐隐提示。
+历史证据：Xray 页有 8 个一级标签，移动端横向滚动条在标签下方裸露，后续标签在首屏外；当时的代码位于 `web/html/xray.html:74`。公共样式在 `web/html/common/page.html:36` 为标签容器启用了横向滚动，但没有提供当前页数、更多菜单或渐隐提示。
 
 影响：移动端用户很难发现“DNS / Protocol Tools / 高级配置”等后段入口；横向滚动条占据视觉注意力，降低专业感。
 
@@ -171,7 +186,7 @@ rememberSecurityAlertDismissed() {
 
 ### P2：移动端入站页存在重复主操作
 
-证据：入站页移动端工具栏保留“添加”图标按钮，同时页面右下角还有 `mobile-fab`，相关模板在 [web/html/inbounds.html](../web/html/inbounds.html#L130) 与 [web/html/inbounds.html](../web/html/inbounds.html#L874)。
+历史证据：入站页移动端工具栏保留“添加”图标按钮，同时页面右下角还有 `mobile-fab`，相关模板在 `web/html/inbounds.html:130` 与 `:874`。
 
 影响：两个入口执行同一动作，增加选择成本，也容易遮挡表格底部内容。
 
@@ -240,6 +255,8 @@ rememberSecurityAlertDismissed() {
 
 ## 后续实施路线
 
+以下是原审计时的建议清单，并非当前 Vue UI 的缺陷或已批准施工列表。当前整改应先复现，再依据上方源码对照选择组件。
+
 1. P0 已完成（Legacy HTML UI）：修复系统状态首屏覆盖与仪表盘宽度。新 Vue UI 需独立验证同类问题。
 2. P1：调整深色主题主色文本 token，保证导航、链接、标签页激活态达到 4.5:1。
 3. P1：Xray/设置移动端标签改为移动专用选择器或“更多”菜单。
@@ -250,10 +267,10 @@ rememberSecurityAlertDismissed() {
 ## 建议的视觉回归断言
 
 ```js
-await expect(page.locator('.dashboard-primary-card').first()).toBeVisible();
-await expect(page.locator('.dashboard-primary-card .ant-progress').first()).toHaveJSProperty('offsetWidth', 110);
-await expect(page.locator('.ant-collapse').first()).toBeBelow(page.locator('.dashboard-secondary-card').first());
+// 先在已登录的当前 Vue UI 页面设置视口，再检查实际元素。
+await page.setViewportSize({ width: 390, height: 844 });
+await expect(page.locator('.app-content')).toBeVisible();
 expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 ```
 
-注：最后一条伪代码中的 `toBeBelow` 需要封装为读取 `getBoundingClientRect()` 的自定义断言。
+该片段是人工验收示例，未纳入现有自动化用例；登录与测试环境配置见 [开发指南](development.md)。导航焦点、页面关键按钮、对比度和无障碍名称应分别验证。

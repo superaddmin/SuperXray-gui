@@ -1,8 +1,12 @@
 # 请求指标、Geo 更新与流量统计可靠性
 
-本文记录三项运行时修复的行为和验证方式；不包含服务器凭证、真实面板路径或订阅链接。
+> 源码核对日期：2026-10-14。事实来源：`web/web.go`、`sub/sub.go`、`web/middleware/request_log.go`、`web/service/metrics.go`、`web/service/geofile.go`、`web/service/inbound.go`、`web/service/outbound.go`、`web/job/xray_traffic_job.go` 及其回归测试。
+
+本文记录请求观测、HTTP 超时、定时任务、Geo 更新与流量统计的当前行为和验证方式。
 
 ## 请求指标
+
+公开 `GET <webBasePath>api/v1/metrics` 返回 `APIResponse.data` 下的进程内请求快照；live/ready 也带同结构指标。请求计数覆盖 Web 面板服务，不覆盖独立 Sub Server；面板重启后计数清零。指标请求生成响应时仍属于 in-flight，完成后才累计到总数。
 
 - 未匹配路由统一记录为 `<unmatched>`，请求日志和指标不再保留未知 URL 路径。
 - 路由维度最多 256 项，状态维度最多 64 项，均包含 `<overflow>` 桶。超过上限的新维度汇总到该桶，已存在维度继续计数。
@@ -25,6 +29,24 @@
 后台任务按入站 tag、客户端 email 和出站 tag 合并未落库增量。仅在对应事务成功后清除增量，另一侧失败不会使成功侧重复计数。核心停止或采集失败时仍重试已收集的数据；设置重启标志前重新检查核心运行状态。
 
 **待重试增量仅保存在面板进程内存中。** 面板进程退出时可能丢失尚未落库的数据；本次修复不提供持久化 exactly-once 计费保证。
+
+## HTTP 超时与定时任务
+
+Web Server 与独立 Sub Server 的 `newHTTPServer` 都使用以下限制；反向代理或客户端可另设更短超时。
+
+| 配置 | 当前值 |
+| --- | --- |
+| ReadHeaderTimeout | 5 秒 |
+| ReadTimeout | 30 秒 |
+| WriteTimeout | 60 秒 |
+| IdleTimeout | 120 秒 |
+| MaxHeaderBytes | 512 KiB |
+
+Web cron 使用配置时区、秒字段解析和 `cron.SkipIfStillRunning`。同一个调度项上次仍在执行时跳过本次触发，不排队补跑；不同任务仍可同时运行。`XrayTrafficJob` 自身还有互斥锁，Geo 默认更新另有批次锁。
+
+启动初始化先尝试重启 Xray，然后注册每秒运行检查与每 30 秒重启标志检查。流量采集任务在延迟 5 秒后注册 `@every 10s`，因此不是承诺启动第 5 秒已完成第一次采集。客户端 IP 检查每 10 秒、日志清理每日、流量自动重置按小时/日/周/月调度；服务器状态由控制器每 2 秒刷新。
+
+LDAP 同步仅在启用 LDAP 时注册，缺失计划默认 `@every 1m`。TG 统计通知仅在启用 Bot 时注册；非法或空计划按实现记录警告/回退，CPU 告警还要求阈值大于 0。关闭这些功能不会注册对应功能任务。调度注册失败会记录警告；HTTP 成功不能证明定时任务或外部通知已经成功。
 
 ## 本地验证
 

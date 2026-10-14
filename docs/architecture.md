@@ -2,6 +2,7 @@
 
 > **目标读者**：开发者 / 架构师 / 发布维护者
 > **适用版本**：`v3.4.3`
+> **源码核对日期**：2026-10-14；版本以 `config/version` 为准，阶段规划以 `plans/STATUS.md` 为准。
 > **事实来源**：`main.go`、`.codex/project.toml`、`web/`、`sub/`、`core/`、`database/`、`frontend/`、`.github/workflows/release.yml`
 > **相关文档**：[核心模块解析](modules.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md)
 
@@ -17,6 +18,7 @@ SuperXray-gui 是一个以 Xray-core 为主运行核心的 Web 控制面板。�
 |---|---|
 | 应用名 | `x-ui`，由 `config/name` 提供 |
 | 当前版本 | `3.4.3`，由 `config/version` 提供 |
+| 默认面板路径 | `/super/`，由 `web/service/setting.go` 提供；下文面板 API/页面路径均相对于配置的 `webBasePath` |
 | Go module | `github.com/superaddmin/SuperXray-gui/v2` |
 | Go 版本 | `1.26.5`，见 `go.mod` |
 | 数据库 | SQLite + GORM |
@@ -43,6 +45,7 @@ flowchart TB
     WEB --> ROUTER[Gin Router]
     ROUTER --> NEWUI[Vue 3 UI<br/>/panel/*]
     ROUTER --> API[Panel APIs<br/>/panel/api/* /panel/xray/* /panel/setting/*]
+    ROUTER --> V1[Versioned API<br/>/api/v1/health/* /api/v1/metrics]
     ROUTER --> WS[WebSocket<br/>/ws]
 
     API --> SVC[web/service]
@@ -75,7 +78,7 @@ flowchart TB
 
 | UI | 路由 | 技术栈 | 数据写入约束 |
 |---|---|---|---|
-| 新 UI | `/panel/`、`/panel/logs`、`/panel/cores`、`/panel/xray`、`/panel/inbounds`、`/panel/settings` | Vue 3/Vite/TS/Pinia/Ant Design Vue 4 | 继续写旧 API 和 `model.Inbound` 兼容数据 |
+| 新 UI | `/panel/`、`/panel/logs`、`/panel/cores`、`/panel/xray`、`/panel/inbounds`、`/panel/settings`、`/panel/docs` | Vue 3/Vite/TS/Pinia/Ant Design Vue 4 | 继续写旧 API 和 `model.Inbound` 兼容数据 |
 | 兼容新 UI 入口 | `/panel/ui/*` | 同上 | 同上 |
 
 旧 HTML UI 已退役，`web/html`、`web/assets` 和 `/panel/legacy*` 页面路由不再注册。新 UI 的 runtime config 由 `web/ui.go` 注入 `window.__SUPERXRAY_UI_CONFIG__`。所有页面统一使用 nonce CSP，不再保留 legacy UI 的 `unsafe-inline` / `unsafe-eval` CSP 例外。
@@ -135,8 +138,8 @@ flowchart TD
     C -->|cert| G[证书命令]
     C -->|-v| H[输出 config.GetVersion]
 
-    D --> D1[godotenv 加载 .env]
-    D1 --> D2[logger 初始化]
+    D --> D1[logger 按进程环境初始化]
+    D1 --> D2[godotenv 加载 .env]
     D2 --> D3[database.InitDB(config.GetDBPath())]
     D3 --> D4[创建 web.Server 并 Start]
     D4 --> D5[创建 sub.Server 并 Start]
@@ -144,6 +147,8 @@ flowchart TD
 ```
 
 信号行为：
+
+当前日志级别初始化早于 `.env` 加载；需要用 `XUI_DEBUG/XUI_LOG_LEVEL` 控制首次日志初始化时，应通过启动进程的环境设置。
 
 | 信号 | 行为 |
 |---|---|
@@ -210,6 +215,10 @@ settings, stream_settings, tag, sniffing
 
 这些概念只允许在后续架构门禁满足后再落地。
 
+### 5.4 Repository 边界
+
+`database/repository.go` 已提供 User、Setting、Inbound 的 GORM Repository 接口，相关服务通过注入或惰性获取使用；部分旧查询仍直接使用 GORM。这是现有表结构上的渐进重构，尚不存在整仓迁入 `internal/` 的目录布局。
+
 ---
 
 ## 6. 核心数据流
@@ -226,7 +235,7 @@ sequenceDiagram
     participant DB as SQLite
 
     Browser->>Gin: Cookie + CSRF + API request
-    Gin->>MW: SecurityHeaders / Domain / Gzip / Sessions / Locale / Redirect
+    Gin->>MW: RequestID / StructuredRequestLogger / SecurityHeaders / Domain / Gzip / Sessions / Locale / Redirect
     MW->>Ctrl: 路由匹配
     Ctrl->>Svc: 参数校验后调用服务
     Svc->>DB: GORM 读写
@@ -239,13 +248,15 @@ sequenceDiagram
 
 ```text
 New UI XrayView
-  -> POST /panel/xray/update
+  -> POST /panel/api/xray/update
   -> XraySettingService.SaveXraySetting(xraySetting)
   -> SettingService.SetXrayOutboundTestUrl(outboundTestUrl)
   -> legacy XrayService restart is a separate explicit action
 ```
 
 结构化工具（Outbounds、Routing、DNS、FakeDNS、Balancer、Reverse、Residential IP Pool、Gateway Egress MVP）都只修改 Xray JSON 模板，不创建新数据库表。
+
+当前 Vue SDK 使用 `/panel/api/xray/*` 和 `/panel/api/setting/*`；兼容入口 `/panel/xray/*`、`/panel/setting/*` 保留。两个前缀共享控制器自身的登录和 CSRF 中间件，非安全方法同样要求有效 CSRF token。
 
 ### 6.3 Inbound 写入
 
@@ -282,7 +293,7 @@ flowchart LR
 flowchart TD
     CLIENT[Subscription Client] --> SUB[sub.Server]
     SUB --> ROUTE{path / target}
-    ROUTE -->|/sub/:subid| URI[URI/Base64 or HTML]
+    ROUTE -->|/sub/:subid| URI[URI/Base64 text]
     ROUTE -->|target=xray or /json| JSON[Xray JSON]
     ROUTE -->|target=mihomo/stash or /clash| CLASH[Clash/Mihomo YAML]
     ROUTE -->|*/diagnose| DIAG[diagnostic JSON]
@@ -292,6 +303,12 @@ flowchart TD
 ```
 
 订阅公开 URI 可由设置直接保存，也可由 `GetDefaultSettings` 根据请求 Host 和订阅路径生成默认值。
+
+订阅 HTML 可视页已经退役。`target=xray`、`target=mihomo/stash` 的格式切换还取决于 JSON/Clash 输出开关；关闭对应输出时回退到 URI。WireGuard 的专用配置导出入口与目标兼容矩阵见 [API 接口说明](api.md)。
+
+### 6.6 版本化健康与指标 API
+
+`web/controller/v1.go` 当前只注册 `GET /api/v1/health/live`、`GET /api/v1/health/ready`、`GET /api/v1/metrics`，均加在 `webBasePath` 下。这些只读端点无需登录，按客户端限流（120 次/分钟），响应采用 `success/requestId/data/error`，不沿用旧 `success/msg/obj` 包装。指标是 JSON 内存快照，不是 Prometheus 文本；请求 ID 和结构化请求日志由 Web 全局中间件提供。路由、响应和指标契约由 `docs/openapi/api-v1.yaml` 及 Go 测试守护。
 
 ---
 
@@ -383,11 +400,13 @@ frame-ancestors 'none'
 | `CheckClientIpJob` | `@every 10s` | 解析 access log，维护客户端 IP 限制 |
 | `ClearLogsJob` | `@daily` | 清理日志 |
 | `PeriodicTrafficResetJob` | hourly/daily/weekly/monthly | 按策略重置流量 |
-| `LdapSyncJob` | 配置值，默认 `@every 1m` | LDAP 用户同步 |
-| `StatsNotifyJob` | 配置值，默认 `@daily` | TG Bot 统计通知 |
-| `CheckHashStorageJob` | `@every 2m` | 清理 TG Bot 回调哈希 |
-| `CheckCpuJob` | `@every 10s` | CPU 告警 |
+| `LdapSyncJob` | 配置值，空值或读取失败时 `@every 1m` | 仅启用 LDAP 时注册 |
+| `StatsNotifyJob` | 配置值，空值或读取失败时 `@daily` | 仅启用 TG Bot 时注册 |
+| `CheckHashStorageJob` | `@every 2m` | 仅启用 TG Bot 时清理回调哈希 |
+| `CheckCpuJob` | `@every 10s` | 仅启用 TG Bot 且 CPU 阈值大于 0 时注册 |
 | Server status refresh | `@every 2s` | 刷新状态、记录 CPU 历史、WebSocket 广播 |
+
+调度器启用秒级表达式和 `SkipIfStillRunning`，同一任务未结束时跳过下一次执行；流量任务在启动 5 秒后注册。Web/Sub HTTP Server 都配置 5s 请求头、30s 读取、60s 写入、120s 空闲超时及 512KiB 头上限，详见 [运行可靠性](runtime-reliability.md)。
 
 ---
 

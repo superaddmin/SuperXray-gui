@@ -2,6 +2,7 @@
 
 > **目标读者**：需要在 SuperXray 中为 OpenAI/ChatGPT、Anthropic/Claude、Google/Gemini 等 AI 平台配置专用出口的运维人员
 > **适用版本**：`v3.4.3`
+> **代码核对日期**：2026-10-14；服务器、住宅供应商和 OpenWrt 的运行状态需在目标环境重新验证。
 > **事实来源**：`frontend/src/views/XrayView.vue`、`frontend/src/utils/xrayCompat.ts`、`frontend/src/utils/gatewayEgressMvp.ts`、`web/controller/xray_setting.go`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [入站创建教程](inbound-creation-guide.md) | [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
@@ -14,10 +15,14 @@
 ```text
 XrayView
   -> frontend utils 修改 JSON
-  -> POST /panel/xray/update
+  -> POST /panel/api/xray/update
   -> XraySettingService.SaveXraySetting
   -> 用户显式重启 legacy XrayService
 ```
+
+保存目标是现有 `settings` 中的 `xrayTemplateConfig`。服务端会解开旧响应包装并进行 JSON 解码校验，但不会在保存时调用 Xray 内核进行完整配置校验或自动重启。Vue 保存成功后会显示重启确认；用户确认后才调用既有 `/panel/api/server/restartXrayService`。下文面板路由均相对部署的 `webBasePath`。
+
+当前 Vue SDK 使用 `/panel/api/xray/update`；旧 `/panel/xray/update` 是保留的兼容入口，两者的状态变更请求均要求登录和 CSRF token。
 
 不会发生：
 
@@ -44,7 +49,7 @@ XrayView
 
 ```text
 protocol == "socks"
-tag 包含 "residential"
+tag 转小写后包含 "residential"
 ```
 
 推荐手工或通过 UI 生成：
@@ -84,6 +89,7 @@ tag 包含 "residential"
 - 不要把住宅代理密码写入 Git、Issue、截图或共享文档。
 - 不要添加“所有入站 / 所有域名 -> residential”的兜底规则。
 - 测试住宅 outbound 时使用 Xray 页的 Outbound Test；测试 URL 由服务端保存的 `xrayOutboundTestUrl` 决定，不接受请求临时传入任意 URL。
+- Residential 表单保存会按已知 SOCKS 字段重建该 outbound；需要保留 `streamSettings` 等额外字段时，使用原始模板或完整 outbound JSON 编辑器并核对差异。
 
 ---
 
@@ -200,6 +206,8 @@ tag 包含 "residential"
 
 默认不设置 balancer `fallbackTag`。住宅出口不可用时，请求应失败关闭，而不是自动直连。
 
+这是生成配置的目标行为，必须以实际域名命中和故障演练验证。无 residential outbound 时操作返回原模板；已有 `blocked` tag 会保留，生成器不检查它是否确实为 `blackhole`。与 Gateway MVP 同时使用时，先应用 AI Routing，再生成 Gateway 配置，使 Gateway 专属规则位于最前；之后再次应用 AI Routing 会把共享 AI 规则前置，可能改变 Gateway 的专属出口选择，保存前必须重新检查顺序。
+
 维护域名清单时必须同步改三处，否则会出现重复或残留规则：
 
 - `frontend/src/utils/xrayCompat.ts` 的 `AI_RESIDENTIAL_DOMAINS`。
@@ -295,6 +303,8 @@ Host 校验会拒绝：
 - 通配监听：`0.0.0.0`、`::`、`[::]`、`*`。
 - 带协议、路径、逗号或空白的值。
 
+该校验只检查字符串形态，不验证 DNS、真实连通性、是否公网地址、端口冲突或防火墙。`noauth` 入口使用非 loopback 地址时，必须另行限制来源。生成器按 tag 替换同名 inbound，不检查其他 tag 是否占用相同端口；同名 outbound 与已有 `blocked` 会原样保留，需人工确认它们是预期的真实出口和拒绝出口。
+
 ### 6.2 生成的 profiles
 
 | key | port | platform | region | egressGroup |
@@ -353,6 +363,8 @@ Host 校验会拒绝：
 
 区域 profile 只按 inboundTag 绑定到对应 egress group。
 
+平台规则是 inboundTag 与域名同时匹配，随后才到拒绝保护；区域规则没有域名条件，会接受该区域入口上的任意目标，最终保护规则无法限制它。区域入口应只对受信任 Gateway 开放，并按业务需要增加目标限制。所有生成规则及保护规则前置于保留的既有规则；重新生成只替换 `_gatewayEgressMvp=true` 的旧规则。
+
 最后会添加一条保护规则，把所有 Gateway 生成 inbound 未匹配流量送到 `blocked`：
 
 ```json
@@ -381,6 +393,8 @@ openai-us-primary,socks5h,127.0.0.1,11801,openai,US,US,openai-egress,manual-chec
 
 CSV 只是登记清单，不是后端状态；`health_status` 固定为 `manual-check`。
 
+CSV 按当前表单参数生成，不会读取运行中的 Xray 配置；`expected_country_code` 和 `region_code` 只是标签，不执行国家检测或出口绑定。生成器不会替换已存在的同名 outbound，也不会自动登记 Gateway。导出后逐项对照已保存模板与实际监听。
+
 ---
 
 ## 7. 推荐部署步骤
@@ -388,9 +402,11 @@ CSV 只是登记清单，不是后端状态；`health_status` 固定为 `manual-
 1. 备份数据库和当前 Xray 配置：
 
 ```bash
-cp -a /etc/x-ui/x-ui.db "/root/x-ui-db-$(date +%F-%H%M%S).db"
+sqlite3 /etc/x-ui/x-ui.db ".backup '/root/x-ui-backup.db'"
 cp -a /usr/local/x-ui/bin/config.json "/root/xray-config-$(date +%F-%H%M%S).json" 2>/dev/null || true
 ```
+
+上述路径适用于安装脚本的 systemd 布局；先确认实际数据库和配置路径，备份文件使用受限权限。也可使用面板鉴权的数据库备份接口；不要在运行中直接复制 SQLite 主文件作为完整备份，尤其存在 WAL 时。
 
 2. 在 Xray 页添加或确认 `direct`、`blocked`、住宅 SOCKS outbound。
 3. 使用 Residential IP Pool 保存一个或多个 tag 包含 `residential` 的 socks outbound。
@@ -424,7 +440,7 @@ ss -tulpen | grep -E 'x-ui|xray|:2096|:443|:11801|:11802|:11803'
 Xray 配置对象：
 
 ```bash
-jq '.outbounds[] | select(.tag=="us-residential-socks")' /usr/local/x-ui/bin/config.json
+jq '.outbounds[] | select(.tag=="us-residential-socks") | {tag,protocol}' /usr/local/x-ui/bin/config.json
 jq '.routing.balancers[] | select(.tag=="ai-residential")' /usr/local/x-ui/bin/config.json
 jq '.routing.rules[] | select(.balancerTag=="ai-residential")' /usr/local/x-ui/bin/config.json
 jq '.routing.rules[] | select(._gatewayEgressMvp==true)' /usr/local/x-ui/bin/config.json
@@ -433,10 +449,12 @@ jq '.routing.rules[] | select(._gatewayEgressMvp==true)' /usr/local/x-ui/bin/con
 订阅状态：
 
 ```bash
-curl -kI "https://<SUB_HOST>:2096/sub/<SUB_ID>"
-curl -kI "https://<SUB_HOST>:2096/json/<SUB_ID>"
-curl -kI "https://<SUB_HOST>:2096/clash/<SUB_ID>"
+curl --connect-timeout 5 --max-time 30 -sS -o /dev/null -w 'HTTP %{http_code}\n' "https://<SUB_HOST>:<SUB_PORT>/<SUB_PATH>/<SUB_ID>"
+curl --connect-timeout 5 --max-time 30 -sS -o /dev/null -w 'HTTP %{http_code}\n' "https://<SUB_HOST>:<SUB_PORT>/<SUB_JSON_PATH>/<SUB_ID>"
+curl --connect-timeout 5 --max-time 30 -sS -o /dev/null -w 'HTTP %{http_code}\n' "https://<SUB_HOST>:<SUB_PORT>/<SUB_CLASH_PATH>/<SUB_ID>"
 ```
+
+订阅路由注册的是 GET，不能用 HEAD 的 `404` 判断订阅故障；`subPath`、`subJsonPath`、`subClashPath`、协议与端口按实际设置替换，示例中的路径占位符不含首尾 `/`。JSON/Clash 路由分别受启用开关控制。不要将带真实订阅 ID 的命令或完整响应公开；HTTP 成功仍需在本地核对可输出节点和目标客户端兼容性。
 
 操作判定：
 
@@ -458,7 +476,7 @@ curl -kI "https://<SUB_HOST>:2096/clash/<SUB_ID>"
 | Outbound Test 失败 | 住宅代理不可达、认证错误、测试 URL 不通 | 用服务端日志和供应商控制台核对 |
 | Gateway 端口不可连 | `listenHost` 为 127.0.0.1 但 Gateway 不在同主机 | 保持同主机，或改为受信任内网主机并理解暴露风险 |
 | Gateway 流量被 blocked | platform 域名清单未覆盖目标 | 补充 routing rule 或使用区域 profile |
-| 订阅为空 | `subEnable`、`subId`、公开 URI、协议能力不匹配 | 用 `/sub/:subid/diagnose`、`/json/:subid/diagnose`、`/clash/:subid/diagnose` 排查 |
+| 订阅为空 | `subEnable`、`subId`、公开 URI、协议能力不匹配 | 用 `subPath`、`subJsonPath`、`subClashPath` 配置的入口追加 `:subid/diagnose` 排查 |
 | DNS 泄漏 | 终端本地解析、客户端未使用远端 DNS | 使用 SOCKS5H/TUN/FakeDNS，限制浏览器本地 DNS 路径 |
 
 ---
@@ -502,8 +520,8 @@ journalctl -u x-ui -n 100 --no-pager
 
 ### 11.1 推荐结构
 
-- **主 WiFi / `lan`**：默认直连，只把 AI / GFW 域名送入稳定出口（例如 `85.155.178.115`）。
-- **USA WiFi / `us`**：继续全代理，作为独立美国出口网络（例如 `35.87.239.230`）。
+- **主 WiFi / `lan`**：默认直连，只把 AI / GFW 域名送入 `<PRIMARY_PROXY_HOST>`。
+- **USA WiFi / `us`**：规划为独立美国出口网络，绑定 `<US_PROXY_HOST>`；是否全代理需以现场 ACL 和运行态确认。
 
 这种结构的好处是：
 

@@ -1,16 +1,16 @@
 # Legacy -> Vue UI 功能对账表
 
-审计日期：2026-05-18
+历史审计日期：2026-05-18；当前源码复核日期：2026-10-14。
 
-> **状态更新（2026-08-10）**：Legacy HTML UI 已正式退役。`web/html`、`web/assets` 目录已移除，`/panel/legacy/*` 页面路由不再注册（默认 `NoRoute` 返回 `404 Not Found`），回归测试 `TestXUIControllerDoesNotRegisterLegacyPanelRoutes` 守护此边界。本文中涉及 “legacy fallback 保留”、“`/panel/legacy/*` 必须可访问” 等描述已过时，当前事实以 [系统架构设计](architecture.md) 和 [API 接口说明](api.md) 为准。
+> **当前边界**：Legacy HTML UI 已退役。`web/html`、`web/assets` 已移除，`/panel/legacy/*` 不再注册（默认 `NoRoute` 返回 `404 Not Found`），`TestXUIControllerDoesNotRegisterLegacyPanelRoutes` 守护此边界。本文保留历史功能清单作为对账背景，当前状态只依据现存源码；不代表重新运行了旧版本或本轮完成了部署环境 E2E。
 
 审计范围：
 
-- Legacy UI：`web/html/*.html`、`web/html/modals/*`、`web/html/settings/**`、`web/assets/js/**`
+- Legacy UI：历史审计所用的 `web/html`、`web/assets` 路径；当前已删除，本轮没有把这些历史路径当作现存证据
 - 新 Vue UI：`frontend/src/router/index.ts`、`frontend/src/views/*`、`frontend/src/api/*`、`frontend/src/utils/*`、`frontend/src/schemas/*`
 - 后端入口：`web/ui.go`、`web/controller/*`
 
-审计方式：静态代码对账。本文记录当前源码事实，不以历史计划或旧审计结论为准。
+复核方式：将历史清单与当前 Vue Router、页面、SDK、兼容工具、Go 路由及回归测试逐项比对。部署可用性和外部 Xray/订阅客户端行为仍需目标环境回归。
 
 ---
 
@@ -56,6 +56,7 @@
 | `/panel/xray` | 已迁移 | Xray 配置工作台 |
 | `/panel/inbounds` | 已迁移 | Inbounds 管理 |
 | `/panel/settings` | 已迁移 | 设置 |
+| `/panel/docs` | 新增页面 | API Docs，读取已登录 `/panel/api/openapi.json` |
 | `/panel/ui/*` | 兼容入口 | 仍指向新 UI |
 | `/panel/legacy/*` | 已退役 | 路由不再注册，返回 `404 Not Found` |
 
@@ -70,6 +71,7 @@
 - `xray`
 - `inbounds`
 - `settings`
+- `docs`
 - `not-found`
 
 新 UI 没有把 legacy 每个二级弹窗拆成独立路由，而是在页面内用 Modal、Drawer、Table action 和结构化表单承接。
@@ -87,8 +89,8 @@
 | 面板日志 / Xray 日志 | 入口变化 | 移至 Logs 页面 |
 | 数据库备份导入 | 入口变化 | 移至 Settings Backup |
 | Xray 版本管理 | 入口变化 | 移至 Xray 页面 |
-| CPU History | 部分迁移 | 后端 API 存在；新 UI 是否展示以 Dashboard 当前实现为准 |
-| 公网 IP 显示/隐藏 | 需继续关注 | 隐私切换体验与 legacy 不完全等价 |
+| CPU History | 后端能力保留 | 后端 `/cpuHistory/:bucket` 存在；当前 Dashboard 展示实时 CPU，未消费该历史 API |
+| 公网 IP 显示/隐藏 | 展示已实现，切换缺失 | 当前 Dashboard 状态明细显示 IPv4/IPv6，未实现独立隐藏开关 |
 
 结论：Dashboard 已承担核心状态面板职责；运维快捷入口被拆分到更明确的专页。
 
@@ -121,7 +123,7 @@
 | 重置当前入站所有客户端流量 | 已迁移 | 详情操作 |
 | 批量添加客户端 | 已迁移 | `Bulk Add` modal，数量限制 1..500 |
 | 跨入站复制客户端 | 已迁移 | `copyClients` modal，调用 `/panel/api/inbounds/:id/copyClients` |
-| 按 email 删除客户端 | API 存在 | 新 UI 可按当前操作路径调用相关兼容层 |
+| 按 email 删除客户端 | API 保留 | `/panel/api/inbounds/:id/delClientByEmail/:email` 存在；当前 SDK 删除使用 client ID 路径 |
 
 ### 4.3 分享、订阅与 QR
 
@@ -148,10 +150,10 @@
 |---|---|---|
 | 停止 Xray | 已迁移 | `/panel/api/server/stopXrayService` |
 | 启动/重启 Xray | 已迁移 | `/panel/api/server/restartXrayService` |
-| 查看 Xray result | 已迁移 | `/panel/xray/getXrayResult` |
+| 查看 Xray result | 已迁移 | `/panel/api/xray/getXrayResult` |
 | 查看版本列表 | 已迁移 | `/panel/api/server/getXrayVersion` |
 | 安装指定版本 | 已迁移 | `/panel/api/server/installXray/:version` |
-| 查看/保存模板 JSON | 已迁移 | `/panel/xray/`、`/panel/xray/update` |
+| 查看/保存模板 JSON | 已迁移 | `/panel/api/xray/`、`/panel/api/xray/update`，兼容 `/panel/xray/*` 仍保留且 POST 同样需要 CSRF |
 
 说明：新 UI 的“启动”语义仍复用 legacy restart endpoint；这不是 CoreManager 生命周期。
 
@@ -188,7 +190,7 @@
 |---|---|---|
 | 面板基础设置 | 已迁移 | Settings Panel |
 | 修改账号密码 | 已迁移 | Security / Credentials，字段为 old/new username/password |
-| 2FA | 已迁移 | Security 区域，体验与 legacy QR 弹窗不完全一致 |
+| 2FA | 已迁移 | Security 区域提供开关、密钥与 Setup URI；当前没有 legacy 的 QR 弹窗 |
 | 订阅开关、路径、URI | 已迁移 | Subscription |
 | JSON / Clash 订阅格式设置 | 已迁移 | Formats |
 | Telegram Bot | 已迁移 | Telegram |
@@ -240,7 +242,9 @@
 - `/clash/:subid`，需 `subClashEnable=true`
 - 每种格式的 `:subid/diagnose`
 - `/sub/:subid?target=xray|mihomo|stash|...` target-aware 输出
-- HTML 订阅页：`Accept: text/html`、`?html=1` 或 `?view=html`
+- WireGuard Peer 的配置文本、HTTP/Mixed 的代理账户输出
+
+当前 `sub/subController.go` 不包含 HTML 订阅渲染，`Accept: text/html`、`?html=1`、`?view=html` 不切换格式。源码默认订阅开启、JSON 关闭、Clash 开启；入口独立于面板 `webBasePath`。
 
 新 UI 的 `mergeSubscriptionEndpointDefaults` 会在公开 URI 缺失时读取默认设置，避免新装环境导出 0 条订阅链接。
 
