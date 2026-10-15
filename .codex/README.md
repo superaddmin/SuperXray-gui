@@ -39,7 +39,8 @@
 └── skills/
     ├── superxray-project-context/
     ├── superxray-ui-first-migration/
-    └── superxray-release-cicd/
+    ├── superxray-release-cicd/
+    └── superxray-server-deployment/
 ```
 
 ## 使用顺序
@@ -49,9 +50,10 @@
 3. 需要快速建立项目画像时使用 `.codex/skills/superxray-project-context/SKILL.md`。
 4. 涉及 UI-first 阶段、Xray parity、旧 UI 退场、CoreManager 门禁时使用 `superxray-ui-first-migration` 技能。
 5. 涉及版本、CHANGELOG、GitHub Release、GHCR、release workflow 时使用 `superxray-release-cicd` 技能。
-6. 按 `.codex/routing.toml` 找优先级最高的主责代理。
-7. 主责代理执行前读取对应 `required_context`，交接时使用 `.codex/context/handoff-template.md`。
-8. 完成前按 `.codex/workflows/verification-matrix.md` 选择最小相关验证命令。
+6. 涉及服务器部署、Xray/systemd 运行态、三/六个月 Clash/Mihomo 订阅或通用 SOCKS5 交付时使用 `superxray-server-deployment` 技能。
+7. 按 `.codex/routing.toml` 找优先级最高的主责代理。
+8. 主责代理执行前读取对应 `required_context`，交接时使用 `.codex/context/handoff-template.md`。
+9. 完成前按 `.codex/workflows/verification-matrix.md` 选择最小相关验证命令。
 
 ## 配置验证入口
 
@@ -61,7 +63,8 @@
 - Codex 配置索引：`.codex/context/codex-config-map.md`。
 - 配置验证脚本：`python .codex/skills/superxray-project-context/scripts/validate_codex_config.py`。
 - 配置验证单测：`python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py`。
-- 技能格式验证包装：`python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd`。
+- 技能格式验证包装：`python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd .codex/skills/superxray-server-deployment`。
+- 部署交付 manifest 校验：`python .codex/skills/superxray-server-deployment/tests/test_validate_deployment_outputs.py`。
 - 效率指标与迭代规则：`.codex/workflows/config-validation-and-efficiency.md`。
 
 ## 配置边界

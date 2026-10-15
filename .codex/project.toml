@@ -21,6 +21,11 @@ operational_context = [
 operational_workflows = [
   ".codex/workflows/network-routing-debug-checklist.md",
   ".codex/workflows/config-validation-and-efficiency.md",
+  ".codex/workflows/verification-matrix.md",
+]
+deployment_skill = [
+  ".codex/skills/superxray-server-deployment/SKILL.md",
+  ".codex/skills/superxray-server-deployment/references/deployment-runbook.md",
 ]
 architecture = ["docs/architecture.md", "docs/modules.md", "docs/development.md", "docs/api.md"]
 phase_status = ["plans/STATUS.md", "plans/01-strategy/ui-first-xray-stable-multi-core-roadmap.md"]
@@ -68,6 +73,7 @@ runtime_debugging_principles = [
   "Separate task domains before acting: release, deployment, server runtime, OpenWrt routing, code changes, and docs are different workstreams.",
   "Prefer runtime evidence over static configuration when diagnosing network, routing, deployment, and proxy issues.",
   "Use at least two viewpoints before claiming a node, route, or ACL is the bottleneck.",
+  "For deployment delivery, separate Clash/Mihomo subscription URLs from generic authenticated SOCKS5 fields and verify both from the client side.",
 ]
 
 [stack.database]
@@ -101,7 +107,8 @@ release = ["python .codex/skills/superxray-release-cicd/scripts/release_gate.py 
 codex = [
   "python .codex/skills/superxray-project-context/scripts/validate_codex_config.py",
   "python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py",
-  "python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd",
+  "python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd .codex/skills/superxray-server-deployment",
+  "python .codex/skills/superxray-server-deployment/tests/test_validate_deployment_outputs.py",
 ]
 
 [business_domains]
@@ -109,6 +116,7 @@ panel = "Authenticated web panel, login/session, runtime config, server status, 
 xray_runtime = "Legacy Xray lifecycle, template editor, version install, traffic stats, gRPC API integration."
 inbounds = "VMess/VLESS/Trojan/Shadowsocks/Hysteria2/WireGuard inbound and client management on the legacy model."
 subscriptions = "URI/Base64, Xray JSON, Clash/Mihomo, WireGuard config, target-aware links, diagnose output."
+server_deployment = "Linux deployment, systemd/Xray runtime checks, three/six-month subscription delivery, and generic authenticated SOCKS5 output."
 gateway_egress_mvp = "Xray-compatible SOCKS5 inbound generation plus Gateway CSV manifest only; no egress database/API production model."
 core_runtime = "CoreManager registry, default-xray read-only view, experimental-sing-box external adapter under Phase 10 risk acceptance."
 security = "CSP nonce, CSRF, text-only rendering, authenticated downloads, safe imports, SSRF/path traversal/command execution checks."
@@ -158,4 +166,5 @@ docs_i18n = "superxray-docs-i18n-maintainer"
 project_context = ".codex/skills/superxray-project-context/SKILL.md"
 ui_first_migration = ".codex/skills/superxray-ui-first-migration/SKILL.md"
 release_cicd = ".codex/skills/superxray-release-cicd/SKILL.md"
+server_deployment = ".codex/skills/superxray-server-deployment/SKILL.md"
 project_context_validator = ".codex/skills/superxray-project-context/scripts/validate_codex_config.py"

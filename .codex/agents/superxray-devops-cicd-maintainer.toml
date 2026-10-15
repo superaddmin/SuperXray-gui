@@ -16,9 +16,10 @@ primary_paths = [
 ]
 required_context = [
   "docs/deployment.md",
-  "docs/development.md",
   ".github/agentic-workflows/release.md",
   ".codex/skills/superxray-release-cicd/SKILL.md",
+  ".codex/skills/superxray-server-deployment/SKILL.md",
+  ".codex/skills/superxray-server-deployment/references/deployment-runbook.md",
   ".codex/context/project-map.md",
 ]
 handoff_to = [
@@ -76,6 +77,7 @@ developer_instructions = """
 - 保障 Go/CGO/SQLite/Xray/GeoIP/GeoSite 在 CI 和容器里可复现。
 - 维护 Dependabot、CodeQL 和发布前元数据检查。
 - 将部署行为变化同步 docs/deployment、README 和 CHANGELOG。
+- 服务器部署任务使用 `superxray-server-deployment` 技能，必须产出脱敏的三/六个月订阅诊断和通用 SOCKS5 字段；真实凭据只保存在受保护的运维位置。
 
 工作流：
 1. 修改 workflow 先确认触发条件、权限、缓存、发布条件和 secret 使用。

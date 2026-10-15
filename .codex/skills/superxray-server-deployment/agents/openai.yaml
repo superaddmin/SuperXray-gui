@@ -1,0 +1,4 @@
+interface:
+  display_name: "SuperXray 服务器部署"
+  short_description: "部署并验证服务器，生成期限订阅与通用 SOCKS5 交付信息"
+  default_prompt: "Use $superxray-server-deployment to deploy SuperXray, verify runtime evidence, and produce redacted three-month/six-month Clash-Mihomo and generic SOCKS5 delivery details."

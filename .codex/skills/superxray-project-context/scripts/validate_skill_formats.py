@@ -23,6 +23,7 @@ def main(argv: list[str] | None = None) -> int:
             ".codex/skills/superxray-project-context",
             ".codex/skills/superxray-ui-first-migration",
             ".codex/skills/superxray-release-cicd",
+            ".codex/skills/superxray-server-deployment",
         ]
 
     validator = next((path for path in candidate_validators() if path.exists()), None)
@@ -30,8 +31,10 @@ def main(argv: list[str] | None = None) -> int:
         print("SKIP: global skill quick_validate.py not found; structural .codex validation should still be run.")
         return 0
 
+    validator_env = os.environ.copy()
+    validator_env["PYTHONUTF8"] = "1"
     for skill_path in args:
-        result = subprocess.run([sys.executable, str(validator), skill_path], text=True)
+        result = subprocess.run([sys.executable, str(validator), skill_path], env=validator_env, text=True)
         if result.returncode != 0:
             return result.returncode
     return 0

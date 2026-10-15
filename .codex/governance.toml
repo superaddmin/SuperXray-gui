@@ -110,7 +110,7 @@ network_change_bans = [
 script = ".codex/skills/superxray-project-context/scripts/validate_codex_config.py"
 test = ".codex/skills/superxray-project-context/tests/test_validate_codex_config.py"
 skill_validation = [
-  "python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd",
+  "python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd .codex/skills/superxray-server-deployment",
 ]
 skill_validation_policy = "Portable wrapper; set CODEX_SKILL_VALIDATOR to override the local global quick_validate.py path. Missing global validator is a non-blocking skip after structural .codex validation passes."
 text_policy = "All .codex .md/.toml/.yaml/.yml/.py files must be UTF-8 without BOM and LF."

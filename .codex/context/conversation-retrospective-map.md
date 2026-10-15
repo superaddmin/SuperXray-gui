@@ -47,3 +47,17 @@
 - 真实出口是谁。
 - 当前问题属于客户端、中间设备、服务器还是配置设计。
 - 回滚点是什么。
+
+## 本次服务器部署复盘（脱敏）
+
+以下事实来自一次真实的 Linux amd64 服务器部署，值已全部脱敏；后续服务器任务应优先参考 `superxray-server-deployment` 技能：
+
+- Release 包部署前先核对 `uname -m`、面板版本和 Xray 版本；错误架构或缺少 GeoIP/GeoSite 会让运行态检查失去意义。
+- 修改 systemd unit 后必须 `systemctl daemon-reload`。重启期间偶见“Xray 尚未运行”的竞态警告，最终判断要看随后进程、监听端口和实际代理链路。
+- 订阅服务只用 GET 和 `/<subId>/diagnose` 验证；不能用 HEAD，也不能只凭 HTTP 200 判断有节点。
+- 反代的 `/sub/`、`/json/`、`/clash/` 都必须传 `X-Forwarded-Host`，并固定公开订阅 URI，否则节点主机可能从请求来源回退得到错误地址。
+- 三个月/六个月订阅要使用独立 `subId`/客户端，`expiryTime` 写 Unix 毫秒并按日历月计算；Mixed 账号级 `expiryTime` 当前不会被订阅生成器读取。
+- 通用 SOCKS5 是 `mixed` 入站的账号字段和 `socks5://` URI，必须分别验证主机、端口、用户名、密码以及真实出口；它与 Clash/Mihomo YAML URL 是两种交付物。
+- SOCKS5 使用 UDP 时追加 `ss -lunp`、云安全组和本机防火墙检查；TCP 端口可达不能证明 UDP 可用。
+- 本地临时 Xray 客户端端口先探测空闲，失败后换临时端口并清理残留进程；不要把固定端口失败误判为服务器节点故障。
+- 证书菜单或签发命令的成功提示不是握手证据；必须用实际 HTTPS GET/HEAD（服务支持时）或 `openssl s_client` 核对证书链和 SAN。

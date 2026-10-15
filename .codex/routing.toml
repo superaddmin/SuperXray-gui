@@ -26,6 +26,19 @@ verification = [
 ]
 
 [[routes]]
+name = "server-deployment-skill"
+globs = [".codex/skills/superxray-server-deployment/**"]
+priority = 96
+primary = "superxray-devops-cicd-maintainer"
+reviewers = ["superxray-security-gate", "superxray-test-strategist", "superxray-subscription-protocol-specialist"]
+manual_checks = ["deployment evidence and rollback review", "subscription expiry semantics review", "generic SOCKS5 secret redaction review"]
+verification = [
+  "python .codex/skills/superxray-server-deployment/tests/test_validate_deployment_outputs.py",
+  "python .codex/skills/superxray-project-context/scripts/validate_codex_config.py",
+  "python scripts/secret_scan.py",
+]
+
+[[routes]]
 name = "project-skills"
 globs = [".codex/skills/**"]
 priority = 95
@@ -35,7 +48,7 @@ manual_checks = ["skill trigger review", "progressive disclosure review", "opena
 verification = [
   "python .codex/skills/superxray-project-context/scripts/validate_codex_config.py",
   "python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py",
-  "python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd",
+  "python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd .codex/skills/superxray-server-deployment",
 ]
 
 [[routes]]

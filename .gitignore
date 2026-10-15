@@ -23,6 +23,8 @@
 !.codex/skills/superxray-release-cicd/**
 !.codex/skills/superxray-ui-first-migration/
 !.codex/skills/superxray-ui-first-migration/**
+!.codex/skills/superxray-server-deployment/
+!.codex/skills/superxray-server-deployment/**
 !.codex/workflows/
 !.codex/workflows/**
 .claude/

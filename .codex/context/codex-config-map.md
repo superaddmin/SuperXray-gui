@@ -10,12 +10,14 @@
 | `.codex/workflows/network-routing-debug-checklist.md` | 网络/路由类任务的标准排障顺序和回滚要求 | `validate_codex_config.py` |
 | `.codex/agents/*.toml` | 代理角色、职责、输入上下文、交接输出、指标 | `validate_codex_config.py` |
 | `.codex/skills/superxray-project-context/scripts/validate_skill_formats.py` | 可移植技能格式验证包装；通过 `CODEX_SKILL_VALIDATOR` 覆盖全局 quick validator 路径 | `validate_codex_config.py` |
+| `.codex/skills/superxray-server-deployment/` | 服务器部署、订阅期限交付、通用 SOCKS5 输出和运行态验收 | `validate_codex_config.py`, `validate_deployment_outputs.py`, `secret_scan.py` |
 
 每个 agent TOML 必须包含 `knowledge_inputs`、`handoff_outputs`、`collaboration_rules`、`efficiency_metrics`。
 
 ```powershell
 python .codex/skills/superxray-project-context/scripts/validate_codex_config.py
 python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py
-python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd
+python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd .codex/skills/superxray-server-deployment
+python .codex/skills/superxray-server-deployment/tests/test_validate_deployment_outputs.py
 python scripts/secret_scan.py
 ```

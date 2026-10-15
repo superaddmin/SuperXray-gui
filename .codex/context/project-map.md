@@ -119,6 +119,7 @@ python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metad
 - `.codex/context/runtime-network-debug-map.md`：客户端/中间设备/服务器三视角的网络排障证据地图。
 - `.codex/workflows/config-validation-and-efficiency.md`：配置验证、技能验证、效率指标和迭代机制。
 - `.codex/workflows/network-routing-debug-checklist.md`：网络/路由/代理问题的标准检查顺序与禁忌。
+- `.codex/skills/superxray-server-deployment/SKILL.md`：服务器部署顺序、运行态证据、期限订阅和通用 SOCKS5 交付。
 - `.codex/configuration-update.md`：方案 B 重构说明、应用指南和回滚方式。
 
 ## Codex 配置验证命令
@@ -126,6 +127,7 @@ python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metad
 ```powershell
 python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py
 python .codex/skills/superxray-project-context/scripts/validate_codex_config.py
-python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd
+python .codex/skills/superxray-project-context/scripts/validate_skill_formats.py .codex/skills/superxray-project-context .codex/skills/superxray-ui-first-migration .codex/skills/superxray-release-cicd .codex/skills/superxray-server-deployment
+python .codex/skills/superxray-server-deployment/tests/test_validate_deployment_outputs.py
 python scripts/secret_scan.py
 ```

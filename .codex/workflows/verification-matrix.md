@@ -16,6 +16,7 @@
 | 安全中间件/下载/导入 | `go test ./web/middleware ./web/controller ./web/service` | XSS/CSRF 搜索、E2E 安全路径 |
 | Playwright 旅程 | `npm run e2e` | headed/UI 模式、截图/trace 分析 |
 | Docker/CI/脚本 | release gate metadata check | Docker build、CI dry-run、shellcheck 如可用 |
+| 服务器部署/订阅交付 | `python .codex/skills/superxray-server-deployment/tests/test_validate_deployment_outputs.py`, `validate_codex_config.py`, `secret_scan.py` | 服务器 `systemctl`/`ss`/`journalctl`、公网订阅 GET+diagnose、SOCKS5 出口探测 |
 | 发布 | `release_gate.py --install-tools` | Go 全量、frontend 全量、E2E、CodeQL/CI |
 | 文档/i18n | `python scripts/secret_scan.py`、文档链接和 key 对齐检查 | frontend i18n tests、release metadata check |
 | Codex 治理配置 | `python .codex/skills/superxray-project-context/tests/test_validate_codex_config.py`, `python .codex/skills/superxray-project-context/scripts/validate_codex_config.py`, portable skill validate wrapper | `python scripts/secret_scan.py`, release metadata check、相关 agent workflow 演练 |
