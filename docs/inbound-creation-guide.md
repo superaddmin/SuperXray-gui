@@ -1,6 +1,6 @@
 # 入站规则创建填写教程
 
-> 目标读者：面板管理员。源码核对日期：2026-10-14，适用版本：`v3.4.3`。
+> 目标读者：面板管理员。源码核对日期：2026-10-15，项目版本：`v3.4.3`；当前分支纳入上游 `v3.10.2`，目标 Xray：`v26.10.10`。
 > 事实来源：`frontend/src/views/InboundsView.vue`、`frontend/src/schemas/protocolRegistry.ts`、`frontend/src/utils/inboundCompat.ts`、`frontend/src/utils/realitySettings.ts`、`web/controller/inbound.go`、`web/service/protocol_validation.go`、`database/repository.go`。
 
 打开运行时 `webBasePath + "panel/inbounds"`，点击 `New Inbound`（中文界面对应“添加入站”）。页面使用当前 Vue 表单，下文保留源码中的英文标签便于对照。编辑已有入站时 Protocol 禁用。
@@ -19,7 +19,7 @@
 | Remark | 用于识别入站，可留空。 |
 | Listen | 留空生成 Xray 配置时使用 `0.0.0.0`；仅本机访问填写 `127.0.0.1`。 |
 | Port | UI 接受 `1..65535`，默认随机端口。 |
-| Traffic Limit GB | UI 按 GiB 换算为 bytes 保存，`0` 表示入站整体不限量。 |
+| Traffic Limit GB | UI 按 GiB 换算为 bytes 保存，`0` 表示入站整体不限量；编辑时没有修改配额输入会保留原始 bytes，避免显示精度导致额度变化。 |
 | Expiry Timestamp | Unix milliseconds，`0` 表示不过期；当前是数字输入框。 |
 | Traffic Reset | 文本输入，默认 `never`；可用 `never/hourly/daily/weekly/monthly`。 |
 | Enable | 默认打开；打开后后端尝试同步 Xray，失败时设置需要重启标志。关闭时保存禁用配置。 |
@@ -36,7 +36,7 @@ VMess、VLESS、Trojan、Shadowsocks、Hysteria 支持 Transport Settings。HTTP
 | `ws` | WS Path、WS Host、WS Heartbeat Period、WS Proxy Protocol。 |
 | `grpc` | gRPC Service、gRPC Authority、gRPC Multi Mode。 |
 | `httpupgrade` | HTTPUpgrade Path、Host、Proxy Protocol。 |
-| `xhttp` | Path、Host、Mode、HTTP Header/Padding、Session/Sequence/Data Placement、XMux；与客户端参数一致。 |
+| `xhttp` | Path、Host、Mode、HTTP Header/Padding、Session/Sequence/Data Placement、Session ID Table/Length、XMux；与客户端参数一致。 |
 | `kcp` | MTU、TTI、上下行容量、窗口等 mKCP 参数。 |
 | `hysteria` | Hysteria 专用 UDP/QUIC 传输，仅 Hysteria 协议显示。 |
 
@@ -53,6 +53,8 @@ TLS 使用 Certificate File + Key File，或者 Inline Certificate + Inline Priv
 Reality 填写 Target（`host:port`）、Server Names（逗号分隔）、Private Key 和 Short IDs；Public Key、SpiderX、ML-DSA-65 相关字段用于客户端兼容信息。已登录可调用 `GET /panel/api/server/getNewX25519Cert` 获取密钥；当前入站 Reality 表单没有旧 UI 的 `Get New Cert` 按钮。
 
 Short ID 按 Xray 要求填写合法十六进制，客户端 SNI、公钥和 Short ID 必须与服务端一致。当前 `realitySettings.ts` 仅清理空白/列表、补默认目标和名称，并检查私钥与 Short IDs 非空；目标和名称格式、密钥与十六进制有效性还须由实际核心验收。
+
+目标核心已移除 `tlsSettings.allowInsecure=true`；旧配置必须改为可信证书、`pinnedPeerCertSha256` 或 `verifyPeerCertByName`，不能通过忽略证书错误来继续升级。旧证书 pin 数组由兼容层转换为逗号字符串。Reality 不能与 TCP finalmask 共用；冲突会明确报错，不会静默删除安全设置。
 
 ### 3.2 WireGuard / Tun / 其他协议
 
@@ -91,6 +93,18 @@ VMess、VLESS、Trojan、Shadowsocks、Hysteria 的客户端通过独立表单�
 页面提供 Settings JSON、Stream Settings JSON、Sniffing JSON 的编辑与 Format。必须填写 JSON 对象；有独立客户端表单的协议不能在 Settings JSON 中手工加入 `clients`，否则提示 `Manage clients with the client form instead of Settings JSON`。
 
 VLESS decryption/encryption、Trojan fallbacks、Shadowsocks 服务端 method/network 等未结构化协议项应在 Settings JSON 中编辑。当前没有独立的旧版 VLESS Authentication、Fallbacks 或 Vision Seed 面板。Sniffing 使用 JSON，支持项必须符合实际 Xray schema。
+
+### 5.1 旧配置兼容与高级字段
+
+后端保存/读取、数据库升级与配置生成使用 `util/xraycompat`；前端编辑器也兼容相应旧字段。未知 JSON 字段按兼容规则保留，不代表目标核心一定支持：
+
+- `streamSettings.method` 在没有 `network` 时转换为 `network`；Reality `dest` 转为 `target`；sockopt `V6Only` 转为 `v6only`，已有新字段优先。
+- XHTTP `sessionPlacement/sessionKey` 转为 `sessionIDPlacement/sessionIDKey`，旧 `extra` 中可提升的字段转换到目标结构；Session ID Length 接受正数或正数范围，Table 要求 ASCII。
+- Hysteria UDP Hop 从 `finalmask.quicParams.udpHop` 转为 `finalmask.udp` 内 `type=udphop`、`mode=intervalRemote` 和 `remotePorts`；前端原有端口/间隔表单仍可读写。
+- xDNS 旧域名/解析器形式转换为目标核心结构；Salamander 密码至少 4 bytes；XMC 需要完整 profiles。无法无损合并的新旧字段或无效结构会报错。
+- VMess `none/zero` 规范为 `auto`；WireGuard 废弃 `workers` 删除；Hysteria 缺省 version 补 `2`，显式非 2 拒绝。Shadowsocks `none/plain` 已废弃，需要管理员和客户端共同更换 AEAD 凭证。
+
+数据库迁移失败会回滚事务。入站表单保存成功后仍需检查动态添加结果或重启核心；Xray 模板保存和重启会做完整配置预检，实际监听与客户端握手仍须单独验证。详细规则与回归依据见 [上游集成记录](upstream-3x-ui-v3.10.2-integration.md)。
 
 ## 6. 最小创建流程
 

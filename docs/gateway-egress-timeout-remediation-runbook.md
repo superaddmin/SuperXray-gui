@@ -2,7 +2,7 @@
 
 > 适用范围：SuperXray-gui 负责的 Xray 侧 Gateway-facing 出口、Gateway 登记清单、测试服务器验证和生产灰度发布。
 > 当前边界：只使用既有 Xray 模板保存路径和 legacy Xray 生命周期，不新增 `egress_*` 表，不迁移 `model.Inbound`，不让 CoreManager 接管生产 Xray。
-> 代码核对日期：2026-10-14。本文是执行与验收模板，本轮没有远端测试或生产部署；80 秒是待复现症状，不能由本仓库判定根因。事实依据：`frontend/src/utils/gatewayEgressMvp.ts`、`frontend/src/views/XrayView.vue`、`web/controller/xray_setting.go`、`scripts/gateway-egress-validate.sh`。
+> 代码核对日期：2026-10-15。本文是执行与验收模板，本轮没有远端测试或生产部署；80 秒是待复现症状，不能由本仓库判定根因。事实依据：`frontend/src/utils/gatewayEgressMvp.ts`、`frontend/src/views/XrayView.vue`、`web/service/xray_setting.go`、`xray/validate.go`、`scripts/gateway-egress-validate.sh`。
 
 ## 1. 执行目标
 
@@ -67,7 +67,7 @@ Client
 1. 在 Gateway 出口 MVP 中设置 `listenHost`、`manifestHost` 和策略标签。
 2. 生成 Xray 配置。
 3. 按 4.2 节替换平台与地区占位出口，并完成统计、DNS 和探测配置。
-4. 核对端口冲突、规则顺序与来源限制后保存模板。
+4. 核对端口冲突、规则顺序与来源限制后保存模板。保存路径会兼容转换，合并当前启用的数据库入站，再用已安装核心 `run -test -config` 预检；失败时不保存候选模板。需准备目标 Xray `v26.10.10`、证书和 Geo 文件。
 5. 在保存后的确认框中显式重启，或使用既有 Xray 运行控制重启。
 
 预期生成端口：
@@ -164,7 +164,7 @@ XRAY_CONFIG=/usr/local/x-ui/bin/config.json \
 bash scripts/gateway-egress-validate.sh
 ```
 
-脚本只做只读检查：
+脚本不修改服务配置或数据库，但会发送出站网络探测，并读取最近服务日志：
 
 - `ss` 检查 Gateway-facing 端口监听。
 - 检查通配监听、非 loopback 无认证 SOCKS、源地址限制证据。
@@ -173,6 +173,8 @@ bash scripts/gateway-egress-validate.sh
 - `curl --socks5-hostname` 输出 `connect/tls/ttfb/total` timing。
 - 使用 `https://example.com` 做负向探测，确认平台入口不会退化成通用开放代理。
 - 可选 `docker exec` 从 Gateway 容器内验证 `manifestHost` 可达。
+
+脚本末尾可能打印最近 `journalctl` 输出，日志内容不会自动完成业务级脱敏；原始输出只存放在受控位置，对外报告仅摘录脱敏结论。
 
 脚本退出码非零表示累计失败；输出 `failures=0` 时仍须逐项处理 warnings。默认 `CURL_CONNECT_TIMEOUT=5`、`CURL_MAX_TIME=30`，只测基础网络，不测生图或 SSE。可以用 `GATEWAY_EGRESS_PORTS` 和三个平台端口变量匹配现场规划；脚本需要 Bash、curl、ss，以及 jq 或 python3，检查容器和防火墙还依赖 Docker 与 nft/iptables 工具及读取权限。
 

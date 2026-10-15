@@ -1,6 +1,6 @@
 # 前端 UI/UX 全量审计与优化指南
 
-> **文档性质**：历史视觉审计 + 当前源码对照；源码复核日期 2026-10-14。本次未重新启动浏览器执行视觉/无障碍验收，下文“实测”和截图仅代表各自审计日期，不代表当前构建实测结果。
+> **文档性质**：历史视觉审计 + 当前源码对照；源码复核日期 2026-10-15。本次文档核对未重新执行视觉/无障碍验收，下文“实测”和截图仅代表各自审计日期。此前 v3.10.2 集成后的 Docker E2E 19/19 通过属于功能验收，不构成当前构建的全视口、视觉对比度或完整无障碍验收；结果范围见 [集成验证记录](upstream-3x-ui-v3.10.2-integration.md)。
 
 ## 当前 Vue UI 实现对照
 
@@ -11,7 +11,10 @@
 | 字体、Header、触控和响应式样式 | `frontend/src/styles/app.css`、`frontend/src/main.ts`、`frontend/tests/form-styles.test.ts` |
 | Gateway MVP 前置与工作区导航 | `frontend/src/views/XrayView.vue`、`frontend/tests/xray-view.test.ts` |
 | 配置和日志文本渲染、nonce/CSRF | `web/ui.go`、`web/middleware/security.go`、`frontend/src/api/request.ts`、Go UI/安全回归测试 |
-| 当前 UI 截图资料 | 仓库 `media/`；下文 `docs/assets/` 为 2026-05-16 历史截图 |
+| TOTP 修改确认 | `SettingsView.vue` 首次启用要求新认证器验证码，禁用/替换要求旧认证器验证码；密钥留空保留旧值，验证码不持久化；`web/service/setting_totp_test.go`、`frontend/tests/settings-view.test.ts` |
+| 入站与客户端配额编辑 | `InboundsView.vue`、`frontend/src/utils/trafficQuota.ts`；未编辑额度保留原始字节数，显式设零表示无限；`frontend/tests/traffic-quota.test.ts` |
+| TLS / Reality / XHTTP 兼容 | `inboundCompat.ts`、`realitySettings.ts`、`util/xraycompat/`；保留证书和扩展字段，迁移已知旧字段并拒绝冲突，完整配置以目标核心校验为准；详见功能对账和集成迁移规则 |
+| UI 截图资料 | 仓库 `media/` 为文档展示素材，未在本轮重新截图；下文 `docs/assets/` 为 2026-05-16 历史截图 |
 
 历史 Legacy 路径以代码文本保留，不能作为当前文件链接或待修改入口。静态源码检查无法证明视觉对比度、键盘全流程或各视口没有溢出；这些结论需在 Go 托管的实际页面重新验证。当前功能对账见 [Legacy → Vue UI 对账](legacy-vue-ui-parity-audit.md)。
 
@@ -75,7 +78,9 @@
 
 验证结果：修复后桌面端首个进度环尺寸为 110x110，第三层折叠面板下移到指标区之后；移动端无横向溢出，仪表盘恢复显示。
 
-## 分级诊断
+## 分级诊断（2026-05-02 历史 Legacy UI）
+
+本节的“当前”“实测”“现有”均指原审计时的 Legacy 页面，不表示当前 Vue UI 仍存在同一缺陷，也不是本次已实施的修改。
 
 ### P1：深色主题主色文本对比度不足
 

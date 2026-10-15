@@ -2,7 +2,7 @@
 
 > **目标读者**：集成开发者 / 前端维护者
 > **适用版本**：`v3.4.3`
-> **源码核对日期**：2026-10-14（静态契约与现有回归测试；部署配置和外部服务需在目标环境验证）
+> **源码核对日期**：2026-10-15（静态契约与现有回归测试；部署配置和外部服务需在目标环境验证）
 > **事实来源**：`web/controller/*`、`web/ui.go`、`web/middleware/security.go`、`web/websocket/*`、`sub/*`、`frontend/src/api/*`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [部署指南](deployment.md) | [Panel OpenAPI](openapi/panel-api.yaml) | [Versioned API OpenAPI](openapi/api-v1.yaml)
 
@@ -43,7 +43,9 @@ window.__SUPERXRAY_UI_CONFIG__ = {
 
 ### 1.2 认证与会话
 
-面板使用 Cookie Session，Cookie 名为 `SuperXray`，Path 为运行时 `webBasePath`，启用 `HttpOnly`、`SameSite=Lax`。服务器配置了面板证书和私钥时，会话默认带 `Secure`；登出时删除 Cookie 的 `Secure` 根据当前 TLS 请求或 `X-Forwarded-Proto: https` 决定。单独由反向代理终止 HTTPS 的部署须核对实际 Cookie 属性。
+面板使用 Cookie Session，Cookie 名为 `SuperXray`，Path 为运行时 `webBasePath`，启用 `HttpOnly`、`SameSite=Lax`。服务器配置了面板证书和私钥时，会话默认带 `Secure`；登出时删除 Cookie 的 `Secure` 根据当前 TLS 请求或可信代理的 `X-Forwarded-Proto: https` 决定。单独由反向代理终止 HTTPS 的部署须核对实际 Cookie 属性。
+
+Web 和 Sub Server 共用 `SUPERXRAY_TRUSTED_PROXY_CIDRS` 信任边界：未设置时仅信任 `127.0.0.0/8,::1/128`，显式空值不信任任何代理，非法 CIDR 阻止服务启动。只有可信直接连接方的转发头参与 CSRF scheme、限流客户端 IP、请求日志和订阅公开 URL 推导。反向代理还需透传正确的 `Host`；CSRF host 校验仍使用请求 `Host`。
 
 认证流程：
 
@@ -96,7 +98,7 @@ HTTP 状态码为 `403`。
 }
 ```
 
-文件下载、订阅输出和部分诊断端点不包裹该结构，见对应章节。
+业务错误通常仍返回 HTTP `200`，调用方必须检查 `success`，不能只判断状态码。文件下载、订阅输出和部分诊断端点不包裹该结构，见对应章节。
 
 `/api/v1/*` 版本化 API 使用 `web/entity.APIResponse`，并通过 `X-Request-ID` 关联请求：
 
@@ -188,7 +190,7 @@ HTTP 状态码为 `403`。
     "checkedAt": "2026-06-26T00:00:00Z",
     "xray": {
       "state": "running",
-      "version": "v26.3.27"
+      "version": "v26.10.10"
     },
     "metrics": {
       "requests": {
@@ -214,7 +216,7 @@ HTTP 状态码为 `403`。
 
 `/api/v1` 当前默认按客户端固定窗口限流为每分钟 120 次。超过限额时返回 HTTP `429`、统一错误壳和 `Retry-After` 响应头。未命中路由会返回 HTTP `404` 和统一错误壳；旧页面和 `/panel/api` 仍保持原有 `404` 行为。
 
-`/api/v1/metrics` 返回与健康响应中 `metrics` 字段相同结构的只读快照。指标统计整个面板 HTTP 请求，存在进程内存中，重启后清零；未匹配路径归并为 `<unmatched>`，路由/状态维度上限和溢出规则见 [运行时可靠性](runtime-reliability.md)。响应生成时当前请求尚未完成，可能反映在 `inFlight` 中；连续请求的数值不保证相同。
+`/api/v1/metrics` 返回与健康响应中 `metrics` 字段相同结构的只读快照。指标统计整个面板 HTTP 请求，存在进程内存中，Web Server 重新创建路由器（包括 SIGHUP 重启）后清零；未匹配路径归并为 `<unmatched>`，路由/状态维度上限和溢出规则见 [运行时可靠性](runtime-reliability.md)。响应生成时当前请求尚未完成，可能反映在 `inFlight` 中；连续请求的数值不保证相同。
 
 ---
 
@@ -272,12 +274,12 @@ HTTP 状态码为 `403`。
 |---|---|---|
 | `webListen` / `webDomain` / `webPort` | string / string / int | Web 面板监听、域名校验和端口 |
 | `webCertFile` / `webKeyFile` | string | Web HTTPS 证书路径 |
-| `webBasePath` | string | Web 路由前缀，保存时强制首尾 `/` |
+| `webBasePath` | string | Web 路由前缀，保存时强制首尾 `/`；空值或 `/` 规范化为 `/super/` |
 | `sessionMaxAge` | int | Session 最大分钟数 |
 | `pageSize` / `expireDiff` / `trafficDiff` | int | 列表分页、到期和流量提醒阈值 |
 | `remarkModel` / `datepicker` / `timeLocation` | string | 备注模板、日期格式和时区 |
 | `tgBot*` / `tgRunTime` / `tgCpu` / `tgLang` | mixed | Telegram Bot 配置 |
-| `twoFactorEnable` / `twoFactorToken` | bool / string | 2FA 配置 |
+| `twoFactorEnable` / `twoFactorToken` | bool / string | 2FA 开关；读取时 token 恒为空字符串，不返回现有密钥 |
 | `subEnable` / `subListen` / `subPort` / `subPath` | mixed | 订阅服务开关、监听和 URI 路径 |
 | `subURI` / `subJsonURI` / `subClashURI` | string | 公开订阅入口 |
 | `subJsonEnable` / `subClashEnable` | bool | JSON 和 Clash 输出开关 |
@@ -290,7 +292,9 @@ HTTP 状态码为 `403`。
 
 ### POST `/panel/setting/update`
 
-提交 `entity.AllSetting` 表单字段，调用 `SettingService.UpdateAllSetting` 保存。服务端会校验监听地址、端口、证书、时区和订阅路径格式。
+提交完整 `entity.AllSetting` 表单或 JSON，并可附带请求专用字段 `twoFactorCode`，调用 `SettingService.UpdateAllSetting` 保存。该接口是整体设置更新，不是 PATCH；应先读取当前设置再修改目标字段。服务端会校验监听地址、端口、证书、面板代理、时区和路径；Web/Sub 监听地址重叠时不允许使用相同端口。生产调用在同一数据库事务中保存所有字段，校验或写入失败不会部分更新。
+
+2FA 变更规则：首次启用须提交新 Base32 密钥及新验证器的当前 6 位验证码；关闭或替换已启用验证器须提交旧验证器的当前验证码。新密钥规范化为大写、无 padding，长度须为 16–128 字符且解码后至少 10 bytes。空 `twoFactorToken` 表示保留现有密钥；关闭后清除存储密钥。未改变 2FA 的普通设置保存不要求验证码，`twoFactorCode` 不持久化，也不在设置读取响应中返回。
 
 ### POST `/panel/setting/updateUser`
 
@@ -325,11 +329,11 @@ HTTP 状态码为 `403`。
 {
   "success": true,
   "msg": "",
-  "obj": "{\"xraySetting\":\"{...}\",\"inboundTags\":[\"inbound-443\"],\"outboundTestUrl\":\"https://www.google.com/generate_204\"}"
+  "obj": "{\"xraySetting\":{\"inbounds\":[],\"outbounds\":[]},\"inboundTags\":[\"inbound-443\"],\"outboundTestUrl\":\"https://www.google.com/generate_204\"}"
 }
 ```
 
-前端 `frontend/src/api/xray.ts` 会二次解析该字符串。
+前端 `frontend/src/api/xray.ts` 会二次解析该字符串；解析后的 `xraySetting` 是配置对象。示例仅展示包装结构，不是可直接运行的完整配置。
 
 ### POST `/panel/xray/update`
 
@@ -338,7 +342,7 @@ HTTP 状态码为 `403`。
 | `xraySetting` | string | 是 | 完整 Xray JSON 模板字符串 |
 | `outboundTestUrl` | string | 否 | 保存到服务端设置中的出站测试 URL；为空时使用 `https://www.google.com/generate_204` |
 
-保存模板不会迁移数据模型；它仍写入现有 Xray 模板设置。
+保存时先解开历史响应包装、规范化兼容字段，再与当前启用入站合成完整配置，使用已安装的 Xray 执行 `run -test -config`。预检失败不会保存模板；缺少 Xray 二进制或依赖的证书/Geo 文件同样会失败。通过后写入现有 `xrayTemplateConfig` 设置；重启仍是独立操作。`outboundTestUrl` 在模板保存后单独写入，当前控制器不返回该写入的错误，因此不能把两个字段视为原子更新。
 
 ### GET `/panel/xray/getDefaultJsonConfig`
 
@@ -432,7 +436,7 @@ HTTP 状态码为 `403`。
 | `POST` | `/add` | `model.Inbound` 表单/JSON 绑定 | 保存后的 Inbound |
 | `POST` | `/update/:id` | `model.Inbound` 表单/JSON 绑定 | 保存后的 Inbound |
 | `POST` | `/del/:id` | `id` path int | 通用响应 |
-| `POST` | `/import` | `data` 表单字段 | 通用响应 |
+| `POST` | `/import` | `data` 表单字段 | 通用响应，`obj` 为新保存的 Inbound |
 
 `/import` 的 `data` 是单个 `model.Inbound` JSON 字符串，不是数组：
 
@@ -469,6 +473,8 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 
 `model.Client` 不独立建表，存放在 `Inbound.Settings` 的 clients JSON 内。
 
+新增及导入均由服务端分配 Inbound 和流量记录主键、当前用户 ID 与派生 tag，不信任上传对象中的关联主键。更新以路径中的 ID 为准，保留既有归属和统计。clients 中未知扩展字段保留；传输字段兼容转换与失败规则见 [上游集成记录](upstream-3x-ui-v3.10.2-integration.md)。
+
 流量字段使用 bytes，正值 `expiryTime` 与 `lastTrafficResetTime` 使用 Unix milliseconds。协议常量及 Vue 可编辑注册表为 `vmess`、`vless`、`tunnel`、`http`、`trojan`、`shadowsocks`、`mixed`、`wireguard`、`tun`、`hysteria`、`hysteria2`；`hysteria2` 生成 Xray 运行配置时规范化为 `hysteria`。WireGuard Peer 存在 `settings.peers` 中。`userId` 不对 JSON 暴露，新增时由当前 Session 写入。
 
 ### 6.2 Client 管理
@@ -493,7 +499,7 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 | `POST` | `/resetAllTraffics` | 重置全部 Inbound 流量 |
 | `POST` | `/resetAllClientTraffics/:id` | 重置指定 Inbound 下所有客户端；新 UI 也会传 `-1` 表示全局 |
 | `POST` | `/delDepletedClients/:id` | 删除指定 Inbound 下已耗尽客户端 |
-| `POST` | `/updateClientTraffic/:email` | 手动增加客户端流量 |
+| `POST` | `/updateClientTraffic/:email` | 按 email 覆盖客户端 `up`/`down` 当前值，不是增量累加 |
 
 `updateClientTraffic` 使用 JSON Body：
 
@@ -503,6 +509,8 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
   "download": 2048
 }
 ```
+
+单位为 bytes；省略的字段按零绑定并覆盖对应计数，不支持只提交其中一个字段来保持另一个值。
 
 ### 6.4 IP 与在线状态
 
@@ -526,8 +534,8 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 | `GET` | `/status` | 返回缓存的服务器状态；后台每 2 秒刷新 |
 | `GET` | `/cpuHistory/:bucket` | 返回 CPU 历史聚合，允许 `2/30/60/120/180/300` |
 | `GET` | `/getXrayVersion` | 返回可安装 Xray 版本列表，控制器缓存 60 秒 |
-| `GET` | `/getConfigJson` | 返回当前 Xray 运行配置 JSON |
-| `GET` | `/getDb` | 下载当前 SQLite 数据库，文件名 `x-ui.db` |
+| `GET` | `/getConfigJson` | 从数据库模板及启用入站重新生成配置对象，不是读取最后启动的配置文件；生成时会检查配额/到期状态 |
+| `GET` | `/getDb` | 通过 `VACUUM INTO` 下载包含已提交 WAL 数据的一致性 SQLite 快照，文件名 `x-ui.db` |
 | `GET` | `/getNewUUID` | 生成 UUID |
 | `GET` | `/getNewX25519Cert` | 生成 X25519 密钥对 |
 | `GET` | `/getNewmldsa65` | 生成 ML-DSA-65 密钥 |
@@ -540,7 +548,7 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 |---|---|---|
 | `POST` | `/stopXrayService` | 停止 legacy XrayService |
 | `POST` | `/restartXrayService` | 重启 legacy XrayService；新 UI 的“启动”也走该端点 |
-| `POST` | `/installXray/:version` | 安装指定 Xray 版本 |
+| `POST` | `/installXray/:version` | 安装 `v26.10.10` 及以后、符合 `vYY.M.D` 形式的正式版本；先用候选二进制和 Geo 文件校验当前配置，再替换并在失败时恢复 |
 | `POST` | `/updateGeofile` | 更新全部 Geo 文件 |
 | `POST` | `/updateGeofile/:fileName` | 更新指定 Geo 文件，文件名由服务层校验 |
 
@@ -572,11 +580,13 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 
 请求为 multipart，文件字段名固定为 `db`。服务端校验：
 
-- 请求体最大为 `service.MaxImportDBFileSize + 1MB`。
-- 文件大小必须大于等于 16 bytes，且不超过 `service.MaxImportDBFileSize`。
+- 请求体最大为 65 MiB（64 MiB 数据库文件 + 1 MiB multipart 开销）。
+- 文件大小必须大于等于 16 bytes，且不超过 64 MiB（`service.MaxImportDBFileSize`）。
 - 文件名必须等于 `filepath.Base(filename)`，且匹配 `^[a-zA-Z0-9_\-.]+$`。
 - 扩展名只允许 `.db`、`.sqlite`、`.sqlite3`。
-- 服务层会继续做 SQLite 格式和导入安全校验。
+- 服务层继续做 SQLite 签名及 `integrity_check`，在私有候选库中执行完整迁移，再生成配置并调用本机 Xray 预检。缺少核心、证书或 Geo 文件会拒绝导入。
+
+导入持有数据库维护锁，等待现有请求及定时任务结束；候选迁移不发布全局 DB。只有候选通过后才 checkpoint、停止原本正在运行的核心并替换文件。新库打开或启动失败时恢复原库和原运行状态；外部写入者留下 WAL/SHM/journal 时拒绝替换。成功后清理回滚文件，恢复失败则报告保留位置。原先停止的 Xray 在成功导入后仍保持停止。详细恢复边界见 [运行时可靠性](runtime-reliability.md)。
 
 ### 7.5 ECH
 

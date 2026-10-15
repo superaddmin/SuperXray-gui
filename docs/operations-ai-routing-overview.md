@@ -2,7 +2,7 @@
 
 > **目标读者**：需要同时维护 SuperXray 服务器节点、OpenWrt/Passwall 分流、AI 平台出口质量与排障流程的开发者 / 运维人员  
 > **适用版本**：`v3.4.3`
-> **核对日期**：2026-10-14。本仓库实现服务器侧 Xray 模板、订阅和 Gateway CSV；OpenWrt/Passwall、SSID、网段及外部 Gateway 均为部署环境，以下拓扑与命令是验证模板，不能证明现场已经配置成功。
+> **核对日期**：2026-10-15。本仓库实现服务器侧 Xray 模板、订阅和 Gateway CSV；当前目标 Xray 为 `v26.10.10`，模板保存会执行兼容转换及核心预检，仍须显式重启与运行态验证。OpenWrt/Passwall、SSID、网段及外部 Gateway 均为部署环境，以下拓扑与命令是验证模板，不能证明现场已经配置成功。
 > **相关文档**：[部署指南](deployment.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md) | [OpenWrt / Passwall AI 路由实战手册](passwall-openwrt-ai-routing-playbook.md)
 
 ---
@@ -62,14 +62,14 @@
 
 ### 主 WiFi
 
-- 网段：通常是 `192.168.5.0/24`
+- 网段示例：`192.168.5.0/24`，由 OpenWrt 管理员配置
 - 目标：
   - 普通流量直连
   - AI / GFW 域名走 `<PRIMARY_PROXY_HOST>`
 
 ### USA WiFi
 
-- 网段：通常是 `192.168.52.0/24`
+- 网段示例：`192.168.52.0/24`，由 OpenWrt 管理员配置
 - 目标：
   - 保持全代理
   - 独立承载美国出口需求，绑定 `<US_PROXY_HOST>`
@@ -197,13 +197,13 @@ uci show passwall | grep "@acl_rule"
 不要只测首页。分开测：
 
 ```bash
-curl -I https://chatgpt.com/cdn-cgi/trace
-curl -I https://api.openai.com/v1/models
-curl -I https://claude.ai
-curl -I https://openrouter.ai
-curl -I https://cursor.com
-curl -I https://models.github.ai
+curl --connect-timeout 5 --max-time 30 https://chatgpt.com/cdn-cgi/trace
+curl --connect-timeout 5 --max-time 30 -sS -o /dev/null -w 'HTTP %{http_code}\n' https://api.openai.com/v1/models
+curl --connect-timeout 5 --max-time 30 -sS -o /dev/null -w 'HTTP %{http_code}\n' https://api.anthropic.com/v1/messages
+curl --connect-timeout 5 --max-time 30 -sS -o /dev/null -w 'HTTP %{http_code}\n' 'https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta'
 ```
+
+上述无凭据 GET 仅用于网络可达性，trace 响应可读出口字段；401/403/404/405 应结合 TLS、响应头和平台行为解释，不能当作业务验收通过。OpenRouter、Cursor、Copilot 等需要另测实际产品 API/插件链路，首页 HEAD 不能替代模型请求。
 
 ### 场景 E：节点切了，但出口没变
 

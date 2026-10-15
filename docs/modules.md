@@ -2,7 +2,7 @@
 
 > **目标读者**：后端 / 前端维护者
 > **适用版本**：`v3.4.3`
-> **源码核对日期**：2026-10-14
+> **源码核对日期**：2026-10-15
 > **事实来源**：`main.go`、`config/`、`database/`、`web/`、`sub/`、`core/`、`frontend/src`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md)
 
@@ -28,7 +28,7 @@
 
 1. 根据进程环境中的 `XUI_DEBUG` / `XUI_LOG_LEVEL` 初始化日志级别。
 2. 读取 `.env`；这一步晚于 logger 初始化，仅写入 `.env` 的日志变量不会回溯修改已初始化级别。
-3. 调用 `database.InitDB(config.GetDBPath())`。
+3. 调用 `service.InitDB(config.GetDBPath())`，统一执行数据库和历史配置迁移；提交后才发布连接。
 4. 创建并启动 `web.Server`。
 5. 创建并启动 `sub.Server`；如果 `subEnable=false`，订阅服务直接不监听。
 6. 监听 `SIGHUP`、`SIGTERM`、`SIGUSR1`。
@@ -47,7 +47,7 @@
 | `IsDebug()` | `XUI_DEBUG` | 值为 `true` 时启用 debug |
 | `GetLogLevel()` | `XUI_LOG_LEVEL` | debug 模式固定 `debug`，否则默认 `info` |
 | `GetBinFolderPath()` | `XUI_BIN_FOLDER` | 默认 `bin` |
-| `GetDBFolderPath()` | `XUI_DB_FOLDER` | Windows 默认可执行文件目录，其他平台默认 `/etc/x-ui` |
+| `GetDBFolderPath()` | `XUI_DB_FOLDER` | Windows 默认可执行文件目录；识别为 Go 临时构建路径时回退当前工作目录；其他平台默认 `/etc/x-ui` |
 | `GetDBPath()` | `XUI_DB_FOLDER` | `<DBFolder>/<name>.db` |
 | `GetLogFolder()` | `XUI_LOG_FOLDER` | Windows 默认 `./log`，其他平台默认 `/var/log/x-ui` |
 
@@ -59,15 +59,17 @@
 
 ### 3.1 初始化
 
-`database.InitDB(dbPath string)`：
+生产启动、CLI 和导入通过 `web/service.InitDB(dbPath)` 进入 `database.InitDBWithMigration`：
 
-1. 创建数据库目录，权限 `0750`。
+1. 创建数据库目录（`0750`），创建并保护数据库文件（`0600`）。
 2. 按 `config.IsDebug()` 决定 GORM logger。
 3. 使用 SQLite driver 打开数据库。
-4. 调用 `initModels()` 执行 `AutoMigrate`。
-5. 调用 `recordBaselineMigration()`，幂等记录 baseline 迁移版本到 `schema_migrations` 和 `migration_events`。
-6. 如果 `users` 表为空，创建默认 `admin/admin`，密码以 bcrypt 保存。
-7. 执行 `runSeeders`，把历史明文用户密码迁移到 bcrypt，并记录 `HistoryOfSeeders`。
+4. 在同一事务中执行 `initModels()`/`AutoMigrate` 和 `recordBaselineMigration()`，幂等记录 baseline 到 `schema_migrations`、`migration_events`。
+5. 同一事务内为无用户的空库创建 `admin/admin` 管理员（存储 bcrypt），运行密码 seeder（已有 bcrypt 不重复哈希），记录 `HistoryOfSeeders`。
+6. 同一事务内调用 `normalizeStoredXrayConfig` 转换入站及模板兼容字段，再执行 service 提供的历史入站字段/客户端流量迁移与孤立统计清理；任何步骤失败全部回滚。
+7. 事务提交后原子替换全局连接，关闭旧连接。候选库入口 `PrepareDBWithMigration` 不发布全局连接，由调用方关闭。
+
+`database.InitDB` 是不带业务迁移 hook 的底层入口，不能代替生产 `service.InitDB`。`BackupSQLite` 使用 `VACUUM INTO` 创建一致性快照；`ValidateSQLiteDB` 单独检查文件完整性。`database/maintenance.go` 的读租约与独占维护锁协调请求、cron 和数据库替换，不能替代跨进程 SQLite 锁。
 
 ### 3.2 迁移模型
 
@@ -100,7 +102,7 @@
 | `Setting` | 数据库键值设置 |
 | `CustomGeoResource` | 自定义 Geo 资源 |
 | `SchemaMigration` | 数据库迁移版本记录，幂等记录 baseline 迁移 |
-| `MigrationEvent` | 迁移执行事件审计，用于回滚规划 |
+| `MigrationEvent` | 当前 baseline up/applied 事件，不是通用失败事件日志或 down runner |
 | `Client` | 嵌入 `Inbound.Settings` JSON 的客户端结构，不是独立表 |
 
 `database/repository.go` 已提供 `UserRepository`、`SettingRepository`、`InboundRepository` 和 GORM 实现；`NewRepositories` 聚合这三个边界。`UserService`、`SettingService`、`InboundService` 支持构造注入，未注入时从全局 DB 惰性创建实现。入站事务和 Xray 副作用仍由 service 协调；Repository 当前仍接受 `*gorm.DB` 并引用 `xray.ClientTraffic`，尚未迁入目标 `internal/` 层。
@@ -150,6 +152,8 @@ mixed, wireguard, tun, hysteria, hysteria2
 | 中间件 | 作用 |
 |---|---|
 | `SecurityHeadersMiddleware` | CSP、frame、content-type、referrer 安全头 |
+| `trustedproxy.Configure` | Web/Sub 共用可信代理 CIDR；默认仅回环，显式空值禁用转发头信任 |
+| `DatabaseLeaseMiddleware` | 请求持有数据库读租约；导入 handler 自行持有维护锁，等待其他请求/任务退出 |
 | `RequestIDMiddleware` | 校验/生成 `X-Request-ID`，写入响应头和 Gin context |
 | `StructuredRequestLoggerMiddleware` | 记录请求与进程内指标，未知路径归并为 `<unmatched>` |
 | `DomainValidatorMiddleware` | 可选 Host 白名单 |
@@ -163,7 +167,7 @@ mixed, wireguard, tun, hysteria, hysteria2
 
 ### 4.4 版本化观测接口
 
-`V1Controller` 的三个 GET 接口公开访问，每客户端固定窗口默认每分钟 120 次。`web/entity.APIResponse` 提供 `success/requestId/data/error` 响应，`RequestIDMiddleware` 和 `StructuredRequestLoggerMiddleware` 在 Web engine 级注册。`HealthService` 的 live/ready 都只是只读快照，Xray 未运行仍返回 HTTP 200；`RequestMetricsStore` 统计面板请求且在进程重启后清零。具体返回与容量限制见 [API 接口说明](api.md) 和 [运行时可靠性](runtime-reliability.md)。
+`V1Controller` 的三个 GET 接口公开访问，每客户端固定窗口默认每分钟 120 次。`web/entity.APIResponse` 提供 `success/requestId/data/error` 响应，`RequestIDMiddleware` 和 `StructuredRequestLoggerMiddleware` 在 Web engine 级注册。`HealthService` 的 live/ready 都只是只读快照，Xray 未运行仍返回 HTTP 200；`RequestMetricsStore` 统计面板请求，每次重建 Web 路由器时重新创建，进程重启或 SIGHUP 重启服务都会清零。具体返回与容量限制见 [API 接口说明](api.md) 和 [运行时可靠性](runtime-reliability.md)。
 
 ---
 
@@ -244,12 +248,12 @@ api.Use(middleware.CSRFMiddleware())
 |---|---|---|
 | `/all` | POST | 返回 `entity.AllSetting` |
 | `/defaultSettings` | POST | 根据 Host 计算默认设置 |
-| `/update` | POST | `ShouldBind(entity.AllSetting)` 后调用 `UpdateAllSetting` |
+| `/update` | POST | `ShouldBind(updateSettingForm)` 绑定 `AllSetting` 与请求专用 `twoFactorCode`，调用 `UpdateAllSetting` |
 | `/updateUser` | POST | 字段为 `oldUsername`、`oldPassword`、`newUsername`、`newPassword` |
 | `/restartPanel` | POST | 延迟重启面板 |
 | `/getDefaultJsonConfig` | GET | 默认 Xray JSON |
 
-服务层保存入口是 `UpdateAllSetting`。
+服务层保存入口是 `UpdateAllSetting`。`/all` 不返回现有 TOTP 密钥；启用需新验证码，禁用/替换需旧验证码。验证码只属于请求；其他设置和安全字段在同一事务保存，接口为整体更新。
 
 ### 5.7 `XraySettingController`
 
@@ -310,6 +314,7 @@ api.Use(middleware.CSRFMiddleware())
 - `GetDefaultSettings(host)` 生成默认设置和订阅 URI。
 - `UpdateAllSetting(allSetting)` 保存设置并做格式校验。
 - `GetXrayConfigTemplate()`、`GetDefaultXrayConfig()`、`SetXrayOutboundTestUrl()` 等 Xray 设置辅助。
+- `twoFactorToken` 读取脱敏、变更验证和全设置事务保存；`webBasePath` 空值或 `/` 规范化为 `/super/`。
 
 ### 6.2 `InboundService`
 
@@ -322,6 +327,8 @@ api.Use(middleware.CSRFMiddleware())
 - 分享链接和订阅辅助数据。
 
 该服务仍以 `model.Inbound` 和嵌入式 clients JSON 为核心。
+
+新增/导入分配新主键并清除上传流量记录的关联主键；更新保留原入站归属、统计与未知 JSON 扩展。并发写操作有服务层协调，数据库写入失败会回滚对应事务并标记运行态重新同步；数据库事务不把已经执行的 Xray gRPC 副作用变成原子操作。
 
 ### 6.3 `XrayService`
 
@@ -336,6 +343,10 @@ legacy Xray 进程生命周期服务：
 
 CoreManager 当前没有接管这些 legacy lifecycle API。
 
+`GetXrayConfig` 合并模板与启用入站、规范化旧字段，按客户端启用/到期/配额过滤并保留核心扩展；生成路径可调用 `AddTraffic(nil,nil)` 检查配额和到期。候选预检使用 `getXrayConfig(false)`，不写流量。重启在停止旧进程前执行真实核心 `run -test -config`，启动失败尝试恢复旧进程；手工停止后后台不会自行启动。
+
+`XraySettingService` 保存前解开历史响应包装，预检合并入站后的完整模板。`xray.Process` 同目录临时文件同步后替换配置，并在启动失败/500ms 内退出时恢复旧文件。`xray/validate.go` 设置 15 秒校验超时，错误不回传可能含密钥的核心原始诊断。
+
 ### 6.4 `ServerService`
 
 提供服务器状态和运维能力：
@@ -347,6 +358,10 @@ CoreManager 当前没有接管这些 legacy lifecycle API。
 - 数据库导入、导出和安全校验。
 - Geo 文件更新。
 - 密钥和证书生成工具。
+
+核心安装只接受 `v26.10.10` 及以后正式版本，在私有 staging 目录用候选核心与候选 Geo 预检，再替换并保留恢复副本至启动成功。实现分布于 `server.go` 与 `xray_update.go`。
+
+数据库导入实现分布于 `server.go` 与 `database_import.go`：64 MiB 限额、SQLite 完整性检查、候选完整迁移及核心预检；维护锁排空请求/任务后替换，打开或启动失败恢复原库。核心原本停止时保持停止；恢复失败保留原库路径供人工处理。
 
 ### 6.5 `OutboundService`
 
@@ -557,3 +572,5 @@ type Hub struct {
 | `util/common` | 错误、格式化、多错误合并 |
 | `util/sys` | 跨平台系统和进程工具 |
 | `util/pathutil` | 受限路径打开和根路径保护 |
+| `util/trustedproxy` | 可信直接代理边界、外部 scheme/host 与客户端 IP 推导 |
+| `util/xraycompat` | 保留未知字段的旧配置转换、XHTTP/Reality/TLS/FinalMask/DNS/WireGuard 兼容及运行时投影 |

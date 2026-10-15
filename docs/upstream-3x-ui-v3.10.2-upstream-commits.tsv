@@ -1,0 +1,974 @@
+commit	date	subject	review_state
+608ef4e4010bf83e2e78328e08f77efc051ad4d7	2026-10-14	v3.10.2	inventory_only
+35b5e0989a12f31a0aec81f08039fdbec4166cf5	2026-10-14	fix(sponsor): fetch sponsor data from raw.githubusercontent.com	inventory_only
+b177b98ce8dcf9305abb5911a14b3fcc86ae8e89	2026-10-14	feat(mtproto): expose mtg-multi's per-IP pending-handshake limit	inventory_only
+6bd1b8676a3ae6c5a7e030f3f403a8efed7e4d9a	2026-10-14	fix(link): read the XHTTP fields a vmess link carries inline (#6808)	inventory_only
+ff3f42ee2a0fd6cc9b35533e2bbe18894f1fd82d	2026-10-14	fix(link): read fm and the mKCP fields from vmess links (#6809)	inventory_only
+760f428c416ead94f101bae3e1154b1462e3d3e8	2026-10-14	fix(xray): capture whole core crash reports instead of the first pipe chunk	inventory_only
+c45ffcdafa7d865ff05c829471a78264a87900e6	2026-10-14	chore(windows): update OpenSSL installer	inventory_only
+cb4f2ec92f2476fb6852edfbd188b317b729fd1e	2026-10-14	fix(sub): export Hysteria2 Gecko obfs in Clash/Mihomo subscriptions	inventory_only
+db8b01b8ed115342d60e01fd1237181ec51eaa79	2026-10-14	feat(release): ship the Windows build as 3x-ui.exe with version info and icon	inventory_only
+a66b360c09e0a160bd5698e5fa60547df019d1bd	2026-10-14	fix(xray): apply shadowsocks client changes in place instead of rebuilding	inventory_only
+f8b72de9958c08031871c3a56e4a76cd32f82aa2	2026-10-14	fix(node-sync): write only changed client rows in the node traffic merge	inventory_only
+6f1dd0d757288d3936a209aa06fbb99b0370beb2	2026-10-13	feat(sponsors): drop the sidebar slot and simplify the Sponsors page	inventory_only
+319e693276214b7726432b6b1adec5fbcb0bddb3	2026-10-13	fix(sponsor): keep long sponsor copy inside every slot	inventory_only
+61885c91260a5e62ba2e531876f663c7b9c7fbf0	2026-10-13	fix(sub): isolate Incy subscription routing from Happ headers (#6810)	inventory_only
+74c3cc38821cabd66ad316ea562851422d0b0063	2026-10-12	fix(database): blank boolean-era verifyPeerCertByName values on hosts	inventory_only
+68435837065a5fb6d4ff9cd86730a8471db77055	2026-10-12	fix(xray): fall back to the userspace TUN where kernel TUN cannot be set up	inventory_only
+1f2738eda5be553325b476fd7bdbea002a165550	2026-10-12	fix(systemd): let the WireGuard kernel TUN write rp_filter under the sandbox	inventory_only
+097bb7646a0adbf777eba3f028f5ed83a5139e55	2026-10-12	fix(ci): move the issue analyst's static instructions out of the workflow	inventory_only
+544907f4e24f97f482b21e18e02e512734e39e13	2026-10-12	v3.10.0	inventory_only
+99d971ff838c9d6443a2bd138387f8664d8fcc60	2026-10-12	feat(ci): let a maintainer re-run the issue analyst with @claude analyze	inventory_only
+6eeaaa912a76c794c79ab092c8004d01435cd0ab	2026-10-12	fix(ci): make the issue analyst map the bug class before suggesting a fix	inventory_only
+440833382de15569e454374fbf2c36a5d835fecd	2026-10-12	fix(node): apply a pushed inbound's client changes in place instead of rebuilding it	inventory_only
+1edb8b31bc1413ad9ef145d2563361276ebabfe4	2026-10-12	fix(xray): keep balancer overrides across routing reloads (#6779)	inventory_only
+532392850feefe29a906164251073304d4714c2e	2026-10-12	fix(ci): drop id-token from the Claude workflows and tighten the review comment	inventory_only
+c321933a548360124b2f48f6a0feee020b9119cc	2026-10-12	perf: reduce traffic formatter allocations (#6790)	inventory_only
+d43e0c7eaddb913fc2a8084628e3729509192793	2026-10-12	fix(sub): default VLESS client encryption to none when the inbound has none stored (#6781)	inventory_only
+f55938ba0ac74771707bef5e1be76c6c65523427	2026-10-12	fix(amneziawg): respect tunnel MTU when writing UDP replies (#6780)	inventory_only
+a4699696efffe483b94979973a542a3653131371	2026-10-12	docs(review): put the tally before Design and name who can store a trigger	inventory_only
+5939fda3979a5c6018d34fd70e9b3c8ebbb56dc6	2026-10-12	fix(ci): let the PR review save its body, and scope the write-check bypass	inventory_only
+9130f6dd75e394de5eedc34f16d1cf87be719482	2026-10-12	feat(ci): make the PR review judge the claim and never post code	inventory_only
+dbfa3696329159c22d8b2addbdf205f3e78b115c	2026-10-12	fix(frontend): close panel update confirmation before progress (#6766)	inventory_only
+2e8af64745cc535eb567434bd0711765df175725	2026-10-12	chore(frontend): update dependencies	inventory_only
+fd6c5925ce493cc7727d27a5ee851cdc45982a28	2026-10-12	style(sub): match the subscription page to the panel theme	inventory_only
+c5e1e54c7598ded9ba04420fb327f0052f1628b9	2026-10-12	fix(xray): keep XDRIVE storage and Vision flow within what xray-core runs	inventory_only
+8fe7be943f16b0886eaa2721d572ad0b854846b3	2026-10-11	docs(security): name an email security contact	inventory_only
+eb498a3c13b1605163d661a160b615772c3f98c0	2026-10-11	chore(security): add OSS Scanner build image and threat model	inventory_only
+ab1c5093291fd3cd0a0df314f7c673fe21a2431d	2026-10-11	fix(service): keep chunk capacity math from overflowing	inventory_only
+b5a04ea95f14f828fca11aca721652be1ffb0a82	2026-10-11	fix(node-sync): keep shared-email lookups on the open transaction	inventory_only
+c20082d2545bdb9e7cc19a581e43682661a7b25f	2026-10-11	refactor(inbounds): drop the single-user shadowsocks inbound paths	inventory_only
+f1ed1a9b17fa9844b222f5bba996265f24d95a04	2026-10-11	fix(inbounds): refuse 2022-blake3-chacha20-poly1305 on shadowsocks inbounds	inventory_only
+b9e1d3afee838a2c59a21f01aa2315535cc6d0da	2026-10-11	fix(inbounds): refuse a Shadowsocks-2022 server key xray-core cannot parse	inventory_only
+b124af2a1bce41240d222490a7b247c5848f75df	2026-10-11	fix(settings): accept five-field crontab for report and LDAP schedules	inventory_only
+0466e8b0bd53dd675746bc6eb49dddc43e8dc3bc	2026-10-11	fix(finalmask): refuse a salamander password xray-core cannot open	inventory_only
+6321297f68b700a5c8bd08bd7ff98051831b47d7	2026-10-11	fix(finalmask): keep a single udphop mask last in every client finalmask	inventory_only
+a8255944bf883628806c0ae1091940d894f560bb	2026-10-11	style: trim MASQUE and XDRIVE comment blocks to two lines	inventory_only
+c4b9b3f9c7d71e9b50efc5578df94f1302755ea4	2026-10-11	"fix(clients): refuse a "":"" email on a MASQUE inbound"	inventory_only
+27e45f303928f273ae44e7459f2300f79872c77b	2026-10-11	fix(sub): keep the udphop mask on every JSON-subscription endpoint	inventory_only
+c7d89ceac2277673944579e9a634858d1659679c	2026-10-11	feat(outbounds): TLS for XDRIVE outbounds	inventory_only
+ef4bda4e061daff2334314d98b62ba015d80016c	2026-10-11	feat(inbounds): TUN adapter type and auto-system options	inventory_only
+b6c859f5b9a5a7620e7f16352d7ef2985c672b11	2026-10-11	feat(xray): edit Lua DNS and routing scripts	inventory_only
+1c050f872ae6cc02907d1e688fec7664baf7cec5	2026-10-11	feat(finalmask): header-custom variables, sudoku UDP mask and noise reset ranges	inventory_only
+ec0a57fc4f9d06fe330382691e4321cc267f87a8	2026-10-11	fix(finalmask): hop client UDP through the udphop mask	inventory_only
+00aaef386fdc76f5566e83fdccfbe113ce318b1e	2026-10-11	fix(inbounds): accept masque in the inbound protocol validator	inventory_only
+da6872a3b8b7cc58669d756f77145abd1c689392	2026-10-11	chore(frontend): let lint-staged pass commits that stage only generated files	inventory_only
+04cccef311a1d668f19620c740f5b1bda516471e	2026-10-11	feat(warp): register WARP over MASQUE from the WARP modal	inventory_only
+b04039c2bd925d6c5b4a0ea35bd58a412e8d6a4b	2026-10-11	feat(xray): add the MASQUE protocol and transport	inventory_only
+ca5983595b3c71dab9b068ccf93a0e7bc317e94c	2026-10-11	feat(xray): add the XDRIVE transport	inventory_only
+73a028f52dd60b6666bd61712cf0dabdda395198	2026-10-11	feat(xray): update xray-core to v26.10.10 and adapt panel	inventory_only
+82c77111893c8fb386bb7955cfb55186f47ad2ba	2026-10-11	chore(deps): update Go and dependencies	inventory_only
+66234315e4aaceabb580e7862d6c432e87cccdfc	2026-10-11	fix(panel): default TLS ALPN to http/1.1 for WebSocket transport (#6787)	inventory_only
+442b7fb1637d6ecf4f2c28f76092228856e766c9	2026-10-08	chore(deps): bump github.com/valyala/fasthttp from 1.74.0 to 1.75.0 (#6767)	inventory_only
+f0016f6cf94ea5072ff774f0dc15d2c6ec6188a2	2026-10-09	test: stop swapping http.DefaultTransport in the Happ network test (#6742)	inventory_only
+881f646d2c1f813bb02be1a384b20536a68d7c97	2026-10-09	fix(clients): balance renewal form layout and mode guidance (#6672)	inventory_only
+257559c38985a0d569ada02e35a9cfd748394f7e	2026-10-07	fix(update): leave TLS alone during panel updates	inventory_only
+f21721224757062066597a84e3137fadfde70c73	2026-10-07	web: overlay WireGuard peer public key from the inbound (#6751)	inventory_only
+54d171254400ed3d0b3b1e7b9808990446c1feb5	2026-10-07	fix(clients): clarify renewal preview times and estimates (#6662)	inventory_only
+b3f1cced709bf9879477d968497e1817c8f1193c	2026-10-07	fix(tuic): preserve IP destinations during sniffing (#6753)	inventory_only
+c9207b6f3ea64eb91c080479efb390bb9c807c3a	2026-10-06	feat(install): install PostgreSQL 18 from PGDG for new local databases	inventory_only
+6be3c438e1420f24dd10060f8a1dd620b2d0e73b	2026-10-06	fix(node): keep client traffic history when a node inbound is replaced	inventory_only
+d57dcf824b6211201252da137b79029747f142f3	2026-10-06	chore(deps): bump frontend and docs deps, clear npm audit findings	inventory_only
+66ef5bbc05a58bf1adb4c5cb78e5c982fcc5abed	2026-10-05	fix(sub): emit host TLS verification at xray level in JSON subscription	inventory_only
+dd9569478eef68ef2910798276ed375a9f8ee61a	2026-10-05	fix(node): ignore a node's stats for clients detached from the inbound	inventory_only
+49fbcdc09c4c4b2c0dc7d2d5d7e9029972adf074	2026-10-05	fix(frontend): wrap overview modal action buttons on long labels	inventory_only
+aacfaebab8bc37dc874c7d36457accff9fa7fa2b	2026-10-05	fix(tuic): client speed display and certificate button layout (#6723)	inventory_only
+e897b0957a12c3a106f505e0551c18887b0528d6	2026-10-06	fix(sub): append host serverDescription to hysteria links (#6740)	inventory_only
+b42a1c0ba18dc726804afd926fd6d654338e11a5	2026-10-05	fix(systemd): harden shipped x-ui unit files (#6718)	inventory_only
+a8d65a55b04713678da7193ab8be5b74490fc5b7	2026-10-05	fix(update): run the database migration before starting the service (#6729)	inventory_only
+d7da64f2f0a79151cd32daa9ad35cd49eabe952b	2026-10-05	fix(qr): hide the QR only for links carrying post-quantum keys	inventory_only
+2c5fc8e72c6d56b42febeab299c7a8414b3a86ff	2026-10-05	fix(node): don't delete clients when a node reports an empty snapshot (#6734)	inventory_only
+d4a7086c4e92b12303f82ea0c4dc02ef8c19a311	2026-10-05	fix(inbounds): list clients in the detach/attach modals when they mount open (#6736)	inventory_only
+d1b60799ecd46616c2c62afc8e166b1480e7bc84	2026-10-05	fix(frontend): show toasts through message.useMessage, never the static API	inventory_only
+5819a01cdc2fa995281a069590ede0f01a1c3a16	2026-10-05	fix(api-token): let a node-sync master reach every node endpoint it calls	inventory_only
+dae91276aa53428bfc4fd124a80a22e27c4e9012	2026-10-05	chore(nodes): run the master+node scopes in parallel and document both layers	inventory_only
+f843fe5570621224585c9601a8bdbace03aef666	2026-10-05	chore(nodes): add a master+node end-to-end harness and CI job	inventory_only
+2ffc694a6d37a6922b00157b344de37bca159b3e	2026-10-05	fix(nodes): let a master's push and reconcile converge node inbounds	inventory_only
+815c9c57726d0c5df77878da3f49a5d6b95c6c46	2026-10-03	fix(tuic): accept the server's STOP_SENDING when tests close uni streams	inventory_only
+05eb06f333ab5a4705d14121c4fe61ff15bf6cc8	2026-10-03	fix(tuic): wait for both traffic counters in the relay E2E tests	inventory_only
+3cd4bf504c3cd8ea9b1c1fdb032a9796c5c43ddb	2026-10-03	v3.9.0	inventory_only
+ede275e4dc9bb0b6161292451759c6c16fe8495d	2026-10-03	fix(server): apply the outbound address policy to remote cert pinning	inventory_only
+d31465e37b8bbb11ee64b5f32eee6bd63dde6e2f	2026-10-03	fix(database): keep the dump restore inside its own database file	inventory_only
+7d232a76c990b91445712ee67b4cec7a2888aa5b	2026-10-03	style(sponsor): stack the banner's sponsor tag above Visit	inventory_only
+0054e671f88362696a0cb791e0ae7e4f18f7ed75	2026-10-03	feat(tuic): implement native in-process Go TUIC v5 server (#6577)	inventory_only
+40ca2cd72f527a0348f41b47fdbc566f9ca9eaa6	2026-10-03	Reformat clientSearchCols slice literal	inventory_only
+bb18734c7711e35c76d86ae7f0289463b58a0a2d	2026-10-03	fix(tgbot): resolve the panel egress bridge per connection	inventory_only
+4aa9a382b8933c70c6c27b72ec36c41fc219a20d	2026-10-03	Keep a firewalld pulled in by fail2ban from blocking ports on EL7 (#6688)	inventory_only
+3948b834058128ebc56fd632afe0f22089911bd5	2026-10-03	Write config.json after a hot apply (#6686)	inventory_only
+780216744310f4a7c7f061d91b9ffa75f730edd1	2026-10-03	Fix clients group filter and search for non-ASCII capitals (#6685)	inventory_only
+5366eb0d29d8f942f001791d827eb72f90915cbf	2026-10-03	Bound the panel syslog view with a journalctl timeout (#6689)	inventory_only
+98db0710c9b7ad2d554852353762e384cd46b74a	2026-10-03	fix(runtime): reset node inbound traffic by node-side id (#6717)	inventory_only
+3168c87c6767614de6bddd3c150901a0acc4e6ea	2026-10-02	fix(sub): keep serverNames out of a reality host's JSON client config (#6691)	inventory_only
+93847dd1069e5ad4116db3893a7cc436fb59c6f6	2026-10-02	fix(sub): keep the spider settings in a reality spiderX seed's query (#6694)	inventory_only
+ed31ee432c91bdfb5c81ef78867c6c90f2da054a	2026-10-03	feat(inbounds): deploy AmneziaWG, TUIC and MTProto inbounds to nodes	inventory_only
+9b957b969be4c351a12e9b7cdc7ca115bae1b00f	2026-10-03	fix(docker): build the frontend stage on Node 26	inventory_only
+805f94a00c45cc925e1199e324b517797da70069	2026-10-03	chore(amneziawgnet): bind test sockets to loopback	inventory_only
+97bee832f449b88c13e182db205e7527b57b1fb2	2026-10-02	refactor(util): move panel version comparison into a shared package	inventory_only
+05a083eaef0dbbae97256f6dfddab056822b36b6	2026-10-02	fix(api-token): keep a token's scope when -getApiToken regenerates it, add -tokenScope (#6700)	inventory_only
+721de5adde36ed16952fcec81db970959ef9b32a	2026-10-02	Fix fragment exports for older Xray clients (#6702)	inventory_only
+a716122ef2e6e63c083ef92142ffe9806a430fe7	2026-10-02	feat(ci): let the review bot read the discussion, the issue and xray-core	inventory_only
+8ea8f4bb615fb682040e176cc0b713d14bcd6c1a	2026-10-02	fix(ci): stop the review bot naming where the fix belongs	inventory_only
+ce221c33d038a7c6c0d06c5ba013c7694d7a10a3	2026-10-02	fix(sub): carry REALITY ML-KEM hint in VLESS links (#6712)	inventory_only
+921ecb0f663c7128841d5d5afe5afbe9057ee510	2026-10-02	fix: recover panel navigation after stale chunk failures (#6679)	inventory_only
+eef1c1eb6a27e3636cc15c0382e500d27c3c63ca	2026-10-02	fix(maskcompat): size xdns domain list from domains alone	inventory_only
+99bc68fa1477470ee9f4683adf2e439fb138642e	2026-10-02	chore(deps): update project dependencies	inventory_only
+62423cacd14a7c4675b3718777200a93b14fcbf6	2026-09-30	feat(xray): update xray-core to v26.9.30 and adapt panel	inventory_only
+99047c0a6394af4f74a3105220f2910ef615dce8	2026-09-30	fix(frontend): keep the given file name on mobile downloads	inventory_only
+aee45ca3fe2638e90a53b4466c3f29875b23dccb	2026-09-30	fix(hosts): advertise Hosts in every WireGuard, AmneziaWG and TUIC config	inventory_only
+8c023d13dc9d01a72bf8be6fa409c6af392b8088	2026-09-28	docs(architecture): fix table padding flagged by oxfmt	inventory_only
+823db059660dde3123d79fc67928da2e29696903	2026-09-28	fix(inbounds): keep the stored client list and enable on inbound save	inventory_only
+fb7418f7bd74526a06992f11e8248102c0a31aa6	2026-09-28	fix(mtproto): zero sidecar quotas only for clients whose usage was reset	inventory_only
+4210a50cb48c0b9580f1305a681ef9c498d598f8	2026-09-28	fix(traffic): make a client reset reach every counter enforcing its quota	inventory_only
+7c84ca9689d35a6995a5db8a48bdca86434f30c8	2026-09-28	fix(runtime): drop depleted clients by email, not by stale inbound_id	inventory_only
+1110caaa65ec14a83a9df7aef390287e676b1a09	2026-09-28	fix(inbounds): keep stored client lifecycle and counters on inbound save	inventory_only
+17d7dd46b512d0a9c22921a6094f30c672e436c9	2026-09-28	docs(media): refresh panel screenshots for v3.8.5	inventory_only
+feb8451bd14acc352a03adcf876134de61475926	2026-09-28	fix(clients): zero traffic before re-enabling a client on reset	inventory_only
+63ffc083e4f7c4aacba658c20832873997a7d29b	2026-09-28	fix(clients): stop client ops from reverting a renewal committed mid-op	inventory_only
+15d82a5e47c68700a1b7a3e3492f245f139e033a	2026-09-27	fix(inbounds): accept v2.x client fields on inbound import	inventory_only
+092cbd55e43bab2f819f66ac6ced5b418470ed06	2026-09-27	fix(x-ui.sh): read the service state without scanning the journal	inventory_only
+c8a182b6fbe4549f969acde78907b463bb8f9a78	2026-09-27	fix(wireguard): reject allowedIPs that overlap another client's range	inventory_only
+4df570b3b096e96d7ef950ede96dec1744fc49ab	2026-09-27	fix(tgbot): build a client's individual links in-process	inventory_only
+3308c816db2ce432e9535a8eedb4aa9d96336f99	2026-09-27	fix(i18n): scope the empty Min Client Ver hint to cores that honour it	inventory_only
+09617f04f5a7fc3b1c374993e5227368b3cf6b8d	2026-09-27	feat(panel): let a sponsor slot start at a scheduled time	inventory_only
+044e2926a0fd45a1b876872982344f24520b16e1	2026-09-27	fix(amneziawg): let the wrapped bind build peer endpoints	inventory_only
+75f3702dd3db172dbc83c1178e4e2a206ca40ae4	2026-09-27	fix(amneziawg): fall back to a free egress port when 64900 is refused	inventory_only
+8f47b53879adaf87fb833ddec48df70062c0f992	2026-09-27	style(settings): fold the Happ settings into four tabs	inventory_only
+a33b2341e9fd39ae8756b014748afc316d32026f	2026-09-27	style(clients): put Traffic Reset and Auto renewal on one row	inventory_only
+3fc3992a4628ccbfae24d1f001a8ffed66473f10	2026-09-27	fix(nodetoken): stop refusing every node-token key file on Windows	inventory_only
+ff322f901ac19e1a9698c818221ade289c8bbd6f	2026-09-27	fix(panel): skip the proxy env forwarding test on Windows	inventory_only
+249b38e156331ae182b38e27cce3c61a60dfbc7a	2026-09-27	fix(logger): reuse the open log rotator when InitLogger runs again	inventory_only
+18b337d131d4b6013f0ae5f667b5bf7699038635	2026-09-27	fix(database): close the pool a second InitDB replaces	inventory_only
+f6a1a3bbd1b7d5e90aad30eb7748b41393da0048	2026-09-27	chore(git): check out every text file with LF, not only Go and scripts	inventory_only
+a579357343682236627b6451141d831682cbf5d5	2026-09-27	refactor(logger): choose the console backend with build tags	inventory_only
+7aa5fc085f119de870586714ba1e9e755b6e9a0e	2026-09-27	feat(tgbot): access levels and /start account binding (#6518)	inventory_only
+6f40a759098e79039aa09141f22232e1e3fcc537	2026-09-27	feat(inbound): excludeFromSub hides links without disabling (#6463)	inventory_only
+12d51d7195afecde284c82dbe533ed6c6d19eb26	2026-09-27	perf(tests): copy a migrated template DB instead of migrating per test	inventory_only
+33a469315a62dffeef8a112eef986a9adb7faf58	2026-09-27	feat(clients): preserve traffic counters in portable export/import (#6469)	inventory_only
+ac43b19cfa260bd2b613263b080a4e5d80e232d7	2026-09-27	chore(ci): stop release and CodeQL runs on PRs, drop deploy smoke tests	inventory_only
+0ef94b686e789a76a97da491801cf3d017c19a71	2026-09-27	feat(tgbot): add /broadcast to relay an admin message to all clients (#6510)	inventory_only
+71e38367c1b488328612f72ef0573c3874ef4523	2026-09-27	feat(sub): add Incy app-management parameters (#6650)	inventory_only
+bd9ccde1f4e0fc15bf388d0ff8588e9276bc2085	2026-09-27	feat(sub): make external subscription fetch User-Agent configurable (#6613)	inventory_only
+9672249edb4875ce3fb470dfc046e1e3cd9c2f96	2026-09-27	feat(clients): add calendar weekly renewal and schedule previews (#6524)	inventory_only
+5e15120cecad3250ee6ff5103fb10e23acf74a8f	2026-09-27	feat(happ): add routing editor, optional ad blocking, and LAN bypass preset (#6545)	inventory_only
+94fa317e76f8a72a9c0cd9007954219f4092ec5f	2026-09-26	chore(gen): regenerate types for addrFamily	inventory_only
+788b76c5441c166a6a9982dbb4657ecfd93f434c	2026-09-26	fix(amneziawg): sniff the relay with routeOnly; scope the v6 egress to IPv6 (#6654)	inventory_only
+6ac0c88084d06d5eef816178dddae8618b552655	2026-09-27	fix(xray): hot-apply Hysteria client changes without replacing the inbound (#6606)	inventory_only
+6ab718f8134d1445fe05e2e26663fc29a6b45d30	2026-09-26	fix(sub): make Happ require auth on its local SOCKS/HTTP proxy (#6628)	inventory_only
+8979072bd9b9132f5b8e346c77ba0bae0dff5626	2026-09-26	fix(amneziawg): bound S1-S3 by the receive buffer, reject overlapping H (#6642)	inventory_only
+f3b100282afaa29dc16cbcf11752fd90d59d669f	2026-09-27	fix: allow IPv4 and IPv6 inbounds to share a port (#6603)	inventory_only
+bd01f923fb7ee16a2ad4843e59e3809dbf8c63b1	2026-09-27	fix(tgbot): unstick the add-client wizard's inbound picker (#6621)	inventory_only
+b3a5be9da43898bce98b254171dacdf256e3c029	2026-09-26	fix(amneziawg): stop AAAA fallback on v4-only tunnels and expose I2–I5 (#6611)	inventory_only
+8f1201553ea003476fe0384bb0c37484a64845f1	2026-09-26	fix(ip-limit): CAS-retry inbound_client_ips merges under Postgres (#6612)	inventory_only
+d42e2133c78bda639097ba874854da566a3b8064	2026-09-27	fix(sub): keep serverDescription literal in external link fragments (#6580)	inventory_only
+a2ca02333612593ed5f68994e85e5706e57931b4	2026-09-27	fix(sub): send panel guid as X-HWID on outbound subscription fetch (#6579)	inventory_only
+3fe92df7ad4e5c59855c15da1c58cf56eec0129d	2026-09-26	docs: adopt correct-fix-over-small-fix and TDD policy	inventory_only
+169cd86e00585056080e95b55356ab00be06e1a0	2026-09-26	fix(sub): never use X-Real-IP as the subscription host (#6608)	inventory_only
+66df77665f3d26ae901368382abe9730e4474015	2026-09-27	test(database): give each package its own schema when tests run on PostgreSQL (#6594)	inventory_only
+c54c28d92d2dd48862f0846f1de634014ffcbce7	2026-09-26	fix(sub): drop legacy freedom.domainStrategy from JSON sub template (#6609)	inventory_only
+5d41e65a3c4e5f1a795a836903d6cf8d8c443bbe	2026-09-27	fix(sub): preserve external VLESS encryption in Clash subscriptions (#6576)	inventory_only
+0dec3d65bae960bde71ba89b5ad36a554e7ce7f3	2026-09-26	fix(sub): preserve per-inbound tunnel identity in subscriptions (#6653)	inventory_only
+07ee638a50e2f87785c80b091bbe212e51e9fdd5	2026-09-26	fix(sub): emit Hysteria certificate pin for Mihomo (#6651)	inventory_only
+ee2ff48c8131db41d96d5e496352a238f3315372	2026-09-27	fix(tgbot): scope the add-client wizard to the admin, not the chat (#6604)	inventory_only
+3b9ca47a4ecdda5c81c20fd4a62cd0aafdf41b1c	2026-09-26	fix(database): keep the legacy tag cleanup from colliding with an existing tag (#6592)	inventory_only
+c0c0136037d8869f459fcd631715ccb9e4437a88	2026-09-26	fix(hwid): serialize the device-limit write with its trim (#6591)	inventory_only
+d86a3def855d49774f703d92f785bb8e7fed7ac8	2026-09-26	fix(ip-limit): append fail2ban lines only after the scan commits (#6590)	inventory_only
+dcaadd4857ece9910cdc933453ec9c7cc17d0adb	2026-09-26	fix(panel): validate sponsor logo name before any file or network use	inventory_only
+fd7b3559bc95d3722fe24c214c8b1d51cc4754a1	2026-09-26	feat(panel): add sponsor slots fed from sponsors.sanaei.dev	inventory_only
+89e200ead49e68ba0d88f74d625c1a2be2e20b6b	2026-09-25	fix(frontend): key geo entries by page position and clear test-suite noise	inventory_only
+a03228c45539b6b5f013c6fc3ec93d824fd9f854	2026-09-25	ci: update Claude workflow model settings	inventory_only
+86302d2f2db941b3cfe9166e2ba6904a5443e676	2026-09-25	chore(deps): update toolchains and dependencies	inventory_only
+95f19b192f477b59cc368dcb7751bcf2e0180e5b	2026-09-18	fix(nodes): stop a restarting panel from reporting itself as down	inventory_only
+1c0ce80e8ea8a3e047d2ed8b2ea35e9292a89981	2026-09-17	fix(ci): keep a refused Claude credential from reddening a pull request (#6585)	inventory_only
+f8db7f6c29e5e2325369bee9b9667a6c5b926f7b	2026-09-16	fix(nodes): say which half of node mTLS failed, and say it as an error (#6565)	inventory_only
+536f9a63382d96663851bbe06921490421b5f8a0	2026-09-16	fix(tgbot): localize QR caption via I18nBot (#6564)	inventory_only
+d59b77bcdbc8151b4c5676e8bf0ca262a8094c2c	2026-09-16	fix(sub): send stable X-HWID on external subscription fetch (#6567)	inventory_only
+17e89db9794200e103ba46decbf3e518607c50e9	2026-09-16	feat(hosts): add a cipher suites override and accept custom suites	inventory_only
+040d01c5dcdbce9701695c6322f993c8151b4ac5	2026-09-16	fix(clients): list HWID devices when the HWID limit is 0	inventory_only
+b78dd8286910a8c049e661d345ec6cf5a7abfd52	2026-09-16	fix(nodes): chart node net throughput in KB/s, not percent	inventory_only
+7ef22f94c950ff09f0870e2295fa65ad5968742c	2026-09-16	fix(logger): fix data race in InitLogger	inventory_only
+ec9fbae645631a1e3341278183f5ea51da29bc00	2026-09-16	v3.8.5	inventory_only
+e26cf1d3ed11b9bf2b796c0ec36ce5aff9e856c2	2026-09-16	feat(sub): redesign the subscription page around usage, tabs and app imports	inventory_only
+01ce2bcecbdfc19dc5e9776d05e6370fbf413794	2026-09-15	feat(api-docs): split the API docs page into tabs	inventory_only
+c9e62451e6238e85fbd037fe61452a3ce39a32cf	2026-09-15	fix(outbounds): keep subscription tags on their server when reality params rotate	inventory_only
+5008906c4c7977ea3c5957b7df507219d116e613	2026-09-15	feat(clients): filter the client list by clicking a summary stat card	inventory_only
+5fe4f241c11ad02660d975a75739978691ffe437	2026-09-15	style(logs): widen the row-count selector in the log modals	inventory_only
+e8bab17c2fed26d54781b0eb73374ed18122f13b	2026-09-15	fix(clients): stop the Edit Client modal showing a stray light scrollbar	inventory_only
+14b92fbcff9ded9846c4ddadb2fea51752a4d202	2026-09-15	fix(nodes): stop flagging a node on the other update channel as outdated	inventory_only
+1d85ef138ed823969c80409af596dd9400df6c10	2026-09-16	fix(sub): prevent default profile page URL disclosure (#6538)	inventory_only
+3fa44915c1b2f814ddbec494c405221b921ab2f5	2026-09-15	perf(nodes): keep the node table element across unrelated re-renders	inventory_only
+7fc86f87de7befe5228767c4f523524760d9219f	2026-09-15	perf(inbounds): keep unchanged rows and online sets across websocket pushes	inventory_only
+3c1498d806246b3dd1dcb314d08b998116e01c03	2026-09-15	fix(ldap): apply LDAP enable, disable and cleanup through the bulk paths	inventory_only
+d1c4e0261bff5f24f20cae365ec860ecbfb466e4	2026-09-15	chore(node): cover the sync tick's online prune from the job package	inventory_only
+bc49c1a68f574e12a770a711efb9bc184bfa0a06	2026-09-15	fix(node): release a deleted node's metric series and HTTP client	inventory_only
+3c8cf35734f27cd7acda8cbc6725b53bed471e42	2026-09-15	perf(node): sync up to 32 nodes at once, like the heartbeat	inventory_only
+dea7cd9cc19856743eb2f045a3a77f77e027209d	2026-09-15	fix(traffic): reset due inbounds and clients concurrently	inventory_only
+56bb876d8dce6d9a20d205d7835f5e0c5b14e634	2026-09-15	fix(node): send one alert for a burst of node transitions	inventory_only
+eb11e8c85ad12a660bc8c855730872a38ef29ba5	2026-09-15	fix(node): fan out operations that call every node	inventory_only
+a84bbeab2eb6e5b0329c6399bb66c2605839faf2	2026-09-15	fix(node): drop online clients and sub-nodes of nodes no longer synced	inventory_only
+ea66aa4971576e8015717dc95c17bb9f8bbd4024	2026-09-15	fix(traffic): push depletion changes to nodes off the serial writer	inventory_only
+cfa8350d10adf343f4611ac685246860f9aebb42	2026-09-15	fix(clients): keep a vless reverse client's handler across a re-add (#6558)	inventory_only
+af466b6a244d126ce85f28f8c08730279e9ccedc	2026-09-15	fix(node): push a node only the client IPs it hosts	inventory_only
+789a03065aece992bfc90207b8735c2bc19bb8e3	2026-09-15	chore(docs): bump dependencies and adapt to fumadocs-core 16.15.11	inventory_only
+bc424f096837c7155cc677532423b12837186623	2026-09-15	fix(xray): stop a lone dns qType 0 from matching every query	inventory_only
+ac3fc12077ef7c5fba45226a1885f13669b34cb9	2026-09-15	fix(ports): refuse an inbound on a port an AmneziaWG peer forwards (#6554)	inventory_only
+d9c7c76fb0592bfa46d7176f0c8ecc3751887bac	2026-09-15	fix(limit-ip): leave a reverse client out of the temporary disconnect (#6553)	inventory_only
+d440c2b932e29a014d63888f2a46d051f9725dfa	2026-09-15	fix(panel): accept 2FA codes from adjacent TOTP windows (#6546)	inventory_only
+e790f4675769478a6e340275e8747012621a81f7	2026-09-15	fix(xray): restart when a diff strands a client's live session (#6550)	inventory_only
+d089adeeea2ed436ccfc9d0ac90e2c27c5f4bb20	2026-09-15	docs(limit-ip): correct what the temporary disconnect can actually do (#6551)	inventory_only
+4a8fdceed633ae6066f1a17cfe9080dfdf310986	2026-09-15	perf(nodes): reuse one pooled client per node instead of rebuilding it (#6548)	inventory_only
+574caa63e957153e2c862d420fcb3c2acf27894b	2026-09-15	fix(inbounds): check ports when an inbound is enabled, not only when it is saved (#6549)	inventory_only
+baef3cdd070b87e7abade37b0e469526023921e5	2026-09-15	fix(xray): refuse a config the running core cannot bind (#6547)	inventory_only
+43e64993fc9a760a74630cc78ec1e6a68b61a7dc	2026-09-15	fix(amneziawg): refuse a row's own relay port and keep a disabled row's slot reserved (#6544)	inventory_only
+d52b598abf3e38a3936c8b859eee812dfc3468f9	2026-09-15	fix(amneziawg): reserve the relay port before an AmneziaWG inbound has a peer (#6542)	inventory_only
+2d8d304850f718b462a1b473dc5b7ceedc8cbef4	2026-09-15	fix(amneziawg): stop a disabled inbound's relay slot from being taken (#6540)	inventory_only
+a036ddd66f44f4bfe437fba83bbf0d7b6c3adbc5	2026-09-15	fix(amneziawg): wrap the relay port window instead of refusing ids past it (#6539)	inventory_only
+78ab7a924600c5c6de9692941f0478188f99a657	2026-09-15	fix(amneziawg): read the outbound pseudo-protocol id like the core (#6531)	inventory_only
+a810f497e6ed3915ba58413dd64a64e619f987ad	2026-09-14	fix(xray): read the last two inboundTag protocol ids like the core (#6530)	inventory_only
+837addf66e945a80080273b5d2a315dea765d748	2026-09-14	v3.8.0	inventory_only
+840a40edcd8e2ffbcdd3a337dfd099e22b6e79f0	2026-09-14	chore(deps): update frontend and Go deps	inventory_only
+c0271e231dfb649539d31517256f9246fec7c23f	2026-09-14	fix(panel): read the outbound protocol id in the Outbounds row like the core (#6528)	inventory_only
+efcf152950f51f15a1721c7cca1754651d21166a	2026-09-14	fix(outbound): read the probe testability gate's ids like the core (#6527)	inventory_only
+f69d1e869dbc7afdd7f0fa6d0f3b9726236e0118	2026-09-14	fix(outbound): read the probe protocol id and transport name like the core (#6526)	inventory_only
+4d6db1c961a3e7bb880425ac6e01e8ac5835e049	2026-09-14	fix(xray): read an outbound protocol id the way the core does (#6521)	inventory_only
+84c5aef4a111f95c92280e91f78ad38c239b3a47	2026-09-14	fix(panel): probe UDP outbounds and hide the block outbound from the mtproto egress picker (#6525)	inventory_only
+a5a4c9cd831085f476126afdb792434c383a1647	2026-09-14	fix(panel): read an outbound protocol id the way the core does (#6522)	inventory_only
+c0c2dd274c22a8ffd47cd8048354109ab1f05b5f	2026-09-14	fix(panel): read outbound protocol ids case-insensitively everywhere (#6523)	inventory_only
+39ce7cbc22b737f5ac78ce89071164230083978e	2026-09-14	fix(xray): migrate the dns outbound off its legacy nonIPQuery and blockTypes (#6519)	inventory_only
+c90996eda34146668dfc379c2b5637f097e51d9d	2026-09-14	feat(sub): add opt-in month-end expiry presentation (#6517)	inventory_only
+826e29e2de245b73b4da6ecf6b398cb623effda8	2026-09-14	fix(xray): place the freedom domain strategy where the core reads it (#6515)	inventory_only
+032ddcb29fb6b42d044ebefb76bf773ee5b1dc63	2026-09-14	fix(nodetoken): make the corrupt-ciphertext test corrupt deterministically (#6520)	inventory_only
+a09e136001b877510048b95d5d3bfb381c9d284b	2026-09-14	docs: add Discord bot to READMEs, architecture, operations guides, and locales (#6513)	inventory_only
+2d7c8c77f71d3698c444ab37acf1f72257e945b8	2026-09-14	docs: add TUIC v5 to READMEs, guides, and protocol references (#6511)	inventory_only
+cfd4f64a79214a4ad1b06342c9e97b3a81297459	2026-09-13	fix(amneziawg): bound the SOCKS5 UDP associate exchange	inventory_only
+22346eef78071c5e25ecccfa54f2c68f0c290b7b	2026-09-13	fix(node): import a newly selected node inbound instead of sweeping it	inventory_only
+5ad9df69b9af3a216ac6a040b3172b39e76a4fc8	2026-09-13	fix(link): restore mKCP seed and headerType on share-link import (#6480)	inventory_only
+939c4706984ac4ac30dcb3b05225f5b35ef12158	2026-09-13	feat(inbounds): show linked host remarks in inbound list (#6468)	inventory_only
+4760ccaba0396e0e6e617c00c2aa20b8e54c111d	2026-09-14	fix(logs): standardize logs (#6484)	inventory_only
+435ed976c07825e2a565b0eb4b8eeb126f316e69	2026-09-13	fix(web): restart panel after ImportDB so subPath routes match (#6446) (#6456)	inventory_only
+d0ad773edf116ace8b9336ee5f8c37f75d6b6af2	2026-09-13	fix(clients): preserve traffic reset schedule when toggling enable (#6502)	inventory_only
+d600de2c2e8aee709687ae82ada54a1decb6f11c	2026-09-13	feat(geodata): add standard source presets (#6504)	inventory_only
+ff1a6c3caffaea76bdabeb36d42a070e90e35f5c	2026-09-13	fix(sub): drop external Clash shadowsocks nodes the panel cannot express (#6508)	inventory_only
+8fc4fc0bf8d87b1d4eb9dee55737631d7eb00c48	2026-09-13	fix(link): rebuild shadowsocks tcp/http obfuscation on import (#6505)	inventory_only
+f3dba07e13a7d59cb4837ff37e17dc8b21ea97e4	2026-09-13	fix(link): read the vmess certificate checks on import (#6507)	inventory_only
+2fcd28c1bce59f6cbfcdd079addff23bcef29ee7	2026-09-13	refactor(tgbot): make the add-client expiry presets say what they do (#6503)	inventory_only
+1691c9ca2ada553abb3ca77f8378a43421f71a59	2026-09-13	fix(tgbot): keep the add-client draft with the chat that owns it (#6499)	inventory_only
+e98be4f72adbb735bc4682b2b66877ea294f3875	2026-09-13	fix(tgbot): render a disabled start-after-first-use client as days (#6500)	inventory_only
+d45a09d634a58d2c0c8ab2eaf17e4ed22d27ddf1	2026-09-13	fix(discord): page the inbounds reply within Discord's embed caps (#6496)	inventory_only
+5c34baa8df33120676f92143cdc3c53056eb5f05	2026-09-13	fix(discord): drop the gateway connection when heartbeats go unanswered (#6497)	inventory_only
+cc60cefe0248f4142708fd9126b99c2180a6ce24	2026-09-13	fix(discord): report a start-after-first-use client as days, not unlimited (#6498)	inventory_only
+768bbd2a292edd79bb231e409e1e58efb9eccbd6	2026-09-13	feat(settings): add setting for Reality scan candidates (#6471)	inventory_only
+bf7ce2daaac3de29f2706014c78b00c4b18828c9	2026-09-13	feat(discord): add Discord notification bot service (#6486)	inventory_only
+cba8f0672f6e665f48ed45ce1c2c04f6e30caf5a	2026-09-13	feat(sub): refine Happ routing presets, serverDescription escaping, and auto-detect placement (#6488)	inventory_only
+c7518c4038bb81eeebacf1e9a0d4dfd746626a96	2026-09-13	fix(tgbot): send the admin traffic reports as one message (#6490)	inventory_only
+6a5b4fab6acbc38f435abaa86f639e63b5a537b9	2026-09-13	feat(happ): generate Crypt5 subscription links locally (#6494)	inventory_only
+c3b08b6d9f1761736b14dbd3c44056d94f441810	2026-09-13	fix(tgbot): guard the mock Telegram server's call counts	inventory_only
+b98f947efe12054165594fd821c1c6c55bfa196b	2026-09-13	fix(tgbot): answer only the link callbacks that match nothing	inventory_only
+2730e4d071ae7d05225d44930463fccfa89b630e	2026-09-13	feat(sub): let the panel set the JSON subscription DNS servers (#6485)	inventory_only
+aaa5e61cad68772885f4b9b6afa1e98a8f5f4c8d	2026-09-13	fix(tgbot): answer the callbacks the bot cannot route (#6493)	inventory_only
+02c6c3a9c653d41674511e6e21fcc21ac61d2d93	2026-09-13	fix(tgbot): render the add-client draft as HTML and escape its values (#6492)	inventory_only
+615876b2eb0b9ad16b0722aca803f7dbe3e76578	2026-09-13	fix(tgbot): read the admin list and running flag under their mutex (#6491)	inventory_only
+7ac5277c4f2657e08edda508e293e09588201e0f	2026-09-13	fix(tgbot): require client ownership for non-admin link callbacks (#6489)	inventory_only
+72df05a403e2c2c0126e939a1fb8dc3a9fb0c5b9	2026-09-12	fix(hosts): keep TLS override fields visible when Security is same (#6452)	inventory_only
+503b5df4b961c515a88390b2ae51045f53ab223e	2026-09-12	fix(link): preserve Shadowsocks TLS query params on import (#6467)	inventory_only
+bdd351bd157ec0321cfed8ae62b4c120ea28c44d	2026-09-12	fix(api): return 401 for invalid Bearer token instead of 404 (#6459)	inventory_only
+958d7f138ec68cba38f9e724533fa3dcb28daec9	2026-09-12	fix(frontend): fold sockopt v6only into V6Only on inbound load (#6453)	inventory_only
+6a159683d5892f9262da724cc16054eabd317e94	2026-09-12	docs: update star history badges	inventory_only
+b332d88438032efa68a49cb59278aeff6968cf84	2026-09-12	feat(settings): add Block tab for JSON subscription routing rules (#6466)	inventory_only
+51e0afdd908df7325c118f06c057f629317be48d	2026-09-12	fix(inbounds): allow negative subSortIndex for subscription order (#6465)	inventory_only
+b467d4c676ad16efe98c75967207c0a0a35c50cc	2026-09-12	feat(reality): warn when target cert chain is too small for ML-DSA-65 (#6470)	inventory_only
+5fbd2b490c2078e7a56db8bb063fe5093d366d37	2026-09-12	fix(clients): preserve enable on portable import (#6481)	inventory_only
+8082ab4d749fc70156f700e9b5cd122ed41228e0	2026-09-12	feat(clients): show short HWID fingerprint in admin device list (#6464)	inventory_only
+0a838563bb9f2eeb96432843514d9a01b176d565	2026-09-12	fix(clients): use EffectiveFlow in BulkAttach (#6454)	inventory_only
+3a93235783b8c08945a778ef595263b567c78d71	2026-09-12	docs(readme): add 3X-UI Manager to Community Tools (#6266)	inventory_only
+67addab343ac6955eb552d63d23e379486c8b392	2026-09-12	fix(inbounds): serve fresh client UUIDs for list and allLinks (#6458)	inventory_only
+7a41c5949406089b441c7ff73d464144931f51a9	2026-09-12	fix(amneziawg): honor inbound listen when binding UDP socket (#6461)	inventory_only
+22763fe8f64e8f48e1c07df95fcad391e30a7a3d	2026-09-12	feat(clients): add Generate button for WireGuard/AmneziaWG PresharedKey (#6455)	inventory_only
+5cce2464f11fd3e922b48cf7d4487ea85e537fb2	2026-09-12	fix(clients): snap EOM 23:59:59 expiry to billing midnight without renew (#6457)	inventory_only
+f51b0040cf88c30dbc1515ceb0e5b0d79948bf61	2026-09-12	fix(link): map vcn to verifyPeerCertByName in applySecurity (#6479)	inventory_only
+dd46a0676167cf7a921d40bf01edc430210312d9	2026-09-12	Update deps and fix AntD Space API	inventory_only
+19a692e074d1163453b76de9af4d90777375b21c	2026-09-11	fix(install): stop copying tuic-server over /usr/local/bin	inventory_only
+5815254fc3d93338b4042eab9f58d6c3462e2201	2026-09-11	fix(tuic): evict the oldest relay flow instead of refusing new clients	inventory_only
+6d96accd6338e9ea3c7e5665415d489f2c116355	2026-09-12	Feature/tuic v5 (#6337)	inventory_only
+0a2cd789ba11a617a910f7c4d1bdbf30883aef39	2026-09-11	fix(sub): enable ML-KEM for Mihomo REALITY subscriptions (#6451)	inventory_only
+9f07951ba78e42d81bb64929f6c335fd41aa3262	2026-09-11	feat(outbounds): support custom subscription user agents (#6398)	inventory_only
+89ee1242bd875192d3b80efbb3202bb727233e3e	2026-09-11	feat(sub): add read-only HWID device-slot status endpoint (#6380)	inventory_only
+8f162994efcf033b95efb46f188fe2403d3449f5	2026-09-10	feat(clients): let admins set PersistentKeepalive on tunnel clients (#6377)	inventory_only
+64b6e43e2b5d504a8034d33e9de224f3fbd1751e	2026-09-11	feat(sub): add legacy Clash subscription endpoint (#6338)	inventory_only
+3f1e52f09ee0ac611fbf3f3f9b7a4294c421a158	2026-09-10	refactor(panel): drop two duplicated helpers	inventory_only
+0fbdf0f9bf6fe593c6c672863167f0ec89f27a6d	2026-09-10	fix(ui): keep the empty-group placeholder legible in dark mode	inventory_only
+02f2a63c53911fc5639e5217574820b3302ac58b	2026-09-10	refactor(tgbot): extract the shared numeric keypad builder	inventory_only
+8b9cf260b6853ef2c417a2bc76d3e9d22556d5f2	2026-09-10	perf(clients): batch the client record lookup in bulk operations	inventory_only
+fc08b533958496cbdbf23bdcd54427bb79c619db	2026-09-10	feat(ui): add global command palette (Ctrl+K) for fast navigation and search (#6352)	inventory_only
+2dd903ea8e7bd912406375b84b39d476f895a55d	2026-09-10	feat(sub): bake Happ/INCY routing profiles into the JSON subscription (#6402)	inventory_only
+ed5465d0f2f8f83820151fa3c0eb4d4ccf851840	2026-09-10	feat(clients): support setting HWID limit and MTProto ad-tag in bulk adjust (#6399)	inventory_only
+145665802864b66abb00b1bde791ce21c3eb8da9	2026-09-10	feat(sub): add Happ client integration, routing presets, and app management (#6434)	inventory_only
+d5ab84e8d503785d7f00c43a68c6ab08ef41b10c	2026-09-10	feat(amneziawg): add AmneziaWG as an outbound protocol (#6320)	inventory_only
+876497db6e0facc94bd3c016984b0e55072f6871	2026-09-10	feat(sub): add AmneziaWG proxy generation for Clash subscriptions (#6326)	inventory_only
+8076d5edfaddbff02fa69288e3b913d717552a3d	2026-09-10	chore(frontend): bump React and Zod deps	inventory_only
+87420e3bb1ecc546bc5e98e2c3a63ee35f620448	2026-09-10	fix(tgbot): close stale-inbound TOCTOU and contain handler panics (#6442)	inventory_only
+33e6c2ec0cb312dd7fa986f7b386bb46b8cad40b	2026-09-10	chore(deps): raise the swagger-ui-react js-yaml override to 4.3.2	inventory_only
+6ee74f20322250f10698405e15a85ad2e44fc5cb	2026-09-09	fix(amneziawgnet): wait for the client netstack goroutines before closing its device	inventory_only
+d0edbcec81562d4b497428f97adb5325b2b45299	2026-09-09	feat(xray): update xray-core to v26.9.9 and follow the udpHop move	inventory_only
+cfd596a48935463501d2a87f77eeba7d8940827b	2026-09-09	fix(amneziawg): let a cleared header protection key reach a running device	inventory_only
+efc603f59c4730dbbe58caab0819ad675f06aecc	2026-09-09	fix(settings): show the SMTP failure reason instead of a raw i18n key	inventory_only
+c392f367e12b9956c0793e5868bd67db0b14a22c	2026-09-09	fix(dns): stop offering a port field that DoH entries discard	inventory_only
+705b291d34db249f7444e1b12911a3f5c0c18344	2026-09-09	fix(amneziawg): stop losing an inbound and its server keys on the API path	inventory_only
+4e423fa452cd82533d5fbc45fae735a7c16a0811	2026-09-09	fix(sub): drop Reality parameters when a host forces plain TLS	inventory_only
+65c5580e7dabfd3ae5929a125e40b362c44c3500	2026-09-09	fix(clients): keep per-peer keys when a client spans several tunnel inbounds	inventory_only
+2004340d1d961d8e415145c506d0927b976c5136	2026-09-09	fix(inbounds): let a node-adopted inbound keep its own protocol on edit	inventory_only
+bc57548a35e3cf8be1cf7083c94e26df27cb6a31	2026-09-09	fix(clients): withdraw the delete tombstone when the email is re-created	inventory_only
+246d9207a5ca62127a40eb571d3eceaa38f1c4f8	2026-09-09	fix(sub): emit a bare host in Clash proxies	inventory_only
+20d7f91c651fbadb1403525ac5d6c0482984d885	2026-09-08	refactor(ci): add an adversarial pass and name the analyst briefing	inventory_only
+acf3603dc886925c8674220ac3d9ae59aa6e01c9	2026-09-08	refactor(ci): review pull requests with one senior-engineer role	inventory_only
+47d2303334d5962621b0d2d849d44569aebfbf39	2026-09-08	fix(inbounds): reject missing TLS certificates before saving (#6429)	inventory_only
+9f76a66dcfb44e40777a89b9ad332999bd327964	2026-09-08	feat(sub): add dummy info node and status configs for subscriptions (#6412)	inventory_only
+b8597314f8f7cdb62b71ac2cc1b85621dbe366e2	2026-09-08	docs(api): mark collection responses nullable (#6430)	inventory_only
+3cd3836d771c978c805ad66edb4e412909938cc6	2026-09-08	fix(amneziawg): account for S4 junk in the default tunnel MTU (#6376)	inventory_only
+5a63d5d468ac50e16e5b1dc8db87dc0cf6934e29	2026-09-08	fix(mtproto): use hosts for public share links (#6369)	inventory_only
+d2ac3b4d7a107dd42a479af57bd597bed9d1a526	2026-09-08	fix(cli): let -getApiToken name the token it regenerates (#6405)	inventory_only
+2d151d7648af8d996e069b70f7c6d27583f34a56	2026-09-08	Update deps and simplify parsing	inventory_only
+2ec6c736130a9d38ef81a16b77f07a749aefd2f0	2026-09-08	feat(xray): update xray-core to v26.9.8 and adapt panel	inventory_only
+a5e68f410fa949b98dd8bd19e18c2591f0757336	2026-09-07	perf(node): bound the per-client node push and fan out the traffic reset	inventory_only
+e9e2e30278ecd1a9723a4137551f1393bed19286	2026-09-07	perf(clients): push a bulk client change to every node at once	inventory_only
+f2cf58994761fa4fe2521491b831f532ce9bb600	2026-09-07	fix(node): flag every hosting node before a client edit applies	inventory_only
+f072d0448d412203cc728274a4814dd374868053	2026-09-07	fix(clients): flag the restart a partly-applied edit or delete still needs	inventory_only
+33058c8eed533f5315586bead06ff8137bf1273a	2026-09-06	fix(tgbot): use a token telego accepts in the edit-message tests	inventory_only
+8e13f8b172ee8651e5f5cc45e886010ebf31047b	2026-09-05	fix(tgbot): suppress 'message not modified' warnings in Telegram edit calls (#6340)	inventory_only
+fc05249e0cb6c7f25ab78a5a3f7fcf684fb6da6c	2026-09-05	fix(geofile): verify downloaded geo databases against published digests (#6404)	inventory_only
+4e355edc1511a2eb7cb8a96a2644a8a8f68a0775	2026-09-06	fix(sub): skip AmneziaWG JSON entries (#6420)	inventory_only
+0f6e1ae8d73bf6ae2d29aa346a76607fcbe1c53e	2026-09-05	fix(sub): bind JSON local inbounds to 127.0.0.1 and keep mux.cool off Vision outbounds (#6418)	inventory_only
+ed6bc1d898a982d318ef653501ca0ab48d047460	2026-09-04	docs(api): align OpenAPI with runtime contracts (#6409)	inventory_only
+3b5273b1d6b2c55f15b5c75979077e116a62eadb	2026-09-04	fix(amneziawg): reject obfuscation values amneziawg-go's own UAPI rejects	inventory_only
+be5ee3e0e17f3dd9931b7f84f6465b5cf17b8fd1	2026-09-04	fix(amneziawg): three defects in the embedded relay's connection handling	inventory_only
+24cb6bfe1f2a9af52fb7b594854a31b48e18ce81	2026-09-04	perf(amneziawg): return gVisor's pooled buffers on the embedded data path	inventory_only
+d34ec97f62d3ee0a3ce8d6043f5a2921ea0e4010	2026-09-04	perf(node): push a client edit to every node at once, not one after another	inventory_only
+3ef06b7000050cbd10504733000bfb2c8950fc04	2026-09-04	docs(readme): refresh all seven READMEs for the current feature set	inventory_only
+2e81865a028a72fd276e337611e63a8b04d4ab45	2026-09-04	style(node): tighten the comments and probe assertion from the QA pass	inventory_only
+5fc4b9f4633874d48cdc20f8e3ed8c07cbea0370	2026-09-04	fix(node): let a node-reported tag outrank a stale adopted alias	inventory_only
+ab4229534e8101ba458940732831897b741749fa	2026-09-04	fix(node): cap the status body the heartbeat probe decodes	inventory_only
+0775fcaad2ed9129916f1147487b2f4c3f71c782	2026-09-04	fix(node): keep an adopted inbound alias across a remote id cache refresh	inventory_only
+6f40a51d62b33f4fdefcadab0f3f82484d56cc85	2026-09-04	fix(node): sweep a selected inbound the node reports without its prefix	inventory_only
+f6bfcfe759f0ca02b9c45d7619347dcd7cd85e2c	2026-09-04	refactor(ci): make the Claude workflow review pull requests and nothing else	inventory_only
+41db85a096d0dc6df008a69afc0bc0ad1f8e6fa2	2026-09-04	docs(claude): teach the bot briefings about AmneziaWG and PIA	inventory_only
+63b46cd612c9e29a3968a716f36b6dbade4b8896	2026-09-04	perf(clients): apply a multi-inbound client create concurrently	inventory_only
+2ddcf5302077efb59d7b8a074dce23d53a429ecc	2026-09-04	Feature/fix external subscription client expiry (#6333)	inventory_only
+13e87a18c86d2db227e2555aa677bae95d2813db	2026-09-03	chore(ci): give the race job a 25m test timeout	inventory_only
+bd1c27b03de3f94ed623e5e7dd5483a03e48d41e	2026-09-03	fix(amneziawg): H1-H4 generator + queue-depth throughput fixes (#6330)	inventory_only
+0ff3c2394868ccb5ea1640e8ac3ae474f7732be3	2026-09-03	fix(api-docs): generate request bodies for all encodings (#6296)	inventory_only
+f294e1806d083d8d394558452e2402878a9c94d2	2026-09-03	feat(release): publish SHA-256 sums and verify them in install.sh/update.sh (#6393)	inventory_only
+4019f47de2c38cb8f02cb77c1766dbb1cc69adb1	2026-09-03	fix(x-ui.sh): put the fail2ban backend override in jail.d, not jail.conf (#6392)	inventory_only
+8411b1dd9ef6d32401d7146841990888010c59a9	2026-09-03	chore: upgrade Vitest to v5	inventory_only
+a31fa9abfa4d316ff77608da0326c4ade08acd84	2026-09-03	fix(node): refuse a node's claim on another inbound's client	inventory_only
+f17e4684e0029307c2447c6dd32a153aa53341cd	2026-09-03	fix(sub): apply the device limit to ?view=raw	inventory_only
+f9de0226fe9ee533aee0c20e54470b6de0d66ab7	2026-09-03	fix(xray): confine log paths written under any key case	inventory_only
+25d0c06f8923b827237984cfc15adefcf64b76c4	2026-09-03	fix(ci): skip a head the review bot already reviewed, and report a refused run	inventory_only
+47964afbc5362cbaa182db98914cf63c343d6973	2026-09-03	fix(clients): render all tunnel configs for multi-inbound client (#6346) (#6349)	inventory_only
+de18c5a006e7fbbcb5fab3ab78cfc94e6017f411	2026-09-03	fix: do not type successfull login twice (#6374)	inventory_only
+195988bdc138399e91c7acfa6d0d397c3b1e7e94	2026-09-03	fix(install): fetch x-ui.sh and unit files from the installed release tag (#6391)	inventory_only
+23511108bfe6919439cb2dea6d5b26fb8ac2737c	2026-09-03	fix(database): keep the SQLite store owner-only (#6390)	inventory_only
+540caa4e935801c11fb6afda38e879eee9d312bc	2026-09-03	fix(hysteria): standard geco share links and persistent uTLS None (#6325)	inventory_only
+f9898e0b249dd727319e6cc32c8e49a95f035d76	2026-09-03	fix(sub): randomize fresh panel subscription paths (#6375)	inventory_only
+ded2aa150ce6f4f8f3b7d320336635717d7ab1b2	2026-09-03	fix(frontend): isolate subscription language preference (#6394)	inventory_only
+0c72dd83841be53d05aeb3931273d19f1ba183bb	2026-09-03	fix(sub): restore compatible SOCKS subscription inbound (#6395)	inventory_only
+04e8458054b590e250a751adea70c37be8e4968e	2026-09-03	fix(frontend): improve dense QR readability (#6396)	inventory_only
+e95fe80fc4f1717219f99b02143bc7e9960f8442	2026-09-03	fix(amneziawg): avoid manager lock inversion (#6397)	inventory_only
+65b9bfed8b8d5a8bf297da5cd9a1040c6bc34995	2026-09-03	fix(ci): stop the review bot handing over fixes in prose	inventory_only
+38dd9bcc703840739c509b1c54257e1e1994ae9a	2026-09-02	Bump Go dependency versions	inventory_only
+e264ea89c1c7658147922a65e3b4759517414a42	2026-09-02	chore(deps): bump docs and frontend deps	inventory_only
+ac193cd9d389458a1f6aa7e7f7a363309d070da6	2026-09-02	refactor(ci): split the issue analyst out and brief the review job from a file	inventory_only
+c62ee0bbd8423fbb4523cc677dfddbedfc4a74cf	2026-09-03	fix(outbound): test VLESS vnext endpoints (#6358)	inventory_only
+8abe87b625686547bc68f9e3c3798cd2cb743515	2026-09-03	fix(outbounds): preserve stable subscription tags (#6345)	inventory_only
+f64453041a6d0950dee684745fcaced104a0879a	2026-09-02	fix: preserve per-inbound WireGuard peer addresses (#6344)	inventory_only
+b81216135d103acc08d158936c5f8e5ff65228f7	2026-09-03	fix(clients): sync auto-renewal across inbounds (#6339)	inventory_only
+71607e386152dc152d91bd723692f26eb9f8c962	2026-09-02	fix: Prevent node snapshots from resurrecting bulk-deleted clients (#6382)	inventory_only
+1bf078c51e2a1089fd76982a46953562ef98cd5a	2026-09-02	feat(routing): add panel-only comment field to routing rules (#6361)	inventory_only
+7100fbcd086954d4a714492f570f3498321b9f20	2026-09-02	feat(sub): leastLoad member weights for subscription balancers (#6304)	inventory_only
+f9cfd87cb235e150a18b5a327e63db6ff0b13d73	2026-09-03	feat(nord): support multi-server NordLynx outbounds (#6311)	inventory_only
+f727d04f6522bb94a8fb52e8352fdcafb51c11e1	2026-08-24	v3.7.0	inventory_only
+fcf60eb2e22d092bea77dac06c0df130c3e2800b	2026-08-24	chore: bump dependencies and clear deprecated frontend APIs	inventory_only
+103b0dfe8d6ed710d4f3dad56c6c441b71d434d1	2026-08-24	fix(job): expire stored client IPs of offline clients	inventory_only
+2d30ab3ada5c771f67048884d3afa916bddca53a	2026-08-24	fix(panel): stop one poisoned DNS answer from blocking outbound tests	inventory_only
+d175050f2e2cd91d05a84edebcc53dfa57b9b2cd	2026-08-24	fix(job): force-disconnect over-limit Hysteria2 clients	inventory_only
+7a595cb46d05ee4cc6a66996fad8b7093b26a770	2026-08-24	fix(sub): keep Hysteria2 mport on external-proxy links	inventory_only
+f13baa9af54c842234f3b54aa936d661378388ea	2026-08-24	fix(tgbot): split long messages at line boundaries (#6293)	inventory_only
+940842495968fc52a38fd0a8f6f8498dd6e70de5	2026-08-24	fix(panel): forward the panel's proxy to update.sh's own downloads (#6259)	inventory_only
+f204997c986d38eda2ec484067e4240649a36339	2026-08-24	chore(i18n): update tr-TR translations (#6288)	inventory_only
+effcccceac26d9381a116c29279c40d471a3b0cb	2026-08-24	feat(amneziawg): add native AmneziaWG protocol support (#6105)	inventory_only
+d9b599b9aa6d7b8447fc84c3859c465e5150d469	2026-08-24	fix(sub): forward tlsSettings.cipherSuites into the JSON subscription	inventory_only
+cc245a908eb997e4c860ff01e940dd7317c57fee	2026-08-24	style: format struct literals and whitespace	inventory_only
+c26ff59b47753c732360eddb424120a09aabfb11	2026-08-23	chore(sub): drop the inlined externalLinkEnabled test helper	inventory_only
+6f7a305239eea0646e44216217b2d6f4e716aca8	2026-08-24	fix(node): stop stale expiry sync from undoing client extensions (#6228) (#6231)	inventory_only
+da01b7637dc317098e84ef54008fafdb722aaf35	2026-08-23	feat(sub): client-side balancers for the JSON subscription (#6243)	inventory_only
+81fcacab1100a4152984a05158e9f8a509ab48dd	2026-08-23	chore(build): bump Go toolchain to 1.27.0	inventory_only
+02002dc1c3048d8ab70478d7bb93157159462bb6	2026-08-23	feat(routing): add client picker to user rules (#6271)	inventory_only
+326009e9d3a29c9c8bdb384e56aa80af1d278495	2026-08-23	fix(traffic): clear cross-panel rows only for clients actually renewed (#6263)	inventory_only
+585f4ecdc0f622073e9bd18059d38212ae6ee718	2026-08-22	fix: reject Hysteria inbound updates with empty client auth (#6268)	inventory_only
+bd6a6aba4365cc31f07ef2bfabd96407e80b1256	2026-08-23	feat(pia): add PIA login-and-add WireGuard outbounds (#6272)	inventory_only
+a3e617215c6cb69d0f8db86eba206931084810a5	2026-08-22	fix(ci): pin the head the review job checks out	inventory_only
+a255ab7c65ebd72c7a5a3a611dfd819690b45ec4	2026-08-23	fix(node): don't stamp InboundsAdoptedAt when the sync adopted nothing (#6284)	inventory_only
+af3e6c11b61f7fd3dad3152bf5ed843a535004f5	2026-08-22	docs(api): document WireGuard and mtproto secret generation on clients/add (#6282)	inventory_only
+b73ceae081243f7ac5d7b83656e15e9ad11b2f40	2026-08-23	fix(frontend): refresh subscription settings after save (#6287)	inventory_only
+1250fbb734fcaa592eeacca0af70123290df9b2b	2026-08-21	feat(clients): allow removing a single HWID device (#6265)	inventory_only
+5321665d5b4fc80098e81fe2854bb9bf11a0f20d	2026-08-21	feat(ci): give the review bot a severity scale and a tally	inventory_only
+73a971c2d152fbd8ba30973d1d16c1d70bb5444a	2026-08-20	fix(ci): give the review bot the pull request's own code and CI verdict	inventory_only
+19a2c23c0181068f6497243edf309444bd2098c3	2026-08-20	fix(ci): repair the review comment and the conflict-resolution guard	inventory_only
+e4798a027cb1e3098f6dce03640d338029c8a362	2026-08-20	chore(lint): adapt to staticcheck v0.8.0 under golangci-lint v2.13.1	inventory_only
+845abc380e0841f142ca0b1a652e9b521cb9dcb8	2026-08-20	fix(ci): make the review bot post its findings and acknowledge mentions	inventory_only
+58669f6146662b0cc42c528832df8cd291e26b9d	2026-08-20	refactor(ci): replace the in-house review lanes with the official code-review skill	inventory_only
+19e71d9acc1bbf5d712a91b516c36b28dbb64c49	2026-08-20	refactor(ci): move the bot's repository briefing into versioned files a test pins	inventory_only
+f7db247b07271669e4654c15b4047724327a47f6	2026-08-20	perf(clients): write client_inbounds deltas and check identity from the clients table	inventory_only
+c8a3a2d723099a556e38a2bcb551282041b7437f	2026-08-19	fix(security): require a 2FA code to replace the stored TOTP secret	inventory_only
+b51f09768b0d64b8da2ece39d99a2e7ee7e85f2b	2026-08-19	fix(netsafe): classify IPv6 transition and CGNAT ranges as internal	inventory_only
+3c087f6fd9376882a308c55c6f744747d76d9fda	2026-08-19	chore(docs): update dependencies and adapt to zbsearch 4	inventory_only
+ce63bf3e66f0440cf601658b2a468eb8d3d37011	2026-08-19	fix(frontend): restore the two rolldown bindings npm dropped from the lockfile	inventory_only
+b9eda09da98e539bc34be731972a9b68fbc75ce0	2026-08-19	chore(frontend): update dependencies and adapt to oxlint 1.79	inventory_only
+92fb94d85675ae914d1e3b07b155828b7be34d2f	2026-08-19	Move to TypeScript 7 and the oxc toolchain (oxlint + oxfmt) (#6262)	inventory_only
+380aff4d82f74a2112b6c0f4d580cec2ec79a322	2026-08-18	Add remote routing URL support (#6168)	inventory_only
+3a2f9b48da63cc779a0ac42c8d9a6dfb736a6a60	2026-08-18	feat(web): add network-only PWA installability (#6190)	inventory_only
+3f1dd4bf5a1288fd8bd55d770217805895f477e7	2026-08-18	fix: follow-ups from the post-merge reviews of #6221, #6227, #6230 and #6239 (#6250)	inventory_only
+abd320994a867ba691f4056ff3392b1a47a81b40	2026-08-18	Add per-client external link controls (#5650)	inventory_only
+708a69acde493c42c470d22c695e365e9ff86027	2026-08-18	fix(reality): make the REALITY target check usable on a private network (#6242)	inventory_only
+f75ea08ab4dbea023c6b0ae1821b62521b33a1dc	2026-08-18	fix(frontend): keep the MSW worker in step with the lockfile (#6222)	inventory_only
+5c7ca5b579f24201456ddba7936dd340a088dc56	2026-08-18	feat(clients): give each client its own traffic reset cycle (#6240)	inventory_only
+b8903fadf4c3457277cdb8683c2e37039358b9cd	2026-08-18	feat(clients): renew on a calendar day instead of a rolling interval (#6239)	inventory_only
+1872659d838b058c3c853a3b7aacb51a889244ab	2026-08-18	chore(gitignore): fully ignore internal/web/dist, build stub included	inventory_only
+6638ac4a1edf6bacd294aee27ecac7ade60c58d5	2026-08-18	i18n: translate importKeepHostSettings keys	inventory_only
+d6472740dce76ce56bdd5dfbdf5201b879efd9d1	2026-08-18	feat(limitip): let operators exempt trusted addresses from the IP limit (#6230)	inventory_only
+6e80a468e3b8cec55b80ea87affd12c0429b4282	2026-08-18	feat(server): keep this machine's own settings when importing a database (#6227)	inventory_only
+e940f30bb85d2d9d49a5afd3ae406dee67b7ff2c	2026-08-18	feat(clients): cap how many times a client may auto-renew (#6238)	inventory_only
+6a674c7f0c8c3c5c031ca58600e4cb37f127018a	2026-08-18	fix(node): keep disabled inbounds the node snapshot cannot report (#6221)	inventory_only
+81cfd8570ea4291d9e760a416eb60b29f07aa820	2026-08-18	fix(inbounds): close the port check-and-claim race on the serial writer (#6225)	inventory_only
+5c9268c4317c37426f87fe62dd80a79551ce5d87	2026-08-18	feat(i18n): translate the log levels, access events and calendar labels (#6226)	inventory_only
+2b1fe1fd023b4540d4b451f7970aa27c253ecd94	2026-08-18	ci: actually run the PostgreSQL schema and migration tests (#6224)	inventory_only
+dc1979a14cd76b86a779eed09256140afcc41f1e	2026-08-18	ci(release): stamp released binaries with their source revision (#6223)	inventory_only
+8cec47a8a5593c586537e9f7005871e9b43a896f	2026-08-17	fix(ci): resync the bot prompts with the repo and close the gaps an audit found	inventory_only
+4b0e9f9b6032fa9f4ddd144f6f042ab73792d371	2026-08-16	fix(nodes): log the inbound the node snapshot removes centrally (#6219)	inventory_only
+5d6d98d1f983f24d12a884afe671e38afc54c24d	2026-08-16	fix(warp): preserve WARP Plus license key when changing IP (#6218)	inventory_only
+b53a5515d6ef2ebf50c65e636381615354c4a4d7	2026-08-15	fix(frontend): make the jalali expiry clear button actually clear	inventory_only
+3fa88adbd79e8f9999ed984726c3b892fefb266e	2026-08-16	fix(inbounds): surface form validation errors (#6084)	inventory_only
+930a0ed59d0f1a772495781b2accda72e40f010a	2026-08-15	feat(inbound): DisableFlow — opt an inbound out of auto XTLS Vision (#5689) (#5698)	inventory_only
+f22df49a712815ebd24cc94acc554a69abd04d7c	2026-08-15	fix(sub): restore the subscription info page for browser visits	inventory_only
+b4e4478699b16a3076ebfd8ae187c369b3f85995	2026-08-16	feat(inbounds): add a narrow endpoint for subscription sort order (#6179)	inventory_only
+bab39393f187e4da2ce6a4947ad195761fb550cb	2026-08-16	fix(nodes): validate every certificate in the node mTLS trust bundle (#6188)	inventory_only
+338822ab074b19194b0474e4c001ede93c2d55fb	2026-08-15	fix(sub): keep copy page within mobile viewport	inventory_only
+43bc915397bdab40dccef15126d87df638231222	2026-08-15	fix(sub): serve a copy-only page when a subscription URL is opened in a browser (#6183)	inventory_only
+dafd3c0e64548c2b86ad7840a2f0306ff3ec0fc0	2026-08-15	feat(sub): warn when salamander settings cannot reach the client (#6177)	inventory_only
+acbf09e7101f1fedcac1cc5425ad15587c00fda0	2026-08-15	fix(frontend): restore responsive table height	inventory_only
+be70535b945ce895df988244fe2bb3d929792b52	2026-08-15	feat(inbounds): improve multi-node online attribution (#6164)	inventory_only
+2d669fa4b71d2e641c3c064ac772ba806abf990b	2026-08-15	feat(sub): add template variables to subscription metadata (#6163)	inventory_only
+8c8556ab32152d9fe158fc2b79c129da682dacae	2026-08-15	feat(frontend): multi-node cloning initial implementation (#6216)	inventory_only
+03950b1295d44bb2a9cfbdceb31cc627a02c27ba	2026-08-15	fix(frontend): disable table virtualization	inventory_only
+d7698ec7aa891ee2beea283ddc4785239481a3ff	2026-08-15	feat(xray): browse geosite/geoip categories from routing rules (#6165)	inventory_only
+7c8a9a69093629f6972ba45450d57065d5276e11	2026-08-15	ci: attach provenance and SBOM attestations to the published images (#6130)	inventory_only
+694ad6deaecffcf13c4a2fb467b26cf0c2664212	2026-08-15	feat(sub): add per-client subscription HWID limits (#5802)	inventory_only
+1793a9b8b412533bed99b3d973809e452919bc0c	2026-08-15	feat(nodes): opt-in encryption at rest for the outbound node API token (#6186)	inventory_only
+8e7fb144ee508df9df2abf5aa20c3d89b0a0ccba	2026-08-15	perf(frontend): replace blank Suspense fallbacks with Spin, switch to matchMedia hook, add virtual table scrolling (#6187)	inventory_only
+0f14ce755140d248682f3bc939dd467e3339848e	2026-08-15	fix(web): fallback to default secret when database setting is empty (#6189)	inventory_only
+7ecd88b9e37cccfd900aa16f2a3956f15c36f695	2026-08-15	fix(nodes): apply a rotated master mTLS certificate without restarting the panel (#6194)	inventory_only
+1230559e69e2ef150083c3a61d415180d79f3686	2026-08-15	feat(api): scoped, optionally expiring API tokens (#6201)	inventory_only
+aecbad3ab10eac70b957106c9ec0c8e92a69b1a4	2026-08-15	test(tgbot): detect open-coded keypad transitions (#6214)	inventory_only
+2217213e9f417d1ef28507b17f0819c5ee9fb46a	2026-08-15	feat(sub): expose last subscription fetch time (#6217)	inventory_only
+ad32144c42455696ea9f14e12168beac3e25f5d2	2026-08-14	fix(sub): use a fullwidth percent in USAGE_PERCENTAGE (#6174)	inventory_only
+34c248bb799c4d570acb7387c7637061098f6017	2026-08-14	fix(cli): stop -getApiToken accumulating admin tokens (#6175)	inventory_only
+17fea2f65661b54acb6adc997076534a95db2406	2026-08-14	fix(database): keep IP limits when the fail2ban probe is inconclusive (#6176)	inventory_only
+c5dec64d3693f71cdb2433d7077419eb1e6d2147	2026-08-14	fix(clients): push bulk client changes to nodes only after the commit lands (#6181)	inventory_only
+b56b087254873f8fe1996dd9ebadd9592e98e92f	2026-08-14	fix(migration): stop a half-applied startup migration from committing silently (#6182)	inventory_only
+3bb87e80aa50efdabe955b29b7af55be7dff6683	2026-08-14	fix(db): harden unrestricted freedom outbounds (#6184)	inventory_only
+60453bf5238a1a8e00e31368da21336a9ac41559	2026-08-14	fix(nodes): persist the master mTLS credential atomically and stop silent reissue (#6195)	inventory_only
+bb29b6afec45cabbc09a3e3f64f215c2044c9618	2026-08-14	fix(node): adopt a matching deployed inbound instead of recreating it (#6197)	inventory_only
+3b19091547e7a13ef30b52094f68d1060f60aa81	2026-08-14	fix(sub): render the full remark once per subscription, not once per credential (#6198)	inventory_only
+0496c23a2681f8e8cdafd5170ae9106082cd7725	2026-08-14	fix(groups): report changed bulk moves without restarting xray (#6199)	inventory_only
+139600508290d4605a80552ecb5e2e6ede20d569	2026-08-14	fix(traffic): apply maintenance side effects only after the commit lands (#6200)	inventory_only
+b70c5abce8d2180e63ea163975c80a7798eeb846	2026-08-14	fix(outbounds): propagate allocation query failures (#6208)	inventory_only
+20b3f84f77d933a6e5b31ec13ba857928b2c19bd	2026-08-14	fix(web): report unexpected HTTP serve failures (#6210)	inventory_only
+d291e1c5ee8d28f33009698149b5726c9809bca0	2026-08-14	Bump Go toolchain and x dependencies	inventory_only
+ecadfd0e600fcc279baee1c5fb24e7201258317b	2026-08-14	fix(clients): stop recomputing the summary badges from the client_stats snapshot (#6169)	inventory_only
+d05e44e4019bd860ad295b43602bdd0c4e03c8e2	2026-08-14	fix(outbound): import Hysteria2 salamander properly from standard obfs params (#6166)	inventory_only
+9165ab67ebf1cb2f1d58535c4c83664da4415179	2026-08-14	fix(install): preserve custom bin/ files (e.g. hand-added geoip) across updates (#6152)	inventory_only
+0a30a03cb754c89a1b5af381abc2975939286634	2026-08-13	refactor(frontend): remove unused response envelope schema (#6204)	inventory_only
+286a93474d58510e7bda5371e7e1bcd79cfc4ef5	2026-08-13	refactor(frontend): remove unreachable barrel modules (#6205)	inventory_only
+238e4bb31422e6c6754fd77f94a7acfd93ef0a64	2026-08-13	refactor(tgbot): share numeric keypad transitions (#6211)	inventory_only
+4a5f6771b362cec5696a1e027d4c788f29cdc00f	2026-08-13	fix(nodes): report probe heartbeat persistence failures (#6207)	inventory_only
+64f4f0746c90a2f50cb2d3286c4bae712262656c	2026-08-13	fix(warp): surface update-clock persistence failures (#6209)	inventory_only
+79ef85b59fa01b7ffcc82a611e6ad5079f031536	2026-08-13	refactor(frontend): remove unused legacy utilities (#6206)	inventory_only
+5b80d4562dd4201a432389e0c0f81cb9ca114334	2026-08-12	chore(docs): bump docs dependencies	inventory_only
+e2f75acad2fe73914fb9ae016727c37d733dd513	2026-08-12	chore(deps): bump github.com/klauspost/compress from 1.19.1 to 1.19.2 (#6212)	inventory_only
+69a8237581cb44c9f8ca1454eaee3ef2d5f6fb8d	2026-08-12	fix(i18n): localize Chinese Xray labels (#6202)	inventory_only
+f3f57e66f5e1c78c0e8cb400b618c30f02fe46a3	2026-08-12	fix(frontend): wait out Collapse fade before a11y scan in ConfigBlock story	inventory_only
+8a8da88548d654f37999f736cd68faf742afa029	2026-08-12	fix(frontend): isolate swagger deps from main vendor chunk	inventory_only
+1f846c3cb2ea8ea7f698cc87dc17dca8d0fa5342	2026-08-12	fix(frontend): clean test validation output	inventory_only
+1c255fc00c12fb4533029a54344298048afe19c8	2026-08-12	chore(frontend): bump npm dependencies	inventory_only
+75032fd4981a08180cf739520c9cb4c7a37e0d4b	2026-08-12	chore(deps): bump dompurify (#6193)	inventory_only
+ece16559397f756513d7338f59168049dd6e2e51	2026-08-06	fix(docs): prevent theme switch hydration mismatch	inventory_only
+cb902314db98a5dabf04c1f8c17b5ff9ef2367fe	2026-08-06	fix(docs): restore theme switch without runtime warnings	inventory_only
+7eacce6a4649a7235a6eb3bad8afb9e169c464d5	2026-08-06	chore(frontend): resolve the high-severity brace-expansion advisory (#6180)	inventory_only
+199ddaf485ae6dcdb7af9c1f8fe5761370a9a0f6	2026-08-06	chore(deps-dev): bump brace-expansion (#6172)	inventory_only
+d1423073668d4461d27609815a87a7fb5e4d5ec0	2026-08-06	chore(deps-dev): bump postcss (#6173)	inventory_only
+3883882726b708e8b3984b14152db8595d628c01	2026-08-04	chore: bump frontend and Go dependencies	inventory_only
+216d18b3c428ed50147ea10a90400d99af0cd052	2026-08-02	chore(vscode): fix Linux paths in the task and launch configs	inventory_only
+2a8c3bc0db9157c109f42d9a5130b402f7b29418	2026-08-02	fix(clients): stop a stale IP row from blocking a client edit	inventory_only
+e71b75e99ecb3b63c894f30ceb6cbaa01993d384	2026-08-01	docs(claude): correct enforced-guard claims and add the runtime dispatch rule	inventory_only
+5bc81dfd1d7ee0ecd68c1b8b9cd3c978ef694087	2026-08-01	fix(node): stop the node sync from deleting clients it never meant to	inventory_only
+f4b7b08e08cf9624555e43a0eb6c9928dfe3903b	2026-08-01	fix(ldap): stop auto-delete from wiping every client on an empty directory	inventory_only
+1ff90c5b663a818ec3943fd96b457281778e7fc1	2026-08-01	docs(claude): bound comment length, fix size, and test value	inventory_only
+138e1bd840578368278336f230e7a0a28559f8b2	2026-07-31	chore(deps): bump google.golang.org/grpc from 1.82.1 to 1.83.0 (#6162)	inventory_only
+31c1eed5dc66643edd30c0c0859378fb135af2c9	2026-07-31	fix dead code, typo, and minor bugs in main.go, process.go and index.go (#6167)	inventory_only
+264f61eb90c311357173b5a7df2d8d8d44646b2a	2026-07-30	Merge pull request #6161 from PathGao/feat-sidebar-pinning	inventory_only
+ac584cfc90b9bf1a146c617a96043434974781fc	2026-07-30	fix(ui): reserve space for pinned sidebar	inventory_only
+91c5d7b19fc43fd915d38e871fef7693a2904e5d	2026-07-30	style(ui): preserve sidebar header spacing	inventory_only
+b2fe23310862fe46479bb72511232bf21243cbdf	2026-07-30	fix(ui): align sidebar pin controls	inventory_only
+5373786faa1dc0ffc64a32bfe86a2071514233ca	2026-07-30	feat(ui): let users pin the sidebar	inventory_only
+c377dca27c23549cdf84e0ffd2d287a16bee577c	2026-07-30	v3.6.0	inventory_only
+c56f6447a85334b340a1e5a3d8211b72e2634431	2026-07-30	chore: refresh dependencies and modernize Go test idioms	inventory_only
+66740b7ef41eaa14b88965ade9f945143a36d97d	2026-07-30	fix(frontend): preserve edited server drafts (#6156)	inventory_only
+8d02ae28f5022b7cb2d8738c7b638b70d786a2e0	2026-07-30	fix(frontend): preserve theme body classes (#6157)	inventory_only
+2c943da3e0feb584616962d85c78518362a6a35d	2026-07-30	fix(frontend): keep DNS hosts synchronized (#6158)	inventory_only
+f52c3c48379dcfa73aa6c1d44054aa1c82f0f246	2026-07-30	perf(clients): make the clients page scale to large panels	inventory_only
+1e2d6f60813a776293ae84b19803f6bebf1760fc	2026-07-29	fix(ci): close the TOCTOU race in the conflict-resolution bot	inventory_only
+af5a8e5d4055dd02bad57a66a9e256e40307abf1	2026-07-30	fix(database): create SQLite backup snapshots online (#6137)	inventory_only
+ad288a7eccb00b38bbd43e3de46e75ffca530d05	2026-07-30	fix(sub): honor trustedProxyCIDRs before forwarded URLs (#6135)	inventory_only
+ad5f2a28cb23e8e101d8369d088a3003eff3bd70	2026-07-30	fix(xray): synchronize lifecycle state (#6138)	inventory_only
+e467b25f036968cd50cd52552974781e9f523452	2026-07-30	fix(sub): coalesce external subscription refreshes (#6139)	inventory_only
+03cc80bb9e366aaa3445d785f4f813d5d219f746	2026-07-30	fix(mtproto): synchronize child-process lifecycle (#6141)	inventory_only
+863473783dadc637a8418d4ffb52ee9d406f8b8d	2026-07-30	fix(frontend): preserve cancellation and reject invalid query data (#6143)	inventory_only
+c3fa73d5a06f88e908cae85620215fa2c4a69e5e	2026-07-29	feat(ui): redesign the overview page as a trend-first command deck	inventory_only
+87ebcc7a6f68f10c8b1d3f330a84105e32519116	2026-07-29	feat(ui): tag settings that sit at their shipped default value (#6128)	inventory_only
+55f02816924e1284cc810ecf14a5ef46dfcefbff	2026-07-29	chore(lint): forbid the Number-or-clamp idiom in direct-write settings pages (#6129)	inventory_only
+bcd71c929694c7fe056d535ef97bdb29a87eb11f	2026-07-29	chore(build): stop shipping production sourcemaps inside the binary (#6131)	inventory_only
+33f72f8f4a0938de85f46b5bc05d37ea5e9c86f4	2026-07-29	fix(api): authenticate GET /panel/api/openapi.json + pin the route registry to the router (#6133)	inventory_only
+ea35884390e2199e196a5b44fda189e385660f9b	2026-07-29	chore(i18n): delete 230 dead translation keys and guard against new ones (#6132)	inventory_only
+17e6b5a460a73160d455c47e02f7faecf9f83a9c	2026-07-29	inbounds: allow custom monthly traffic reset days (#6071)	inventory_only
+34d2591e50911ac57aa03b524bf5f62241eb1b1b	2026-07-29	fix (install.sh): use realpath instead of script name (#6075)	inventory_only
+ca6955d88b97eaab85c913522938def0e990a08b	2026-07-29	feat(ui): validate the REALITY client version range at save time (#6126)	inventory_only
+411271b4545f4d80513b3d4e7038fed30bdf473b	2026-07-29	refactor(ui): share one onNumber handler for numeric setting inputs (#6127)	inventory_only
+e862d81c60259e8e9a31b5781026cd452c271a6e	2026-07-29	fix(sub): omit hyphen for empty remark variables (#6101)	inventory_only
+6af2995930fa36aa145e6304f3ab55059f47d70a	2026-07-28	feat(api): add GET endpoint to look up clients by Telegram ID (#5945)	inventory_only
+041476a31747e2a95ac1c0544271fe647f5bf4cb	2026-07-28	feat(sub): Add XHTTP session field compatibility in share links and subscriptions (#5929)	inventory_only
+ff954ec48c0bc9a882105906c1983eadcfa3c7d8	2026-07-28	fix: stop deleting client_traffics for detached-but-alive clients (#6110)	inventory_only
+8f49327efb16e528887fcaca97bab60d44c2f048	2026-07-29	feat(sub): allow identity tokens on every subscription link (#5935)	inventory_only
+8bbca76bdd55fc5eef828418abe566a238d4e5d8	2026-07-29	fix(sub): drop duplicated fingerprint in external-proxy tlsSettings (#6096)	inventory_only
+a2774bf21237c79dc46b0122636bb47e41eb6123	2026-07-29	fix(ui): explain the REALITY client version gate and drop the impossible placeholder (#6125)	inventory_only
+48675ff197a27b9f4a447a36d16e243df5761859	2026-07-29	style(i18n): normalize Chinese-English spacing (#6076)	inventory_only
+604986598f22fcf99fc73c4c39e78ac4d2be7594	2026-07-29	fix(ui): commit date-picker selections immediately instead of on confirm (#6122)	inventory_only
+b6473004ac5a43a02263d78949fbfe7c552b7160	2026-07-28	fix(ci): harden the conflict resolver against the branch it checks out	inventory_only
+579acbc66969e59eccc05ec81b383597fac70bbd	2026-07-29	fix(settings): keep the stored port when a port field is cleared (#6121)	inventory_only
+4605f00a157cd404f5e41a252d99b8619f65dae0	2026-07-28	fix(nodes): keep the credential-presence flag on the node heartbeat push	inventory_only
+dc6a16019ebcee8297e6d839f1e159512fac26a8	2026-07-28	fix(xray): reject configs xray-core refuses, and check the fixtures against it	inventory_only
+fea6a20f7cc7109385091489a79cf75453e14cd8	2026-07-28	fix(xray): stop the runtime user API from crashing xray-core	inventory_only
+7f7b7e16a4255ac3703b2ffc984db2826ad4b77a	2026-07-28	feat(xray): update xray-core to v26.7.28 and adapt panel	inventory_only
+fd17255f1d81e463cc42d0ac53d3f0bc3f55b8eb	2026-07-27	"Revert ""fix(sub): keep the client identity on every subscription link (#6098)"""	inventory_only
+8bc00d1e901af72c6b009c27b910d475b847cb71	2026-07-27	style: drop the line comments added with the triage fixes	inventory_only
+6f4cc1e53c11c8fb5e6a736f1b5d8c82f652f1be	2026-07-27	fix(xray): emit an empty client array instead of null in the generated config (#6117)	inventory_only
+0e69f64e56a497c11aacfd478405da83838cca3f	2026-07-27	fix(job): bound the traffic-notify POST so a stalled receiver can't wedge it (#6115)	inventory_only
+7fe9932d7b7a95d983df3c5784d91ff4ca60f4e0	2026-07-27	fix(sub): quote Clash scalars a YAML parser would read as numbers (#6104)	inventory_only
+c004c18d903bcc2b58602f71d411b024fe5ab60d	2026-07-27	fix(sub): keep the client identity on every subscription link (#6098)	inventory_only
+f8e9f2f08758390229606e895320ee4766ffd00a	2026-07-27	fix(node): stop a departed master's frozen traffic from disabling clients (#6113)	inventory_only
+5accd8a6117b0a4f67890737b84ea2718558e8d3	2026-07-25	fix(ci): stop the conflict job trusting the branch it is merging	inventory_only
+f46b1726cf0d7505e631cf870683d12e5851632e	2026-07-25	fix(ci): close the write paths an audit found still open in the bot	inventory_only
+acbb879f800380ceb8005df5b5e755b348971028	2026-07-25	refactor(ci): make the bot read-only except for PR conflict resolution	inventory_only
+1358f65bec10d7f83a9bb193a43ad3b19ed02552	2026-07-25	fix(ci): unbreak the issue-triage bot, which answered nothing	inventory_only
+f4e79e70ea0891a8c46a68281ff4862ed960ad02	2026-07-25	chore: refresh dependencies, fix Linux tool tasks, modernize Go idioms	inventory_only
+edb487a0052d15892645f4ea3d7f7da43d4ccfa0	2026-07-25	chore(deps): migrate to react-router 8 and refresh frontend dependencies	inventory_only
+35cf6be6f92173e426cfb18deaa414269f5fbcfd	2026-07-25	fix(ci): keep the triage prompt under the 21000-char expression cap	inventory_only
+0f7329c3ce77960644d85063b77d64e3f973fdd0	2026-07-25	fix(ci): repair the Claude bot and narrow what it can reach	inventory_only
+29557e2153713ad3b4b59e60e9ed0b5c68303bcf	2026-07-24	fix(sub): gate the VLESS flow in JSON subscriptions like raw and Clash links	inventory_only
+0b601543835ed0fde53c166d904f119ca574f9c3	2026-07-24	fix(docs): force transitive sharp up to patched 0.35.3	inventory_only
+c3967e57dc73baf8e4b8394aeb6fa6a412bf5293	2026-07-24	perf(clients): take one email snapshot per client fan-out, not one per inbound (#6091)	inventory_only
+aa60d54ea5669b743bdeceac82ac507fc9611479	2026-07-24	fix(wireguard): widen the client address pool past a full /24 (#6089)	inventory_only
+a652cb8cea36ddf9020e7da0db309c41d4a8989b	2026-07-24	fix(clients): keep a client editable when its subId is already shared (#6065)	inventory_only
+cd674c8d4f821184e6e5e1257d5843df25d4c4af	2026-07-23	feat(sub): expose live online status and add ?format=info endpoint	inventory_only
+b319dd0c3a5b32b5532dc1fa114124f80bb645ea	2026-07-23	fix(panel): align telegram icon with its label in home card actions	inventory_only
+8ef2eec3d1edd3175cd8c87fd5cd75a7875614e1	2026-07-23	fix(hosts): assign group ids to imported hosts and repair empty ones	inventory_only
+941c6116a9bcc8efd49ea712757550d3f76f05c5	2026-07-23	chore(openapi): regenerate schemas with int64 formats on node fields	inventory_only
+c77608bc474019d7ad2a39a84897390a30a1adcf	2026-07-23	fix(nodes): make node API tokens write-only (#5613)	inventory_only
+892c06c8bc869a4053bfdfdb4806cb65d318e487	2026-07-23	Bug-label issue sweep: 16 fixes (#6083)	inventory_only
+16b9b3ce1cab97bbe6d0c6e4d85172c34ae4070e	2026-07-22	chore(deps): bump docs and frontend dependencies	inventory_only
+2b1308ca299e19f0df1b6042601a1dbfb1cfb9b6	2026-07-21	feat(notifications): add a consecutive-failure threshold for outbound.down alerts (#5968)	inventory_only
+9e117bbdd3f7724a5a95f9a0c569237ee86a284f	2026-07-21	fix(clients): keep VLESS xtls-rprx-vision flow when inbound options reload (#5971)	inventory_only
+8cd71e07eae140b56a36efd98659c47c183ad83e	2026-07-21	fix: refresh stale client_traffics row when an inbound-deleted client's email is reused (#6003)	inventory_only
+79e65f63df97ec79fe1144e97290c636937fd2c6	2026-07-21	fix(xray): validate generated egress targets (#5989)	inventory_only
+c87649d9f21224a0693b77d76bfa0451c1541eeb	2026-07-21	fix(sub) Happ profileEnableRouting button (#6008)	inventory_only
+123fac222bc28e3bad6f50339b47833bb2a2c451	2026-07-21	feat(sub): add raw subscription download actions (#6017)	inventory_only
+d38c912dc1d754f1ebfedfa508e3108680def4a5	2026-07-21	fix: gate embedded unencrypted-outbound rejection on running Xray core version (#6028)	inventory_only
+fde66ba8209c994f092566e415ec33915b6952c8	2026-07-21	fix(sub): omit non-standard fm param from Hysteria2 URI (#6048)	inventory_only
+a0dec000b2f8c3230e2a9bbb9575221346b3c884	2026-07-21	fix(clients): allow case-only email updates without duplicates (#6050)	inventory_only
+11f602fe04b312d56ad02bd8671c576b78e4450d	2026-07-21	fix(sub): preserve external link names in Clash/JSON (#6049)	inventory_only
+c80e5e276b8e393616ebcec8c6dbb606dcadcc16	2026-07-21	fix(wireguard): preserve all Allowed IPs in share link, .conf, and subscription (#6051)	inventory_only
+22ff07b24ba17e8d8f70297bced5d1325da75e8d	2026-07-21	fix(warp): preserve outbound customization when rotating IP (#6052)	inventory_only
+d623410cf45501e444e85c56588283032a35d752	2026-07-21	fix(clients): persist all editable fields for clients with no inbound (#6053)	inventory_only
+a9d5d9afdb460cab15b1d8b871b680cf139e85a6	2026-07-21	fix(balancer): pin loopback routing rules ahead of general rules (#6054)	inventory_only
+16b2bcf9aa8ce20c5c2b66ec055cd19ddc262110	2026-07-18	fix(database): repair legacy string tgId in inbound settings on upgrade	inventory_only
+2f156c8eb04cd2ebbb0a0b9e74d6f2f83fe08eee	2026-07-17	fix(ci): publish dev-latest edit-first instead of probing for existence	inventory_only
+455d1cd0f7aaf976fe49ad6efecd873a3fd1d4ec	2026-07-17	fix(ci): resolve the mtg-multi tag from the release-page redirect	inventory_only
+ab1a9228061c99fb3f3a2295b93ee394037357a9	2026-07-17	fix(ci): survive transient GitHub 5xx outages in the release workflow	inventory_only
+5e1cb7693b0a7541bfcf1eca5c66f639193e5715	2026-07-17	Repo-wide self-correcting audit: 54 verified bug fixes (#5970)	inventory_only
+28b360f2af2a74a4096358a744c8bd05412780b0	2026-07-16	chore(deps): bump google.golang.org/grpc from 1.82.0 to 1.82.1 (#5994)	inventory_only
+460077116774edabd902e42f866b0f520f0e5e06	2026-07-16	chore(deps): bump react-i18next from 17.0.9 to 17.0.10 in /frontend (#5996)	inventory_only
+b97504385fedd1d948a520f257d7da226ee270c8	2026-07-16	chore(deps-dev): bump vite from 8.1.4 to 8.1.5 in /frontend (#5997)	inventory_only
+8dfb639dcfabe361cb8863401bc573e13f13c481	2026-07-16	chore(deps): bump github.com/go-ldap/ldap/v3 from 3.4.13 to 3.4.14 (#5993)	inventory_only
+444e1e5917078d77b9d3b3fdc1bb598f1336c011	2026-07-16	chore(deps): bump actions/setup-go from 6 to 7 (#5995)	inventory_only
+73b479e5a0ccadf547d3a63a7de5903e1d9be850	2026-07-16	chore(deps): bump actions/setup-node from 6 to 7 (#5992)	inventory_only
+129f50d92a8d7f37f5ba5df16f1303d9a34ffe9b	2026-07-14	feat(sub): auto-detect subscription format by User-Agent (Updated) (#5826)	inventory_only
+f2b17397f41a13aa5976d4989975e93a3ddde2ea	2026-07-14	fix(frontend): stabilize speed tags on inbound and client pages (#5930)	inventory_only
+658e6ab3d3270e7254b82ee8440f675adc974a80	2026-07-14	feat(frontend): show client comments on mobile cards (#5942)	inventory_only
+1cfd7b49b0915aafb21028d5d13c779413b6dc97	2026-07-14	fix(email): build an RFC 5322 message with a proper From address and name (#5941)	inventory_only
+ae0da4c51f6c77e212ad75518d6bde2536dc1ac2	2026-07-14	fix: stop forcing port 53 on DoH/DoQ DNS server entries (#5950)	inventory_only
+65b5074b60eb2a2008336b8ce7ca7c5996a540b7	2026-07-14	fix(script): remove release download time limit (#5952)	inventory_only
+b18c87dc4bbe7156d77df9012c22b4cc191eccfb	2026-07-14	fix(script): Remove old mtg binary (#5955)	inventory_only
+b11ceac18e7511f43d3bbd479591064134e07d83	2026-07-14	fix(ci): install the docs-pinned pnpm instead of floating on 11.x	inventory_only
+bbc4163768ca44d01de1742a390eef80bd7c392f	2026-07-14	chore: standardize the toolchain on Node 24 LTS	inventory_only
+ee9a6067c2a7651ad94e79f0f9cfc221ff31b1fc	2026-07-14	refactor(frontend): migrate off deprecated Ant Design 6 props	inventory_only
+60316c831f4c27deedb2faf48d8bfc860a26993f	2026-07-14	fix(frontend): resolve every axe accessibility violation in the component library	inventory_only
+df3ba568d10740dbc7435d26ad07ae0492d482d0	2026-07-14	feat(docs): publish the component Storybook on the docs site	inventory_only
+7078abc14ac57420c46a968f6d9388bf370af613	2026-07-14	feat(frontend): make Storybook a validated, fully covered component workbench	inventory_only
+4e928a1ce0945a6e956aa63365034ec24d2b1387	2026-07-12	v3.5.0	inventory_only
+e211a5cc477857bd1681d24e189688c6058015b3	2026-07-12	feat(frontend): hide redundant migration download on sqlite panels	inventory_only
+77dffe9a85d15bb6d0b7b2eeae0d249470ed0b30	2026-07-12	feat(server): sniff sqlite panel restore uploads and keep the fallback on failure	inventory_only
+54fc0fd47c7899a5afb3a22f743b7ba00f581ef9	2026-07-12	fix(database): make cross-db migration lossless, transactional, and pre-checked	inventory_only
+30b611614bdae7d5adb6e0ff7581a08fa5c94aa1	2026-07-12	feat: import SQLite migration dumps through the PostgreSQL panel restore	inventory_only
+44f2f426d8aa57c567285fe3720c936ebe8959e2	2026-07-12	feat(frontend): split wireguard inbound export into config and links tabs	inventory_only
+c4a1139d3fce12f8f4d146efd841b69822735b13	2026-07-12	feat(frontend): treat wireguard inbounds as multi-user in client actions	inventory_only
+476bec451d465ba9ecb308227ffe27d04b5c9a1d	2026-07-12	fix(frontend): show zero client count for mtproto and wireguard inbounds	inventory_only
+f905c2dcec3e421b8223dd73dbabde11db96e192	2026-07-12	chore(frontend): bump version and deps	inventory_only
+30f6bc183354bddee0f6ecd0371e8e2de97a45de	2026-07-12	feat: Add outbound egress metadata (IP + country) (#5886)	inventory_only
+2c95e29297d9079e5d8bf1dc0d2367d12ce6b697	2026-07-12	fix(api): preserve 64-bit integer schema formats (#5908)	inventory_only
+814cda3fb4d08c26ea2c22a9b2b2de24251899c9	2026-07-12	feat(xray): update xray-core to v26.7.11 and adapt panel	inventory_only
+affcf6c422160ac38b0e5894aa291b2eb4444c90	2026-07-12	fix(link): strip query and trailing slash when parsing ss:// port (#5895)	inventory_only
+cbd2940a630d03950b1be2916c50bce6a6134ed5	2026-07-11	fix(node): adopt a node inbound's host overrides into the master	inventory_only
+e6bef229ae4b65a7aa4c3ec95c495239c06ec607	2026-07-11	fix(web): opt panel pages out of Cloudflare Rocket Loader	inventory_only
+975b1f1accfbed4aae5055163cd9ce5e86dc093a	2026-07-11	fix(iplimit): ban a dead connection once instead of every scan	inventory_only
+6aa87f4e57549b2dd9078716db91391c1a25a981	2026-07-11	fix(clients): finish deleting from every inbound when one fails	inventory_only
+200ea09157ad0b1fc1eb4cf9c7e2e283ac1ca280	2026-07-11	fix(node): never sweep a node's inbounds before their first adoption	inventory_only
+fc625d8f66a9da7e69ee28c55732ad62f87275d6	2026-07-11	fix(database): drop the legacy UNIQUE constraint on inbounds.port	inventory_only
+c4448f4ea80f1027ae05ec310523f2ab5695bf17	2026-07-11	fix(clients): rename client record atomically with inbound settings	inventory_only
+3b731cd657d343e61469d9c9dc60a3267244b680	2026-07-11	fix(clients): reuse stored credentials when re-adding an existing identity	inventory_only
+1c789c3e4d6b179baadf332d573b0bbee9673069	2026-07-11	fix(script): confirm auto-detected public IPv4 before issuing IP certificate	inventory_only
+201d4731de2c3477d74f1554c7adf787e89ace5d	2026-07-11	fix(xhttp): stop XMUX maxConcurrency from reverting on save	inventory_only
+ed9686bf295c5f6a395bb500ae036b994cff548b	2026-07-10	fix(clients): include Telegram ID in client list search (#5888)	inventory_only
+c62e8c6bbe251519858edfb6c463298da1565158	2026-07-09	ci(claude-bot): structure PR review and issue triage prompts	inventory_only
+d33b6865a9352aae8f9e1f49efd2b091a2f1231c	2026-07-09	ci(claude-bot): auto-open the PR after an owner @claude fix on an issue	inventory_only
+3d513b50849c68a48ccae92af31050d5c9630ee2	2026-07-09	chore(deps): bump golang.org/x/text from 0.38.0 to 0.40.0 (#5872)	inventory_only
+f79931eacf46dc4bd6de5ab69e18430a5f965178	2026-07-09	chore(deps-dev): bump vite from 8.1.3 to 8.1.4 in /frontend (#5877)	inventory_only
+de5b1300951ab9388329f2531b3db01cfcd50cfc	2026-07-09	ci(claude-bot): gate write capability to trusted actors	inventory_only
+f3e99058f9a6976144faac9f682fd0eddcfba721	2026-07-09	fix(sub): apply host Allow Insecure to Hysteria2 subscription links (#5866)	inventory_only
+142dab9ee8a74c7d5548dca7f0b8cddb6e95346e	2026-07-09	feat(balancer): add balancer-to-balancer fallback support (#5586)	inventory_only
+ea24ef0a69a521f4af9cbc83761cbb8829f7949d	2026-07-09	feat(xray): default outbound in basic routing (#5815)	inventory_only
+2c28fa5f4830ebb26b73e5ce414e9258836549f7	2026-07-09	fix(inbound): scope port-conflict check to the stored node on update (#5833)	inventory_only
+f9cd7ac906b8eb9663c0fe0875203c975d25a34f	2026-07-09	Add column sorting to inbounds table (#5661)	inventory_only
+d2efe9b022a4f9cbd91c78f5d243078199597982	2026-07-09	fix(sub): include native WireGuard clients in Clash and JSON subscriptions (#5676)	inventory_only
+cb5b3a803a223ece2f9642c7a030a06a01ff178a	2026-07-09	fix(wireguard): build peers in GenXrayInboundConfig so node reconcile keeps clients (#5684)	inventory_only
+b8a654967f7421ffed31439bfcd62379649478e3	2026-07-09	Add encrypted DNS presets (#5837)	inventory_only
+7780ab0e230b5b68bb024b43315ba04cae8531f8	2026-07-09	ci(claude-bot): auto-fix trusted PRs and easy issue bugs	inventory_only
+42690e1b8c69ac64e3919dd2cf42ead777d63c5f	2026-07-09	feat(hosts): bulk-add multiple hosts to multiple inbounds (#5677)	inventory_only
+f431e9cc0383476a929c1806656434fdf8b6a2f3	2026-07-09	fix(inbounds): apply runtime changes after the DB commit (#5768)	inventory_only
+f4199353daabba0065b11e7d16a6c002cc7bea8b	2026-07-08	chore(frontend): bump dependencies	inventory_only
+5c5a509605a3e223dbd7a57f09c6c169a3f33167	2026-07-08	chore: add golangci-lint tasks and force LF on Go files	inventory_only
+a067f817aecf06e7ddb16309a4c67ab1de286a09	2026-07-08	refactor: modernize Go with strings.SplitSeq and maps.Copy	inventory_only
+7c183dbd9736af8bb75596b4670d4c5770823c66	2026-07-08	fix(clients): surface bulk-reset auto-enable failures (#5763)	inventory_only
+567a4ac4fee23af3fd651a0ef5d96148a70f8b42	2026-07-08	fix(clients): parse only settings.clients across protocols (#5855)	inventory_only
+7db92d63188efa5734c78a3eaf7f14b3791f471f	2026-07-08	fix(inbound): reject finalmask + REALITY combo (crashes Xray-core) (#5861)	inventory_only
+e424cc0f4dd06172c8431f18c350010da9020cec	2026-07-08	fix(routing): allow dns.servers on private IPs past the geoip:private block rule (#5774)	inventory_only
+57300f44bd2417b4eb75bbbdb45ec1b0857e2ec5	2026-07-08	fix(ldap): convert default total GB to bytes when auto-creating clients (#5854)	inventory_only
+328d920e98d4f2dbcc8064790e33cf0369955d49	2026-07-08	feat(mtproto): enforce per-client quota & expiry via mtg-multi limits	inventory_only
+61e12e4c290bc6e19f3cdac6d467166015ab1e3c	2026-07-08	Frontend dev tooling (Husky, lint-staged, MSW, Storybook) + full React Hook Form migration (#5859)	inventory_only
+8ee79cf44712f991d12d834cedbe266da3b11076	2026-07-08	refactor(frontend): replace recharts with uPlot for charts	inventory_only
+bc309ed9f87c22f27b4662d1d0e95a6dd2347b07	2026-07-08	refactor(frontend): replace axios with the native Fetch API	inventory_only
+15faec6258c309d729da8bfff3478f57ca3e78f0	2026-07-08	fix(logs): limit Xray log growth (#5840)	inventory_only
+9b91f0f42e53cbf5530318f2cb94d1a61eab9f4a	2026-07-07	docs: vendor the documentation site into the monorepo	inventory_only
+2c49dbf54e5a98b483be15b22301606d79167640	2026-07-07	fix(node): start a fresh quota window when a node auto-renews a client	inventory_only
+cc3303dd8cdd3959faada997f2c2aeb31e894499	2026-07-07	fix(sub): carry a host's Final Mask into raw share links	inventory_only
+52d4af71bc50fa73649f54bda0e0044003ee3f2b	2026-07-07	fix(ldap): attach auto-created clients to every configured inbound tag	inventory_only
+7cb2adf429d7467d9967049ad6f612c2663f5f53	2026-07-07	fix(client): clean node_client_traffics rows when deleting a client	inventory_only
+6e75938c61a8b01bb6adb8975f72f80019add275	2026-07-07	"[Feature]: Add a tooltip/hint to the ""Password"" field in the client form clarifying which protocols use it (#5809)"	inventory_only
+ad7a0f8164fe15fe1388a23447e6990cf8d6dc55	2026-07-07	refactor(mtproto): manage ad-tags per client only	inventory_only
+406ce54fb2893909b46a272ba99552d83051cf2a	2026-07-07	chore(mtproto): bump the mtg-multi binary pin to v1.14.0	inventory_only
+43500a5470fea721123909cffca760651e70b266	2026-07-07	feat(mtproto): per-client ad-tags, management-API auth, and record secret sync	inventory_only
+659f0f404ce8ee68e38ac28481627f45930eca00	2026-07-07	fix(ci): stop executing tag-checkout code in the release smoke test	inventory_only
+6214ff4edc56b88f7a6c8ec363a615e17e6d333d	2026-07-07	fix(mtproto): stop dropping connections on client/inbound edits; add live updates + ad-tag (#5838)	inventory_only
+84b642302057b66fbc9305e2e434effea4ca3044	2026-07-06	fix(mtproto): stop persisting a vestigial inbound-level secret	inventory_only
+27fd19895a63a228d4079b1fc43512804a09d5af	2026-07-06	fix(mtproto): drop the remark fragment from tg proxy deep links	inventory_only
+a1ca43d8698ee34d1a72387c7aaa1edccdd6bba4	2026-07-06	chore(gen): refresh generated schemas after Client.Secret comment drop	inventory_only
+977fe4b4eab683c7b96ee7515e6e096d4e96393f	2026-07-06	fix(ci): install mtg-multi without GOBIN for cross-compiled release builds	inventory_only
+d8b9f535ff7699bb2e8d659d8e2fa628aea50105	2026-07-06	style(model): drop trailing comment on Client.Secret to satisfy gofumpt	inventory_only
+d97bd8643e05d5ffb55cc82d7a2334d994a088b3	2026-07-06	feat(mtproto): adopt dolonet/mtg-multi and make MTProto inbounds multi-client	inventory_only
+5e9606aa4df240fcd21e9411277bd5fb9a4bf3a0	2026-07-06	fix(script): stop logging an error when Enter accepts the default ACME port	inventory_only
+f36f481e02fc70db3df8e48f71eb2e8a937c3e3b	2026-07-06	feat(db): add pgclient command to install or upgrade PostgreSQL client tools	inventory_only
+de70ecb02635b95151f4d8d190869523b3bc8bd3	2026-07-06	fix(db): probe dump readability before PostgreSQL import	inventory_only
+ed66209e38ebf13b9a96a51a022f137cbf1c79ce	2026-07-06	feat(outbound): add real-delay connection test mode	inventory_only
+5a7b3b737002fbc81d21893b294840b9539d33d7	2026-07-05	fix(client): stop duplicate client entries accumulating in inbound settings	inventory_only
+9d1a21b48491f9de32bbc95e68c57cd7f6b37cc6	2026-07-05	fix(ui): keep an explicit zero happy-eyeballs delay across the round trip	inventory_only
+0753f5ee831436fccfcd54fdc70de95e7060833e	2026-07-05	fix(link): reject non-finite and clamp out-of-range quicParams from fm=	inventory_only
+837cf5f24e004382ec140cfb83206beb32f29b00	2026-07-05	fix(db): clamp traffic counters below int64 max and repair overflowed rows	inventory_only
+b1fa76f9b684b350aafd1349dfe193199f07539a	2026-07-05	fix(node): fully delete clients on nodes instead of only detaching them	inventory_only
+b6873c7a73d7909c8d1c232574a93e2a64b82db9	2026-07-05	fix(outbound): measure HTTP test delay on a warm connection	inventory_only
+b6183271daa82520942b9e575533193236c71ee1	2026-07-05	fix(tgbot): find clients by tgId regardless of settings JSON formatting	inventory_only
+11e45e81b678eec9e361418e068a5cf8a2466f58	2026-07-05	fix(link): sanitize numeric quicParams taken from a share link's fm= param	inventory_only
+579a9daaa03e101c7cce985e5e11bc21a97c628a	2026-07-05	fix(ui): make the Happy Eyeballs toggle produce a config xray actually enables	inventory_only
+0add63984fe841e14ebcad69d973c769011b9dd3	2026-07-05	fix(ui): align the subUpdates limit with the backend and show the range	inventory_only
+b6d1caf95d61ae68a0cb2b1ac55928b09cf74850	2026-07-05	fix(script): rename the Xray binary to xray-linux-arm32 on 32-bit ARM	inventory_only
+1bf9e5d544289dc8556167ba6146a957b4bbbe6f	2026-07-05	fix(script): make local PostgreSQL and fail2ban setup work on RHEL-family distros	inventory_only
+26e88c7b1087faf7eb78a5191c1d3ea9c44fbf90	2026-07-05	fix(script): stop running full system upgrades via pacman -Syu on Arch	inventory_only
+a0989e0f4d0b57f61c10254c141e80188d33ef88	2026-07-05	fix(node): stop client edits from tearing down node inbounds and harden reconcile fingerprints	inventory_only
+07d66aa6dcd4ce9473be7ee250aff2ae6867d456	2026-07-05	refactor: use the built-in max/min to simplify the code (#5751)	inventory_only
+b177e30714642496ba36e0f045fa2ad977e724fb	2026-07-05	feat(ui): client-realtime-speed (#5687)	inventory_only
+e11e587c6062318be151572006fa2ba31b571dc6	2026-07-05	fix(script): correct hardcoded menu option numbers in x-ui.sh (#5787)	inventory_only
+5c725df7020cb253c7a0960ac6e297c22edba4c4	2026-07-03	fix(ci): pin the tag smoke test to the release under test	inventory_only
+d105b2741c62b4e6901f84e3ff8e0765aa8ec6e1	2026-07-03	fix(node): stop one rejected inbound from starving a node's traffic sync	inventory_only
+05cb70d8a88c342d3478c264b630f01e2f6ef72f	2026-07-03	feat(frontend): add text search to the inbound list	inventory_only
+323cf09d100f1a62d116ed14ed475c5bf1298296	2026-07-03	feat(sub): show the announcement on the subscription info page	inventory_only
+1f04912b6f21ddef7522896b3f5a9197054dce31	2026-07-03	feat(tgbot): register usage, inbound, restart and clearall in the bot command menu	inventory_only
+220dcb1579efdc21309fdcac61a47b7134c6369a	2026-07-03	feat(tgbot): show inbound remark alongside email in the online clients list	inventory_only
+a13a79b230c65a2d64931f024f44262c8de2a1c5	2026-07-03	fix(docker): start crond and persist acme.sh state so cert renewal works	inventory_only
+ff3bd636565a6587fba78a3dcc3c89e69e2741f3	2026-07-03	feat(sub): serve the HTML info page for browser requests on JSON and Clash URLs	inventory_only
+052dd85ad3fb4cbbd878ebc677393ccad0fa17e8	2026-07-03	feat(clients): hide disabled inbounds in the client form selector	inventory_only
+b2ceb854f5c5f153589dd5861b14ef222e4a5b22	2026-07-03	feat(tgbot): include hostname in backup and ban-log messages	inventory_only
+dd4f55f6900525527a865dc42adf25291c1d7600	2026-07-03	feat(frontend): add text search to node select components	inventory_only
+f90e4a6962f0581bcf5c556b39cb9941631a89bb	2026-07-03	fix(panel): use the hosting node address for WireGuard client configs (#5679)	inventory_only
+dbdecda03f6c30c47f25fec18755f3a3d3370634	2026-07-03	Env vars example file update (#5678)	inventory_only
+6e0067fca36c72f9d9373e9fb26ff8c1ab97b50e	2026-07-03	docs(settings): clarify Sub Port/Sub Domain double as subscription-link fallback (#5721)	inventory_only
+ed95acdd479b1659f99a22b2f8fea1b2e3cbdedb	2026-07-03	fix(scripts): avoid rpm package upgrades before installs (#5750)	inventory_only
+1afab47f04c847e1f4fdf43e2af2ccf28e765055	2026-07-02	feat(frontend): show client group in the client info modal	inventory_only
+258d8b73447b25fd95722e392bbec29a7ebae47b	2026-07-02	feat(frontend): add targetStrategy field to the outbound editor	inventory_only
+9f760cf0fae5e3bb92df0bed90ceccce9dc7d680	2026-07-02	fix(frontend): stop group modals clearing selection on background refetch	inventory_only
+1bf6f606bccbe4b190c9618c5fd255197c0c4aa5	2026-07-02	refactor(sub): drop unused subReq parameter from genHy	inventory_only
+ccd56a56a8b45ab5a31dba8bf170ef835b1730cc	2026-07-02	chore(deps): bump github.com/klauspost/compress from 1.18.6 to 1.19.0 (#5731)	inventory_only
+7a844682b3dbb2f82f49a5eb96a3452be9be9079	2026-07-02	chore(deps): bump github.com/shirou/gopsutil/v4 from 4.26.5 to 4.26.6 (#5730)	inventory_only
+6626bf4a07efd22d9006844e04d994cab3a0b912	2026-07-02	chore(deps): bump google.golang.org/grpc from 1.81.1 to 1.82.0 (#5729)	inventory_only
+c0df365524e73317a048e3af8577f8945af81ec3	2026-07-02	chore(frontend): bump minor npm deps	inventory_only
+5361b56e5ee723bc55fcb8a178d29b29c84a6978	2026-07-02	fix(update): avoid full dnf system upgrade (#5717)	inventory_only
+9e13b32c3433742fc78db53c1d36735abf25623d	2026-07-02	fix: make all self-managed file downloads/installs atomic, with real completion status (#5711)	inventory_only
+ade74eb321d69448bf994a03a77ac68c9a67f077	2026-07-02	fix(balancers): keep mixed strategies on one observer (#5674)	inventory_only
+97e2c9e7ba8d3d80b095edc3f2dbeb7399b56dca	2026-07-02	fix(web): sync the VLESS generate-key dropdown with the encryption field	inventory_only
+5e8327e7280b47438e5fac6281c668e915327ae5	2026-07-02	fix(settings): include savePayload in the category body memo deps	inventory_only
+7c12700c7d0c20a6b6d950c821c24e286c229313	2026-07-02	fix(sub): resolve subscription clients and stats from normalized tables	inventory_only
+c0d17e132dc2a31456d89a42b269362847edbd3c	2026-07-02	fix(job): batch ip-limit per-email lookups and persistence	inventory_only
+fc5be5b9e46a26458b9722ed534ff9226c0d8023	2026-07-02	feat(web): broadcast delta client stats above a snapshot threshold	inventory_only
+c3cc8b43745317db6fb3e114b53e350f0fbdf7a4	2026-07-02	fix(job): gate ip-limit scan on clients.limit_ip instead of parsing all settings	inventory_only
+97588dd0b9b518a27806e962273c4142b217cd5d	2026-07-02	fix(traffic): disable depleted clients by id instead of a second full scan	inventory_only
+fb1d055b062ba4fd7b5e11e50aac222bf4985a9d	2026-07-02	fix(traffic): persist delayed-start expiry only for converted clients	inventory_only
+4fc301682fdd3ca93d4237be06dff237362e9383	2026-07-02	test(scale): cover traffic poll, ws payloads, ip-limit job, sub and xray config at 500k	inventory_only
+28f769022406fd1fb918f7cd3670606c935134f6	2026-07-02	docs: move architecture map into docs/ and refresh it against the live tree	inventory_only
+92303094fdaee2c5e7a03aecf16047433c796084	2026-07-02	feat(settings): let users clear stored secrets from the UI	inventory_only
+fb3a1559b24ed73fb1ab30a99048738f830eb999	2026-07-02	fix(sub): default https:// for scheme-less support and profile URLs	inventory_only
+a335456cd3bf0f9b91c7e7a3fea6f3099f6671b4	2026-07-02	fix(settings): repair legacy path settings that block every settings save	inventory_only
+9a3a12b260b41eaac112d262d9a178b6ac501914	2026-07-02	fix(node): stop Postgres deadlocks and deleted-client resurrection in node sync	inventory_only
+4d6f2ddd974425b931e27598ebcc1ee8261231e5	2026-07-02	fix(node): stop force-restarting a node's Xray when its clients auto-disable	inventory_only
+62f303905eb6b195c1127d46453bb57d9e08763a	2026-07-02	fix(scripts): pass --force to acme.sh --installcert so it survives sudo	inventory_only
+c8ef1b1f68a6a459e7e3c9c6a2971bd58a0bf5d5	2026-07-02	feat(reality): derive a stable per-client spiderX for shared links	inventory_only
+64c306037ff404ecf9d655a90f76e938e92158fb	2026-07-02	feat(wireguard): make client allowedIPs editable with validation	inventory_only
+8dd3b31ee887a57d21b0be4ee7ad1f7f1490dfaf	2026-07-02	fix(node): show the activated first-use deadline on the Clients page	inventory_only
+e5b56c9444185208358581714b92e063ae247d63	2026-07-02	fix(xray): reconcile client auto-disable through the API instead of a forced restart	inventory_only
+1153d5db8c2eb6867d4d856d21d9c52d315bc845	2026-07-02	fix(groups): keep group traffic totals stable across client resets and deletes	inventory_only
+539bcc897cb28d7f3d6a6c5572ee52c427109e05	2026-07-01	fix(inbounds): apply the legacy xhttp session-key migration when editing	inventory_only
+273f88721e68e186c886076e5ce8e4b8cf601836	2026-07-01	fix(database): stop noisy per-startup errors in the Postgres server log	inventory_only
+1f2e3e1447176687abc69b662ad22301e43bb3ae	2026-07-01	fix(sub): use configured spiderX instead of always randomizing	inventory_only
+49773c18de2ef0dc9c5901d28eec3c7e3bed780f	2026-07-01	fix(xray): force full restart for inbounds with a VLESS reverse client	inventory_only
+427613b30867768ae3ddc5655b21a62e81d49f2f	2026-07-01	chore(ci): upgrade claude-bot to Sonnet 5 and set explicit effort levels	inventory_only
+f3a57d4c57fbcae94414138de42b7ef11dc513c8	2026-06-29	3.4.2	inventory_only
+86813758cc03dbb1a14134769d2fdd0a52f53119	2026-06-29	fix(node): stop the offline-sync toast firing on saves to online nodes	inventory_only
+8332ba67ae1ebac4a4ef9b64185c76f5debf6b39	2026-06-29	chore(deps): bump antd to 6.5 and migrate deprecated component props	inventory_only
+d8221a8153d0e75457d41575379c88f052e9b766	2026-06-29	fix(sub): bake Host VLESS Route into subscription UUIDs	inventory_only
+789e92cddca9689fcd5563c65eba237265b24a55	2026-06-29	fix(clients): re-enable depleted clients on API renewal (#5619)	inventory_only
+7a5d6da28c028cbba5692915a495477f8e576476	2026-06-29	fix(xray): clean stale routing references when a balancer or outbound is deleted (#5648)	inventory_only
+71aca2018a1ea349b8112a22ea999d9ab8f61ec3	2026-06-29	feat(a11y): screen-reader & keyboard accessibility across the panel (#5486) (#5652)	inventory_only
+6c71b725daad6318db18bae72877e1e9a04102b1	2026-06-29	fix(clients): hide WireGuard config after detaching the WG inbound	inventory_only
+a329882e0e84429ce0ae6e4048af8e23e329a15c	2026-06-29	feat(wireguard): client config UX, collapsible config card, configurable DNS	inventory_only
+60c54827aa106e499ad4d632d5e200f5cc192745	2026-06-28	feat: ldap skip tls verify (#5637)	inventory_only
+aef35ee0de18389899f17fbbd53800a278e5c90f	2026-06-28	fix(sync): mark node dirty inside the mutation transaction (atomic ConfigDirty) (#5611)	inventory_only
+2b10808fbd6f329c662b803de658687fa35f21a0	2026-06-28	fix(settings): require re-2FA confirmation for sensitive setting changes (#5610)	inventory_only
+25a86b9ee2a28fa5d768e7a2180e73fb7d17dbe0	2026-06-28	feat(balancers): tabbed Observatory/Burst Observatory form (#5627)	inventory_only
+51ffba5961dbad2ede0fb6ba2c6693548f5e4000	2026-06-28	fix(balancers): defer validation errors until touched or save (#5626)	inventory_only
+5713c09980a724dc118a55e6b5860e503cdb62bd	2026-06-28	fix(runtime): refresh cached node remotes on identity change (#5614)	inventory_only
+7f8cbf4c4bf87fe0850e44bd93d664fd54d196be	2026-06-28	fix(web): tighten database restore body-cap exemption (#5609)	inventory_only
+bbfbd7eba624e49b5ccfc20c22e80d016b7facc3	2026-06-28	Bump minimum eligible Xray version	inventory_only
+79069d2b646ccd4744fa2c87dcd0e7747de59c08	2026-06-28	fix(wireguard): allocate client IPs in the existing peer subnet	inventory_only
+9c8cd08f90205d449427705e4483e3eb3b790223	2026-06-28	feat(wireguard): multi-client support	inventory_only
+33aada0c7c66bb95495eb269a5993b9f44f040d1	2026-06-27	feat(xhttp): default xmux maxConnections to 6	inventory_only
+e44075a6e009f5c5120f38771a2d83480c53d0ea	2026-06-27	chore(deps): bump xray-core to v26.6.27	inventory_only
+56b0be0b6af03b4414c8205cf9913a39cde42020	2026-06-27	fix(lint): use errors.Is for io.EOF comparison in sys_linux	inventory_only
+9b8a0c9b173b9ec227a5a4399a015b4bbc0a5fdc	2026-06-27	feat(groups): reset group traffic without touching client counters	inventory_only
+d1c0d77023ec5627866e5b7cbe385a33893405e4	2026-06-27	chore(ci): bump golangci-lint action to v9	inventory_only
+63fca9ef88c3ae5617c3683605abdb28f7e7154f	2026-06-27	docs: correct false RTL claim and stale Vite version in CONTRIBUTING.md	inventory_only
+2e851978e6ce55afb32b29b9ed0ebd3b6610400d	2026-06-27	chore: add Makefile as canonical task runner	inventory_only
+fa1a19c03cce027e25e72d9ea47ab906943d0141	2026-06-27	style: adopt golangci-lint v2 and resolve all findings	inventory_only
+7efa0d9dddcebb20cae19b27eba44965daa929b7	2026-06-27	docs: add CLAUDE.md agent guides for root and frontend	inventory_only
+d12b186a69f1d5f723f6bdf929b7f86a6b5cb355	2026-06-27	test(sub): align identity-token test with first-link-only EMAIL	inventory_only
+39eb5baf420bc1ceb1bd03c5f4b3d020cb7a56de	2026-06-27	fix(inbound): convert legacy externalProxy to hosts on import	inventory_only
+876d55f2741bed1c3ea62fa328312947ceed05be	2026-06-27	fix(sub): show {{EMAIL}} on first sub-body link only	inventory_only
+1bad2fcba10f48b6ca10b9870a3fe3ac41c45d51	2026-06-27	feat(backup): prefix backup filenames with date and time (#5606)	inventory_only
+4c177f0cf187602188e8ab001e43e7762d744492	2026-06-27	fix(shadowsocks): send per-user Account for SS-2022 runtime AddUser	inventory_only
+797b08cd0709dac399fffee41d8a07f18475c8b5	2026-06-27	fix(balancers): create burst observer for random/roundRobin with fallbackTag	inventory_only
+439245d42b2f40f2da160e25f3cc9f33f89f0e06	2026-06-27	feat(inbounds): apply remark template to Export all inbound links	inventory_only
+535b89a352451d8970f8a8f04cbf83836472a548	2026-06-27	fix(routing): write lowercase L4 network to xray config, display uppercase in UI	inventory_only
+7a2179535ace7418b624007f351ba4a63d0fb515	2026-06-27	fix(settings): normalize API token timestamps (#5599)	inventory_only
+6964d8474210653678c6ffbadeadb5da67eb8e0c	2026-06-26	feat(reality): add live REALITY target scanner with IP/CIDR discovery	inventory_only
+451263f1db3c1094215338723d2e25c89007c652	2026-06-26	feat(sidebar): add documentation link button	inventory_only
+8e4c368200ca7e3e923162a868a9e79f4c661580	2026-06-26	feat(update): allow opting into the dev channel from a stable build	inventory_only
+522b1b64b07b6b5a802e187ea005936501d3e7ce	2026-06-26	fix(logger): prevent nil-deref panic in migrate/setting CLI paths	inventory_only
+b1fb39c486c1139dd72ea97ea48674f5112b4dda	2026-06-26	v3.4.1	inventory_only
+9381fa284b33ad2b9042d0618ad371a94e951978	2026-06-26	feat(logs): add auto-update toggle to Access Logs and Logs viewers	inventory_only
+30796dc2ceed52b75c7df693dc42d4b8b5e389e5	2026-06-26	chore(deploy): drop the AWS golden-image build stack	inventory_only
+dc6d13b58fefc59d500b10132c62d898d55f7cbb	2026-06-26	chore: bump deps and modernize test loops	inventory_only
+e27f2490b29c2e48171400824cf662ac27665f15	2026-06-25	feat(logs): label the Xray access-log viewer 'Access Logs' across all languages	inventory_only
+df0e52cda814b0f25f0e1e1d7cfd31e8fd20607b	2026-06-25	fix(logs): render plain log notices verbatim instead of mangling them as timestamps	inventory_only
+1d695082635305152125ca1a694dbe1a2fd507bf	2026-06-25	feat(logs): add 1000 rows option and drop 10 from log row count selectors	inventory_only
+8f65aa7e4b19d040fa9b941049623931b59918ee	2026-06-25	fix(hosts): show proper page title instead of falling back to 3X-UI	inventory_only
+293c1e44dc83436a0611b90c16fc5017aaabaa19	2026-06-25	perf(metrics): tiered rollup history (7d at ~1.5MB) and cleaner ranges	inventory_only
+69ad8b76e1aad24c9d4c06b3fbed5b3dea1d60eb	2026-06-25	perf(memory): report real RSS and cut footprint via GOGC + periodic release	inventory_only
+b32837e523421fa6bf6158be518863d38f65f95a	2026-06-25	fix(node): import per-client traffic history on first sync of a node-hosted inbound	inventory_only
+9dec15bd4baec54df4f23615b598ab6178ce2bd8	2026-06-25	feat(uninstall): offer to purge PostgreSQL when removing the panel	inventory_only
+e64e9981948042bdea8105a18d16a8c49399f6e4	2026-06-25	feat(clients): add bulk enable/disable and move selection actions into More menu	inventory_only
+a4be5a0deb7a2e80791de1c5194aace0d89f1bdd	2026-06-25	fix(sub): recover {{TRAFFIC_USED}} for clients with orphaned traffic rows	inventory_only
+e4b881e58a8ac99804c8a4261df09aa7366b62f2	2026-06-25	feat(panel): surface dev-build version in UI, bot, and CLI	inventory_only
+2adb59bd6405badc630bbd3c4e846204af109f70	2026-06-25	feat(install): add dev-latest install option and sync README translations	inventory_only
+bcd13580322536ea01b0a27abb56cc3b94d1e9a6	2026-06-25	fix(nodes): report dev builds as dev+<commit> so updated nodes aren't flagged stale	inventory_only
+e8878b71a47a8d1c052d81bcf3a30dda1840cfb5	2026-06-25	feat(nodes): add Dev channel option to node panel updates	inventory_only
+11c5b53fac87b28365c6884d8f4c87ce8be4f6cc	2026-06-25	feat(sub): add PROTOCOL, TRANSPORT, SECURITY remark template variables	inventory_only
+896016f7f694af67024828e8782b070e96e19b59	2026-06-24	fix(web): remove deleted multi-inbound client from runtime regardless of shared email (#5543)	inventory_only
+e2d25d0ac7def8eba1982b2b3e85e6aedca50631	2026-06-24	fix(web): show subscription outbounds in dialer proxy dropdown (#5540)	inventory_only
+fe025e8af3014a1540cd235b949fe87b85e122f6	2026-06-24	feat(xray): add tunnel health monitor (#5480)	inventory_only
+3ba43bd86db556e58575411273284c0eecdba86d	2026-06-24	feat(web): vless encryption new modes (#5517)	inventory_only
+ae9bbdf26765c57a244dd121a5805a00f2c258fc	2026-06-25	fix(web): serve panel SPA routes from NoRoute (#5536)	inventory_only
+2830f97f5062924738d510034bc9072582cfbf71	2026-06-24	feat(x-ui.sh): add Dev channel update option to the management menu	inventory_only
+1d1128cf945c4615efa05cf41ba7fa766e2ee428	2026-06-24	fix(update): read setUpdateChannel body as form field, not JSON	inventory_only
+aad2b3eb1e3b52d96211abadc765a228dc16a8ef	2026-06-24	feat(update): add rolling dev update channel for per-commit builds	inventory_only
+93ff60e56858a2342c6b46545523f7b421510d50	2026-06-24	fix(tgbot): reload bot on settings save so a new token takes effect without a panel restart	inventory_only
+23e73cd4a3592aa6700bf99e76660601f4d0af6f	2026-06-24	fix(clients): use new email after rename and de-duplicate save toast	inventory_only
+b0c1156dd686012e5ab0c4025c6d3b1d730716f7	2026-06-24	fix(sub): drive display remarks from the template and split multi-host subpage links	inventory_only
+5dbd5b1d126ee46176b739eb09a8fd271a54e979	2026-06-24	fix(sub): restore client email in panel copy/QR link remark (#5532)	inventory_only
+bd60e770f47c5aeaf3162485d2b536daabe9a71f	2026-06-24	fix(outbound): preserve custom headers for HTTP outbounds (#5519)	inventory_only
+a5e865c109b18be225b181cd87025140e794520d	2026-06-24	fix(backup): name Telegram backups after webDomain/IP instead of x-ui	inventory_only
+82600936d6bb59da3aeeada78c14b727ad0b1212	2026-06-24	fix(flow): restore XTLS Vision when an inbound becomes flow-eligible (#5520)	inventory_only
+14de0557f90240db99cc712483d1d5cb31224525	2026-06-24	feat(clients): bulk-set XTLS flow from the Adjust dialog (#5524)	inventory_only
+c93beef2677dd4ed6dcb6474577a329e529215e3	2026-06-24	fix(inbounds): accept null rewritePort in tunnel settings (#5516) (#5525)	inventory_only
+48c2fb27b8fd09a75d2874fcf1bdcad6a2f7b2fe	2026-06-24	feat(sub): add Incy client integration and routing tab	inventory_only
+3fa4eddae3cccc59024bd57fc0e192bc96246fef	2026-06-23	v3.4.0	inventory_only
+47fd6061b1572cb34a59804612dfe5a84016b700	2026-06-23	revert languages update	inventory_only
+fea3c94b111a3e31bb6406b941bc2f60beffe19e	2026-06-23	feat(xhttp): support sessionID* rename + sessionIDTable/Length (xray v26.6.22) (#5506)	inventory_only
+b07fad0e697bdcf808edd31930efb42ff0eb99b7	2026-06-23	refactor(wireguard): drop removed workers field (xray v26.6.22) (#5509)	inventory_only
+fd092444a8b8449e22b664a48c21690bf0642df5	2026-06-23	Bump frontend package & deps to new patch versions	inventory_only
+a0f4c13dc5a79d08863fbbbe90f4e9789abb52ec	2026-06-23	fix(sockopt): honor trustedXForwardedFor on gRPC inbounds (xray v26.6.22) (#5503)	inventory_only
+1c0b76c27a3f77ec62a9528c91f7a4ae8c75952a	2026-06-23	Use efficient APIs and simplify loops	inventory_only
+852b53db7987895f126a5aecf9eea08434a8b87b	2026-06-23	feat(xray): add loopback sniffing and per-segment fragment masks	inventory_only
+42cd351e4e5b168bddc7748f92e1e825e00d13a7	2026-06-23	refactor(job): drop access log from IP limiting, wipe it daily instead	inventory_only
+a2961fd0465c15933720c549ed90b8d328e894f9	2026-06-23	Update Xray to v26.6.22	inventory_only
+523a593ca719b3215275aebf6d79bdc30c189b2d	2026-06-23	fix(xray): write generated config atomically (#5494)	inventory_only
+ecb0b0a9fa460d6f19ca76fc96bcc1fd3e74f2dd	2026-06-23	fix(subscription): bound outbound response body (#5493)	inventory_only
+67344cae6f03925ee5c794f623a30f3d5ddb33ea	2026-06-23	fix(sub): error instead of silently truncating oversized subscription (#5495)	inventory_only
+dabd3f5d2b5af6cac972503d5e2a697e7c2d3658	2026-06-23	feat(backup): prefer browser request host for backup filename	inventory_only
+b11c51e73674c40eb162422c3b6ddef63f12586d	2026-06-23	ci(claude-bot): tune models, Copilot-style PR review, issue research mode	inventory_only
+0d764f1bb576636bc9ce4d7f741b00b754a781d4	2026-06-22	feat(iplimit): auto-install fail2ban on install and update	inventory_only
+683653674c8f3e8e308e36ec99c8bda9011d54cc	2026-06-22	fix(api-docs): exclude /panel/outbound and /panel/routing from route guard	inventory_only
+ce8b1bed77ac260c548a4916a97936d7739184c1	2026-06-22	feat(iplimit): gate IP limit on fail2ban and reset stale limits	inventory_only
+718b7e16e1c7fef77629957f0551f136ce1570e8	2026-06-22	feat(sidebar): move Routing/Outbounds to top-level items with clean URLs	inventory_only
+20094c8d35ef1d4bac8de78575711ba9ed1e77d5	2026-06-22	perf(settings): save all settings in one transaction	inventory_only
+a7e959ff496661084099fbd9a35692225f5e3733	2026-06-22	feat(backup): name DB backup files after the server address	inventory_only
+1b102ff9f7feb773822a22ebfdae9575ee9286cf	2026-06-22	fix(install): support IPv6-only hosts (#5487)	inventory_only
+adc64bb804989f0add46e302e29825432eaaf6ae	2026-06-22	fix(nodes): cloned-node attribution, node-hosted client display (online/speed/counts), and sync robustness (#5488)	inventory_only
+f07d092af01523abb8ac0e15b7565126d3ef2e8d	2026-06-22	Replace '<3' with '❤️' in translations	inventory_only
+2392f04e0271ebe15e34de9debe9a68cdf0fba2f	2026-06-22	fix(cli): apply -webCert/-webCertKey on the setting subcommand (#5482)	inventory_only
+4854f9c1b88ff2e8da26b31a46b9f14dd7d3cfa7	2026-06-22	fix(node-sync): give client-IP sync its own deadline; fix log spacing	inventory_only
+7d23a2c15b64b99e9337f27e0347d7a02260e155	2026-06-22	perf: prevent cron job overlap, auto-set GOMEMLIMIT, fix tgbot userStates race	inventory_only
+679d2e1cca2246a21a83718159ee6cd0453308bb	2026-06-22	fix: resolve a batch of open bug-tagged issues (traffic accounting, share strategy, sub address, CPU) (#5477)	inventory_only
+0b0b6250d6df5ea082d3fb7746204eda1db216b6	2026-06-21	feat(clients): orphan cleanup + export/import via CodeMirror modals	inventory_only
+04832738393e38f7ea38b105e6ce0bc624bd3bfc	2026-06-21	fix(tls): pin remote cert via native uTLS handshake instead of xray subprocess	inventory_only
+03e89683dd2ae7c1ef3e551556e7d97ee9e0ee52	2026-06-21	fix(tls): ping the inbound's own port for remote cert pinning	inventory_only
+39774a6a3830eee01fde9f40a1829a5ddc99c0fd	2026-06-21	fix(tls): default OCSP stapling to off for new inbound certs	inventory_only
+3aa76ea05b90c9c93448001201407da9de478d04	2026-06-21	fix(deps): bump xray-core past finalmask UDP buffer fix (#5462)	inventory_only
+33b029e1ca3c71f23c2602a02be451a2f0e5de02	2026-06-21	fix(security): confine GetCertHash to known cert files (CWE-22)	inventory_only
+dfd77caf63495cd74885a389f234d4497ca1e0f0	2026-06-21	Update zh-CN.json (#5459)	inventory_only
+891d3a87596fbd724ce00abf1743a220c3f24124	2026-06-21	feat(memory): add memory threshold alerts (#5366)	inventory_only
+648fc69cb1485e03cb50384338a2d83c83183f8f	2026-06-21	feat(metrics): extend history bucket options to include 12h, 24h, and 48h intervals (#5467)	inventory_only
+6f05c0a49252d2e4d2aa4e0d77dc3b070e5fe28e	2026-06-21	fix(node): mark node dirty on Update so sync reconciles before snapshot sweep (#5469)	inventory_only
+5d88e688260e4121526a4f6b68ef260c928c13df	2026-06-21	fix(frontend): guard IntlUtil.formatDate against out-of-range timestamps (#5468)	inventory_only
+d20b549b04c70a1a33b5b58a114d8d3d048eae97	2026-06-21	fix(ci): use pull_request_target so claude bot gets secrets on fork PRs	inventory_only
+97c02ef69f020f0283903ea638985e6606c143eb	2026-06-21	feat(xray): preview export in a modal and switch rule enable toggle	inventory_only
+7c8889466b64bf9be790462b07af398a69febcaa	2026-06-21	feat(tls,reality): port xray TLS/REALITY fields, cert-hash helpers, fallback UX	inventory_only
+315ecc25883533278958d9da2713e5fe56b91af9	2026-06-21	fix(inbound): persist streamSettings for tunnel so sockopt saves	inventory_only
+605e90dbf08ec3641ab88bbe9fe8967ea545755f	2026-06-21	feat(sub): add dynamic remark variables with Jalali date, transport, and status tokens (#5430)	inventory_only
+ce1d348ece2708c97f45a610b1125731ee5efcb8	2026-06-21	feat(sub): add option to hide server settings in subscription (happ) (#5433)	inventory_only
+1a4aef3353086edb07b8f3d405a2aa2eff31f4ed	2026-06-21	feat(sub): full XHTTP field mapping for Clash/Mihomo subscriptions (#5417)	inventory_only
+29b14dac592b48b91ef587f96ce57d582b8a7977	2026-06-20	feat(ci): let mention bot push commits to fork PR branches	inventory_only
+4ab2dffa614cd06fb6eeef053fc2d6621b54aeb9	2026-06-20	fix(ci): check out PR branch for mention bot so commits land on the PR	inventory_only
+caf80009c842be62f88c06a7dc8ef9cb673b4a8c	2026-06-20	feat(ci): add PR review job and commit-capable mention bot	inventory_only
+0537cbfb100f0ddd0c65687a60de88c29979987c	2026-06-20	chore: bump dompurify to 3.4.11 and expand VS Code tasks	inventory_only
+1eaa73e7c661da470c755716ce3a90fb2c0f7ab0	2026-06-20	chore(deps): bump actions/checkout from 6 to 7 (#5454)	inventory_only
+55d08d2ae932e1c004c933df9318c5bd3952d02e	2026-06-20	feat: replace notification checkboxes with card-based layout (#5421)	inventory_only
+1259c20e5f11706cc3a03f439488b84f5f38bc17	2026-06-20	fix(tgbot): dedupe exhausted-client report by email (#5453)	inventory_only
+2bb29468d8f2035806c6c8628cd8456b4b5ed0d6	2026-06-20	fix(xray): guard log-writer race and bound handler gRPC deadlines (#5442)	inventory_only
+3cf3fddf120f56785c556b867d2a0b518be14645	2026-06-20	perf(db): add an index on settings.key (#5359)	inventory_only
+26cc4838ed0823a8a09ea723d2383886f7c6c556	2026-06-20	perf(xray): compile log/traffic regexps once at package scope (#5362)	inventory_only
+a5bc71a6f1531ec15a5f9730893d751d853574b6	2026-06-20	fix(sub): SS2022 share links must not base64-encode userinfo (#5432)	inventory_only
+c58db81da0a3179a64a1f1cca33754d7672ab43e	2026-06-20	fix(sub): add missing :// in Shadowrocket subscription deep link (#3945)	inventory_only
+0a40ec5f1371631757805c36d4c201409581c5e0	2026-06-20	fix(sub): re-add xhttp mode to extra JSON for Karing (#5446)	inventory_only
+6d9fd4b41b0bbefb07d22b7fa5875813961c9b32	2026-06-20	fix(sub): {{INBOUND}} = inbound remark, fix {{TRAFFIC_LEFT}} across inbounds (#5443)	inventory_only
+6a032bcb2a8c5baf7c758dda255158aaf7108d16	2026-06-20	perf(scale): speed up traffic, auto-renew, and node bulk ops at 50k-100k clients	inventory_only
+e079490144a1fa4003035d04303df3559b70f082	2026-06-20	chore(db): use DELETE journal mode so sqlite stays a single file	inventory_only
+af3f46006586b8af0dce5b3455441d90753cce68	2026-06-20	fix(routing): sync xray rules when panel inbound tags change or are deleted (#5367)	inventory_only
+f5e50038f0b00cd46f042e6516fbb887de7709b2	2026-06-20	fix(nodes): block node delete while inbounds are still attached (#5394)	inventory_only
+d01d9867e4bb80529febc8109f5245f91f7e23ae	2026-06-20	fix(sub): preserve non-default scMinPostsIntervalMs and use per-inbound xmux in JSON subscriptions (#5393)	inventory_only
+da9ecf6f4d808516bf2bc9ce024604ae192ede1f	2026-06-20	fix(nodes): strip central n<id>- tag prefix when pushing inbounds to remote (#5399)	inventory_only
+118d1e439892b1c72d7524b16d8c8c2110abb6de	2026-06-20	fix(sub): set read/write/idle timeouts on the subscription server (#5360)	inventory_only
+b0ef60670c417111bb4d9b86adb4c200a504b7ff	2026-06-20	fix(runtime): cap remote node response size to bound master memory (#5361)	inventory_only
+f63ed9f5106227dc56c11112e7e8024092ac79fc	2026-06-20	fix(jobs): isolate per-node background goroutines from panics (#5397)	inventory_only
+bedbe04bf1b42e1d774d6d257ab2b40d8258f022	2026-06-20	fix(web): recover panicking cron jobs instead of crashing the panel (#5363)	inventory_only
+2bb851dd506fc451fbcbfcd16d52bd57b767b91c	2026-06-20	fix(xray): verify the release archive checksum before installing (#5396)	inventory_only
+abffa8f6c9e71c2210cd32d5d8995e03c9b80315	2026-06-20	fix(xray): guard process lifecycle fields against concurrent access (#5395)	inventory_only
+fb03b0e9f1c0ef8329412439c5b30771033a4467	2026-06-20	fix(traffic): prevent phantom quota consumption from stale node data (#5412)	inventory_only
+4f99e48ab7a1147671e00dec56fe1e89653701a4	2026-06-18	chore(deps): bump actions/upload-artifact from 4 to 7 (#5427)	inventory_only
+a1aa8fcc08e135b49f108017ebcb0e434ed1f984	2026-06-18	chore(deps): bump react-router-dom from 7.17.0 to 7.18.0 in /frontend (#5428)	inventory_only
+a1d71d42c9e09d0a529e0c2c48ff14543acf36f1	2026-06-18	chore(deps): bump aws-actions/configure-aws-credentials from 4 to 6 (#5426)	inventory_only
+4915d6b18dabaace15a7557682f93bf7607a2ecf	2026-06-17	refactor(frontend): move form-item hints from extra to tooltip	inventory_only
+d6cddaff12c54a0d3020700008ebd192ac087117	2026-06-17	fix(sub): emit JSON-subscription pinnedPeerCertSha256 as comma-separated string	inventory_only
+3088e96493e6867199abf79a64abd78f8c724986	2026-06-17	fix(client): clear group when removed in the single-client editor	inventory_only
+c5d31de4e96850787815f21757fb746dd328416e	2026-06-17	fix(service): serialize client/inbound writes to prevent Postgres deadlock	inventory_only
+340d0df9fca37979da2c301be3306a89a6adbec6	2026-06-17	fix(sub): wrap JSON-subscription SS/Trojan outbound in servers[] array	inventory_only
+982595968dbb2fb08c383888b99383bc03662132	2026-06-17	fix(inbound): regenerate SS-2022 client PSKs on method key-size change	inventory_only
+21e9b94bb4e701237d53f78487a2d760118d5f2a	2026-06-17	fix(sub): emit Shadowsocks http-header links as SIP002 obfs-local plugin	inventory_only
+5038fa1cec32a7c310ac8738c2ae1530832c98cd	2026-06-17	i18n: sync 12 locales with en-US — add missing Hosts/subscription keys	inventory_only
+709b332d1753003bc941e0d6fb2cf71203c9e06a	2026-06-17	feat(hosts): managed Hosts for per-host subscription link overrides (#5409)	inventory_only
+37c5e0bfd282dd45cd52c071320e178a25df6b0f	2026-06-16	feat(node): node hardening — mTLS, hashed+zstd reconcile transport, per-node net metrics (#5382)	inventory_only
+f3eba04ed8375394b571d89b07d01dc64e54aae9	2026-06-15	ci: use .nvmrc for setup-node version in codeql/release workflows	inventory_only
+9385b6c60968a14db35c33033af591d968b444c7	2026-06-15	feat(nodes): per-node client IP attribution for IP-limit	inventory_only
+d882d6aa740231aa0fe5282dc3a790d594c78ad5	2026-06-15	feat(inbounds): add Real client IP presets to capture visitor IP behind CDN/relay	inventory_only
+bbab83db171ef4a456d57658875dc695eb96985e	2026-06-15	refactor(frontend): stack client credential fields and use label hints on inbound form	inventory_only
+dc781b28c483286973a420ad3fd9c5d36e6f7d23	2026-06-15	chore(deps): bump telego to v1.10.0	inventory_only
+5b8504c7560081129a78f146ab34f24604779908	2026-06-15	chore(deps): bump frontend deps and override js-yaml to patch DoS advisory	inventory_only
+c1fdcd98d2e2659f4a43012f7d0854bcac6451bc	2026-06-15	fix(nodes): route 'load inbounds' through the connection outbound	inventory_only
+eec030f86fbf43e203a7fe55b47ae69111f810f7	2026-06-15	feat(notifications): event bus architecture with Telegram and SMTP subscribers (#5326)	inventory_only
+7fe082a7f1bf6e96908e4e63ab99f3488a3536ca	2026-06-15	fix(nodes): stop multi-attached client traffic inflating across node inbounds	inventory_only
+f7ffe8981313c97e127ff7861930b18b45a8d65d	2026-06-15	fix(outbound): preserve non-ASCII characters in imported subscription tags (#5354)	inventory_only
+c1fbfd051061965e99d8ec3fb056f5c6ff0bfe0a	2026-06-15	fix(outbound): parse xmux from imported share links (#5353)	inventory_only
+cbb21b7575c7d41587c675abc2dd96017c29bb68	2026-06-15	fix(nodes): propagate single-client deletion to remote nodes (#5352)	inventory_only
+cf5f37e409a090505755d460d8e75114aee1459d	2026-06-15	fix(iplimit): ban UDP as well as TCP in fail2ban action (#5350)	inventory_only
+0d87bb8b4b2a18bedb6940f7afcf0a04fa235509	2026-06-15	fix(inbounds): flag conflicts with the reserved Xray API port (#5304)	inventory_only
+f00512d12ec188fbbec47f174c6a6a538071e015	2026-06-15	fix(frontend): TProxy schema, VLESS+XHTTP flow links, clearable Jalali date picker (#5339, #5322, #5313)	inventory_only
+cdaf5f80db7aa975ce6d4a945162de8712f21c3a	2026-06-15	fix(inbound): strip XHTTP client-only fields from xray config, keep for subscriptions (#5349)	inventory_only
+ac8cb505d1e8ac92bbe8b88d639a8192ff4c04b1	2026-06-15	fix(subscriptions): avoid shared mutable state during generation (#5270)	inventory_only
+71616b7cf2627d7d1c981976a7749bc1a3f538c9	2026-06-15	feat(web): cap request body size on state-changing routes (#5271)	inventory_only
+628406117e344838c1c0cb3a3157e5f24295a2c9	2026-06-15	"fix(nodes): sync ""start after first connect"" expiry so un-activated nodes do not reset it (#5319)"	inventory_only
+760590232494c69329cd98832a09d6dd51def1d4	2026-06-15	Test-quality audit: fix 2 prod bugs, strengthen weak tests, add mutation/fuzz/CI tooling (#5345)	inventory_only
+b5872af27963e9419a61d102612acb4b30042d23	2026-06-15	Frontend operation button size optimization (#5343)	inventory_only
+53f6ed394f88bd6d639661dc19f515aafa48b0f7	2026-06-15	Add Enable/Disable Toggle for Xray Routing Rules (#5296)	inventory_only
+66a9a788fcf0d2aed990b90f57cc75a301ac2ed7	2026-06-15	fix(reality): load `dest` as `target` alias so existing inbounds aren't wiped (#5295)	inventory_only
+dab0add191a17a54a2018d3028a649edfa4d6a70	2026-06-15	feat(finalmask): support Salamander packetSize (Gecko) and Realm tlsConfig for Hysteria2 (#5278)	inventory_only
+7c737820d1ca26e0caf0e7b0e80fa6c65562827b	2026-06-15	fix(links): bracket ipv6 hosts in share links and qr codes (#5310)	inventory_only
+335470607f0d58923be85311c01d83a19d9fde6a	2026-06-14	fix(ui): match node connection-outbound picker to panel-outbound selector	inventory_only
+05ad7f417cec0069166792c041b51a0224d8daaf	2026-06-15	feat(node): per node outbound routing (#5275)	inventory_only
+21888306127618518c570c984ff46168e5e0e557	2026-06-15	perf(db): index group_name and client_traffics hot columns (#5268)	inventory_only
+d14f341b21fdcd4be2d3b7ffcae4b41c15f06637	2026-06-15	refactor(web): centralize background job cadences (#5269)	inventory_only
+f4bbaf40f04e00e23a64bff1c05efb06b39932cf	2026-06-15	feat(ui): show per-inbound live speed (#5261)	inventory_only
+1c750349577da856374f0982986b561b64c05915	2026-06-14	ci(smoke): retry transient GitHub download failures	inventory_only
+7f34c306d7cba207b3b81c9691b4f23a9a07bea4	2026-06-15	feat(docker): support XUI_PORT runtime override (#5240)	inventory_only
+a133282fc361c9f13f0a710fe0c8df706141bf6a	2026-06-14	ci(smoke): set least-privilege GITHUB_TOKEN permissions	inventory_only
+dcb923b4a144f5f682d354fd1d7d267973a8b2db	2026-06-14	feat(sub): per-client external links and remote subscriptions	inventory_only
+7c2598fae9d58b8763f5cf9b966d88f353279172	2026-06-14	feat: release-driven golden-image & unattended-install deployment pipeline (#5323)	inventory_only
+1c0fdb4527819ca8c07b7dd1397003d0a8ee9cdf	2026-06-13	fix(outbounds): test subscriptions in Test All, skip direct/dns	inventory_only
+2d6dea4bf6187fa4e2b70a9434ad97c993abdf95	2026-06-13	fix(settings): rename remark model 'Other' to 'External Proxy' (#5265)	inventory_only
+4c8d3cb62576ca8b76e347f74ad3713392957a32	2026-06-13	fix(nodes): honor TLS verify mode skip/pin for remote node operations (#5264)	inventory_only
+9a8247fa784289ba1fcf7f4f08d1fd8350c170af	2026-06-13	fix(tgbot): clear legacy panelProxy/tgBotProxy settings on upgrade	inventory_only
+355262e632d0491117112f8dce0b085729cdd6c6	2026-06-13	fix(clients): keep the client list live with a background poll (#5262)	inventory_only
+8f556fe2dbbe5f450f71f08e52257f7671480bba	2026-06-13	fix(clients): centre the online dot inside the Online tag (#5238)	inventory_only
+b770287995315f81d79c798a2fde8f5bacb58617	2026-06-12	fix(sub): stop appending the node name to subscription remarks (#5231)	inventory_only
+3c68b039f6ebfe92201a9eaaadc12b61c2fd7f18	2026-06-12	fix(sub): deliver vision flow for VLESS+XHTTP+REALITY in share links and Clash (#5232)	inventory_only
+c200e248f799c2e5902cb300204373a99f6abc39	2026-06-12	fix(script): report per-file geo update status and skip restart when nothing changed	inventory_only

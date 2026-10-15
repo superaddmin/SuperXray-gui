@@ -4,7 +4,7 @@
 > 交接方：Super-Code-Gateway 项目组。  
 > 文档日期：2026-05-16。  
 > 目标：把由 SuperXray-gui 负责的 VPN 层、代理入口、平台专属出口、国家/地区出口和监控验收要求完整拆出，作为跨项目实施依据。
-> 代码复核日期：2026-10-14。本文保留原交接目标与历史现场记录；下文“需要、必须、应”描述验收要求，不表示功能已实现。外部 Gateway、服务器拓扑及历史截图未在本轮重新实测，当前本仓库能力以第 0.3 节为准。
+> 代码复核日期：2026-10-15。本文保留原交接目标与历史现场记录；下文“需要、必须、应”描述验收要求，不表示功能已实现。外部 Gateway、服务器拓扑及历史截图未在本轮重新实测，当前本仓库能力以第 0.3 节为准。当前项目版本 `3.4.3`、上游集成版本 `3x-ui v3.10.2`、目标 Xray `v26.10.10` 分别记录，不能混用。
 
 ## 0. SuperXray-gui 项目内落地裁定（2026-05-16）
 
@@ -57,13 +57,14 @@ MVP 入口已经完成前端落地并在 Xray 页前置：
 
 ![Gateway 出口 MVP 移动端表单](assets/xray-mvp-mobile.png)
 
-### 0.3 当前代码核对结果（2026-10-14）
+### 0.3 当前代码核对结果（2026-10-15）
 
 | 能力 | 当前实现与限制 | 代码依据 |
 |---|---|---|
 | 配置与清单 | 5 个 SOCKS、`noauth`、TCP-only 入口；端口 `11801/11802/11803/11901/11981`，默认 loopback；CSV `health_status=manual-check` | `frontend/src/utils/gatewayEgressMvp.ts` |
 | 出口与路由 | 缺失 tag 时添加 `freedom` 占位，同名 outbound 保留；平台按 inboundTag+domain 路由，区域按 inboundTag 放行任意目标，最后加入 `blocked` 保护 | `mergeGatewayEgressMvpConfig` |
-| 保存与生效 | 当前 Vue SDK 用 `POST /panel/api/xray/update` 写入 `settings.xrayTemplateConfig`；旧 `/panel/xray/update` 保留为兼容入口，两者均要求登录与 CSRF；JSON 解码不等于内核完整校验，保存后提示显式重启 | `frontend/src/api/endpoints.ts`、`frontend/src/views/XrayView.vue`、`web/controller/xray_setting.go`、`web/service/xray_setting.go` |
+| 保存与生效 | Vue SDK 用 `POST /panel/api/xray/update`；旧 `/panel/xray/update` 保留。登录与 CSRF 校验后，兼容转换候选模板、合并启用的数据库入站并调用已安装 Xray `run -test -config`，通过后写入 `settings.xrayTemplateConfig`；保存后提示显式重启 | `frontend/src/api/endpoints.ts`、`frontend/src/views/XrayView.vue`、`web/service/xray_setting.go`、`xray/validate.go` |
+| 失败恢复 | 重启先预检再停旧核心，新进程启动失败会尝试恢复旧进程；数据库导入先在候选副本迁移与预检，替换/启动失败会尝试恢复原数据库及运行态 | `web/service/xray.go`、`web/service/database_import.go` |
 | 核心实例 | `default-xray` 可读，拒绝通过 CoreManager 执行 Validate/Start/Stop/Restart；sing-box 为隔离实验入口 | `web/service/core_service.go` |
 | 验证工具 | 只读脚本检查监听、部分防火墙文本、配置和基础网络 timing；不执行自动治理、国家检测、真实模型推理或回滚 | `scripts/gateway-egress-validate.sh` |
 | 未实现交接目标 | 自动探测持久化、健康状态机、主备切换、账号粘性、`egress_*` 指标与 API、HTTP 入口生成 | 本文第 10–16 节与 Phase 10+ 验收项为目标 |
@@ -72,7 +73,7 @@ host 校验不证明地址私有或连通；生成器按 tag 覆盖入口而不�
 
 ## 1. 背景
 
-Super-Code-Gateway 已经具备 AI API 网关、账号管理、代理登记、账号区域标签和区域代理池能力。网关侧可以在账号创建和编辑时绑定：
+2026-05-16 的外部交接记录描述 Super-Code-Gateway 具备 AI API 网关、账号管理、代理登记、账号区域标签和区域代理池能力。以下字段须由 Gateway 当前代码与部署复核：
 
 - 手动代理：`proxy_id`
 - 账号区域：`region_code`
@@ -102,7 +103,9 @@ Super-Code-Gateway 已经具备 AI API 网关、账号管理、代理登记、�
 - 在请求选定账号后，根据账号手动代理或区域代理池解析最终代理 URL。
 - 记录网关层请求、错误、账号、平台、延迟和用量。
 
-### 2.2 SuperXray-gui 负责
+### 2.2 SuperXray-gui 的目标职责
+
+本节是跨项目职责分配；当前已实现的模板生成、保存、核心预检和 CSV 见第 0.3 节，健康状态机、自动主备与审计尚未实现。
 
 - 启动和维护本机代理入口。
 - 管理 VPN、代理、隧道、WARP、住宅/ISP 出口等网络节点。
@@ -135,7 +138,7 @@ SuperXray-gui 需要交付一套“本机出口治理层”，使 Gateway 能够
    `US`、`JP`、`HK` 等区域账号能够命中对应地区出口。
 
 3. 本机代理隔离  
-   Gateway 只连接 `127.0.0.1` 上的 HTTP/SOCKS5 入口，不直接理解 VPN 隧道细节。
+   Gateway 连接同一网络命名空间的 loopback 入口或经来源限制的受控地址，不直接理解 VPN 隧道细节；当前 MVP 只生成 SOCKS5。
 
 4. 出口稳定性  
    同一账号、同一区域、同一平台在短时间内不频繁漂移出口国家或 IP 段。
@@ -387,7 +390,7 @@ MATCH -> PROXY
 
 ### 8.1 Gateway 到 SuperXray-gui 的映射方式
 
-当前 Gateway 通过代理记录表达出口：
+原交接约定 Gateway 通过代理记录表达出口；以下为对接示例，须在外部 Gateway 验证：
 
 ```text
 protocol: socks5h
@@ -828,7 +831,7 @@ route:
 
 ## 15. 监控指标
 
-SuperXray-gui 至少需要暴露或可查询以下指标：
+以下是 Phase 10+ 指标设计，本仓库当前没有这些 `egress_*` 指标、存储表或告警执行器，不能作为现有版本化 `/api/v1/metrics` 的字段契约（路径相对 `webBasePath`）：
 
 | 指标 | 说明 |
 |---|---|
@@ -939,7 +942,7 @@ SuperXray-gui 至少需要暴露或可查询以下指标：
 - 一台同服部署机器。
 - Super-Code-Gateway。
 - SuperXray-gui。
-- PostgreSQL 与 Redis。
+- 外部 Gateway 要求的 PostgreSQL 与 Redis（SuperXray-gui 自身使用 SQLite，不依赖这两项）。
 - 至少 3 个本机代理端口：
   - OpenAI 测试出口
   - Anthropic 测试出口
@@ -960,7 +963,7 @@ SuperXray-gui 至少需要暴露或可查询以下指标：
 3. 创建账号区域 `US`、`JP`。
 4. 为 `US`、`JP` 绑定对应代理。
 5. 创建测试账号，设置 `region_code`。
-6. 调用 `/v1/messages`、`/v1/responses`、`/chat/completions`、`/v1beta/models`。
+6. 由 Gateway 项目确认实际路由后，调用其 `/v1/messages`、`/v1/responses`、OpenAI-compatible chat completions、`/v1beta/models` 等接口；这些不是 SuperXray-gui 的面板 API。
 
 ### 18.3 SuperXray-gui 侧验证
 

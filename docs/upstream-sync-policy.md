@@ -1,11 +1,26 @@
 # 上游同步策略与落地雷达
 
-> 代码核对日期：2026-10-14；上游雷达与移植决策快照日期：2026-08-11
+> 代码核对日期：2026-10-15；历史上游雷达快照日期：2026-08-11
 > 上游仓库：`MHSanaei/3x-ui`、`alireza0/x-ui`
-> 已记录的供应方基线：`MHSanaei/3x-ui v3.3.1` = `b5ef412b8`；`alireza0/x-ui v1.11.4` = `73b050c95e3fb25128baedc8668d72a45a7b5b6f`。这些固定基线不代表上游最新版本。
-> 当前项目版本：`3.4.3`
+> 当前固定审查目标：`MHSanaei/3x-ui v3.10.2` = `608ef4e4010bf83e2e78328e08f77efc051ad4d7`；共同基线仍为 `v3.3.1` = `b5ef412b8db999a6b981e1550762551d7b06540f`。另一供应方基线：`alireza0/x-ui v1.11.4` = `73b050c95e3fb25128baedc8668d72a45a7b5b6f`。固定目标不代表上游最新版本，也不代表所有上游功能均已采用。
+> 当前项目版本：`3.4.3`；Go：`1.27.2`；目标运行核心：Xray `v26.10.10`
 
-本轮只核对当前仓库、已有 Git 对象和远程配置，没有重新 fetch 或验证 GitHub 最新状态。当前本地 `upstream/main` 已不是上述供应方固定基线；执行同步时必须先记录实际 ref/提交，不沿用本节快照推断待移植差异。当前有效布局仍是 `web/`、`sub/`、`frontend/src`；`docs/backend-internal-rebaseline-contract.md` 描述后续架构契约，不是已经完成的 `internal/` 迁移。
+## 当前 v3.10.2 审查入口
+
+本次固定上游标签、共同基线、完整提交列表、文件差异和实际处理结论统一记录在 [v3.10.2 集成记录](upstream-3x-ui-v3.10.2-integration.md) 及其机器清单中。该记录明确区分已适配、保留本地实现、未采用和仍需人工处理的场景；本文件的历史雷达不再作为本次集成结果的事实源。
+
+以下是当前工作区已存在的适配摘要，详细来源、转换规则及测试环境以该集成记录为准：
+
+| 范围 | 当前处理 |
+|---|---|
+| 依赖与运行核心 | Go 1.27.2、Xray v26.10.10 和其 gRPC API 依赖固定在 `go.mod/go.sum`；Vue 依赖按本地工具链更新，不复制上游 React lock |
+| 协议与旧配置 | `util/xraycompat` 归一 XHTTP sessionID、Reality dest、sockopt、UDP Hop、xDNS、DNS outbound、WireGuard/freedom 策略及 TLS pin；未知字段保留，冲突或废弃字段需明确报错，不能静默丢弃 |
+| 配置和核心替换 | 完整候选配置预检、原子配置写入、归档 SHA-256 校验、候选核心/资产验证及失败恢复；不改变 legacy Xray 生命周期所有权 |
+| 数据库 | SQLite schema/seed/历史配置转换共用事务；导入独立候选库、完整配置预检、维护租约与失败恢复；保留 JSON 客户端模型 |
+| 安全与数据保护 | TOTP 修改确认、可信代理 CIDR、LDAP 空目录保护、Telegram 回调授权、入站写入主键/并发/未知字段保护、Vue 配额原始字节保留 |
+| 本地交付 | 保留 Vue、OpenAPI 生成链、中文部署脚本及双架构；Docker 依赖缓存/可配置下载代理/有界重试已验证，发布不由本次文档核对触发 |
+
+此前隔离验证覆盖 Windows/Linux Go 测试、amd64/arm64 镜像和 19 条 Docker 功能 E2E；arm64 运行使用 QEMU，不能替代原生 arm64/生产环境验收。历史 973 条提交与文件清单用于完整盘点，`inventory_only` 不是逐项语义审查完成标记。
 
 ## 1. 同步原则
 
@@ -20,9 +35,9 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、旧 HTML UI 退�
 - 不把 experimental sing-box 提升为生产默认。
 - 不使用 `v-html`、`innerHTML`、`insertAdjacentHTML` 渲染日志、配置、订阅或外部内容。
 
-## 2. 已同步内容
+## 2. 历史已同步内容（截至 2026-08-11）
 
-以下是 2026-08-11 之前的同步/衍生落地记录。功能可由当前源码核对，但历史“测试通过”不代表本轮已重新执行或远端已部署：
+以下是 2026-08-11 之前的同步/衍生落地记录。版本号描述的是当时状态，当前依赖以文首及锁文件为准；历史“测试通过”不代表本次文档核对重新执行或远端已部署：
 
 1. 记录 `MHSanaei/3x-ui upstream/main` 的合并基线。
 2. 移植 finalmask fragment 空/零长度防崩溃修复。
@@ -43,7 +58,7 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、旧 HTML UI 退�
 17. 评估后保留本地 JSON 显式默认值、客户端高级 JSON 兼容入口、WARP Matrix 与 `3.4.3` 版本号，不采用上游面向旧 HTML UI 的删除或全局收缩改动。
 18. 保持 `alireza0-xui` 远程只读，设置 `remote.alireza0-xui.pushurl=DISABLED`；完整集成记录见 `docs/upstream-alireza0-v1.11.4-integration.md`。
 
-## 3. 上游雷达清单
+## 3. 历史上游雷达及当前处理
 
 已记录的上游 `3x-ui v3.3.1` 重点包括（历史候选及决策，不是当前远程变更扫描）：
 
@@ -55,8 +70,8 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、旧 HTML UI 退�
 - `ca4f32e3d`、`8578b229c`：`panelProxy` 升级为 outbound/balancer based panel egress；本项目当前保留已落地的 `panelProxy`，后续如迁移必须做 SSRF/凭据/路由回滚评审。
 - `3092326d9`：用 Xray-core 原生 geodata auto-update 替代 custom geo manager；本项目暂缓，避免直接删除现有 CustomGeo API/UI 与运维流程。
 - `2a7342baa`、`cc65f3716`、`f1a4286e2`：入站分享地址策略和订阅排序；适合作为 Vue UI + 订阅服务后续 P1 移植候选。
-- `4002be4ad`、`d04cb1097`：WireGuard 最新字段和 per-peer comment；适合作为 Vue UI + 订阅矩阵后续 P1 移植候选。
-- `0766e1668`、`60da6bed1`：XHTTP XMUX 与移除指纹化默认值；适合作为协议表单/订阅矩阵后续 P1 移植候选。
+- `4002be4ad`、`d04cb1097`：当时列为 WireGuard 字段/per-peer comment 候选。当前已有 WireGuard peer 编辑与协议导出，v3.10.2 兼容层另处理 workers、DNS 和策略转换；但 `buildClientPayloadFromEditor` 对 WireGuard 删除 `comment`，不能把共享表单中出现备注框当作 per-peer comment 已支持。两条完整提交仍需逐项比较。
+- `0766e1668`、`60da6bed1`：当时列为 XHTTP XMUX 与默认值候选。XMUX 已在 alireza0 v1.11.4 功能移植中落地，v3.10.2 又适配 sessionID、extra 和服务端/客户端投影；移除指纹化默认值不作为本项目已完整采用的结论。
 - `6c1594693`、`5eec17848`：MTProto domain-fronting 与通过 Xray routing 出站；需 sidecar 生命周期与路由安全评审后再进入。
 - `57e966175`、`2db48174b`、`f88f53cd7`、`65fa40b81`：fail2ban、BBR、update webBasePath restart、API token CLI 修复；属于脚本/CLI 面，需单独按本项目 install/update/x-ui.sh 本地化策略审查后移植。
 
@@ -73,9 +88,9 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、旧 HTML UI 退�
 
 ## 4. 优先级策略
 
-### P0：立即可落地
+### P0：持续保护与优先移植
 
-- 安全/崩溃修复：finalmask、settings fallback、订阅 header/编码/空值防御。
+- 安全/崩溃修复：已落地的 finalmask、settings fallback、订阅空值防御、TOTP 和代理信任边界持续回归，新发现修复优先按本地调用链适配。
 - 依赖与元数据漂移门禁：`go.mod`、`.codex/project.toml`、release gate。
 - 订阅 diagnose：只暴露聚合能力和跳过原因，不暴露 client UUID、真实 sub URL、token 或代理凭据。
 - WARP API 面板代理：只允许管理员配置的 `panelProxy` 影响面板自身出站请求；无效代理必须回退直连并记录 warning。
@@ -83,8 +98,8 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、旧 HTML UI 退�
 
 ### P1：订阅与协议增强
 
-- Clash/Mihomo routing rules。
-- XHTTP/sockopt/Reality/ECH 等上游协议输出修复需先补本项目新 UI/旧 API/订阅矩阵测试后再移植。
+- Clash/Mihomo routing rules 已有本地实现，后续增量继续维护输出语义和安全引用。
+- XHTTP/sockopt/Reality 等已有 v3.10.2 兼容规则；后续 ECH 或其他字段增量仍需补本项目新 UI/旧 API/订阅矩阵测试，不能因核心升级推定面板全部支持。
 - Shadowrocket base64 行为需单独评估当前客户端兼容性，不能破坏已有 Generic URI 输出。
 - Settings UI 可以暴露与 legacy 设置兼容的低风险字段，但必须通过 `frontend/tests/settings-view.test.ts` 覆盖字段绑定。
 
@@ -92,7 +107,7 @@ SuperXray-gui 已在上游 3x-ui 基础上加入 Vue 3 新 UI、旧 HTML UI 退�
 
 - default-xray 继续保持 read-only 与 legacy lifecycle owner。
 - experimental sing-box 只能在显式 binary/config 存在时作为实验入口使用。
-- 二进制下载、迁移脚本和 DB dump/import 工具必须先经过 allowlist、SHA256、临时目录和运行中不覆盖策略设计，再进入生产脚本。
+- 二进制下载、迁移脚本和 DB dump/import 继续遵守允许范围、SHA256、私有临时目录和维护锁；已有核心升级/导入验证与恢复流程不得被新上游实现绕过。
 - MTProto/mtg sidecar、OutboundSubscription 自动刷新、node tree/access.log 跨节点同步暂缓；进入生产前必须单独完成生命周期、权限、XSS/SSRF、回滚和旧模型兼容评审。
 
 ## 5. 标准执行流程
@@ -126,11 +141,15 @@ python .codex/skills/superxray-release-cicd/scripts/release_gate.py --ci --metad
 
 | 功能 | 源码与回归入口 |
 |---|---|
-| 日志路径限制 | `web/service/xray.go`、`web/service/xray_log_path_test.go` |
+| 日志路径限制与新核心日志兼容 | `web/service/xray.go`、`web/service/xray_log_path_test.go`、`web/service/xray_logs_compat_test.go` |
 | 设置默认值与 panelProxy | `web/service/setting.go`、`web/service/setting_test.go`、`util/netproxy/`、`web/service/warp_security_test.go` |
 | 订阅规则和诊断 | `sub/subClashService.go`、`sub/subscription_diagnostic.go`、`sub/subscription_output_matrix_test.go` |
 | legacy 生命周期保护 | `web/service/core_service.go`、`web/service/core_service_test.go` |
 | 自签证书与上游协议表单 | `web/service/self_signed_cert.go`、`web/service/self_signed_cert_test.go`、`frontend/src/utils/inboundCompat.ts` |
+| Xray 配置兼容与预检 | `util/xraycompat/`、`xray/validate.go`、`web/service/xray_setting.go`、`web/service/xray_real_core_test.go` |
+| 数据库迁移、候选导入与恢复 | `database/db.go`、`database/maintenance.go`、`web/service/database_import.go` 与对应测试 |
+| TOTP 与可信代理 | `web/service/setting_totp_test.go`、`util/trustedproxy/`、`frontend/tests/settings-view.test.ts` |
+| 配额与本地 UI 保护 | `frontend/src/utils/trafficQuota.ts`、`frontend/tests/traffic-quota.test.ts`、`frontend/tests/inbounds-view.test.ts` |
 | Go 与 OpenAPI 元数据门禁 | `go.mod`、`.codex/skills/superxray-release-cicd/scripts/release_gate.py`、`tools/openapiexport/` |
 
 版本与依赖以 `config/version`、`go.mod`、`frontend/package.json` 和各自 lock 文件为事实源；供应方基线 tag 不替代产品版本。历史候选的外部实现和当前供应方发布状态需要重新抓取后审查。

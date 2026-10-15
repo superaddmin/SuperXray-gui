@@ -2,7 +2,7 @@
 
 > **目标读者**：贡献者 / 维护者 / 自动化 Agent
 > **适用版本**：`v3.4.3`
-> **源码核对日期**：2026-10-14
+> **源码核对日期**：2026-10-15；当前分支纳入上游 `MHSanaei/3x-ui v3.10.2`，项目版本仍为 `config/version` 的 `3.4.3`，目标 Xray `v26.10.10`。
 > **事实来源**：`go.mod`、`.env.example`、`frontend/package.json`、`.github/workflows/*`、`.codex/project.toml`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [部署指南](deployment.md)
 
@@ -36,7 +36,7 @@
 `go.mod` 声明：
 
 ```text
-go 1.26.5
+go 1.27.2
 ```
 
 本地构建需要 CGO 和当前目标平台的 C 编译器，因为项目使用 SQLite。Windows 可使用已配置的 MinGW GCC；Linux 使用 GCC。Go module 缓存属于工具链目录，不随项目清理。
@@ -113,6 +113,8 @@ SUPERXRAY_SING_BOX_LOG_FOLDER=x-ui
 
 未设置时，sing-box 默认读取 `config.GetBinFolderPath()` 下的二进制和配置，并使用 `config.GetLogFolder()`。
 
+`SUPERXRAY_TRUSTED_PROXY_CIDRS` 控制面板和订阅服务信任的反向代理，值为逗号分隔的 IP CIDR。未设置时仅信任 `127.0.0.0/8,::1/128`，设为空字符串时不信任代理头，非法 CIDR 会使路由初始化失败。容器或远端反代须配置真实的直接上游代理 CIDR；不要以全网 CIDR 替代来源边界。实现位于 `util/trustedproxy/trustedproxy.go`。
+
 安装与管理脚本的环境覆盖独立于 Go 设置：`XUI_MAIN_FOLDER`（默认 `/usr/local/x-ui`）、`XUI_SERVICE`（默认 `/etc/systemd/system`）、`XUI_SCRIPT_REPO`（安装/管理脚本来源）、`XUI_RELEASE_REPO`（安装包来源）、`XUI_LEGACY_REPO`（管理脚本的历史版本来源）。仓库默认均为 `superaddmin/SuperXray-gui`。Docker 的 `XUI_ENABLE_FAIL2BAN=true` 控制入口是否启动 fail2ban；`XRAY_VMESS_AEAD_FORCED` 传递给核心进程，不是面板字段。
 
 ---
@@ -179,7 +181,7 @@ SuperXray-gui/
 │   └── tests/
 ├── logger/                         # 日志系统
 ├── sub/                            # 独立订阅服务
-├── util/                           # crypto/ldap/path/sys/common 等工具
+├── util/                           # crypto/ldap/path/sys/common/trustedproxy/xraycompat 等工具
 ├── web/                            # Web 面板主体
 │   ├── controller/                 # Index/API/Inbounds/Server/Xray/Settings/Core/Geo
 │   ├── service/                    # 业务服务（inbound/xray/server/setting/core/tgbot/nord/warp/custom_geo）
@@ -278,6 +280,23 @@ npm run format
 npm run test
 npm run build
 ```
+
+### 6.2.1 数据迁移与目标核心兼容
+
+`service.InitDB` 是启动、CLI `migrate` 和数据库导入的统一入口；schema、密码 seeder、Xray 兼容转换与入站历史数据迁移在同一事务内完成。导入还会在私有候选数据库上生成配置并调用本机 Xray 预检，再替换活动数据库。不能把迁移测试通过理解为任意旧配置已通过真实端口监听或外网连通验证。
+
+```bash
+go test ./database ./util/xraycompat ./xray ./web/service
+go test -race -shuffle=on ./...
+```
+
+`util/xraycompat/core_fixture_test.go` 使用 `go.mod` 锁定的 Xray Go 配置构建器验证典型旧配置；实际二进制通过 `xray.ValidateConfig` 执行 `run -test -config`。迁移规则及需人工处理的 TLS 信任、旧密码套件、finalmask 场景见 [上游集成记录](upstream-3x-ui-v3.10.2-integration.md)。保持未知 JSON 字段、客户端扩展、流量字节精度、重复执行和失败回滚测试。
+
+### 6.2.2 浏览器与容器验证
+
+根目录 E2E 不自动启动面板。先准备独立数据库、可用 Xray、测试账号，再运行根目录 `npm ci`、`npx playwright install chromium` 与 `npm run e2e`；配置入口是 `playwright.config.ts` 和 `tests/e2e/` 用例。`SUPERXRAY_E2E_BASE_URL`、用户名与密码由环境传入，重启、写入、导入等用例需要对应的显式开关。未配置时测试可跳过，验收记录必须同时记录 passed/skipped 数量。不要在生产面板运行变更型验收，也不要提交 `.env`、数据库、trace 或账户状态。
+
+双架构本地镜像构建及下载代理参数见 [部署指南](deployment.md#72-方案-b使用仓库-compose-本地构建)。Docker 构建不替代前端生成步骤、单测、端口验收或浏览器测试；`web/ui` 与 OpenAPI 生成物必须来自源码构建。
 
 ### 6.3 安全相关验证
 
@@ -380,7 +399,7 @@ PR 至少包含：
 1. `release_gate.py --ci --metadata-only` 校验版本、CHANGELOG 和 release metadata。
 2. 脱敏扫描、Go 格式检查、`go vet`、OpenAPI 契约测试、staticcheck、`go test -race -shuffle=on ./...`。
 3. 设置 Go 和 CGO 工具链，针对 Linux `amd64` / `arm64` 构建 `xui-release`。
-4. 下载 Xray release `v26.3.27`。
+4. 下载 Xray release `v26.10.10`。
 5. 下载 Geo 数据文件。
 6. 打包：
    - `x-ui-linux-amd64.tar.gz`

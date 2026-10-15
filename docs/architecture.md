@@ -2,7 +2,7 @@
 
 > **目标读者**：开发者 / 架构师 / 发布维护者
 > **适用版本**：`v3.4.3`
-> **源码核对日期**：2026-10-14；版本以 `config/version` 为准，阶段规划以 `plans/STATUS.md` 为准。
+> **源码核对日期**：2026-10-15；版本以 `config/version` 为准，阶段规划以 `plans/STATUS.md` 为准。
 > **事实来源**：`main.go`、`.codex/project.toml`、`web/`、`sub/`、`core/`、`database/`、`frontend/`、`.github/workflows/release.yml`
 > **相关文档**：[核心模块解析](modules.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md)
 
@@ -20,7 +20,7 @@ SuperXray-gui 是一个以 Xray-core 为主运行核心的 Web 控制面板。�
 | 当前版本 | `3.4.3`，由 `config/version` 提供 |
 | 默认面板路径 | `/super/`，由 `web/service/setting.go` 提供；下文面板 API/页面路径均相对于配置的 `webBasePath` |
 | Go module | `github.com/superaddmin/SuperXray-gui/v2` |
-| Go 版本 | `1.26.5`，见 `go.mod` |
+| Go 版本 | `1.27.2`，见 `go.mod` |
 | 数据库 | SQLite + GORM |
 | 主运行核心 | legacy XrayService + `database/model.Inbound` |
 | 新 UI | Vue 3 / Vite / TypeScript / Pinia / Ant Design Vue 4 |
@@ -29,7 +29,7 @@ SuperXray-gui 是一个以 Xray-core 为主运行核心的 Web 控制面板。�
 | 旧 HTML UI | 已退役；`web/html`、`web/assets` 和 `/panel/legacy*` 不再注册 |
 | 实验核心入口 | `/panel/api/cores`，当前注册 `default-xray` 和 `experimental-sing-box` |
 
-Release 工作流打包时下载 Xray release `v26.3.27`；Go 依赖仍按 `go.mod` 锁定的 `github.com/xtls/xray-core` 版本提供 API 类型和集成代码。
+Release 工作流打包时下载 Xray release `v26.10.10`；Go 依赖仍按 `go.mod` 锁定的 `github.com/xtls/xray-core` 版本提供 API 类型和集成代码。
 
 ---
 
@@ -140,7 +140,7 @@ flowchart TD
 
     D --> D1[logger 按进程环境初始化]
     D1 --> D2[godotenv 加载 .env]
-    D2 --> D3[database.InitDB(config.GetDBPath())]
+    D2 --> D3[service.InitDB: 原子数据库及配置兼容迁移]
     D3 --> D4[创建 web.Server 并 Start]
     D4 --> D5[创建 sub.Server 并 Start]
     D5 --> D6[监听 SIGHUP/SIGTERM/SIGUSR1]
@@ -169,6 +169,8 @@ legacy Xray 生命周期仍由 `web/service/XrayService` 和 `ServerController` 
 
 `/panel/api/cores` 中的 `default-xray` 只是 legacy Xray 的只读实例视图，不通过 CoreManager 启停。`experimental-sing-box` 是外部二进制实验适配器，支持 validate/start/stop/restart，但不影响 Xray。
 
+Xray 重启先生成兼容配置并执行本机核心预检，再停止旧进程；新进程启动失败时尝试恢复旧进程。`xray.Process` 写入同目录临时配置，完成同步后 rename，启动失败或 500ms 初始观察窗口内退出时恢复旧配置。该观察窗口不等于长期健康检查。手工停止标志会阻止后台自动重启，显式启动/重启才解除。
+
 ---
 
 ## 5. 数据模型
@@ -188,7 +190,7 @@ legacy Xray 生命周期仍由 `web/service/XrayService` 和 `ServerController` 
 | `model.HistoryOfSeeders` | 种子迁移历史 |
 | `model.CustomGeoResource` | 自定义 GeoIP/GeoSite 资源 |
 | `model.SchemaMigration` | 数据库迁移版本记录，幂等记录 baseline 迁移 |
-| `model.MigrationEvent` | 迁移执行事件审计，用于回滚规划 |
+| `model.MigrationEvent` | 当前记录 baseline 的 up/applied 事件；不是完整失败审计或自动 down runner |
 
 ### 5.2 Active Xray 写模型
 
@@ -219,6 +221,12 @@ settings, stream_settings, tag, sniffing
 
 `database/repository.go` 已提供 User、Setting、Inbound 的 GORM Repository 接口，相关服务通过注入或惰性获取使用；部分旧查询仍直接使用 GORM。这是现有表结构上的渐进重构，尚不存在整仓迁入 `internal/` 的目录布局。
 
+### 5.5 数据库初始化与导入边界
+
+`service.InitDB` 将 `AutoMigrate`、baseline 记录、管理员初始化、密码 seeder、Xray JSON 兼容转换和历史入站/客户端清理放进同一事务，提交后才原子发布新连接。`PrepareDBWithMigration` 可只准备候选连接，不修改全局 DB。无效配置会使整次迁移回滚，而不是留下已更新的部分行。
+
+`database/maintenance.go` 的读/维护锁协调 Web、Sub 请求和 cron 与数据库导入；`runtimeMaintenanceMu` 串行化核心启停、核心安装和数据库替换，锁顺序为数据库租约在前、核心维护在后。导出使用 `VACUUM INTO` 一致性快照；导入先验证候选库和候选 Xray 配置，再替换，失败时恢复原库。它不提供跨进程锁或断电恢复事务。
+
 ---
 
 ## 6. 核心数据流
@@ -235,7 +243,7 @@ sequenceDiagram
     participant DB as SQLite
 
     Browser->>Gin: Cookie + CSRF + API request
-    Gin->>MW: RequestID / StructuredRequestLogger / SecurityHeaders / Domain / Gzip / Sessions / Locale / Redirect
+    Gin->>MW: TrustedProxy / DatabaseLease / RequestID / Logger / SecurityHeaders / Domain / Sessions
     MW->>Ctrl: 路由匹配
     Ctrl->>Svc: 参数校验后调用服务
     Svc->>DB: GORM 读写
@@ -250,13 +258,16 @@ sequenceDiagram
 New UI XrayView
   -> POST /panel/api/xray/update
   -> XraySettingService.SaveXraySetting(xraySetting)
+  -> unwrap / xraycompat normalization / effective config preflight
   -> SettingService.SetXrayOutboundTestUrl(outboundTestUrl)
   -> legacy XrayService restart is a separate explicit action
 ```
 
 结构化工具（Outbounds、Routing、DNS、FakeDNS、Balancer、Reverse、Residential IP Pool、Gateway Egress MVP）都只修改 Xray JSON 模板，不创建新数据库表。
 
-当前 Vue SDK 使用 `/panel/api/xray/*` 和 `/panel/api/setting/*`；兼容入口 `/panel/xray/*`、`/panel/setting/*` 保留。两个前缀共享控制器自身的登录和 CSRF 中间件，非安全方法同样要求有效 CSRF token。
+`util/xraycompat` 共用于数据库迁移、模板保存、入站生成和订阅输出，保留未知 JSON 字段和大整数；服务端运行视图会去掉仅客户端使用的 XHTTP/UDP Hop 参数，存储及订阅仍保留。已移除且不能安全推导的字段返回明确错误。具体转换及手工升级场景见 [上游集成记录](upstream-3x-ui-v3.10.2-integration.md)。
+
+当前 Vue SDK 使用 `/panel/api/xray/*` 和 `/panel/api/setting/*`；兼容入口 `/panel/xray/*`、`/panel/setting/*` 保留。认证分别由 API 父路由组的 `checkAPIAuth` 与页面父路由组的 `checkLogin` 提供；设置和 Xray 控制器自身注册 CSRF 中间件，API 父组也注册 CSRF。两个前缀的非安全方法同样要求有效 CSRF token。
 
 ### 6.3 Inbound 写入
 
@@ -372,7 +383,11 @@ frame-ancestors 'none'
 
 ### 8.2 CSRF 与同源校验
 
-状态变更请求必须带 `X-CSRF-Token` 或 `X-XSRF-Token`。若存在 `Origin` 或 `Referer`，必须与当前请求同源。新 UI Axios 自动从 runtime config 注入 token。
+Panel API 与设置/Xray 兼容组的非安全方法必须带 `X-CSRF-Token` 或 `X-XSRF-Token`。若存在 `Origin` 或 `Referer`，必须与当前请求同源。新 UI Axios 自动从 runtime config 注入 token。公开登录接口和订阅接口不使用此 token 契约。
+
+Web/Sub 对转发头统一使用 `SUPERXRAY_TRUSTED_PROXY_CIDRS`：默认只信任回环代理，显式空值禁用信任，错误 CIDR 阻止监听启动。请求 IP、scheme 和订阅公开 Host 均受该边界限制。
+
+设置读取不返回现有 TOTP 密钥；首次启用验证新密钥验证码，禁用/替换验证旧密钥验证码。设置更新在事务内完成。Telegram 管理回调按配置的管理员身份鉴权。
 
 ### 8.3 下载和导入
 

@@ -2,7 +2,7 @@
 
 > **目标读者**：需要在 SuperXray 中为 OpenAI/ChatGPT、Anthropic/Claude、Google/Gemini 等 AI 平台配置专用出口的运维人员
 > **适用版本**：`v3.4.3`
-> **代码核对日期**：2026-10-14；服务器、住宅供应商和 OpenWrt 的运行状态需在目标环境重新验证。
+> **代码核对日期**：2026-10-15；当前分支纳入上游 `3x-ui v3.10.2`，目标 Xray 为 `v26.10.10`，项目版本仍由 `config/version` 声明为 `3.4.3`。服务器、住宅供应商和 OpenWrt 的运行状态需在目标环境重新验证。
 > **事实来源**：`frontend/src/views/XrayView.vue`、`frontend/src/utils/xrayCompat.ts`、`frontend/src/utils/gatewayEgressMvp.ts`、`web/controller/xray_setting.go`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [入站创建教程](inbound-creation-guide.md) | [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
@@ -17,10 +17,14 @@ XrayView
   -> frontend utils 修改 JSON
   -> POST /panel/api/xray/update
   -> XraySettingService.SaveXraySetting
+  -> 兼容转换 + 合并已启用入站 + 已安装 Xray run -test
+  -> 校验成功后持久化模板
   -> 用户显式重启 legacy XrayService
 ```
 
-保存目标是现有 `settings` 中的 `xrayTemplateConfig`。服务端会解开旧响应包装并进行 JSON 解码校验，但不会在保存时调用 Xray 内核进行完整配置校验或自动重启。Vue 保存成功后会显示重启确认；用户确认后才调用既有 `/panel/api/server/restartXrayService`。下文面板路由均相对部署的 `webBasePath`。
+保存目标是现有 `settings` 中的 `xrayTemplateConfig`。服务端解开旧响应包装、执行 `util/xraycompat` 兼容转换，并用候选模板与当前启用的数据库入站生成完整配置；随后调用已安装核心的 `run -test -config`（15 秒超时）。失败时不会写入候选模板。校验不启动监听，不能证明端口、出口、DNS 或 AI 平台实际可用；缺少核心、证书或 Geo 文件也会使保存失败。
+
+保存不会自动重启。Vue 保存成功后显示确认框；确认后才调用既有 `/panel/api/server/restartXrayService`。重启先预检再停止旧核心，新进程启动失败会尝试恢复旧进程；恢复失败仍需人工处理。下文面板路由均相对部署的 `webBasePath`。实现见 `web/service/xray_setting.go`、`web/service/xray.go`、`xray/validate.go`。
 
 当前 Vue SDK 使用 `/panel/api/xray/update`；旧 `/panel/xray/update` 是保留的兼容入口，两者的状态变更请求均要求登录和 CSRF token。
 
@@ -412,7 +416,7 @@ cp -a /usr/local/x-ui/bin/config.json "/root/xray-config-$(date +%F-%H%M%S).json
 3. 使用 Residential IP Pool 保存一个或多个 tag 包含 `residential` 的 socks outbound。
 4. 点击 Apply AI Routing，检查生成的 `ai-residential` balancer、TCP AI 域名规则和 UDP blocked 规则。
 5. 视需求添加 DNS server、DNS policy、Observatory。
-6. 保存 Xray 模板。
+6. 保存 Xray 模板；候选完整配置须通过当前安装核心的预检，未通过时保持旧模板并先处理错误。
 7. 手动重启 Xray。
 8. 查看 Xray 日志，确认没有 `failed to build`、`invalid`、`target`、`balancer` 等错误。
 
@@ -421,8 +425,8 @@ Gateway Egress MVP 的部署顺序：
 1. 在 Gateway Egress MVP 区域确认 `listenHost` 和 `manifestHost`。
 2. 点击生成配置。
 3. 把 placeholder outbound 替换为真实出口。
-4. 复制或下载 CSV manifest，交给 Gateway 登记。
-5. 保存模板并重启 Xray。
+4. 保存模板并重启 Xray，核对五个监听、规则与真实出口。
+5. 从 Gateway 所在网络命名空间完成正反向探测，再复制或下载 CSV manifest 登记；不要把尚未生效的入口交付给业务调用。
 
 ---
 
@@ -474,7 +478,7 @@ curl --connect-timeout 5 --max-time 30 -sS -o /dev/null -w 'HTTP %{http_code}\n'
 | Xray 启动失败 | JSON 语法、outbound tag、balancer tag、Reality target、当前 Xray 不支持字段 | 查看 Xray 日志第一条 `failed to build` 错误 |
 | Residential IP Pool 为空 | outbound tag 不含 `residential` 或 protocol 不是 `socks` | 调整 tag 或协议 |
 | Outbound Test 失败 | 住宅代理不可达、认证错误、测试 URL 不通 | 用服务端日志和供应商控制台核对 |
-| Gateway 端口不可连 | `listenHost` 为 127.0.0.1 但 Gateway 不在同主机 | 保持同主机，或改为受信任内网主机并理解暴露风险 |
+| Gateway 端口不可连 | `listenHost` 为 127.0.0.1 但 Gateway 与 Xray 不在同一网络命名空间 | 使用共享网络命名空间，或改用可达的受控地址并限制来源；同一宿主机上的普通容器也不共享 loopback |
 | Gateway 流量被 blocked | platform 域名清单未覆盖目标 | 补充 routing rule 或使用区域 profile |
 | 订阅为空 | `subEnable`、`subId`、公开 URI、协议能力不匹配 | 用 `subPath`、`subJsonPath`、`subClashPath` 配置的入口追加 `:subid/diagnose` 排查 |
 | DNS 泄漏 | 终端本地解析、客户端未使用远端 DNS | 使用 SOCKS5H/TUN/FakeDNS，限制浏览器本地 DNS 路径 |
@@ -483,21 +487,13 @@ curl --connect-timeout 5 --max-time 30 -sS -o /dev/null -w 'HTTP %{http_code}\n'
 
 ## 10. 回滚
 
-最小回滚：
+最小回滚会让原 AI 流量重新落到既有后续路由，可能变为直连。先暂停对应 Gateway 代理绑定或确认该行为可接受，再执行：
 
 1. 禁用或删除 AI 域名路由规则。
 2. 保留 residential outbound，以便后续排查。
 3. 保存模板并重启 Xray。
 
-完全回滚：
-
-1. 删除 residential socks outbound。
-2. 删除 `ai-residential` balancer。
-3. 删除 AI TCP/UDP 规则。
-4. 删除 Gateway Egress MVP 生成的 inbound、placeholder outbound 和 `_gatewayEgressMvp` rules。
-5. 删除相关 Observatory 和 DNS server。
-6. 恢复备份配置或数据库。
-7. 重启：
+完全回滚优先恢复同一份已知可用模板，保留其引用的 outbound、balancer、DNS 和 Observatory，避免逐条删除造成悬空引用。若必须恢复数据库，按 [部署指南](deployment.md#10-备份与恢复) 停止写入并保留原文件；数据库导入使用面板候选迁移与预检路径。恢复模板并重启后再恢复 Gateway 绑定：
 
 ```bash
 systemctl restart x-ui

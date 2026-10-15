@@ -1,0 +1,132 @@
+commit	date	subject	review_state
+d87b7c157f3c764156f0d1346cb2302517daff66	2026-10-15	docs: 更新 Passwall AI 路由排障手册	inventory_only
+506d755b88e43874625ddd624a2b7764d9527793	2026-10-15	feat: 沉淀服务器部署与订阅交付技能	inventory_only
+8962f2cf60dfd3b70b0315ab2c96177deb012365	2026-10-15	fix: 修复静态检查阻塞并保持 HTTP 重试语义	inventory_only
+d5dcef1a9c8a635b55e469a1c34b22e66410040a	2026-10-15	docs: 清理项目目录并同步文档与接口契约	inventory_only
+d4a8e8913f54b0d91dc963ed76c03bfb32c63e27	2026-09-19	docs: 说明运行可靠性修复与验证回滚步骤	inventory_only
+a0aa4086dd2ded7128735de472a239f9d9bdfc2f	2026-09-19	fix: 保留流量事务失败增量并独立确认重试	inventory_only
+aa2b81df65d1d95b56b71d1fb2e200bfb62d51c9	2026-09-19	fix: 安全更新 Geo 文件并在失败时回滚	inventory_only
+fc932ce77f8bc47b65fd4cd18d847b69947dcd1a	2026-09-19	fix: 限制请求指标维度并归并未知路由	inventory_only
+5366eada46ab1fe66a9e84b2b769576544f9a568	2026-09-17	feat: 扩充 AI 分流域名清单至 30 条并同步关键词表	inventory_only
+e6126ce55d9cc18b0ca85a10d7413f8b5c5e57ca	2026-09-14	fix: 更新 API 文档中的私钥示例格式	inventory_only
+93d807fe7c5c12611e525ef35338a1b67dd34980	2026-08-11	docs(api): add self-signed certificate API documentation	inventory_only
+f01102f719623876a1d4cb41a6a7f3d01464e49e	2026-08-11	merge: 集成 alireza0 x-ui v1.11.4	inventory_only
+9be1e9dfcef7c503b7f8a26d48982634afcbfcce	2026-08-11	chore: 更新嵌入式前端与 OpenAPI 产物	inventory_only
+95f9daa42bd6f8efff6187d4bac63edeee40d099	2026-08-11	fix: 补齐 v1.11.4 跨层安全与订阅契约	inventory_only
+1037bae38bccbf5e63d192b7e7d9817e35910d40	2026-08-11	docs: 更新多份文档，修正路由与CSRF相关说明	inventory_only
+30e0581e24c331bc04606938bbfa3dd9e0b496e9	2026-08-10	docs: 清理废弃文档并更新模块与架构说明	inventory_only
+74ae3cf400999537370a71e77ca67fb56bbd38b1	2026-08-10	feat: 移植 x-ui v1.11.4 XHTTP 与 XMUX 配置	inventory_only
+7d998f747d809d0d6d43479f29d115404fa88272	2026-08-10	feat: 移植 x-ui v1.11.4 Hysteria 与 TUN 配置	inventory_only
+b327989474228805144debe01d71fb5b6b757fad	2026-08-10	feat: 安全移植 x-ui v1.11.4 自签证书能力	inventory_only
+b1865e834b7cc5b3a0924fe08f92a0fdef8a1d3b	2026-08-10	chore: 同步 x-ui v1.11.4 Go 依赖更新	inventory_only
+807f6280e32b2dba88cbcf910c40a40fe3e1fb9f	2026-07-25	feat: add modal component and responsive observer	inventory_only
+c15c222432dc853f2280d9a9511006f76949279e	2026-07-14	fix: 恢复 main 分支 CodeQL 扫描	inventory_only
+09a6ffd60fe5d3063538deafaa9e45a05256815e	2026-07-14	fix: 升级 Go 1.26.5 修复标准库漏洞	inventory_only
+8b1803a2193b747610e9bab01feb3a3164eac1da	2026-07-14	chore: 补全 v3.4.3 发布元数据	inventory_only
+69ee8c99eb67896d73178ab7ed66e7c04bdb4faf	2026-07-14	chore: 更新版本至 v3.4.3，强化安全扫描，修正文档与示例，清理过时内容	inventory_only
+56dea92e26762551ba5193346b18fdf7e9a19613	2026-07-14	Remove outdated implementation plans for Codex retrospective governance and 3x-ui backend architecture rebaseline, streamlining documentation and focusing on current development priorities.	inventory_only
+47a4708861d6d7254f93dcfcc5cd1521b00ba068	2026-07-14	Enhance contribution guidelines, update README, and improve secret scanning	inventory_only
+a31c9cc75ee055243d5b90b4aa227998f971cbb8	2026-06-27	chore: 发布 v3.4.2	inventory_only
+82eb0261c805306ca9b3632518f4ce6036d55a56	2026-06-27	fix: 修复 logger 重初始化竞态	inventory_only
+9e34aad6492e862393f50c0ffbaf7633e6b26861	2026-06-27	chore: prepare v3.4.1 patch release	inventory_only
+30e116c533d21723ccd7c2760a63c15db28672cb	2026-06-26	feat: add v1 API controller with health and metrics endpoints	inventory_only
+9e2d1a84e9a5a0cb17b92d475b42cee72fd7c2ac	2026-06-26	feat: add implementation plan for 3x-ui backend architecture rebaseline and Xray-core v26.3.27 sync	inventory_only
+cf216ba4697539641033cf9af00aa6ae2040990e	2026-06-25	fix: 更新 README.md 中的表格布局，优化 Bot / 集成设置的显示	inventory_only
+31a5aada4d286b6db338f4c1f16cb88fca335c05	2026-06-25	feat: 更新 README.md，添加 Vue 3 操作 UI 和设置指南	inventory_only
+cb7867a6a617b1675930fb824f8810b5b033ffde	2026-06-25	feat: 发布 v3.4.0 并清理生成物	inventory_only
+d214f2a09fa396619c6189605375d47191633a01	2026-06-24	feat: 增强 Xray 日志路径配置，限制日志文件路径到面板日志目录	inventory_only
+446016ebd06c7a96ca2c4b840155abdb29bd461d	2026-06-11	refactor: 退役旧 HTML UI 入口与资源	inventory_only
+3064c329ab6a2d0613f9dbfaf20d7f22da974f46	2026-06-10	fix: 补齐 Hysteria2 UDP Hop 表单	inventory_only
+032f23abb60475def27a79b783252978d3d96655	2026-06-10	fix: 规范化 Hysteria2 Xray 协议输出	inventory_only
+af3eb2a0b8bd541967fd652c94e505fffc780d1a	2026-06-10	chore: 发布 v3.3.0	inventory_only
+2643012e866bc77d5e1e13623c77b401200dddba	2026-06-10	fix: 修复 Hysteria2 订阅与默认 TLS 参数	inventory_only
+5370f6b95ff1d0566a504720a0b338b0fa9345ea	2026-06-10	docs(ops): 沉淀 OpenWrt AI 路由与运行态排障手册	inventory_only
+ac1ce10b937d80374e05e6b7076986ee361886ba	2026-06-10	chore(codex): 增强运行态网络复盘与排障治理	inventory_only
+8b71de4d04b87c9146ad3772875ce57189f72946	2026-06-09	feat: 同步上游 v3.3.0 P0-P2 并发布 v3.0.22	inventory_only
+8fc01334d48a24036279b7bf24a48801f84658f3	2026-06-09	fix: 完善 OpenAPI 文档引用展开并发布 v3.0.21	inventory_only
+06872d1b781e6a3ed93903d1baccdc9b75d81b7e	2026-06-09	feat: 新增 Vue 面板 OpenAPI 文档页并发布 v3.0.20	inventory_only
+e4455aa308b670f2b60ec3c0bd40b68c776aeb8d	2026-06-09	merge: 同步上游 3x-ui v3.3.0 兼容更新	inventory_only
+05165f3e99be0100950b7c02ea3bde0fb4ab4fe2	2026-06-07	merge: 同步上游 3x-ui API 文档与路由更新	inventory_only
+96047bf1136b682e3a09fe1bcf2363a4f7695942	2026-06-07	chore: 重构并完善 .codex 项目配置体系	inventory_only
+dfa4c2f5b6ce83ca91fe2852ba84f7a705dfc753	2026-06-07	chore: 重构并完善 .codex 项目配置体系	inventory_only
+2c20153e880f094028b8d01d1c9c7850c800232a	2026-06-07	chore: 同步 Docker 构建 Go 版本	inventory_only
+1ba803621aa4d3d28184cd2449d6530db38b1139	2026-06-07	fix: 落地P0-P2上游硬化与订阅核心改进	inventory_only
+91bbc65721cd2b211bf6584e5f208e440ebfb876	2026-06-07	fix: 同步上游 finalmask 修复与 Go 依赖	inventory_only
+9c9cfd012fd7b6be340e18b6c1490425fe65f791	2026-06-07	merge: 记录 3x-ui upstream/main 同步基线	inventory_only
+20031d417cd134355ab76690cc115d0a016cd3d3	2026-06-07	docs: 更新多份文档的表格与目录内容	inventory_only
+94daa30cff36e6bbfb8a88ce8cf07c519d0bd108	2026-06-06	fix: 修复 HY2 默认证书路径回填	inventory_only
+60fa4b02b497457fe5a8c1030ca5c1b4aad86ed4	2026-06-02	chore: 重构 superxray codex 配置体系	inventory_only
+dff0bc08ead241e1df39bed2822563672f257513	2026-05-26	chore: 发布3.0.18	inventory_only
+be4b5a1c4652902c1215272adb92cb99cebed108	2026-05-22	chore: 发布3.0.17	inventory_only
+cb25062180249fb7112f4d4151941d5bd4eca8e0	2026-05-21	fix: 默认面板入口使用super路径	inventory_only
+53eb2f8fef5929617beb15b315c7d63ffee25d2e	2026-05-21	chore: 添加Docker构建上下文忽略规则	inventory_only
+ba800fa84d1beffe906d679db0ad6957e296f04b	2026-05-18	docs: 同步项目架构与 API 文档	inventory_only
+b0ce34564135e4976ada5de40eb5b3f9c43d97b8	2026-05-17	chore: 完善项目级 Codex 多代理配置	inventory_only
+0caa8d648710e985a2bc7910653a5e84c8437789	2026-05-16	fix: 补齐新UI核心实例路由	inventory_only
+89f24c771935428b7420498d1e9e8d8d1149382f	2026-05-16	fix: 完善Xray工作区入口与移动端可访问性	inventory_only
+c79561ce8e9fdb22c583c15124e8282bba1fd309	2026-05-16	feat: 完成UI刷新与Gateway出口MVP	inventory_only
+f4f852cdc2a6d2346a162883de49dc7a030ecfda	2026-05-16	feat: 新增住宅出口池与AI分流配置	inventory_only
+0601c0be138cd92ca4858a9e8037bd3e5c5a9cc2	2026-05-15	chore: 发布3.0.14订阅兼容修复	inventory_only
+99df544ba1e595ae852741580f517e83620995c5	2026-05-15	fix: 修复Clash Reality订阅字段生成	inventory_only
+74aed1091093affc26a5ab37e089dbb9f80385f8	2026-05-15	fix: 修复订阅可视化页资源路径	inventory_only
+594b79d9399bb56ea3fe8893618fcdefb68d7dce	2026-05-15	fix: 修复 x-ui 菜单脚本执行格式	inventory_only
+326c06f230217ebfd2b5d1a75b46a890a235669f	2026-05-15	docs: 同步 v3.0.11 项目文档	inventory_only
+88457ae8de2f7ab2d5e114a4cfc50d071ccf451c	2026-05-14	fix: 修复新 UI 入站订阅导出空链接	inventory_only
+149308d9a4f4471499009d68cf762a255f406e5c	2026-05-14	fix: 补齐新 UI 入站导出订阅操作	inventory_only
+e653fdb448af79c9d58bce345fd8178ffce0a7c9	2026-05-14	fix: 修复 Reality 入站空 target 导致 Xray 启动失败	inventory_only
+ba92c8b2f26b8d687f4a03e9994e9bb254a1d354	2026-05-14	fix: 补齐 v3.0.8 发布元数据与门禁	inventory_only
+5bf752383ded947b6121f752cf4558327de5a315	2026-05-14	feat: release v3.0.8 bulk client & protocol tools	inventory_only
+380c9b37b9a4cde8b90972fa3626195e674d838a	2026-05-13	feat: release v3.0.7 proxy URI support	inventory_only
+4a8da3827c075cd3f95d13a4970ee2c8b65d49d4	2026-05-11	docs: 新增新UI与V3.0.3功能对比及部署评估报告	inventory_only
+b87b4adc3d1e6a73c49cd324456bb62d2feb70de	2026-05-09	feat: 发布 v3.0.6 gateway proxy templates	inventory_only
+8df75fdd3a80ba2fdc322eead92c23a7921213be	2026-05-09	chore: 发布 v3.0.5	inventory_only
+5128447b780c3265e108084515a89e5c33613b99	2026-05-08	docs: 设计Inbounds和Settings表单重组	inventory_only
+88fd6b042d106f83ec69dec8ebc16d60b931890a	2026-05-08	feat: support proxy uri outbound imports	inventory_only
+3f2acee61a83f24c661126a0895abcf03b253d02	2026-05-08	feat: enhance ui and subscription compatibility diagnostics	inventory_only
+8512ebf13a82b1aaad20655994e8bd259761abbb	2026-05-05	chore: 准备 v3.0.4 发布	inventory_only
+84b408e587d3626816ff1a80d159f1dad9c46318	2026-05-05	fix: 收紧安装包架构与发布扫描	inventory_only
+66c36598c691c46f7a1f5f53442b78948096b130	2026-05-04	chore: 清理冗余浏览器快照	inventory_only
+c542bc7c61346c084d521953280167819dcab2d9	2026-05-04	feat: 完成 UI-first 迁移与旧 UI 清理	inventory_only
+759686a02b8e95ee9b853827c869049dd594890b	2026-05-02	feat: 添加智能发布工作流文档并更新相关文件路径	inventory_only
+3a41abbdb3d2c55ef2583feb9981df45d1111771	2026-05-02	fix: 更新.gitignore以忽略额外的IDE和缓存文件	inventory_only
+f825620031342b3988bc65cfa0ec57e70d048768	2026-05-02	fix: 修复 v3.0.3 发布版本校验	inventory_only
+a6e0eddc09e1b3de883ad94184c2c42e3e941cf0	2026-05-02	docs: 将README中的图片从PNG替换为SVG格式	inventory_only
+e0fde0475655f2f7ede33332be2d714cc590b83e	2026-05-02	fix: inject buildHash via ldflags and fix version validation in release CI	inventory_only
+b68200cffb21500bfa49e7493ed6e86d6aa1fdc7	2026-05-02	docs: add v3.0.3 changelog entry	inventory_only
+b15ed9c5a262cd97fc0ec04e451a0fa9025c3ca5	2026-05-02	chore: bump version to v3.0.3	inventory_only
+ef9eeb2a9a28867b0ea3d7fdd193919a5746396c	2026-05-02	feat(侧边栏): 更新logo图标为svg格式并添加深色/浅色主题支持	inventory_only
+ddb98dcd03e5fca639bfa66120c83c9f6fcc0167	2026-05-02	feat(shadowsocks): 规范化Shadowsocks方法名称处理	inventory_only
+4fcfe21cd364664b59e131717bd4b1cab12d1811	2026-05-02	feat: enhance input fields for client credentials in protocol forms	inventory_only
+df3fe3ef0ed01cd1c10c70683ee13ba166abcbd4	2026-05-02	feat: 增强可访问性，添加ARIA标签以改善用户体验	inventory_only
+2632550176b311e743e74f2c66197eaefdf7dbb4	2026-05-01	Enhance accessibility and UI consistency across HTML files	inventory_only
+6dc64a2e1abff33856a8aa373f411572a52f5a97	2026-05-01	Refactor code structure and remove redundant sections for improved readability and maintainability	inventory_only
+1e6da86e1aa1b41172425b651bb9cf1a500bbdac	2026-05-01	feat: 移除过时文档和增强协议组合工具	inventory_only
+055f5ffa7516930aa024bbb49259621ba60d48df	2026-05-01	chore(release): 准备 v3.0.2	inventory_only
+a665cd26e9730567016e922377d1863bc25614f0	2026-05-01	feat: 增加 Xray 协议组合工具	inventory_only
+abe8fb093e1130d7a4412ffea48b222e7055c7a2	2026-05-01	docs: 添加 Xray 协议组合增强方案	inventory_only
+4c2c7dabd944f246d1edce3cad597b5fb16b112d	2026-05-01	fix: 修复客户端 Email 编辑并发布 3.0.1	inventory_only
+d14fbe6cf559def588fabfe61a2947af28da0b9f	2026-05-01	fix: 修复 Shadowsocks 密码保存并发布 3.0.0	inventory_only
+6157453a2a61081b8e60253e647cb9c0d6ae6ef6	2026-05-01	feat: 补齐协议周边能力并发布 2.9.10	inventory_only
+d5e2cf0cc5b03e3afd6a85765c1f5742810a0c01	2026-04-30	chore(release): 准备 v2.9.9	inventory_only
+7cb6408c41ddebe75d0143932b4e9cb8a67fc927	2026-04-30	feat(inbound): 优化入站表单提示	inventory_only
+b6d93ba7dee58405937d5dbd10c18b48620b44dd	2026-04-30	fix: 修复入站创建与同步发布 2.9.8	inventory_only
+258a2cf139a0ca509692ac5270d8531fb8cb4920	2026-04-29	fix: 修复 release notes 上传配置	inventory_only
+ef9a197a8b1454a3a32dd85fdde0dfa8cebb7be9	2026-04-29	fix: 修复添加客户端 tgId 类型错误	inventory_only
+4a5301d1cc8418a1fbb4602c65507d7725d8cddb	2026-04-29	ci: 修复标签发布构建失败	inventory_only
+2a20beefd01d9e7a42e5e1a78ec0598e28f52a50	2026-04-29	ci: 修复Docker标签发布流程	inventory_only
+98fe62870fe1f745da792077c0725ea5fc19328c	2026-04-29	fix: 修复侧栏导航并完成品牌替换	inventory_only
+471d66d71425aa0833e3f2a60d3a3a50c50ceb5f	2026-04-29	fix: 兼容预发布Release安装解析	inventory_only
+dc7f561bb53caf23cfc0310653b108585b0f7b09	2026-04-29	ci: 加速ARM64交叉编译验证	inventory_only
+c414b3cf2927c10707f7848eebfa1548725d99db	2026-04-29	ci: 使用Ubuntu交叉编译发布产物	inventory_only
+7ddef7a833d915dda7dada631a29f6e863099a2f	2026-04-29	ci: 收敛发布流水线到Linux双架构	inventory_only
+f7546a656407f812a65a194188ed289e8fc54632	2026-04-29	docs: 统一品牌名称显示	inventory_only
+15f5661a0121f29dc7c308d4ea4a666fd106c635	2026-04-29	chore: 增加发布门禁技能与发布元数据校验	inventory_only
+d8d171eceb6ae6743c1044e5aac1ed519e80823e	2026-04-29	chore: 中文化服务器安装交互提示	inventory_only
+b9d6c6aeb2647e478121fe9c75a8db2b4aa162c7	2026-04-29	chore: bump version to 2.9.4	inventory_only
+2a0d018238670d05e39bf3f23b4ce614dfb68d9f	2026-04-29	docs: 完善生产部署与翻译配置	inventory_only
+25382040a8181dd9111e287a4573f02c5604e175	2026-04-29	fix: 修复Logo文件名双扩展名，gitignore编译产物	inventory_only
+73838fc6cfd35198927b163d0706e2b4c03d5b92	2026-04-29	feat: 添加侧边栏Logo、配置Go开发环境、修复ARM架构兼容性、补充开发文档	inventory_only
+ddc2837a74871fb5ec72a7329388f130f4e4dcef	2026-04-29	fix: 强化路径根约束和错误处理	inventory_only
+e945e971169f83bf42f8150e882a95f3d949e612	2026-04-28	首次提交	inventory_only
+b0d61e52acafd4e01bfa3c8f59c57e7c66b8cb3c	2026-04-28	chore: update all repository URLs to superaddmin/SuperXray-gui	inventory_only
+64245463c44c307a17f714133a87303067032a96	2026-04-28	chore: initial project setup with Chinese documentation and x-ui.sh translation	inventory_only

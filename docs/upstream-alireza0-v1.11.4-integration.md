@@ -1,10 +1,10 @@
 # alireza0/x-ui v1.11.4 集成记录
 
-> 文档性质：2026-08-10 上游集成过程留档；代码复核日期：2026-10-14。历史提交、路径、SHA256 与执行流程保留，不表示本轮重复集成、合并、推送或重新运行全部验证。
+> 文档性质：2026-08-10 上游集成过程留档；代码与本地引用复核日期：2026-10-15。历史提交、路径、SHA256 与执行流程保留，不表示本轮重复集成、合并、推送或重新运行全部验证。
 
-当前仓库仍为产品 `config/version=3.4.3`、Go `1.26.5`、Vue/Vite 源码 `frontend/src` 和构建目录 `web/ui`。`default-xray` 仍拒绝 CoreManager 生命周期操作，Gateway MVP 仍仅生成 Xray JSON 和 CSV。自签证书、Hysteria/TUN、XHTTP/XMUX 相关实现与测试保留，功能事实分别见 `web/service/self_signed_cert.go`、`frontend/src/utils/inboundCompat.ts`。
+当前仓库仍为产品 `config/version=3.4.3`，Go 已为 `1.27.2`，目标运行核心为 Xray `v26.10.10`；Vue/Vite 源码继续位于 `frontend/src`，构建目录为 `web/ui`。`default-xray` 仍拒绝 CoreManager 生命周期操作，Gateway MVP 仍仅生成 Xray JSON 和 CSV。自签证书、Hysteria/TUN、XHTTP/XMUX 相关实现与测试保留，功能事实分别见 `web/service/self_signed_cert.go`、`frontend/src/utils/inboundCompat.ts`。之后的 TLS/Reality、XHTTP、UDP Hop 等适配、数据库迁移及 Docker/arm64/E2E 验证另见 [3x-ui v3.10.2 集成记录](upstream-3x-ui-v3.10.2-integration.md)，不能将后续工作归入本次历史提交。
 
-本轮本地引用核对：供应方 tag 固定到下列 v1.11.4 提交，备份分支仍指向 `807f6280e32b2dba88cbcf910c40a40fe3e1fb9f`，集成分支仍存在，`alireza0-xui` push URL 为 `DISABLED`。历史记录中的外部 bundle 和集成 worktree 路径当前不存在；bundle SHA256 未重新计算，不能依赖这些路径直接恢复。供应方远端状态和历史测试结果未重跑，回滚前重新定位有效备份并备份运行数据。
+本轮本地引用核对：供应方 tag 固定到下列 v1.11.4 提交，备份分支仍指向 `807f6280e32b2dba88cbcf910c40a40fe3e1fb9f`，历史集成分支 `integration/upstream-alireza0-v1.11.4` 已不存在，`alireza0-xui` push URL 为 `DISABLED`。当前工作分支为 `integration/3x-ui-v3.10.2`。历史记录中的外部 bundle 和集成 worktree 路径也不存在；bundle SHA256 未重新计算，不能依赖这些路径直接恢复。供应方远端状态和历史测试结果未重跑，回滚前重新定位有效备份并备份运行数据。
 
 ## 1. 目标与结论
 
@@ -155,7 +155,7 @@ git ls-remote origin refs/heads/main
 
 ## 8. 最终验证
 
-以下为历史集成验证清单，不是 2026-10-14 的执行结果；当前重新集成时逐项记录退出码，完整发布门禁与 Linux 产物验证按 [上游同步策略](upstream-sync-policy.md) 及发布工作流执行。
+以下为历史集成验证清单，不是 2026-10-15 文档核对的执行结果；当前重新集成时逐项记录退出码，完整发布门禁与 Linux 产物验证按 [上游同步策略](upstream-sync-policy.md) 及发布工作流执行。
 
 ```powershell
 go mod verify
@@ -182,4 +182,4 @@ rg "proxy_inbounds|proxy_clients" core web/controller web/middleware web/service
 rg "/panel/legacy|web/html|web/assets" web frontend -n
 ```
 
-`rg` 在“未命中”时返回退出码 1，该结果对上述禁止项扫描表示通过。真实 Xray 生命周期和浏览器 E2E 仍按部署环境的 `SUPERXRAY_E2E_*` 条件执行。
+`rg` 在“未命中”时返回退出码 1。命中时须区分实际危险调用、字符串测试、退役防回归断言和构建代码，不能仅凭退出码认定违规；例如 `TestXUIControllerDoesNotRegisterLegacyPanelRoutes` 正常包含 `/panel/legacy`。真实 Xray 生命周期和浏览器 E2E 仍按部署环境的 `SUPERXRAY_E2E_*` 条件执行。

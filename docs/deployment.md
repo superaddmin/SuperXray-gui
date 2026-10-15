@@ -2,14 +2,14 @@
 
 > **目标读者**：准备在 VPS、云服务器或自建 Linux 主机上部署 SuperXray 的运维人员 / 开发者
 > **适用版本**：`v3.4.3`
-> **源码核对日期**：2026-10-14；安装步骤面向 Linux shell，PowerShell 开发命令见 [开发指南](development.md)。镜像/Release 是否已发布需到远端实际核实。
+> **源码核对日期**：2026-10-15；当前分支纳入上游 `3x-ui v3.10.2`，目标 Xray `v26.10.10`，项目版本仍为 `config/version` 的 `3.4.3`。安装步骤面向 Linux shell，PowerShell 开发命令见 [开发指南](development.md)。镜像/Release 是否已发布需到远端实际核实。
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md) | [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
 ---
 
 ## 1. 部署前必须了解
 
-SuperXray 是一个基于 Web 的 Xray-core 管理面板，后端使用 Go 编写，默认使用 SQLite 保存面板配置和入站数据。服务器部署时通常包含三部分：
+SuperXray 是一个基于 Web 的 Xray-core 管理面板，后端使用 Go 编写，默认使用 SQLite 保存面板配置和入站数据。服务器部署包括以下组件：
 
 | 组件 | 默认位置 / 端口 | 说明 |
 |------|----------------|------|
@@ -445,13 +445,19 @@ systemctl reload caddy
 - Reality、裸 TCP、UDP、Hysteria 等协议通常不应直接走普通 Cloudflare HTTP 代理。
 - 面板路径不要使用简单的 `/`，建议使用随机 `webBasePath`。
 
+### 6.5 可信代理头
+
+面板和订阅服务器统一使用 `SUPERXRAY_TRUSTED_PROXY_CIDRS` 判断直接上游是否可提供 `X-Forwarded-For`、`X-Real-IP`、`X-Forwarded-Proto` 和 `X-Forwarded-Host`。未设置时仅信任 `127.0.0.0/8,::1/128`；设为空字符串时全部不信任；非法 CIDR 会使服务路由初始化失败。
+
+上述同主机 Nginx/Caddy 示例使用默认 loopback 边界即可。若反代来自 Docker bridge 或其他主机，在 `/etc/default/x-ui` 或 Compose `environment` 中设置真实直接代理地址的 CIDR，并重启面板。不要设置 `0.0.0.0/0` 或 `::/0`；否则公网调用方能影响客户端 IP 与生成链接的外部 scheme/host。反代须覆盖入口代理头并保留正确 Host。调整后验证登录、CSRF、客户端 IP 和订阅公开地址，不能只确认页面可访问。
+
 ---
 
 ## 7. Docker / GHCR 部署
 
 ### 7.1 方案 A：直接使用 GHCR 镜像
 
-适合只想运行官方容器镜像的服务器。当前镜像发布到 GitHub Container Registry：
+适合运行发布镜像的服务器。工作流的镜像目标是 GitHub Container Registry；以下标签仅示例当前项目版本，部署前先用 `docker manifest inspect` 或 GHCR 页面核实存在、架构和 digest，不能由本地 `config/version` 推断远端已发布：
 
 ```text
 ghcr.io/superaddmin/superxray-gui:3.4.3
@@ -507,6 +513,37 @@ docker compose up -d --build
 ```
 
 `Dockerfile` 只构建 Go 和下载运行核心，不运行 npm/Vite。只修改后端时可使用已提交的 `web/ui`；修改前端或面板 OpenAPI 后，先用 Node.js `22.12+` 在 `frontend/` 执行 `npm ci && npm run build`，再构建镜像。`web/ui` 必须保留为 Go embed 输入。
+
+本地构建需要启用 BuildKit（现代 Docker/Compose 默认启用）。Go 依赖由 `go.mod` / `go.sum` 单独下载并缓存，编译缓存按目标架构隔离。当前 `DockerInit.sh` 下载固定版本 Xray `v26.10.10` 并校验官方 SHA256；核心与 Geo 数据下载均设置连接超时、总超时和有限重试。
+
+也可以在仓库根目录用 Buildx 分别构建两个架构。以下 PowerShell 命令包含前端构建前置步骤；每一步成功后再执行下一步：
+
+```powershell
+Set-Location frontend
+npm ci
+npm run build
+Set-Location ..
+docker buildx version
+docker buildx build --platform linux/amd64 --load -t superxray:local-amd64 .
+docker buildx build --platform linux/arm64 --load -t superxray:local-arm64 .
+```
+
+`arm64` 构建需要支持该架构的原生 builder 或已配置的 QEMU 模拟环境；可用 `docker buildx inspect --bootstrap` 查看 builder 的平台支持。`--load` 每次导入一个架构到本地 Docker，不会发布镜像。构建成功后检查镜像架构与程序版本：
+
+```powershell
+docker image inspect superxray:local-amd64 --format '{{.Os}}/{{.Architecture}}'
+docker image inspect superxray:local-arm64 --format '{{.Os}}/{{.Architecture}}'
+docker run --rm --entrypoint /app/x-ui superxray:local-amd64 -v
+docker run --rm --platform linux/arm64 --entrypoint /app/x-ui superxray:local-arm64 -v
+```
+
+如果 Windows Docker Desktop 的默认构建网络在 `apk` 下载阶段停滞，可给构建命令加 `--network host`；该参数在本机已恢复依赖下载。若 Go 模块下载仍在 `storage.googleapis.com` TLS 握手阶段超时，可显式选择模块代理：
+
+```powershell
+docker buildx build --network host --platform linux/amd64 --build-arg GOPROXY=https://goproxy.cn,direct --load -t superxray:local-amd64 .
+```
+
+同一命令可把平台和标签中的 `amd64` 改为 `arm64`。默认 `GOPROXY` 仍为 `https://proxy.golang.org,direct`；代理覆盖仅用于本次构建，保留 `go.sum` 和 Go 校验数据库校验。`--network host` 只控制构建时的网络，与运行容器的 `network_mode: host` 分别配置。
 
 如果想复用官方 GHCR 镜像，把 Compose 中的 `build:` 段替换为：
 
@@ -596,10 +633,11 @@ docker compose up -d --build
 
 ### 8.1 进入 root shell 并准备基础环境
 
-后续命令建议在同一个 root shell 中执行，避免环境变量丢失：
+后续命令在同一个 root Bash shell 中执行，避免环境变量丢失；任一步失败先停止后续安装。已有部署先按第 10 节备份数据库和证书，并保留安装目录及服务文件供回滚。
 
 ```bash
 sudo -i
+set -euo pipefail
 apt-get update
 apt-get install -y curl tar unzip ca-certificates openssl git build-essential pkg-config
 timedatectl set-ntp true
@@ -624,6 +662,9 @@ case "$(uname -m)" in
 esac
 
 echo "Deploy architecture: ${XUI_ARCH}"
+
+DEPLOY_STAGE="$(mktemp -d /tmp/superxray-deploy.XXXXXX)"
+chmod 0700 "${DEPLOY_STAGE}"
 ```
 
 ### 8.2 方案 A：手动下载 GitHub Release 包安装
@@ -640,11 +681,11 @@ if [ -z "${TAG}" ]; then
   exit 1
 fi
 
-curl -fL -o "/tmp/x-ui-linux-${XUI_ARCH}.tar.gz" \
+curl -fL -o "${DEPLOY_STAGE}/x-ui-linux-${XUI_ARCH}.tar.gz" \
   "https://github.com/superaddmin/SuperXray-gui/releases/download/${TAG}/x-ui-linux-${XUI_ARCH}.tar.gz"
 
-rm -rf /tmp/x-ui
-tar -xzf "/tmp/x-ui-linux-${XUI_ARCH}.tar.gz" -C /tmp
+tar -tzf "${DEPLOY_STAGE}/x-ui-linux-${XUI_ARCH}.tar.gz"
+tar -xzf "${DEPLOY_STAGE}/x-ui-linux-${XUI_ARCH}.tar.gz" -C "${DEPLOY_STAGE}"
 ```
 
 安装到系统目录：
@@ -656,8 +697,7 @@ install -d -m 0755 /usr/local/x-ui
 install -d -m 0700 /etc/x-ui
 install -d -m 0750 /var/log/x-ui
 
-rm -rf /usr/local/x-ui/*
-cp -a /tmp/x-ui/. /usr/local/x-ui/
+cp -a "${DEPLOY_STAGE}/x-ui/." /usr/local/x-ui/
 
 chmod 0755 /usr/local/x-ui/x-ui
 chmod 0755 "/usr/local/x-ui/bin/xray-linux-${XUI_ARCH}"
@@ -666,6 +706,8 @@ install -m 0644 /usr/local/x-ui/x-ui.service.debian /etc/systemd/system/x-ui.ser
 ```
 
 完成复制后跳到 [8.5 写入环境配置并启动服务](#85-写入环境配置并启动服务)。
+
+解压前确认归档来自受信任 Release，条目均在 `x-ui/` 下且不含绝对路径或 `..`；如发布渠道提供校验值，应先核验。定向覆盖发布文件不会主动清空安装目录，自定义证书、实验核心和本地配置应保留；不要用 `rm -rf /usr/local/x-ui/*` 作为更新步骤。
 
 ### 8.3 方案 B：在 Ubuntu 目标服务器上源码构建
 
@@ -679,13 +721,13 @@ cd SuperXray-gui
 GO_VERSION="$(awk '/^go / {print $2}' go.mod)"
 
 if ! command -v go >/dev/null 2>&1 || ! go version | grep -q "go${GO_VERSION}"; then
-  curl -fL -o "/tmp/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" \
+  curl -fL -o "${DEPLOY_STAGE}/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" \
     "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
-  rm -rf /usr/local/go
-  tar -C /usr/local -xzf "/tmp/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
+  # 从 go.dev 对照校验值后解压到本次隔离目录，保留系统已有 Go。
+  tar -C "${DEPLOY_STAGE}" -xzf "${DEPLOY_STAGE}/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz"
+  export PATH="${DEPLOY_STAGE}/go/bin:${PATH}"
 fi
 
-export PATH="/usr/local/go/bin:${PATH}"
 go version
 go mod download
 CGO_ENABLED=1 GOOS=linux GOARCH="${GO_ARCH}" go build -ldflags "-w -s" -o build/x-ui main.go
@@ -706,7 +748,6 @@ install -d -m 0755 /usr/local/x-ui/bin
 install -d -m 0700 /etc/x-ui
 install -d -m 0750 /var/log/x-ui
 
-rm -rf /usr/local/x-ui/*
 install -m 0755 build/x-ui /usr/local/x-ui/x-ui
 cp -a build/bin /usr/local/x-ui/
 chmod 0755 "/usr/local/x-ui/bin/xray-linux-${XUI_ARCH}"
@@ -716,7 +757,7 @@ install -m 0644 x-ui.service.debian /etc/systemd/system/x-ui.service
 
 ### 8.4 方案 C：上传本地或 CI 构建产物
 
-如果已经在本地或 CI 中得到 `x-ui-linux-amd64.tar.gz` / `x-ui-linux-arm64.tar.gz`，直接上传对应架构的包到服务器，然后复用 8.2 的解压和安装步骤：
+如果已经在本地或 CI 中得到 `x-ui-linux-amd64.tar.gz` / `x-ui-linux-arm64.tar.gz`，上传对应架构的包到服务器，在服务器执行 `cp "/tmp/x-ui-linux-${XUI_ARCH}.tar.gz" "${DEPLOY_STAGE}/"`，然后复用 8.2 的归档检查、解压和安装步骤（跳过下载）：
 
 ```bash
 # amd64 服务器
@@ -726,7 +767,7 @@ scp x-ui-linux-amd64.tar.gz root@<server>:/tmp/
 scp x-ui-linux-arm64.tar.gz root@<server>:/tmp/
 ```
 
-如果只有面板主程序二进制，例如 `dist/SuperXray-gui-linux-amd64` 或 `dist/SuperXray-gui-linux-arm64`，还需要同时上传服务脚本和 Xray 下载脚本：
+如果只有自行命名的面板主程序二进制，例如 `dist/SuperXray-gui-linux-amd64` 或 `dist/SuperXray-gui-linux-arm64`（这些不是当前 workflow 的默认产物路径），还需要同时上传服务脚本和 Xray 下载脚本：
 
 ```bash
 # amd64 服务器
@@ -758,39 +799,40 @@ install -d -m 0755 /usr/local/x-ui/bin
 install -d -m 0700 /etc/x-ui
 install -d -m 0750 /var/log/x-ui
 
-rm -rf /usr/local/x-ui/*
 install -m 0755 "${PANEL_BIN}" /usr/local/x-ui/x-ui
 install -d -m 0755 /usr/local/x-ui/bin
 install -m 0755 /tmp/x-ui.sh /usr/bin/x-ui
 install -m 0644 /tmp/x-ui.service.debian /etc/systemd/system/x-ui.service
 
-cd /tmp
-rm -rf /tmp/build
+cd "${DEPLOY_STAGE}"
 sh /tmp/DockerInit.sh "${XUI_ARCH}"
-cp -a /tmp/build/bin/. /usr/local/x-ui/bin/
+cp -a "${DEPLOY_STAGE}/build/bin/." /usr/local/x-ui/bin/
 chmod 0755 "/usr/local/x-ui/bin/xray-linux-${XUI_ARCH}"
 ```
 
 ### 8.5 写入环境配置并启动服务
 
-三种手动部署方式都建议显式写入 `/etc/default/x-ui`，与 `x-ui.service.debian` 中的 `EnvironmentFile=-/etc/default/x-ui` 对齐：
+三种手动部署方式都使用 `x-ui.service.debian` 的 `EnvironmentFile=-/etc/default/x-ui`。仅在文件不存在时写入默认值；已有文件要保留数据库目录、可信代理、日志路径和其他覆盖项，在受控编辑器中逐项核对：
 
 ```bash
-cat >/etc/default/x-ui <<'EOF'
+if [ ! -e /etc/default/x-ui ]; then
+  cat >/etc/default/x-ui <<'EOF'
 XRAY_VMESS_AEAD_FORCED=false
 XUI_LOG_LEVEL=info
 XUI_DB_FOLDER=/etc/x-ui
 XUI_LOG_FOLDER=/var/log/x-ui
 XUI_BIN_FOLDER=bin
 EOF
-chmod 0644 /etc/default/x-ui
+  chmod 0640 /etc/default/x-ui
+fi
 ```
 
-初始化数据库和面板安全信息。请替换成自己的用户名、强密码和随机 Web 路径：
+CLI 不会自动读取 systemd 的 EnvironmentFile。下面 `XUI_DB_FOLDER` 必须与核对后的服务值一致；示例使用默认 `/etc/x-ui`。对于空库初始化账号；已有部署升级仅运行迁移并保留原账号、端口和路径，不执行下方账号设置命令。密码通过命令行传入会短暂出现在进程参数/终端历史中，只在受控终端执行：
 
 ```bash
-/usr/local/x-ui/x-ui migrate
-/usr/local/x-ui/x-ui setting \
+XUI_DB_FOLDER=/etc/x-ui /usr/local/x-ui/x-ui migrate
+# 仅新安装执行；升级已有实例时跳过此项。
+XUI_DB_FOLDER=/etc/x-ui /usr/local/x-ui/x-ui setting \
   -username '<新用户名>' \
   -password '<强密码>' \
   -port 2053 \
@@ -823,18 +865,25 @@ tail -n 100 /var/log/x-ui/3xui.log
 ss -tulpen | grep -E 'x-ui|xray|:2053|:2096' || true
 ```
 
-卸载 systemd 部署时，先备份数据库和证书，再停止并删除服务文件：
+卸载只在明确决定停用服务时执行。先核对实际 `XUI_DB_FOLDER`、证书目录、安装目录与 unit；以下仅适用于本节默认布局。停止面板和其他数据库写入进程后备份，任一步失败停止操作；不删除数据库、证书或安装目录，先归档以保留恢复能力：
 
 ```bash
-BACKUP_DIR="/root/x-ui-backup-$(date +%F-%H%M%S)"
-mkdir -p "${BACKUP_DIR}"
-cp -a /etc/x-ui "${BACKUP_DIR}/" 2>/dev/null || true
-
-systemctl disable --now x-ui 2>/dev/null || true
-rm -f /etc/systemd/system/x-ui.service /usr/bin/x-ui
-rm -rf /usr/local/x-ui
+set -euo pipefail
+systemctl stop x-ui
+BACKUP_DIR="$(mktemp -d /root/superxray-uninstall.XXXXXX)"
+chmod 0700 "${BACKUP_DIR}"
+test -s /etc/x-ui/x-ui.db
+cp -a /etc/x-ui "${BACKUP_DIR}/database"
+cp -a /usr/local/x-ui "${BACKUP_DIR}/installation"
+if [ -d /root/cert ]; then cp -a /root/cert "${BACKUP_DIR}/certificates"; fi
+if [ -f /etc/default/x-ui ]; then cp -a /etc/default/x-ui "${BACKUP_DIR}/environment"; fi
+systemctl disable x-ui
+mv /etc/systemd/system/x-ui.service "${BACKUP_DIR}/x-ui.service"
+mv /usr/bin/x-ui "${BACKUP_DIR}/x-ui-management.sh"
 systemctl daemon-reload
 ```
+
+检查备份可读且包含实际证书后，再按本机保留策略清理已停用安装文件。需要恢复时放回 unit 与管理脚本、执行 `systemctl daemon-reload` 和 `systemctl enable --now x-ui`；业务数据保留在原目录。
 
 ---
 
@@ -918,7 +967,7 @@ VLESS Reality 入站保存前必须提供有效 `target`，否则 Xray 会拒绝
 ```bash
 sudo install -d -m 0700 /backup/SuperXray
 sudo systemctl stop x-ui
-sudo cp -a /etc/x-ui/x-ui.db "/backup/SuperXray/x-ui-$(date +%F-%H%M%S).db"
+sudo cp -a /etc/x-ui "/backup/SuperXray/db-$(date +%F-%H%M%S)"
 sudo systemctl start x-ui
 ```
 
@@ -930,14 +979,31 @@ sudo cp -a /root/cert "/backup/SuperXray/cert-$(date +%F-%H%M%S)"
 
 ### 10.2 systemd 部署恢复
 
+优先在面板导入已验证的 SQLite 备份：导入限制 64 MiB，检查文件头/完整性，在私有候选数据库上完成事务迁移与 Xray 配置预检，然后串行替换。导入或启动失败时尝试恢复原库与旧核心；若返回恢复失败，保留错误中指出的回滚文件并人工处理。不能用这一机制代替独立备份。
+
+面板无法启动时可离线恢复。以下在 root Bash shell 执行，先替换 `RESTORE_SOURCE`；它必须是已停止写入时备份的完整数据库目录，或 SQLite backup API 生成的一致快照目录，不得混合不同时间的 DB/WAL/SHM。步骤会保留原目录，迁移失败则不启动服务：
+
 ```bash
-sudo systemctl stop x-ui
-sudo cp -a /backup/SuperXray/x-ui-YYYY-MM-DD-HHMMSS.db /etc/x-ui/x-ui.db
-sudo chown root:root /etc/x-ui/x-ui.db
-sudo chmod 0600 /etc/x-ui/x-ui.db
-sudo /usr/local/x-ui/x-ui migrate
-sudo systemctl start x-ui
+sudo -i
+set -euo pipefail
+RESTORE_SOURCE=/backup/SuperXray/db-YYYY-MM-DD-HHMMSS
+test -s "${RESTORE_SOURCE}/x-ui.db"
+systemctl stop x-ui
+# 同时停止其他使用该数据库的 CLI/进程；不能只停 Web 请求。
+RESTORE_STAGE="$(mktemp -d /etc/.superxray-restore.XXXXXX)"
+chmod 0700 "${RESTORE_STAGE}"
+cp -a "${RESTORE_SOURCE}/." "${RESTORE_STAGE}/"
+XUI_DB_FOLDER="${RESTORE_STAGE}" /usr/local/x-ui/x-ui migrate
+ROLLBACK_ROOT="$(mktemp -d /etc/.superxray-before-restore.XXXXXX)"
+chmod 0700 "${ROLLBACK_ROOT}"
+mv /etc/x-ui "${ROLLBACK_ROOT}/x-ui"
+mv "${RESTORE_STAGE}" /etc/x-ui
+chown root:root /etc/x-ui/x-ui.db
+chmod 0600 /etc/x-ui/x-ui.db
+systemctl start x-ui
 ```
+
+先在候选目录迁移成功，再替换整套数据库文件，避免旧 WAL 污染恢复库。CLI `migrate` 只执行数据库迁移；启动后的 Xray 预检、监听与客户端连接仍须验收。新服务失败时停止它，将失败的 `/etc/x-ui` 移到另一个受控位置，再把 `${ROLLBACK_ROOT}/x-ui` 移回 `/etc/x-ui` 并启动原版本。验收与回滚演练完成前保留备份和原目录。
 
 恢复后检查：
 
@@ -956,7 +1022,7 @@ cp -a cert "backup/cert-$(date +%F-%H%M%S)"
 docker compose start 3xui
 ```
 
-恢复时停止容器，把备份目录复制回 `db/` 和 `cert/`，再启动容器。
+恢复时停止容器及其他数据库写入进程，将当前 `db/`、`cert/` 整目录移到受限权限的回滚目录，再从同一备份恢复完整 `db/` 与 `cert/`。不要向现有 `db/` 覆盖合并文件：旧 `-wal/-shm/-journal` 不能与其他快照的主库混用。启动新容器后核对迁移、Xray 预检、证书与客户端连接；失败时停容器并换回完整原目录及原镜像，验收前保留恢复前副本。
 
 ---
 
@@ -988,6 +1054,14 @@ docker compose logs -f 3xui
 ```
 
 以上针对仓库源码构建部署；GHCR 镜像部署在备份后使用 `docker compose pull && docker compose up -d`。更新失败时恢复旧镜像/源码版本和备份，再启动服务。
+
+### 11.2.1 升级到当前 Xray 兼容基线
+
+当前源码启动、CLI `migrate`、数据库导入共用 `service.InitDB`，schema、密码 seeder、旧入站和 Xray JSON 转换在同一事务中完成。Reality `dest`、sockopt `V6Only`、XHTTP session 字段、UDP Hop/xDNS、DNS outbound 旧字段会按兼容规则转换；缺省 Hysteria version 补 `2`，未知字段保留。重复执行不会重复添加兼容配置。
+
+`allowInsecure=true`、已移除的 Shadowsocks `none/plain`、非 v2 Hysteria、Reality + TCP finalmask 或冲突/无效高级字段需要人工处理；迁移报错时整个事务回滚，不应绕过错误或删除原配置。先在备份副本修改并通过目标核心验收，再升级活动实例。规则详情见 [上游集成记录](upstream-3x-ui-v3.10.2-integration.md)。
+
+模板保存会以已安装核心校验候选完整配置，失败不落库；Xray 重启预检通过后才停旧进程，启动失败会尝试恢复。面板内更新核心还会校验下载摘要和暂存核心配置，再替换核心/资产。核心版本升级与配置回滚不能随意拆开：旧核心不一定认识已转换的新字段，应成套保留旧面板、数据库、核心和 Geo 数据。
 
 ### 11.3 日常巡检
 
@@ -1165,7 +1239,7 @@ docker compose restart 3xui
 ```bash
 curl https://api.ipify.org
 curl -I https://api.openai.com/v1/models
-curl -I https://chatgpt.com/cdn-cgi/trace
+curl --connect-timeout 5 --max-time 30 https://chatgpt.com/cdn-cgi/trace
 nslookup api.openai.com <gateway-ip>
 ```
 
@@ -1195,7 +1269,7 @@ ss -lntp
 
 ```bash
 docker exec <container> /app/x-ui -v
-docker logs <container> --tail 100
+docker logs --tail 100 <container>
 curl https://api.ipify.org
 ```
 

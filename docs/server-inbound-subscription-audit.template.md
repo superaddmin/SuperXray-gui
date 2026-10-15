@@ -1,7 +1,7 @@
 # Server Inbound And Subscription Audit Template
 
 > This template is intentionally redacted. Do not store real subscription URLs, `subId`, client UUIDs, panel base paths, private key paths, proxy usernames, proxy passwords, emails, cookies, tokens, or database contents in the repository.
-> 代码核对日期：2026-10-14。本文仅为脱敏审查模板，不是服务器实测报告；事实依据为 `sub/sub.go`、`sub/subController.go`、`sub/subscription_diagnostic.go`、`web/service/xray.go` 和 `frontend/src/utils/gatewayEgressMvp.ts`。
+> 代码核对日期：2026-10-15。本文仅为脱敏审查模板，不是服务器实测报告；事实依据为 `sub/sub.go`、`sub/subController.go`、`sub/subscription_diagnostic.go`、`web/service/xray.go`、`web/service/database_import.go` 和 `frontend/src/utils/gatewayEgressMvp.ts`。
 
 ## Scope
 
@@ -20,6 +20,10 @@
 - Inbound port: `<INBOUND_PORT>`
 - Panel and Xray process state are recorded separately: `<PANEL_STATE>` / `<XRAY_STATE>`
 - Actual config / DB paths: `<REDACTED_LOCAL_PATHS>`
+- Installed core version / target compatibility: `<XRAY_VERSION>` / `<RESULT>`
+- Trusted reverse-proxy CIDRs / direct caller header rejection: `<REDACTED_POLICY>` / `<RESULT>`
+
+`SUPERXRAY_TRUSTED_PROXY_CIDRS` 未设置时仅信任 loopback；反向代理、客户端 IP 与生成链接的 scheme/host 应按真实 TCP peer 验证。项目版本与上游集成版本不同，分别记录 `config/version`、已运行面板版本与 Xray 版本。
 
 ## Subscription State
 
@@ -61,6 +65,16 @@ Gateway CSV 的 `manual-check` 和国家标签不是健康检测结果；实际�
 - inbound total: `<BYTES>`
 - outbound total: `<BYTES>`
 - client total: `<BYTES>`
+
+## Migration And Recovery
+
+- Backup created and recoverable: `<RESULT>`
+- Candidate DB integrity / transactional migration: `<RESULT|NOT_RUN>`
+- Generated configuration tested with the installed Xray binary: `<RESULT|NOT_RUN>`
+- Restart / import failure recovery: `<RESULT|NOT_RUN>`
+- Manual conversion needed (TLS trust, removed ciphers, conflicting masks): `<REDACTED_SUMMARY>`
+
+模板保存、Xray 重启和数据库导入包含核心预检，但不替代实际端口与客户端连接测试。仅审查时填 `NOT_RUN`，不为了填写本表而在生产执行迁移、重启或恢复；数据库导入失败恢复结果应在隔离副本验收。
 
 ## Findings
 

@@ -1,6 +1,6 @@
 # 文档索引
 
-核对日期：2026-10-14。当前代码版本为 `3.4.3`（`config/version`）；本文记录当前仓库实现，远端发布和实际部署环境需另行验证。
+核对日期：2026-10-15。当前代码版本为 `3.4.3`（`config/version`），工作区分支为 `integration/3x-ui-v3.10.2`，目标核心为 Xray `26.10.10`，Go 模块声明 `1.27.2`。本文记录当前工作区实现，远端发布和实际部署环境需另行验证。
 
 ## 当前实现与使用
 
@@ -38,7 +38,11 @@
 | [UI/UX 审计](ui-ux-audit.md) | 历史截图/视觉结论与当前源码对照；本次未重新视觉验收 |
 | [上游同步政策](upstream-sync-policy.md) | 同步范围、兼容与验证规则 |
 | [上游 v1.11.4 集成记录](upstream-alireza0-v1.11.4-integration.md) | 历史集成记录，不能推定未来上游已同步 |
-| [本轮清理与核对记录](repository-audit-2026-10-14.md) | 逐文件证据、清理范围、验证结果和限制 |
+| [上游 3x-ui v3.10.2 集成记录](upstream-3x-ui-v3.10.2-integration.md) | 本地定制保护、选择性移植、Xray 迁移及已执行验证 |
+| [2026-10-15 清理与核对记录](repository-audit-2026-10-15.md) | 本轮逐文件证据、可恢复清理、依赖审计、验证与限制 |
+| [2026-10-14 历史核对记录](repository-audit-2026-10-14.md) | 保留当时的统计、工具链与检查结果；当前状态见新记录 |
+
+3x-ui 比较证据包含四份固定基线清单：[本地提交](upstream-3x-ui-v3.10.2-local-commits.tsv)、[上游提交](upstream-3x-ui-v3.10.2-upstream-commits.tsv)、[两侧文件差异](upstream-3x-ui-v3.10.2-file-manifest.tsv)、[直接树差异](upstream-3x-ui-v3.10.2-tree-diff.tsv)。这些是完整盘点结果，`inventory_only` 不表示每条上游变更已审查或合并。
 
 [桌面截图](assets/xray-mvp-desktop.png) 与 [移动截图](assets/xray-mvp-mobile.png) 是 2026-05-16 的历史审计附件，仍被文档引用，因此保留。当前产品截图另见仓库 `media/`。
 

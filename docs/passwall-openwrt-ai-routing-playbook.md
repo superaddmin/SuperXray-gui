@@ -3,6 +3,7 @@
 > 相关总览入口：[服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
 > 适用场景：主 WiFi 默认直连、AI / GFW 域名代理、USA WiFi 全代理的双网络结构。
+> 核对日期：2026-10-15。OpenWrt、Passwall 和 SSID 配置属于外部运行环境，本仓库不安装这些组件、不写入 UCI/ACL。当前 SuperXray 提供 Xray 节点、订阅及模板配置；下文命令是现场验证步骤。
 
 ## 1. 推荐拓扑
 
@@ -16,14 +17,14 @@
 - 网段：`192.168.52.0/24`
 - 目标：保持单独全代理，用于美国出口专网
 
-### 实测现状
+### 历史排查案例
 
-上表是规划目标，现场可能不同，排障前先按实测值核对（本节数据来自一次实际排查）：
+原文保留过一次名为 USA 的 SSID 实际按域名分流的现场记录，但没有可复核的采样时间和脱敏证据文件，因此不能视为当前部署状态。可复用的排查方法是：
 
-- SSID：`USA_Los Angeles`，客户端地址 `192.168.111.0/24`
-- 网关链：`192.168.111.1` → `192.168.1.1` → 运营商 CGNAT `100.64.64.1`；ICMP 直出、不经代理
-- 分流行为：**按域名分流，不是全代理** —— 国内端点回显本地 ISP 出口，AI / 境外域名走隧道，隧道出口为固定公网 IP（`chatgpt.com/cdn-cgi/trace` 可直接确认 `ip` 与 `colo`）
-- 客户端侧没有任何代理进程、没有 TUN/TAP 适配器、系统代理为关闭，说明代理在 OpenWrt 网关上生效，客户端排查只能验证"出口是否变了"，不能验证 ACL
+- 记录实际 SSID、客户端网段和网关链，不能套用上表的规划地址。
+- 比较普通端点与 AI 目标的出口；`chatgpt.com/cdn-cgi/trace` 使用 GET 才能读取 `ip` 与 `colo`，单次 IP 不能证明长期固定或国家属性。
+- ICMP 路径与 TCP/UDP 代理路径分别判断，traceroute 不代表 HTTPS 出口。
+- 客户端未启用系统代理或 TUN 只能排除部分本机路径；需结合 OpenWrt ACL 计数与进程确认是否由网关接管，不能只凭客户端状态断定。
 
 排查时不要假定 SSID 名称与分流策略一致（名为 USA 的网络实测仍是分流），一律以客户端实测出口和 OpenWrt 运行态为准。
 
@@ -74,9 +75,9 @@ AI 产品通常不止一个首页域名，还会拆分：
 ### 客户端
 
 ```bash
-curl https://api.ipify.org
-curl -I https://api.openai.com/v1/models
-curl -I https://chatgpt.com/cdn-cgi/trace
+curl --connect-timeout 5 --max-time 30 https://api.ipify.org
+curl --connect-timeout 5 --max-time 30 -sS -o /dev/null -w 'HTTP %{http_code}\n' https://api.openai.com/v1/models
+curl --connect-timeout 5 --max-time 30 https://chatgpt.com/cdn-cgi/trace
 ```
 
 ### OpenWrt
@@ -90,6 +91,8 @@ iwinfo
 cat /tmp/dhcp.leases
 ```
 
+`PSW` 链及 `/tmp/etc/passwall/var` 依赖 Passwall 版本；fw4/nftables 环境使用 `nft list ruleset` 核对实际链和计数。采样前后从目标 WiFi 产生请求，观察计数差值；`uci show` 和进程参数可能含节点凭据，分享前脱敏。
+
 ### 服务器
 
 ```bash
@@ -97,6 +100,8 @@ docker logs --tail 100 <container>
 curl https://api.ipify.org
 ss -lntp
 ```
+
+systemd 部署改用 `systemctl is-active x-ui`、`journalctl -u x-ui -n 100 --no-pager`。服务器直连 ipify 只验证基础网络；还需实际客户端经目标节点连通。订阅用 GET 拉取当前 `subPath`/`subJsonPath`/`subClashPath` 并核对 `/diagnose`，不要以 HEAD 的 404 判故障。修改 ACL 或节点前在受控位置备份 UCI，变更后同时复测客户端和路由器；故障时恢复对应配置并重复相同探测。
 
 ## 6. 常见陷阱
 
