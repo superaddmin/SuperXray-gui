@@ -137,7 +137,7 @@ func (s *AllSetting) CheckValid() error {
 		return common.NewError("Sub port is not a valid port:", s.SubPort)
 	}
 
-	if (s.SubPort == s.WebPort) && (s.WebListen == s.SubListen) {
+	if s.SubPort == s.WebPort && listenAddressesOverlap(s.WebListen, s.SubListen) {
 		return common.NewError("Sub and Web could not use same ip:port, ", s.SubListen, ":", s.SubPort, " & ", s.WebListen, ":", s.WebPort)
 	}
 
@@ -200,4 +200,14 @@ func (s *AllSetting) CheckValid() error {
 	}
 
 	return nil
+}
+
+func listenAddressesOverlap(first, second string) bool {
+	if first == "" || second == "" {
+		return true
+	}
+	firstIP, secondIP := net.ParseIP(first), net.ParseIP(second)
+	// The panel uses the generic TCP listener. An unspecified address can
+	// accept both families, so do not assume IPv6 wildcard is IPv6-only.
+	return firstIP.IsUnspecified() || secondIP.IsUnspecified() || firstIP.Equal(secondIP)
 }

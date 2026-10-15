@@ -46,7 +46,10 @@ test('upsertOutbound adds and updates outbound rows in template settings', () =>
     proxySettingsJson: '{}',
     muxJson: '{}',
   });
-  assert.deepEqual(getOutboundRows(added).map((row) => row.tag), ['direct', 'proxy']);
+  assert.deepEqual(
+    getOutboundRows(added).map((row) => row.tag),
+    ['direct', 'proxy'],
+  );
 
   const updated = upsertOutbound(added, 1, {
     tag: 'proxy-2',
@@ -125,7 +128,10 @@ test('deleteOutboundAt removes selected outbound only', () => {
     ],
   };
   const next = deleteOutboundAt(template, 0);
-  assert.deepEqual(getOutboundRows(next).map((row) => row.tag), ['proxy']);
+  assert.deepEqual(
+    getOutboundRows(next).map((row) => row.tag),
+    ['proxy'],
+  );
 });
 
 test('upsertBalancer adds and updates routing balancers and preserves balancer tags', () => {
@@ -254,9 +260,11 @@ test('observatory form reads and writes observatory json blocks', () => {
     {},
     {
       observatoryEnable: true,
-      observatoryJson: '{\n  "subjectSelector": ["proxy-a"],\n  "probeURL": "https://www.google.com/generate_204"\n}',
+      observatoryJson:
+        '{\n  "subjectSelector": ["proxy-a"],\n  "probeURL": "https://www.google.com/generate_204"\n}',
       burstObservatoryEnable: true,
-      burstObservatoryJson: '{\n  "subjectSelector": ["proxy-b"],\n  "pingConfig": { "destination": "https://www.google.com/generate_204" }\n}',
+      burstObservatoryJson:
+        '{\n  "subjectSelector": ["proxy-b"],\n  "pingConfig": { "destination": "https://www.google.com/generate_204" }\n}',
     },
   );
   const form = getObservatoryForm(next);
@@ -315,7 +323,12 @@ test('ai residential routing uses a balancer and keeps google domains narrowed t
 
   const routing = next.routing as {
     balancers: Array<{ tag: string; selector: string[]; fallbackTag?: string }>;
-    rules: Array<{ balancerTag?: string; outboundTag?: string; network?: string; domain?: string[] }>;
+    rules: Array<{
+      balancerTag?: string;
+      outboundTag?: string;
+      network?: string;
+      domain?: string[];
+    }>;
   };
   assert.deepEqual(routing.balancers[0], {
     tag: 'ai-residential',

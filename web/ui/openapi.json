@@ -117,11 +117,12 @@
         }
       },
       "VersionPath": {
+        "description": "Stable Xray release tag from v26.10.10 onward; older versions are rejected by the installer.",
         "in": "path",
         "name": "version",
         "required": true,
         "schema": {
-          "minLength": 1,
+          "pattern": "^v[0-9]{2}\\.[0-9]{1,2}\\.[0-9]{1,2}$",
           "type": "string"
         }
       }
@@ -131,12 +132,12 @@
         "content": {
           "application/json": {
             "schema": {
-              "$ref": "#/components/schemas/AllSetting"
+              "$ref": "#/components/schemas/UpdateSettingsRequest"
             }
           },
           "application/x-www-form-urlencoded": {
             "schema": {
-              "$ref": "#/components/schemas/AllSetting"
+              "$ref": "#/components/schemas/UpdateSettingsRequest"
             }
           }
         },
@@ -178,14 +179,19 @@
             "schema": {
               "properties": {
                 "sni": {
+                  "description": "Required after trimming; must not start with '-' or contain whitespace or NUL.",
+                  "minLength": 1,
                   "type": "string"
                 }
               },
+              "required": [
+                "sni"
+              ],
               "type": "object"
             }
           }
         },
-        "required": false
+        "required": true
       },
       "ImportDatabaseMultipart": {
         "content": {
@@ -193,7 +199,7 @@
             "schema": {
               "properties": {
                 "db": {
-                  "description": ".db, .sqlite, or .sqlite3 backup file within the server size limit.",
+                  "description": ".db, .sqlite, or .sqlite3 SQLite backup, 16 bytes to 64 MiB. The multipart request limit is 65 MiB. Candidate migration and real-core configuration validation must pass.",
                   "format": "binary",
                   "type": "string"
                 }
@@ -458,6 +464,11 @@
       },
       "BinaryFile": {
         "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/LegacyResponse"
+            }
+          },
           "application/octet-stream": {
             "schema": {
               "format": "binary",
@@ -465,7 +476,7 @@
             }
           }
         },
-        "description": "Authenticated binary file download."
+        "description": "Authenticated binary file download, or a legacy JSON error envelope if snapshot creation fails."
       },
       "ForbiddenCSRF": {
         "content": {
@@ -720,9 +731,11 @@
             "type": "boolean"
           },
           "twoFactorToken": {
+            "description": "Always empty in settings responses. In update requests, empty preserves the existing secret; disabling clears it after old-code verification.",
             "type": "string"
           },
           "webBasePath": {
+            "description": "Normalized to leading/trailing slashes. Empty or root values become /super/.",
             "type": "string"
           },
           "webCertFile": {
@@ -993,6 +1006,7 @@
         "type": "object"
       },
       "TrafficUpdateRequest": {
+        "description": "Upload and download replace stored byte counters. Omitted values bind as zero and overwrite existing values.",
         "properties": {
           "download": {
             "format": "int64",
@@ -1003,11 +1017,24 @@
             "type": "integer"
           }
         },
-        "required": [
-          "upload",
-          "download"
-        ],
         "type": "object"
+      },
+      "UpdateSettingsRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AllSetting"
+          },
+          {
+            "properties": {
+              "twoFactorCode": {
+                "description": "Current 6-digit code, required when enabling, disabling or replacing an authenticator. New code on first enable; old code on disable or replacement. Never persisted.",
+                "type": "string",
+                "writeOnly": true
+              }
+            },
+            "type": "object"
+          }
+        ]
       },
       "UpdateUserForm": {
         "properties": {
@@ -1049,10 +1076,10 @@
     }
   },
   "info": {
-    "description": "Machine-readable contract for the Vue panel API implemented by the local Go/Gin backend.\nRuntime deployments may prepend the configured webBasePath before these paths.\nThe legacy response envelope is web/entity.Msg: success, msg, obj.\n",
+    "description": "Machine-readable contract for the Vue panel API implemented by the local Go/Gin backend.\nRuntime deployments may prepend the configured webBasePath before these paths.\nThe legacy response envelope is web/entity.Msg: success, msg, obj.\nBusiness failures generally use HTTP 200 with success=false; callers must inspect the envelope.\nForwarded scheme and client IP are accepted only from SUPERXRAY_TRUSTED_PROXY_CIDRS.\n",
     "title": "SuperXray Panel API",
     "version": "3.4.3",
-    "x-source-audit-date": "2026-10-14"
+    "x-source-audit-date": "2026-10-15"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1992,6 +2019,7 @@
     },
     "/panel/api/inbounds/updateClientTraffic/{email}": {
       "post": {
+        "description": "Replaces stored up/down byte counters, rather than adding deltas. Omitted fields bind as zero and overwrite the corresponding counter.",
         "operationId": "updateClientTraffic",
         "parameters": [
           {
@@ -2218,6 +2246,7 @@
     },
     "/panel/api/server/getConfigJson": {
       "get": {
+        "description": "Regenerates from stored settings and enabled inbounds rather than reading the last runtime file. The generation path also evaluates traffic quotas and expiry.",
         "operationId": "getConfigJson",
         "responses": {
           "200": {
@@ -2240,6 +2269,7 @@
     },
     "/panel/api/server/getDb": {
       "get": {
+        "description": "Returns a consistent VACUUM INTO snapshot including committed WAL pages. Errors use the legacy JSON envelope.",
         "operationId": "downloadDatabase",
         "responses": {
           "200": {
@@ -2452,6 +2482,7 @@
     },
     "/panel/api/server/importDB": {
       "post": {
+        "description": "Migrates a private SQLite candidate and validates its complete configuration with the installed Xray before replacement. A database maintenance lease drains requests/jobs. Open/start failures restore the original database; a previously stopped core remains stopped.",
         "operationId": "importDatabase",
         "requestBody": {
           "$ref": "#/components/requestBodies/ImportDatabaseMultipart"
@@ -2481,6 +2512,7 @@
     },
     "/panel/api/server/installXray/{version}": {
       "post": {
+        "description": "Accepts stable vYY.M.D tags from v26.10.10 onward. Validates the effective configuration with staged binary and geo assets before replacing the installation; replacement/startup failures restore previous files.",
         "operationId": "installXray",
         "parameters": [
           {
@@ -2711,6 +2743,7 @@
     },
     "/panel/api/setting/all": {
       "post": {
+        "description": "Returns AllSetting; twoFactorToken is always an empty string and never reveals the stored authenticator secret.",
         "operationId": "getAllSettings",
         "responses": {
           "200": {
@@ -2811,6 +2844,7 @@
     },
     "/panel/api/setting/update": {
       "post": {
+        "description": "Full settings update, not PATCH. Enable 2FA with a new secret and its current code; disable or replace an enabled authenticator with the old authenticator code. Blank twoFactorToken preserves the current secret. twoFactorCode is request-only. Settings are persisted in one transaction.",
         "operationId": "updateSettings",
         "requestBody": {
           "$ref": "#/components/requestBodies/AllSettingFormOrJson"
@@ -2869,6 +2903,7 @@
     },
     "/panel/api/xray/": {
       "post": {
+        "description": "obj is a JSON-encoded string containing xraySetting (an object), inboundTags (an array), and outboundTestUrl.",
         "operationId": "getXraySetting",
         "responses": {
           "200": {
@@ -3053,6 +3088,7 @@
     },
     "/panel/api/xray/update": {
       "post": {
+        "description": "Unwraps legacy response envelopes, normalizes compatible fields, and validates the effective template plus enabled inbounds with the installed Xray. Failed validation leaves the template unchanged. Restart is separate. The test URL is saved after the template in a separate write whose error is currently not propagated.",
         "operationId": "updateXraySetting",
         "requestBody": {
           "$ref": "#/components/requestBodies/XrayUpdateForm"

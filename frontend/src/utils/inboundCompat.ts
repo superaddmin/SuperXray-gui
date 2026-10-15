@@ -13,6 +13,7 @@ const SHADOWSOCKS_2022_PREFIX = '2022-';
 const SHADOWSOCKS_2022_AES_128_GCM = '2022-blake3-aes-128-gcm';
 const SHADOWSOCKS_2022_SINGLE_USER = '2022-blake3-chacha20-poly1305';
 const SHADOWSOCKS_DEFAULT_KEY_BYTES = 32;
+const REMOVED_SHADOWSOCKS_METHODS = new Set(['none', 'plain']);
 
 export const HYSTERIA_QUIC_DEFAULTS = {
   initStreamReceiveWindow: 8_388_608,
@@ -72,6 +73,8 @@ export interface XhttpFormInput {
   uplinkHTTPMethod: string;
   sessionPlacement: string;
   sessionKey: string;
+  sessionIDTable?: string;
+  sessionIDLength?: string;
   seqPlacement: string;
   seqKey: string;
   uplinkDataPlacement: string;
@@ -174,7 +177,345 @@ export function restoreInboundClients(
 export function parseInboundStreamSettings(
   inbound: Pick<Inbound, 'streamSettings'>,
 ): InboundStreamSettings {
-  return parseJsonObject<InboundStreamSettings>(inbound.streamSettings, defaultStreamSettings());
+  const parsed = parseJsonObject<InboundStreamSettings>(
+    inbound.streamSettings,
+    defaultStreamSettings(),
+  );
+  return normalizeInboundStreamCompatibility(parsed);
+}
+
+/**
+ * Normalize persisted stream settings before they reach the Vue editor.
+ *
+ * Xray 26.10.10 renamed XHTTP's session fields, canonicalized sockopt's
+ * V6Only spelling, and accepts REALITY's historical `dest` alias.  Keep the
+ * conversion at the JSON boundary so every editor, share-link builder, and
+ * import path sees the same values while unrelated/unknown fields survive.
+ */
+export function normalizeInboundStreamCompatibility(
+  stream: InboundStreamSettings,
+): InboundStreamSettings {
+  const next: InboundStreamSettings = { ...stream };
+
+  if (isRecord(next.xhttpSettings)) {
+    next.xhttpSettings = normalizeXhttpCompatibility(next.xhttpSettings);
+  }
+
+  if (isRecord(next.realitySettings)) {
+    const reality = { ...next.realitySettings };
+    if (!stringValue(reality.target).trim() && stringValue(reality.dest).trim()) {
+      reality.target = reality.dest;
+    }
+    next.realitySettings = reality;
+  }
+
+  if (isRecord(next.sockopt)) {
+    next.sockopt = normalizeSockoptCompatibility(next.sockopt);
+  }
+
+  return next;
+}
+
+/** Migrate legacy XHTTP session keys without dropping sessionID table/range. */
+export function normalizeXhttpCompatibility(
+  settings: Record<string, unknown>,
+): Record<string, unknown> {
+  const next = { ...settings };
+  if (
+    (next.sessionIDPlacement === undefined || next.sessionIDPlacement === '') &&
+    typeof next.sessionPlacement === 'string'
+  ) {
+    next.sessionIDPlacement = next.sessionPlacement;
+  }
+  if (
+    (next.sessionIDKey === undefined || next.sessionIDKey === '') &&
+    typeof next.sessionKey === 'string'
+  ) {
+    next.sessionIDKey = next.sessionKey;
+  }
+  delete next.sessionPlacement;
+  delete next.sessionKey;
+  if (isRecord(next.extra)) {
+    next.extra = normalizeXhttpCompatibility(next.extra);
+  }
+  return next;
+}
+
+/** Fold lowercase imports into Xray's canonical sockopt key. */
+export function normalizeSockoptCompatibility(
+  settings: Record<string, unknown>,
+): Record<string, unknown> {
+  const next = { ...settings };
+  if (next.V6Only === undefined && next.v6only !== undefined) {
+    next.V6Only = Boolean(next.v6only);
+  }
+  delete next.v6only;
+  return next;
+}
+
+/**
+ * Xray 26.6.22 removed the WireGuard `workers` setting.  It is invalid on
+ * current cores, so drop only that known obsolete key and retain every other
+ * extension in the embedded settings JSON.
+ */
+export function normalizeWireguardSettings(settings: InboundSettings): InboundSettings {
+  if (!Object.hasOwn(settings, 'workers')) {
+    return settings;
+  }
+  const next = { ...settings };
+  delete next.workers;
+  return next;
+}
+
+/** Convert pre-26.9.9 QUIC udpHop and pre-26.9.30 xDNS forms to 26.10.10. */
+export function normalizeFinalmaskForXray(stream: InboundStreamSettings): InboundStreamSettings {
+  const finalmask = stream.finalmask;
+  if (!isRecord(finalmask)) {
+    return stream;
+  }
+  // Keep the original editable document when conversion would lose data.
+  if (validateFinalmaskForXray(stream)) return stream;
+
+  const nextFinalmask: Record<string, unknown> = { ...finalmask };
+  const quicParams = isRecord(nextFinalmask.quicParams) ? { ...nextFinalmask.quicParams } : null;
+  const { masks: udpMasks } = migrateUdpHopMasks(finalmask);
+
+  if (quicParams && Object.hasOwn(quicParams, 'udpHop')) {
+    delete quicParams.udpHop;
+    if (Object.keys(quicParams).length > 0) nextFinalmask.quicParams = quicParams;
+    else delete nextFinalmask.quicParams;
+  }
+
+  if (udpMasks.length > 0) {
+    nextFinalmask.udp = udpMasks.map((entry) => normalizeXdnsMask(entry));
+  }
+  const result: InboundStreamSettings = { ...stream, finalmask: nextFinalmask };
+  if (Object.keys(nextFinalmask).length === 0) delete result.finalmask;
+  return result;
+}
+
+/** Validate combinations that Xray 26.10.10 rejects without mutating JSON. */
+export function validateFinalmaskForXray(stream: InboundStreamSettings): string {
+  const finalmask = stream.finalmask;
+  if (!isRecord(finalmask)) return '';
+  const hopError = migrateUdpHopMasks(finalmask).error;
+  if (hopError) return hopError;
+  if (stringValue(stream.security).toLowerCase() === 'reality') {
+    const tcp = Array.isArray(finalmask.tcp) ? finalmask.tcp : [];
+    if (tcp.length > 0) return 'REALITY cannot be combined with a TCP finalmask';
+  }
+  const udp = Array.isArray(finalmask.udp) ? finalmask.udp : [];
+  for (const raw of udp) {
+    const mask = asRecord(raw);
+    if (String(mask.type).toLowerCase() === 'salamander') {
+      const password = stringValue(asRecord(mask.settings).password);
+      if (new TextEncoder().encode(password).length < 4)
+        return 'Salamander finalmask password must be at least 4 bytes';
+    }
+  }
+  const tcp = Array.isArray(finalmask.tcp) ? finalmask.tcp : [];
+  for (const raw of tcp) {
+    const mask = asRecord(raw);
+    if (String(mask.type).toLowerCase() !== 'xmc') continue;
+    const settings = asRecord(mask.settings);
+    const profiles = Array.isArray(settings.profiles) ? settings.profiles : [];
+    if (profiles.length === 0) {
+      return 'XMC finalmask requires profiles with username, UUID, texturesValue and texturesSignature';
+    }
+    for (const rawProfile of profiles) {
+      const profile = asRecord(rawProfile);
+      const uuid = stringValue(profile.uuid);
+      const canonical = '[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12}';
+      if (
+        !/^[A-Za-z0-9_]{3,16}$/.test(stringValue(profile.username)) ||
+        !new RegExp(`^(?:[\\da-f]{32}|(?:urn:uuid:)?${canonical}|\\{${canonical}\\})$`, 'i').test(
+          uuid,
+        ) ||
+        !stringValue(profile.texturesValue) ||
+        !stringValue(profile.texturesSignature)
+      ) {
+        return 'XMC finalmask profile is incomplete or invalid';
+      }
+    }
+  }
+  const xdns = udp.filter((raw) => String(asRecord(raw).type).toLowerCase() === 'xdns');
+  for (const raw of xdns) {
+    const settings = asRecord(raw).settings;
+    if (!isRecord(settings)) return 'xDNS settings must be an object';
+    const domains = settings.domains;
+    for (const entry of Array.isArray(domains) ? domains : []) {
+      if (isRecord(entry) && Object.hasOwn(entry, 'name')) {
+        if (!stringValue(entry.name).trim())
+          return 'Legacy xDNS domain name must be a non-empty string';
+        if (Object.hasOwn(entry, 'names') && !Array.isArray(entry.names)) {
+          return 'xDNS domain names must be an array to migrate name';
+        }
+      }
+      if (typeof entry !== 'string') continue;
+      if (!legacyXdnsDomain(entry)) {
+        return `xDNS domain record type is unsupported: ${entry}`;
+      }
+    }
+    for (const entry of Array.isArray(settings.resolvers) ? settings.resolvers : []) {
+      if (typeof entry === 'string') {
+        if (Object.hasOwn(settings, 'domains') && !Array.isArray(settings.domains)) {
+          return 'xDNS domains must be an array to migrate legacy resolvers';
+        }
+        const marker = entry.indexOf('+udp://');
+        if (
+          marker <= 0 ||
+          !legacyXdnsDomain(entry.slice(0, marker)) ||
+          !entry.slice(marker + 7).trim()
+        ) {
+          return 'Legacy xDNS resolver must use name[:type]+udp://address';
+        }
+      } else if (
+        isRecord(entry) &&
+        !Object.hasOwn(entry, 'addrs') &&
+        Object.hasOwn(entry, 'type')
+      ) {
+        if (
+          !['udp', 'tcp'].includes(stringValue(entry.type).toLowerCase()) ||
+          !stringValue(asRecord(entry.settings).addr).trim()
+        ) {
+          return 'Legacy xDNS resolver requires udp/tcp and settings.addr';
+        }
+      }
+    }
+  }
+  return '';
+}
+
+function migrateUdpHopMasks(finalmask: Record<string, unknown>): {
+  masks: unknown[];
+  error: string;
+} {
+  const masks: unknown[] = Array.isArray(finalmask.udp) ? [...finalmask.udp] : [];
+  const qp = asRecord(finalmask.quicParams);
+  if (Object.hasOwn(qp, 'udpHop')) {
+    const hop = asRecord(qp.udpHop);
+    if (!stringValue(hop.ports).trim()) return { masks, error: 'Legacy udpHop requires ports' };
+    if (Object.hasOwn(hop, 'mode') && hop.mode !== 'intervalRemote') {
+      return { masks, error: 'Legacy udpHop mode conflicts with intervalRemote' };
+    }
+    if (Object.hasOwn(hop, 'remotePorts') && !equalJson(hop.remotePorts, hop.ports)) {
+      return { masks, error: 'Legacy udpHop ports conflict with remotePorts' };
+    }
+    if (Object.hasOwn(finalmask, 'udp') && !Array.isArray(finalmask.udp)) {
+      return { masks, error: 'Finalmask udp must be an array to migrate udpHop' };
+    }
+    const settings: Record<string, unknown> = {
+      ...hop,
+      mode: 'intervalRemote',
+      remotePorts: hop.ports,
+    };
+    delete settings.ports;
+    masks.push({ type: 'udphop', settings });
+  }
+  let hop: unknown;
+  const kept: unknown[] = [];
+  for (const mask of masks) {
+    if (stringValue(asRecord(mask).type).toLowerCase() !== 'udphop') {
+      kept.push(mask);
+    } else {
+      if (hop !== undefined && !equalJson(hop, mask)) {
+        return {
+          masks,
+          error:
+            'Multiple UDP hop masks have different settings; choose one configuration before upgrading',
+        };
+      }
+      hop = mask;
+    }
+  }
+  if (hop !== undefined) kept.push(hop);
+  return { masks: kept, error: '' };
+}
+
+function equalJson(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return (
+      left.length === right.length && left.every((value, index) => equalJson(value, right[index]))
+    );
+  }
+  if (isRecord(left) && isRecord(right)) {
+    return (
+      Object.keys(left).length === Object.keys(right).length &&
+      Object.keys(left).every(
+        (key) => Object.hasOwn(right, key) && equalJson(left[key], right[key]),
+      )
+    );
+  }
+  return false;
+}
+
+function legacyXdnsDomain(value: string): Record<string, unknown> | null {
+  const trimmed = value.trim();
+  const separator = trimmed.lastIndexOf(':');
+  const suffix = separator >= 0 ? trimmed.slice(separator + 1).toLowerCase() : '';
+  if (separator >= 0 && !['a', 'aaaa', 'txt'].includes(suffix)) return null;
+  const name = (separator >= 0 ? trimmed.slice(0, separator) : trimmed).replace(/^\.+|\.+$/g, '');
+  if (!name || name.includes(':')) return null;
+  return { names: [name], types: [suffix === 'a' ? 1 : suffix === 'aaaa' ? 28 : 16], edns0: 1232 };
+}
+
+function normalizeXdnsMask(value: unknown): unknown {
+  if (
+    !isRecord(value) ||
+    String(value.type).toLowerCase() !== 'xdns' ||
+    !isRecord(value.settings)
+  ) {
+    return value;
+  }
+  const settings = { ...value.settings };
+  const domains = Array.isArray(settings.domains) ? settings.domains : [];
+  const upgradedDomains = domains.flatMap((entry) => {
+    if (isRecord(entry)) {
+      if (typeof entry.name === 'string') {
+        const names = Array.isArray(entry.names) ? [...entry.names] : [];
+        if (!names.includes(entry.name)) names.push(entry.name);
+        const next: Record<string, unknown> = { ...entry, names };
+        delete next.name;
+        return [next];
+      }
+      return [entry];
+    }
+    if (typeof entry !== 'string') return [entry];
+    return [legacyXdnsDomain(entry) ?? entry];
+  });
+
+  const resolvers = Array.isArray(settings.resolvers) ? settings.resolvers : [];
+  const upgradedResolvers = resolvers.flatMap((entry) => {
+    if (isRecord(entry) && !Object.hasOwn(entry, 'addrs') && typeof entry.type === 'string') {
+      const resolverSettings = { ...asRecord(entry.settings) };
+      const addr = stringValue(resolverSettings.addr);
+      if (!addr) return [entry];
+      const next: Record<string, unknown> = {
+        ...entry,
+        addrs: [`${entry.type.toLowerCase()}://${addr}`],
+      };
+      delete next.type;
+      delete resolverSettings.addr;
+      if (Object.keys(resolverSettings).length) next.settings = resolverSettings;
+      else delete next.settings;
+      return [next];
+    }
+    if (typeof entry === 'string') {
+      const marker = entry.indexOf('+udp://');
+      const domain = marker > 0 ? legacyXdnsDomain(entry.slice(0, marker)) : null;
+      if (domain) {
+        if (!upgradedDomains.some((existing) => equalJson(existing, domain)))
+          upgradedDomains.push(domain);
+        return [{ addrs: [`udp://${entry.slice(marker + 7)}`] }];
+      }
+      return [entry];
+    }
+    return [entry];
+  });
+  if (upgradedDomains.length > 0) settings.domains = upgradedDomains;
+  if (resolvers.length > 0) settings.resolvers = upgradedResolvers;
+  return { ...value, settings };
 }
 
 export function parseInboundSniffingSettings(
@@ -188,7 +529,8 @@ export function getInboundClients(
 ): InboundClient[] {
   const settings = parseInboundSettings(inbound);
   if (inbound.protocol === 'wireguard') {
-    return Array.isArray(settings.peers) ? settings.peers.filter(isWireguardPeer) : [];
+    const normalized = normalizeWireguardSettings(settings);
+    return Array.isArray(normalized.peers) ? normalized.peers.filter(isWireguardPeer) : [];
   }
   return Array.isArray(settings.clients) ? settings.clients.filter(isInboundClient) : [];
 }
@@ -367,8 +709,18 @@ export function applyHysteriaFinalmaskUdpHop(
   const next: InboundStreamSettings = { ...stream };
   const finalmask: Record<string, unknown> = { ...asRecord(stream.finalmask) };
   const quicParams: Record<string, unknown> = { ...asRecord(finalmask.quicParams) };
+  const existingHop = { ...resolveHysteriaUdpHop(finalmask) };
+  delete existingHop.mode;
+  delete existingHop.remotePorts;
   const ports = normalizeHopRange(input.ports);
   const interval = normalizeHopRange(input.interval);
+  // The form owns the historical intervalRemote hop only. Keep other modes
+  // and unrelated finalmask extensions in the advanced JSON editor intact.
+  if (Array.isArray(finalmask.udp)) {
+    const masks = finalmask.udp.filter((entry) => !isEditableUdpHopMask(entry));
+    if (masks.length > 0) finalmask.udp = masks;
+    else delete finalmask.udp;
+  }
 
   if (!input.quicParamsEnabled) {
     delete finalmask.quicParams;
@@ -406,7 +758,10 @@ export function applyHysteriaFinalmaskUdpHop(
   );
 
   if (input.quicParamsEnabled && input.udpHopEnabled && ports) {
-    quicParams.udpHop = interval ? { ports, interval } : { ports };
+    const hop: Record<string, unknown> = { ...existingHop, ports };
+    if (interval) hop.interval = interval;
+    else delete hop.interval;
+    quicParams.udpHop = hop;
     finalmask.quicParams = quicParams;
     next.finalmask = finalmask;
     return next;
@@ -424,6 +779,26 @@ export function applyHysteriaFinalmaskUdpHop(
     delete next.finalmask;
   }
   return next;
+}
+
+/** Read both historical and current intervalRemote hop settings for the form. */
+export function resolveHysteriaUdpHop(finalmask: unknown): Record<string, unknown> {
+  const settings = asRecord(finalmask);
+  const masks = Array.isArray(settings.udp) ? settings.udp : [];
+  const current = masks.find(isEditableUdpHopMask);
+  if (current) {
+    const hop = asRecord(asRecord(current).settings);
+    return { ...hop, ports: hop.remotePorts };
+  }
+  return asRecord(asRecord(settings.quicParams).udpHop);
+}
+
+function isEditableUdpHopMask(value: unknown): boolean {
+  const mask = asRecord(value);
+  return (
+    String(mask.type).toLowerCase() === 'udphop' &&
+    String(asRecord(mask.settings).mode).toLowerCase() === 'intervalremote'
+  );
 }
 
 export function validateHysteriaQuicFormInput(input: HysteriaUdpHopFormInput): string {
@@ -492,16 +867,28 @@ const XHTTP_LEGACY_EXTRA_KEYS = [
   'downloadSettings',
 ] as const;
 
+const XHTTP_SESSION_EXTRA_KEYS = [
+  'sessionIDPlacement',
+  'sessionIDKey',
+  'sessionIDTable',
+  'sessionIDLength',
+] as const;
+
 export function resolveXhttpExtraSettings(
   settings: Record<string, unknown>,
 ): Record<string, unknown> {
-  const extra = { ...asRecord(settings.extra) };
+  const extra = normalizeXhttpCompatibility({ ...asRecord(settings.extra) });
   for (const key of XHTTP_LEGACY_EXTRA_KEYS) {
     if (extra[key] === undefined && settings[key] !== undefined) {
       extra[key] = settings[key];
     }
   }
-  return extra;
+  for (const key of XHTTP_SESSION_EXTRA_KEYS) {
+    if (extra[key] === undefined && settings[key] !== undefined) {
+      extra[key] = settings[key];
+    }
+  }
+  return normalizeXhttpCompatibility(extra);
 }
 
 export function resolveXhttpHost(settings: Record<string, unknown>): string {
@@ -520,7 +907,7 @@ export function mergeXhttpSettings(
 ): Record<string, unknown> {
   const next = { ...settings };
   const extra = resolveXhttpExtraSettings(settings);
-  for (const key of XHTTP_LEGACY_EXTRA_KEYS) {
+  for (const key of [...XHTTP_LEGACY_EXTRA_KEYS, ...XHTTP_SESSION_EXTRA_KEYS]) {
     delete next[key];
   }
 
@@ -550,8 +937,14 @@ export function mergeXhttpSettings(
   setOptionalString(extra, 'xPaddingPlacement', input.xPaddingPlacement);
   setOptionalString(extra, 'xPaddingMethod', input.xPaddingMethod);
   setOptionalString(extra, 'uplinkHTTPMethod', input.uplinkHTTPMethod.toUpperCase());
-  setOptionalString(extra, 'sessionPlacement', input.sessionPlacement);
-  setOptionalString(extra, 'sessionKey', input.sessionKey);
+  setOptionalString(extra, 'sessionIDPlacement', input.sessionPlacement);
+  setOptionalString(extra, 'sessionIDKey', input.sessionKey);
+  if (input.sessionIDTable !== undefined) {
+    setOptionalString(extra, 'sessionIDTable', input.sessionIDTable);
+  }
+  if (input.sessionIDLength !== undefined) {
+    setOptionalString(extra, 'sessionIDLength', input.sessionIDLength);
+  }
   setOptionalString(extra, 'seqPlacement', input.seqPlacement);
   setOptionalString(extra, 'seqKey', input.seqKey);
   setOptionalString(extra, 'uplinkDataPlacement', input.uplinkDataPlacement);
@@ -582,6 +975,33 @@ export function mergeXhttpSettings(
     delete next.extra;
   }
   return next;
+}
+
+/** Validate v26.10.10 XHTTP session table/range when present in imported JSON. */
+export function validateXhttpSessionSettings(settings: Record<string, unknown>): string {
+  const normalized = resolveXhttpExtraSettings(settings);
+  if (
+    normalized.sessionIDLength !== undefined &&
+    typeof normalized.sessionIDLength !== 'string' &&
+    typeof normalized.sessionIDLength !== 'number'
+  ) {
+    return 'XHTTP sessionIDLength must be a positive length or range';
+  }
+  const table = stringValue(normalized.sessionIDTable).trim();
+  const length =
+    normalized.sessionIDLength === undefined ? '' : String(normalized.sessionIDLength).trim();
+  if (table && Array.from(table).some((character) => character.charCodeAt(0) >= 128)) {
+    return 'XHTTP sessionIDTable must contain only ASCII characters';
+  }
+  if (!length) return '';
+  const range = parseCoreInt32Range(length);
+  if (!range) {
+    return 'XHTTP sessionIDLength must be a positive length or range';
+  }
+  if (range[0] <= 0 || range[1] <= 0) {
+    return 'XHTTP sessionIDLength range must be positive';
+  }
+  return '';
 }
 
 export function validateXhttpFormInput(input: XhttpFormInput): string {
@@ -792,6 +1212,15 @@ export function getShadowsocksMethod(source: Pick<Inbound, 'settings'> | Inbound
   const settings = hasSettingsText(source) ? parseInboundSettings(source) : source;
   const method = settings.method || SHADOWSOCKS_DEFAULT_METHOD;
   return normalizeShadowsocksMethod(String(method));
+}
+
+/** Xray-core no longer accepts these legacy Shadowsocks cipher names. */
+export function validateShadowsocksMethod(method: string): string {
+  const normalized = normalizeShadowsocksMethod(method);
+  if (REMOVED_SHADOWSOCKS_METHODS.has(normalized)) {
+    return `Shadowsocks cipher ${normalized} was removed from the target Xray core; choose a supported method`;
+  }
+  return '';
 }
 
 export function isShadowsocks2022Method(method: string): boolean {
@@ -1412,19 +1841,26 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
 function appendHysteriaFinalMaskParams(params: URLSearchParams, finalmask: unknown) {
-  const serialized = serializeShareableFinalMask(finalmask);
+  const normalizedFinalmask = normalizeFinalmaskForXray({
+    finalmask: asRecord(finalmask),
+  }).finalmask;
+  const serialized = serializeShareableFinalMask(normalizedFinalmask);
   if (serialized) {
     params.set('fm', serialized);
   }
 
-  const obfsPassword = hysteriaSalamanderPassword(finalmask);
+  const obfsPassword = hysteriaSalamanderPassword(normalizedFinalmask);
   if (obfsPassword) {
     params.set('obfs', 'salamander');
     params.set('obfs-password', obfsPassword);
   }
 
-  const hopPorts = hysteriaHopPorts(finalmask);
+  const hopPorts = hysteriaHopPorts(normalizedFinalmask);
   if (hopPorts) {
     params.set('mport', hopPorts);
   }
@@ -1450,9 +1886,22 @@ function hysteriaSalamanderPassword(finalmask: unknown): string {
 }
 
 function hysteriaHopPorts(finalmask: unknown): string {
-  const quicParams = asRecord(asRecord(finalmask).quicParams);
+  const raw = asRecord(finalmask);
+  const quicParams = asRecord(raw.quicParams);
   const udpHop = asRecord(quicParams.udpHop);
-  return stringValue(udpHop.ports).trim();
+  const legacyPorts = stringValue(udpHop.ports).trim();
+  if (legacyPorts) {
+    return legacyPorts;
+  }
+  const masks = Array.isArray(raw.udp) ? raw.udp : [];
+  for (const mask of masks) {
+    const candidate = asRecord(mask);
+    if (String(candidate.type).toLowerCase() !== 'udphop') continue;
+    const settings = asRecord(candidate.settings);
+    const ports = stringValue(settings.remotePorts || settings.ports).trim();
+    if (ports) return ports;
+  }
+  return '';
 }
 
 function normalizeHopRange(value: string): string {

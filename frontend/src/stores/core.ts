@@ -29,11 +29,13 @@ export const useCoreStore = defineStore('core', {
     selectedId: '',
   }),
   getters: {
-    selectedInstance: (state) => state.instances.find((instance) => instance.id === state.selectedId),
+    selectedInstance: (state) =>
+      state.instances.find((instance) => instance.id === state.selectedId),
     instanceCount: (state) => state.instances.length,
     runningCount: (state) =>
       state.instances.filter((instance) => instance.status.state === 'running').length,
-    experimentalCount: (state) => state.instances.filter((instance) => instance.experimentalOnly).length,
+    experimentalCount: (state) =>
+      state.instances.filter((instance) => instance.experimentalOnly).length,
   },
   actions: {
     /** 刷新当前面板可见的所有内核实例。 */

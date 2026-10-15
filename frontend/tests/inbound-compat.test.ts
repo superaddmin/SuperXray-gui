@@ -12,16 +12,353 @@ import {
   generateBulkClientProfiles,
   mergeXhttpSettings,
   mergeSubscriptionEndpointDefaults,
+  normalizeFinalmaskForXray,
+  normalizeInboundStreamCompatibility,
   normalizeTunSettings,
+  normalizeWireguardSettings,
   restoreInboundClients,
   resolveXhttpHost,
   resolveXhttpExtraSettings,
+  resolveHysteriaUdpHop,
   separateInboundClients,
   validateHysteriaQuicFormInput,
+  validateFinalmaskForXray,
+  validateShadowsocksMethod,
   validateXhttpFormInput,
+  validateXhttpSessionSettings,
   validateTunSettings,
 } from '../src/utils/inboundCompat.ts';
 import { protocolSupportsShareLink } from '../src/schemas/protocolRegistry.ts';
+
+test('26.10.10 stream aliases migrate without dropping unknown fields', () => {
+  const stream = normalizeInboundStreamCompatibility({
+    xhttpSettings: {
+      sessionPlacement: 'header',
+      sessionKey: 'legacy-session',
+      sessionIDTable: 'Base62',
+      sessionIDLength: '8-16',
+      localExtension: { keep: true },
+    },
+    realitySettings: { dest: 'example.com:443', settings: { publicKey: 'pk' } },
+    sockopt: { v6only: true, localSockopt: 'keep' },
+  });
+
+  assert.equal((stream.xhttpSettings as Record<string, unknown>).sessionIDPlacement, 'header');
+  assert.equal((stream.xhttpSettings as Record<string, unknown>).sessionIDKey, 'legacy-session');
+  assert.equal((stream.xhttpSettings as Record<string, unknown>).sessionPlacement, undefined);
+  assert.equal((stream.realitySettings as Record<string, unknown>).target, 'example.com:443');
+  assert.equal((stream.sockopt as Record<string, unknown>).V6Only, true);
+  assert.deepEqual((stream.sockopt as Record<string, unknown>).localSockopt, 'keep');
+});
+
+test('26.10.10 finalmask conversion is idempotent and keeps unknown masks', () => {
+  const input = {
+    finalmask: {
+      udp: [{ type: 'custom', settings: { keep: true } }],
+      quicParams: { udpHop: { ports: '20000-30000', interval: '5-10' } },
+    },
+  };
+  const first = normalizeFinalmaskForXray(input);
+  const second = normalizeFinalmaskForXray(first);
+  assert.deepEqual(second, first);
+  const finalmask = first.finalmask as Record<string, unknown>;
+  const udp = finalmask.udp as unknown[];
+  assert.equal(finalmask.quicParams, undefined);
+  assert.deepEqual(udp[1], {
+    type: 'udphop',
+    settings: { mode: 'intervalRemote', remotePorts: '20000-30000', interval: '5-10' },
+  });
+  assert.deepEqual(udp[0], { type: 'custom', settings: { keep: true } });
+});
+
+test('26.10.10 WireGuard drops removed workers while preserving extension fields', () => {
+  const settings = normalizeWireguardSettings({
+    workers: 4,
+    peers: [],
+    localExtension: { keep: true },
+  });
+  assert.equal(settings.workers, undefined);
+  assert.deepEqual(settings.localExtension, { keep: true });
+});
+
+test('26.10.10 XHTTP session table and length validation is actionable', () => {
+  assert.match(validateXhttpSessionSettings({ sessionIDTable: '非ASCII' }), /ASCII/);
+  assert.match(validateXhttpSessionSettings({ sessionIDLength: '0-8' }), /positive/);
+  assert.equal(validateXhttpSessionSettings({ sessionIDLength: '16-8' }), '');
+  assert.equal(validateXhttpSessionSettings({ sessionIDLength: '8-16' }), '');
+  assert.equal(validateXhttpSessionSettings({ extra: { sessionIDLength: 16 } }), '');
+  assert.match(
+    validateXhttpSessionSettings({ extra: { sessionIDLength: '2147483648' } }),
+    /length or range/,
+  );
+  assert.match(validateXhttpSessionSettings({ extra: { sessionIDTable: '非ASCII' } }), /ASCII/);
+});
+
+test('26.10.10 rejects removed Shadowsocks cipher names explicitly', () => {
+  assert.match(validateShadowsocksMethod('none'), /removed/);
+  assert.match(validateShadowsocksMethod('plain'), /removed/);
+  assert.equal(validateShadowsocksMethod('aes-256-gcm'), '');
+  assert.equal(validateShadowsocksMethod('aes-128-gcm'), '');
+  assert.equal(validateShadowsocksMethod('xchacha20-poly1305'), '');
+  assert.equal(validateShadowsocksMethod('chacha20-ietf-poly1305'), '');
+});
+
+test('26.10.10 finalmask rejects incompatible settings and keeps UTF-8 password semantics', () => {
+  assert.match(
+    validateFinalmaskForXray({ security: 'reality', finalmask: { tcp: [{ type: 'header' }] } }),
+    /REALITY/,
+  );
+  assert.match(
+    validateFinalmaskForXray({
+      finalmask: { udp: [{ type: 'salamander', settings: { password: 'abc' } }] },
+    }),
+    /4 bytes/,
+  );
+  assert.equal(
+    validateFinalmaskForXray({
+      finalmask: { udp: [{ type: 'salamander', settings: { password: '密码' } }] },
+    }),
+    '',
+  );
+  assert.match(
+    validateFinalmaskForXray({
+      finalmask: { tcp: [{ type: 'xmc', settings: { username: 'user' } }] },
+    }),
+    /UUID/,
+  );
+  assert.match(
+    validateFinalmaskForXray({
+      finalmask: { udp: [{ type: 'xdns', settings: { domains: ['example.com:mx'] } }] },
+    }),
+    /unsupported/,
+  );
+});
+
+test('26.10.10 xDNS migration preserves unknown fields and handles explicit TXT records', () => {
+  const input = {
+    finalmask: {
+      udp: [
+        {
+          type: 'xdns',
+          settings: {
+            domains: ['example.com:txt', { name: 'second.example', types: [1], vendor: true }],
+            resolvers: [{ type: 'udp', settings: { addr: '127.0.0.1:53' }, vendor: true }],
+          },
+        },
+      ],
+    },
+  };
+  const migrated = normalizeFinalmaskForXray(input);
+  const mask = (migrated.finalmask?.udp as Array<Record<string, unknown>>)[0];
+  const settings = mask.settings as Record<string, unknown>;
+  assert.deepEqual(settings.domains, [
+    { names: ['example.com'], types: [16], edns0: 1232 },
+    { names: ['second.example'], types: [1], vendor: true },
+  ]);
+  assert.equal((settings.resolvers as Array<Record<string, unknown>>)[0].vendor, true);
+  assert.deepEqual(normalizeFinalmaskForXray(migrated), migrated);
+  assert.equal(input.finalmask.udp[0].settings.domains[0], 'example.com:txt');
+});
+
+test('26.10.10 migrated UDP hop remains editable without duplicating or losing other masks', () => {
+  const original = {
+    finalmask: {
+      udp: [
+        { type: 'salamander', settings: { password: 'test-password' } },
+        {
+          type: 'udphop',
+          settings: {
+            mode: 'intervalRemote',
+            remotePorts: '20000-30000',
+            interval: 30,
+            vendor: true,
+          },
+        },
+      ],
+    },
+  };
+  assert.equal(resolveHysteriaUdpHop(original.finalmask).ports, '20000-30000');
+  const input = {
+    ...HYSTERIA_QUIC_DEFAULTS,
+    quicParamsEnabled: true,
+    udpHopEnabled: true,
+    ports: '40000-45000',
+    interval: '5-10',
+  };
+  const migrated = normalizeFinalmaskForXray(applyHysteriaFinalmaskUdpHop(original, input));
+  const masks = migrated.finalmask?.udp as Array<Record<string, unknown>>;
+  assert.equal(masks.length, 2);
+  assert.deepEqual(masks[1].settings, {
+    mode: 'intervalRemote',
+    remotePorts: '40000-45000',
+    interval: '5-10',
+    vendor: true,
+  });
+  const disabled = normalizeFinalmaskForXray(
+    applyHysteriaFinalmaskUdpHop(migrated, { ...input, udpHopEnabled: false }),
+  );
+  assert.deepEqual(disabled.finalmask?.udp, [original.finalmask.udp[0]]);
+});
+
+test('26.10.10 validates XMC profiles instead of obsolete root credentials', () => {
+  const profile = {
+    username: 'Player_1',
+    uuid: '00000000-0000-4000-8000-000000000001',
+    texturesValue: 'fixture-value',
+    texturesSignature: 'fixture-signature',
+  };
+  const stream = { finalmask: { tcp: [{ type: 'xmc', settings: { profiles: [profile] } }] } };
+  assert.equal(validateFinalmaskForXray(stream), '');
+  for (const invalid of [
+    { ...profile, username: 'x' },
+    { ...profile, uuid: 'invalid' },
+    { ...profile, texturesValue: '' },
+    { ...profile, texturesSignature: '' },
+  ]) {
+    assert.match(
+      validateFinalmaskForXray({
+        finalmask: { tcp: [{ type: 'xmc', settings: { profiles: [invalid] } }] },
+      }),
+      /profile/i,
+    );
+  }
+});
+
+test('26.10.10 preserves old xDNS resolver names and each record type', () => {
+  const input = {
+    finalmask: {
+      udp: [
+        {
+          type: 'xdns',
+          settings: {
+            domains: ['same.example:a'],
+            resolvers: [
+              'same.example:txt+udp://127.0.0.1:53',
+              'other.example:aaaa+udp://127.0.0.2:53',
+            ],
+          },
+        },
+      ],
+    },
+  };
+  const got = normalizeFinalmaskForXray(input);
+  const settings = (got.finalmask?.udp as Array<Record<string, unknown>>)[0].settings as Record<
+    string,
+    unknown
+  >;
+  assert.deepEqual(settings.domains, [
+    { names: ['same.example'], types: [1], edns0: 1232 },
+    { names: ['same.example'], types: [16], edns0: 1232 },
+    { names: ['other.example'], types: [28], edns0: 1232 },
+  ]);
+  assert.deepEqual(normalizeFinalmaskForXray(got), got);
+});
+
+test('26.10.10 rejects invalid or conflicting UDP hops without changing the input', () => {
+  const cases = [
+    { quicParams: { udpHop: true } },
+    { quicParams: { udpHop: { interval: 30 } } },
+    {
+      quicParams: { udpHop: { ports: '1000', vendor: 1 } },
+      udp: [
+        { type: 'udphop', settings: { mode: 'intervalRemote', remotePorts: '1000', vendor: 2 } },
+      ],
+    },
+    {
+      udp: [
+        { type: 'udphop', settings: { mode: 'intervalRemote', remotePorts: '1000' } },
+        { type: 'udphop', settings: { mode: 'intervalRemote', remotePorts: '2000' } },
+      ],
+    },
+  ];
+  for (const finalmask of cases) {
+    const input = { finalmask };
+    assert.match(validateFinalmaskForXray(input), /udp.?hop|UDP hop/i);
+    assert.deepEqual(normalizeFinalmaskForXray(input), input);
+  }
+});
+
+test('26.10.10 deduplicates identical hops and preserves legacy extension types', () => {
+  const hop = {
+    type: 'udphop',
+    settings: { mode: 'intervalRemote', remotePorts: '1000', interval: 30, vendor: { keep: true } },
+  };
+  const input = {
+    finalmask: {
+      quicParams: { udpHop: { ports: '1000', interval: 30, vendor: { keep: true } } },
+      udp: [
+        hop,
+        { type: 'custom' },
+        {
+          settings: {
+            vendor: { keep: true },
+            interval: 30,
+            remotePorts: '1000',
+            mode: 'intervalRemote',
+          },
+          type: 'udphop',
+        },
+      ],
+    },
+  };
+  const got = normalizeFinalmaskForXray(input);
+  assert.equal(validateFinalmaskForXray(input), '');
+  assert.deepEqual(got.finalmask?.udp, [{ type: 'custom' }, hop]);
+  assert.deepEqual(normalizeFinalmaskForXray(got), got);
+});
+
+test('26.10.10 rejects non-integer session length types', () => {
+  for (const value of [false, true, null, [], {}, 1.5, 2147483648, '1-2147483648']) {
+    assert.notEqual(
+      validateXhttpSessionSettings({ sessionIDLength: value }),
+      '',
+      JSON.stringify(value),
+    );
+  }
+});
+
+test('26.10.10 xDNS mixed aliases keep names and invalid domains cannot be overwritten', () => {
+  const input = {
+    finalmask: {
+      udp: [
+        {
+          type: 'xdns',
+          settings: {
+            domains: [
+              { name: 'legacy.test', names: ['new.test'], vendor: true },
+              { names: ['same.test'], types: [1], edns0: 1232 },
+            ],
+            resolvers: ['same.test:a+udp://127.0.0.1:53'],
+          },
+        },
+      ],
+    },
+  };
+  const got = normalizeFinalmaskForXray(input);
+  const settings = (got.finalmask?.udp as Array<Record<string, unknown>>)[0].settings as Record<
+    string,
+    unknown
+  >;
+  assert.deepEqual(settings.domains, [
+    { names: ['new.test', 'legacy.test'], vendor: true },
+    { names: ['same.test'], types: [1], edns0: 1232 },
+  ]);
+  const invalid = {
+    finalmask: {
+      udp: [
+        {
+          type: 'xdns',
+          settings: {
+            domains: { vendor: true },
+            resolvers: ['same.test:a+udp://127.0.0.1:53'],
+          },
+        },
+      ],
+    },
+  };
+  assert.match(validateFinalmaskForXray(invalid), /domains must be an array/);
+  assert.deepEqual(normalizeFinalmaskForXray(invalid), invalid);
+});
 
 test('advanced inbound settings isolate clients and restore them without data loss', () => {
   const originalClients = [
@@ -466,7 +803,8 @@ test('resolveXhttpExtraSettings migrates legacy root fields without overriding n
   });
 
   assert.equal(extra.xPaddingBytes, '100-1000');
-  assert.equal(extra.sessionKey, 'nested-session');
+  assert.equal(extra.sessionIDKey, 'nested-session');
+  assert.equal(extra.sessionKey, undefined);
   assert.deepEqual(extra.localExtra, { enabled: true });
 });
 
@@ -530,8 +868,8 @@ test('mergeXhttpSettings writes v1.11.4 extra schema and preserves unknown local
     xPaddingPlacement: 'header',
     xPaddingMethod: 'tokenish',
     uplinkHTTPMethod: 'POST',
-    sessionPlacement: 'header',
-    sessionKey: 'x_session',
+    sessionIDPlacement: 'header',
+    sessionIDKey: 'x_session',
     seqPlacement: 'query',
     seqKey: 'x_seq',
     uplinkDataPlacement: 'header',
@@ -573,7 +911,8 @@ test('mergeXhttpSettings preserves hidden conditional values while removing only
 
   const extra = result.extra as Record<string, unknown>;
   assert.equal(extra.xPaddingKey, 'x_padding');
-  assert.equal(extra.sessionKey, 'x_session');
+  assert.equal(extra.sessionIDKey, 'x_session');
+  assert.equal(extra.sessionKey, undefined);
   assert.equal(extra.seqKey, 'x_seq');
   assert.equal(extra.uplinkDataKey, 'x_data');
   assert.equal(extra.xmux, undefined);
@@ -679,7 +1018,8 @@ test('buildInboundShareLinks exports Hysteria2 UDP hop ports without default fp'
   assert.equal(link.searchParams.get('mport'), '40000-45000');
   assert.equal(link.searchParams.get('obfs'), 'salamander');
   assert.equal(link.searchParams.get('obfs-password'), 'obfs-pass');
-  assert.match(link.searchParams.get('fm') || '', /"udpHop"/);
+  assert.match(link.searchParams.get('fm') || '', /"type":"udphop"/);
+  assert.match(link.searchParams.get('fm') || '', /"remotePorts":"40000-45000"/);
   assert.equal(link.searchParams.has('fp'), false);
 });
 

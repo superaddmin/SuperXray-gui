@@ -12,7 +12,9 @@ This repository keeps project facts in shared source-of-truth files. Read those 
 Current anchors:
 
 - Module: `github.com/superaddmin/SuperXray-gui/v2`.
-- Go: `1.26.5` from `go.mod`.
+- Go: `1.27.2` from `go.mod`.
+- Xray target: `v26.10.10` (`701af60772cd`); the exact Go module pin and gRPC development-version pin are in `go.mod` / `go.sum`.
+- Upstream integration scope, preserved customizations, and unresolved limits: `docs/upstream-3x-ui-v3.10.2-integration.md`. Inventory entries are not proof that every upstream change was ported.
 - Vue source: `frontend/src`; scripts and versions: `frontend/package.json`.
 - Vite output: `web/ui`; Go embedding and routes: `web/ui.go`.
 - Legacy `web/html`, `web/assets`, and `/panel/legacy*` paths are retired.

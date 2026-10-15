@@ -4,6 +4,23 @@ import test from 'node:test';
 
 const source = readFileSync('frontend/src/views/InboundsView.vue', 'utf8');
 
+test('inbound and both client forms preserve untouched quotas and track explicit edits', () => {
+  assert.match(source, /originalTotalBytes: inbound\.total/);
+  assert.match(
+    source,
+    /originalTotalBytes: Number\(row\.traffic\?\.total \?\? client\.totalGB \?\? 0\)/,
+  );
+  assert.match(source, /originalTotalBytes: Number\(client\.totalGB \|\| 0\)/);
+  for (const editor of ['inboundEditor', 'clientEditor', 'inboundClientEditor']) {
+    assert.ok(source.includes(`@change="${editor}.totalGBEdited = true"`));
+  }
+  assert.match(source, /total: resolveTotalBytes\(/);
+  assert.match(
+    source,
+    /totalGB: resolveTotalBytes\(editor\.originalTotalBytes, editor\.totalGB, editor\.totalGBEdited\)/,
+  );
+});
+
 test('new inbound form exposes default client flow fields for VLESS Vision', () => {
   assert.match(source, /title="Default Client"/);
   assert.match(source, /v-if="inboundVlessFlowVisible" label="Flow"/);
@@ -211,7 +228,7 @@ test('hysteria inbound form exposes QUIC Params UDP Hop controls and syncs final
   assert.match(source, /hysteriaUdpHopInterval: string/);
   assert.match(source, /const finalmask = objectField\(stream\.finalmask\)/);
   assert.match(source, /const quicParams = objectField\(finalmask\.quicParams\)/);
-  assert.match(source, /const udpHop = objectField\(quicParams\.udpHop\)/);
+  assert.match(source, /const udpHop = resolveHysteriaUdpHop\(finalmask\)/);
   assert.match(source, /hysteriaUdpHopPorts:\s*stringField\(udpHop\.ports\)/);
   assert.match(source, /applyHysteriaFinalmaskUdpHop/);
   assert.match(
@@ -248,6 +265,8 @@ test('XHTTP form exposes v1.11.4 extra and XMUX controls with a preserving merge
   assert.match(source, /xhttpXPaddingPlacement/);
   assert.match(source, /xhttpUplinkHttpMethod/);
   assert.match(source, /xhttpSessionPlacement/);
+  assert.match(source, /xhttpSessionIdTable/);
+  assert.match(source, /xhttpSessionIdLength/);
   assert.match(source, /xhttpSeqPlacement/);
   assert.match(source, /xhttpUplinkDataPlacement/);
   assert.match(source, /xhttpXmuxEnabled/);

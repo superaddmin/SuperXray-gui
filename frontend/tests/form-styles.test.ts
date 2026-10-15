@@ -55,7 +55,10 @@ test('operational cards use compact radius and stable mobile action grids', () =
 
 test('header glass token overrides ant layout default background', () => {
   assert.match(css, /\.app-header\.ant-layout-header/);
-  assert.match(css, /\.app-header\.ant-layout-header[\s\S]*background:\s*rgba\(6, 17, 31, 0\.84\) !important/);
+  assert.match(
+    css,
+    /\.app-header\.ant-layout-header[\s\S]*background:\s*rgba\(6, 17, 31, 0\.84\) !important/,
+  );
 });
 
 test('mobile drawer and compact toggles keep accessible touch targets', () => {

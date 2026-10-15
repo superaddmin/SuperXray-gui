@@ -104,6 +104,9 @@ func (x *XrayAPI) Close() {
 
 // AddInbound adds a new inbound configuration to the Xray core via gRPC.
 func (x *XrayAPI) AddInbound(inbound []byte) error {
+	if x.HandlerServiceClient == nil {
+		return common.NewError("xray API is not initialized")
+	}
 	client := *x.HandlerServiceClient
 
 	conf := new(conf.InboundDetourConfig)
@@ -119,37 +122,56 @@ func (x *XrayAPI) AddInbound(inbound []byte) error {
 	}
 	inboundConfig := command.AddInboundRequest{Inbound: config}
 
-	_, err = client.AddInbound(context.Background(), &inboundConfig)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err = client.AddInbound(ctx, &inboundConfig)
 
 	return err
 }
 
 // DelInbound removes an inbound configuration from the Xray core by tag.
 func (x *XrayAPI) DelInbound(tag string) error {
+	if x.HandlerServiceClient == nil {
+		return common.NewError("xray API is not initialized")
+	}
 	client := *x.HandlerServiceClient
-	_, err := client.RemoveInbound(context.Background(), &command.RemoveInboundRequest{
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := client.RemoveInbound(ctx, &command.RemoveInboundRequest{
 		Tag: tag,
 	})
 	return err
 }
 
-func shadowsocksCipherTypeFromString(cipher string) shadowsocks.CipherType {
+func shadowsocksCipherTypeFromString(cipher string) (shadowsocks.CipherType, bool) {
 	switch strings.ToLower(cipher) {
 	case "aes-128-gcm", "aead_aes_128_gcm":
-		return shadowsocks.CipherType_AES_128_GCM
+		return shadowsocks.CipherType_AES_128_GCM, true
 	case "aes-256-gcm", "aead_aes_256_gcm":
-		return shadowsocks.CipherType_AES_256_GCM
+		return shadowsocks.CipherType_AES_256_GCM, true
 	case "chacha20-poly1305", "chacha20-ietf-poly1305", "aead_chacha20_poly1305":
-		return shadowsocks.CipherType_CHACHA20_POLY1305
+		return shadowsocks.CipherType_CHACHA20_POLY1305, true
 	case "xchacha20-poly1305", "xchacha20-ietf-poly1305", "aead_xchacha20_poly1305":
-		return shadowsocks.CipherType_XCHACHA20_POLY1305
+		return shadowsocks.CipherType_XCHACHA20_POLY1305, true
 	default:
-		return shadowsocks.CipherType_NONE
+		return shadowsocks.CipherType_UNKNOWN, false
+	}
+}
+
+func isShadowsocks2022Cipher(cipher string) bool {
+	switch strings.ToLower(cipher) {
+	case "2022-blake3-aes-128-gcm", "2022-blake3-aes-256-gcm", "2022-blake3-chacha20-poly1305":
+		return true
+	default:
+		return false
 	}
 }
 
 // AddUser adds a user to an inbound in the Xray core using the specified protocol and user data.
 func (x *XrayAPI) AddUser(Protocol string, inboundTag string, user map[string]any) error {
+	if x.HandlerServiceClient == nil {
+		return common.NewError("xray API is not initialized")
+	}
 	userEmail, err := getRequiredUserString(user, "email")
 	if err != nil {
 		return err
@@ -224,18 +246,19 @@ func (x *XrayAPI) AddUser(Protocol string, inboundTag string, user map[string]an
 			return err
 		}
 
-		ssCipherType := shadowsocksCipherTypeFromString(cipher)
+		ssCipherType, isLegacyAEAD := shadowsocksCipherTypeFromString(cipher)
 
-		if ssCipherType != shadowsocks.CipherType_NONE {
+		if isLegacyAEAD {
 			account = serial.ToTypedMessage(&shadowsocks.Account{
 				Password:   password,
 				CipherType: ssCipherType,
 			})
-		} else {
-			account = serial.ToTypedMessage(&shadowsocks_2022.ServerConfig{
-				Key:   password,
-				Email: userEmail,
+		} else if isShadowsocks2022Cipher(cipher) {
+			account = serial.ToTypedMessage(&shadowsocks_2022.Account{
+				Key: password,
 			})
+		} else {
+			return fmt.Errorf("unsupported Shadowsocks cipher %q; upgrade the inbound to a supported AEAD or SS-2022 cipher", cipher)
 		}
 	case "hysteria", "hysteria2":
 		auth, err := getRequiredUserString(user, "auth")
@@ -251,8 +274,10 @@ func (x *XrayAPI) AddUser(Protocol string, inboundTag string, user map[string]an
 	}
 
 	client := *x.HandlerServiceClient
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	_, err = client.AlterInbound(context.Background(), &command.AlterInboundRequest{
+	_, err = client.AlterInbound(ctx, &command.AlterInboundRequest{
 		Tag: inboundTag,
 		Operation: serial.ToTypedMessage(&command.AddUserOperation{
 			User: &protocol.User{
@@ -266,6 +291,9 @@ func (x *XrayAPI) AddUser(Protocol string, inboundTag string, user map[string]an
 
 // RemoveUser removes a user from an inbound in the Xray core by email.
 func (x *XrayAPI) RemoveUser(inboundTag, email string) error {
+	if x.HandlerServiceClient == nil {
+		return common.NewError("xray API is not initialized")
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

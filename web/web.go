@@ -15,8 +15,10 @@ import (
 	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/config"
+	"github.com/superaddmin/SuperXray-gui/v2/database"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
+	"github.com/superaddmin/SuperXray-gui/v2/util/trustedproxy"
 	"github.com/superaddmin/SuperXray-gui/v2/web/controller"
 	"github.com/superaddmin/SuperXray-gui/v2/web/entity"
 	"github.com/superaddmin/SuperXray-gui/v2/web/job"
@@ -51,7 +53,13 @@ func newCronScheduler(loc *time.Location) *cron.Cron {
 	return cron.New(
 		cron.WithLocation(loc),
 		cron.WithSeconds(),
-		cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger)),
+		cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger), cron.Recover(cron.DefaultLogger), func(j cron.Job) cron.Job {
+			return cron.FuncJob(func() {
+				release := database.AcquireReadLease()
+				defer release()
+				j.Run()
+			})
+		}),
 	)
 }
 
@@ -99,6 +107,10 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	}
 
 	engine := gin.Default()
+	if err := trustedproxy.Configure(engine); err != nil {
+		return nil, err
+	}
+	engine.Use(middleware.DatabaseLeaseMiddleware())
 	requestMetrics := service.NewRequestMetricsStore()
 	engine.Use(middleware.RequestIDMiddleware())
 	engine.Use(middleware.StructuredRequestLoggerMiddleware(middleware.RequestLogOptions{

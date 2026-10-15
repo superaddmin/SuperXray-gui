@@ -4,6 +4,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
+	"github.com/superaddmin/SuperXray-gui/v2/util/xraycompat"
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
 
 	"gorm.io/gorm"
@@ -35,6 +37,18 @@ func NewInboundService(inboundRepository database.InboundRepository) *InboundSer
 	}
 }
 
+// normalizeInboundXrayCompatibility upgrades fields whose meaning is stable
+// across Xray versions before validation or persistence. A rejected legacy
+// field is returned to the caller and the inbound remains untouched.
+func normalizeInboundXrayCompatibility(inbound *model.Inbound) error {
+	settings, stream, _, err := xraycompat.NormalizeInbound(string(inbound.Protocol.XrayProtocol()), inbound.Settings, inbound.StreamSettings)
+	if err != nil {
+		return common.NewError("Xray configuration is incompatible:", err)
+	}
+	inbound.Settings, inbound.StreamSettings = settings, stream
+	return nil
+}
+
 func (s *InboundService) inbounds() database.InboundRepository {
 	if s.inboundRepository != nil {
 		return s.inboundRepository
@@ -43,6 +57,10 @@ func (s *InboundService) inbounds() database.InboundRepository {
 }
 
 var xrayAPISyncMu sync.Mutex
+
+// Keep read-modify-write operations and their runtime sync in the same order.
+// This also prevents concurrent client appends from overwriting each other.
+var inboundMutationMu sync.Mutex
 
 func withXrayAPISyncLock(fn func()) {
 	xrayAPISyncMu.Lock()
@@ -171,7 +189,7 @@ func parseInboundClients(rawSettings string) ([]model.Client, error) {
 
 func parseInboundSettingsEntry(rawSettings string) (map[string]any, []any, error) {
 	var settings map[string]any
-	if err := json.Unmarshal([]byte(rawSettings), &settings); err != nil {
+	if err := decodeInboundJSON(rawSettings, &settings); err != nil {
 		return nil, nil, err
 	}
 	if settings == nil {
@@ -186,6 +204,17 @@ func parseInboundSettingsEntry(rawSettings string) (map[string]any, []any, error
 		return nil, nil, fmt.Errorf("settings.clients must be an array")
 	}
 	return settings, clients, nil
+}
+
+func decodeInboundJSON(raw string, target any) error {
+	// Validate the whole document before Decode, which alone accepts trailing
+	// JSON values. UseNumber preserves unrecognized extension integers.
+	if !json.Valid([]byte(raw)) {
+		return errors.New("invalid inbound JSON")
+	}
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.UseNumber()
+	return decoder.Decode(target)
 }
 
 func (s *InboundService) getAllEmails() ([]string, error) {
@@ -251,6 +280,18 @@ func (s *InboundService) checkEmailExistForInbound(inbound *model.Inbound) (stri
 // then saves the inbound to the database and optionally adds it to the running Xray instance.
 // Returns the created inbound, whether Xray needs restart, and any error.
 func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, bool, error) {
+	inboundMutationMu.Lock()
+	defer inboundMutationMu.Unlock()
+	if inbound == nil {
+		return nil, false, errors.New("inbound is required")
+	}
+	// Add/import always creates a new row, including imported traffic history.
+	// Never let supplied primary keys turn creation into an update.
+	inbound.Id = 0
+	for i := range inbound.ClientStats {
+		inbound.ClientStats[i].Id = 0
+		inbound.ClientStats[i].InboundId = 0
+	}
 	exist, err := s.checkPortExist(inbound.Listen, inbound.Port, 0)
 	if err != nil {
 		return inbound, false, err
@@ -259,6 +300,9 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, boo
 		return inbound, false, common.NewError("Port already exists:", inbound.Port)
 	}
 	if err := normalizeShadowsocksInboundSettings(inbound); err != nil {
+		return inbound, false, err
+	}
+	if err := normalizeInboundXrayCompatibility(inbound); err != nil {
 		return inbound, false, err
 	}
 
@@ -280,26 +324,26 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, boo
 
 	// Ensure created_at and updated_at on clients in settings
 	if len(clients) > 0 {
-		var settings map[string]any
-		if err2 := json.Unmarshal([]byte(inbound.Settings), &settings); err2 == nil && settings != nil {
-			now := time.Now().Unix() * 1000
-			updatedClients := make([]model.Client, 0, len(clients))
-			for _, c := range clients {
-				if c.CreatedAt == 0 {
-					c.CreatedAt = now
-				}
-				c.UpdatedAt = now
-				updatedClients = append(updatedClients, c)
-			}
-			settings["clients"] = updatedClients
-			if bs, err3 := json.MarshalIndent(settings, "", "  "); err3 == nil {
-				inbound.Settings = string(bs)
-			} else {
-				logger.Debug("Unable to marshal inbound settings with timestamps:", err3)
-			}
-		} else if err2 != nil {
-			logger.Debug("Unable to parse inbound settings for timestamps:", err2)
+		settings, rawClients, err := parseInboundSettingsEntry(inbound.Settings)
+		if err != nil {
+			return inbound, false, err
 		}
+		now := time.Now().UnixMilli()
+		for i, rawClient := range rawClients {
+			client, ok := rawClient.(map[string]any)
+			if !ok {
+				return inbound, false, errors.New("settings.clients must contain objects")
+			}
+			if clients[i].CreatedAt == 0 {
+				client["created_at"] = now
+			}
+			client["updated_at"] = now
+		}
+		encoded, err := json.MarshalIndent(settings, "", "  ")
+		if err != nil {
+			return inbound, false, err
+		}
+		inbound.Settings = string(encoded)
 	}
 
 	// Secure client ID
@@ -324,37 +368,46 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, boo
 		}
 	}
 
-	db := database.GetDB()
-	tx := db.Begin()
-	defer func() {
-		if err == nil {
-			tx.Commit()
-		} else {
-			tx.Rollback()
+	err = database.GetDB().Transaction(func(tx *gorm.DB) error {
+		if err := s.inbounds().CreateInbound(tx, inbound); err != nil {
+			return err
 		}
-	}()
-
-	err = s.inbounds().SaveInbound(tx, inbound)
-	if err == nil {
 		if len(inbound.ClientStats) == 0 {
 			for _, client := range clients {
 				if err := s.AddClientStat(tx, inbound.Id, &client); err != nil {
-					return inbound, false, err
+					return err
+				}
+			}
+		} else {
+			for i := range inbound.ClientStats {
+				inbound.ClientStats[i].InboundId = inbound.Id
+				if err := s.inbounds().CreateClientTraffic(tx, &inbound.ClientStats[i]); err != nil {
+					return err
 				}
 			}
 		}
-	} else {
+		return nil
+	})
+	if err != nil {
 		return inbound, false, err
 	}
 
 	needRestart := false
 	if inbound.Enable {
 		withXrayAPISyncLock(func() {
-			if err1 := s.xrayApi.Init(p.GetAPIPort()); err1 != nil {
+			if err1 := s.xrayApi.Init(currentXrayAPIPort()); err1 != nil {
 				logger.Debug("Unable to init xray api:", err1)
 				needRestart = true
+			} else {
+				defer s.xrayApi.Close()
 			}
-			inboundJson, err1 := json.MarshalIndent(inbound.GenXrayInboundConfig(), "", "  ")
+			runtimeConfig, err1 := inbound.BuildXrayInboundConfig()
+			if err1 != nil {
+				needRestart = true
+				logger.Debug("Unable to build inbound config:", err1)
+				return
+			}
+			inboundJson, err1 := json.MarshalIndent(runtimeConfig, "", "  ")
 			if err1 != nil {
 				logger.Debug("Unable to marshal inbound config:", err1)
 			}
@@ -368,7 +421,6 @@ func (s *InboundService) AddInbound(inbound *model.Inbound) (*model.Inbound, boo
 					needRestart = true
 				}
 			}
-			s.xrayApi.Close()
 		})
 	}
 
@@ -390,7 +442,7 @@ func (s *InboundService) DelInbound(id int) (bool, error) {
 	needRestart := false
 	if inbound.Enable {
 		withXrayAPISyncLock(func() {
-			if err1 := s.xrayApi.Init(p.GetAPIPort()); err1 != nil {
+			if err1 := s.xrayApi.Init(currentXrayAPIPort()); err1 != nil {
 				logger.Debug("Unable to init xray api:", err1)
 				needRestart = true
 			} else {
@@ -435,6 +487,8 @@ func (s *InboundService) GetInbound(id int) (*model.Inbound, error) {
 // It validates changes, updates the database, and syncs with the running Xray instance.
 // Returns the updated inbound, whether Xray needs restart, and any error.
 func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, bool, error) {
+	inboundMutationMu.Lock()
+	defer inboundMutationMu.Unlock()
 	exist, err := s.checkPortExist(inbound.Listen, inbound.Port, inbound.Id)
 	if err != nil {
 		return inbound, false, err
@@ -450,32 +504,20 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 	if err := normalizeShadowsocksInboundSettings(inbound); err != nil {
 		return inbound, false, err
 	}
+	if err := normalizeInboundXrayCompatibility(inbound); err != nil {
+		return inbound, false, err
+	}
 	if err := validateInboundProtocolConfig(inbound); err != nil {
 		return inbound, false, err
 	}
 
 	tag := oldInbound.Tag
-
-	db := database.GetDB()
-	tx := db.Begin()
-
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
-
-	err = s.updateClientTraffics(tx, oldInbound, inbound)
-	if err != nil {
-		return inbound, false, err
-	}
+	previousInbound := *oldInbound
 
 	// Ensure created_at and updated_at exist in inbound.Settings clients
 	{
 		var oldSettings map[string]any
-		_ = json.Unmarshal([]byte(oldInbound.Settings), &oldSettings)
+		_ = decodeInboundJSON(oldInbound.Settings, &oldSettings)
 		emailToCreated := map[string]int64{}
 		emailToUpdated := map[string]int64{}
 		if oldSettings != nil {
@@ -484,12 +526,16 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 					if m, ok2 := it.(map[string]any); ok2 {
 						if email, ok3 := m["email"].(string); ok3 {
 							switch v := m["created_at"].(type) {
+							case json.Number:
+								emailToCreated[email], _ = v.Int64()
 							case float64:
 								emailToCreated[email] = int64(v)
 							case int64:
 								emailToCreated[email] = v
 							}
 							switch v := m["updated_at"].(type) {
+							case json.Number:
+								emailToUpdated[email], _ = v.Int64()
 							case float64:
 								emailToUpdated[email] = int64(v)
 							case int64:
@@ -501,7 +547,7 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 			}
 		}
 		var newSettings map[string]any
-		if err2 := json.Unmarshal([]byte(inbound.Settings), &newSettings); err2 == nil && newSettings != nil {
+		if err2 := decodeInboundJSON(inbound.Settings, &newSettings); err2 == nil && newSettings != nil {
 			now := time.Now().Unix() * 1000
 			if nSlice, ok := newSettings["clients"].([]any); ok {
 				for i := range nSlice {
@@ -550,22 +596,39 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 		oldInbound.Tag = fmt.Sprintf("inbound-%v:%v", inbound.Listen, inbound.Port)
 	}
 
+	err = database.GetDB().Transaction(func(tx *gorm.DB) error {
+		if err := s.updateClientTraffics(tx, &previousInbound, inbound); err != nil {
+			return err
+		}
+		return s.inbounds().SaveInbound(tx, oldInbound)
+	})
+	if err != nil {
+		return inbound, false, err
+	}
+
 	needRestart := false
 	withXrayAPISyncLock(func() {
-		if err2 := s.xrayApi.Init(p.GetAPIPort()); err2 != nil {
+		if err2 := s.xrayApi.Init(currentXrayAPIPort()); err2 != nil {
 			logger.Debug("Unable to init xray api:", err2)
 			needRestart = true
 		} else {
+			defer s.xrayApi.Close()
 			if s.xrayApi.DelInbound(tag) == nil {
 				logger.Debug("Old inbound deleted by api:", tag)
 			}
 			if inbound.Enable {
-				runtimeInbound, err2 := s.buildRuntimeInboundForAPI(tx, oldInbound)
+				runtimeInbound, err2 := s.buildRuntimeInboundForAPI(nil, oldInbound)
 				if err2 != nil {
 					logger.Debug("Unable to prepare runtime inbound config:", err2)
 					needRestart = true
 				} else {
-					inboundJson, err2 := json.MarshalIndent(runtimeInbound.GenXrayInboundConfig(), "", "  ")
+					runtimeConfig, buildErr := runtimeInbound.BuildXrayInboundConfig()
+					if buildErr != nil {
+						needRestart = true
+						logger.Debug("Unable to build updated inbound config:", buildErr)
+						return
+					}
+					inboundJson, err2 := json.MarshalIndent(runtimeConfig, "", "  ")
 					if err2 != nil {
 						logger.Debug("Unable to marshal updated inbound config:", err2)
 						needRestart = true
@@ -580,11 +643,10 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 					}
 				}
 			}
-			s.xrayApi.Close()
 		}
 	})
 
-	return inbound, needRestart, s.inbounds().SaveInbound(tx, oldInbound)
+	return inbound, needRestart, nil
 }
 
 func (s *InboundService) buildRuntimeInboundForAPI(tx *gorm.DB, inbound *model.Inbound) (*model.Inbound, error) {
@@ -594,7 +656,7 @@ func (s *InboundService) buildRuntimeInboundForAPI(tx *gorm.DB, inbound *model.I
 
 	runtimeInbound := *inbound
 	settings := map[string]any{}
-	if err := json.Unmarshal([]byte(inbound.Settings), &settings); err != nil {
+	if err := decodeInboundJSON(inbound.Settings, &settings); err != nil {
 		return nil, err
 	}
 
@@ -688,6 +750,8 @@ func (s *InboundService) updateClientTraffics(tx *gorm.DB, oldInbound *model.Inb
 }
 
 func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
+	inboundMutationMu.Lock()
+	defer inboundMutationMu.Unlock()
 	var interfaceClients []any
 	var err error
 	_, interfaceClients, err = parseInboundSettingsEntry(data.Settings)
@@ -779,20 +843,23 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 
 	oldInbound.Settings = string(newSettings)
 
-	db := database.GetDB()
-	tx := db.Begin()
-
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
+	err = database.GetDB().Transaction(func(tx *gorm.DB) error {
+		for _, client := range clients {
+			if client.Email != "" {
+				if err := s.AddClientStat(tx, data.Id, &client); err != nil {
+					return err
+				}
+			}
 		}
-	}()
+		return s.inbounds().SaveInbound(tx, oldInbound)
+	})
+	if err != nil {
+		return false, err
+	}
 
 	needRestart := false
 	withXrayAPISyncLock(func() {
-		if err1 := s.xrayApi.Init(p.GetAPIPort()); err1 != nil {
+		if err1 := s.xrayApi.Init(currentXrayAPIPort()); err1 != nil {
 			logger.Debug("Unable to init xray api:", err1)
 			needRestart = true
 		} else {
@@ -800,10 +867,6 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 		}
 		for _, client := range clients {
 			if len(client.Email) > 0 {
-				err = s.AddClientStat(tx, data.Id, &client)
-				if err != nil {
-					return
-				}
 				if client.Enable && !needRestart {
 					cipher := ""
 					if oldInbound.Protocol == "shadowsocks" {
@@ -830,11 +893,7 @@ func (s *InboundService) AddInboundClient(data *model.Inbound) (bool, error) {
 			}
 		}
 	})
-	if err != nil {
-		return false, err
-	}
-
-	return needRestart, s.inbounds().SaveInbound(tx, oldInbound)
+	return needRestart, nil
 }
 
 func (s *InboundService) getClientPrimaryKey(protocol model.Protocol, client model.Client) string {
@@ -1131,7 +1190,7 @@ func (s *InboundService) DelInboundClient(inboundId int, clientId string) (bool,
 		}
 		if needApiDel && notDepleted {
 			withXrayAPISyncLock(func() {
-				if err1 := s.xrayApi.Init(p.GetAPIPort()); err1 != nil {
+				if err1 := s.xrayApi.Init(currentXrayAPIPort()); err1 != nil {
 					logger.Debug("Unable to init xray api:", err1)
 					needRestart = true
 				} else {
@@ -1156,6 +1215,8 @@ func (s *InboundService) DelInboundClient(inboundId int, clientId string) (bool,
 }
 
 func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId string) (bool, error) {
+	inboundMutationMu.Lock()
+	defer inboundMutationMu.Unlock()
 	// TODO: check if TrafficReset field is updating
 	var interfaceClients []any
 	var err error
@@ -1271,46 +1332,35 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 	}
 
 	oldInbound.Settings = string(newSettings)
-	db := database.GetDB()
-	tx := db.Begin()
-
-	defer func() {
-		if err != nil {
-			tx.Rollback()
-		} else {
-			tx.Commit()
-		}
-	}()
-
-	if len(clients[0].Email) > 0 {
-		if len(oldEmail) > 0 {
-			err = s.UpdateClientStat(tx, oldEmail, &clients[0])
-			if err != nil {
-				return false, err
-			}
-			err = s.UpdateClientIPs(tx, oldEmail, clients[0].Email)
-			if err != nil {
-				return false, err
+	err = database.GetDB().Transaction(func(tx *gorm.DB) error {
+		if len(clients[0].Email) > 0 {
+			if len(oldEmail) > 0 {
+				if err := s.UpdateClientStat(tx, oldEmail, &clients[0]); err != nil {
+					return err
+				}
+				if err := s.UpdateClientIPs(tx, oldEmail, clients[0].Email); err != nil {
+					return err
+				}
+			} else if err := s.AddClientStat(tx, data.Id, &clients[0]); err != nil {
+				return err
 			}
 		} else {
-			if err := s.AddClientStat(tx, data.Id, &clients[0]); err != nil {
-				return false, err
+			if err := s.DelClientStat(tx, oldEmail); err != nil {
+				return err
+			}
+			if err := s.DelClientIPs(tx, oldEmail); err != nil {
+				return err
 			}
 		}
-	} else {
-		err = s.DelClientStat(tx, oldEmail)
-		if err != nil {
-			return false, err
-		}
-		err = s.DelClientIPs(tx, oldEmail)
-		if err != nil {
-			return false, err
-		}
+		return s.inbounds().SaveInbound(tx, oldInbound)
+	})
+	if err != nil {
+		return false, err
 	}
 	needRestart := false
 	if len(oldEmail) > 0 {
 		withXrayAPISyncLock(func() {
-			if err1 := s.xrayApi.Init(p.GetAPIPort()); err1 != nil {
+			if err1 := s.xrayApi.Init(currentXrayAPIPort()); err1 != nil {
 				logger.Debug("Unable to init xray api:", err1)
 				needRestart = true
 			} else {
@@ -1355,7 +1405,7 @@ func (s *InboundService) UpdateInboundClient(data *model.Inbound, clientId strin
 		logger.Debug("Client old email not found")
 		needRestart = true
 	}
-	return needRestart, s.inbounds().SaveInbound(tx, oldInbound)
+	return needRestart, nil
 }
 
 func (s *InboundService) AddTraffic(inboundTraffics []*xray.Traffic, clientTraffics []*xray.ClientTraffic) (error, bool) {
@@ -1435,7 +1485,7 @@ func (s *InboundService) addInboundTraffic(tx *gorm.DB, traffics []*xray.Traffic
 func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTraffic) (err error) {
 	if len(traffics) == 0 {
 		// Empty onlineUsers
-		if p != nil {
+		if p := currentXrayProcess(); p != nil {
 			p.SetOnlineClients(make([]string, 0))
 		}
 		return nil
@@ -1486,7 +1536,7 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 	}
 
 	// Set onlineUsers after the database update succeeds.
-	if p != nil {
+	if p := currentXrayProcess(); p != nil {
 		p.SetOnlineClients(onlineClients)
 	}
 
@@ -1638,9 +1688,9 @@ func (s *InboundService) autoRenewClientsTracked(tx *gorm.DB, runtimeMutationAtt
 	if err != nil {
 		return false, 0, err
 	}
-	if p != nil {
+	if p := currentXrayProcess(); p != nil {
 		withXrayAPISyncLock(func() {
-			err1 = s.xrayApi.Init(p.GetAPIPort())
+			err1 = s.xrayApi.Init(currentXrayAPIPort())
 			if err1 != nil {
 				needRestart = true
 				return
@@ -1668,13 +1718,13 @@ func (s *InboundService) disableInvalidInboundsTracked(tx *gorm.DB, runtimeMutat
 	now := time.Now().Unix() * 1000
 	needRestart := false
 
-	if p != nil {
+	if p := currentXrayProcess(); p != nil {
 		tags, err := s.inbounds().ListInvalidInboundTags(tx, now)
 		if err != nil {
 			return false, 0, err
 		}
 		withXrayAPISyncLock(func() {
-			if err1 := s.xrayApi.Init(p.GetAPIPort()); err1 != nil {
+			if err1 := s.xrayApi.Init(currentXrayAPIPort()); err1 != nil {
 				logger.Debug("Unable to init xray api:", err1)
 				needRestart = true
 			} else {
@@ -1707,13 +1757,13 @@ func (s *InboundService) disableInvalidClientsTracked(tx *gorm.DB, runtimeMutati
 	now := time.Now().Unix() * 1000
 	needRestart := false
 
-	if p != nil {
+	if p := currentXrayProcess(); p != nil {
 		results, err := s.inbounds().ListInvalidClientTrafficTargets(tx, now)
 		if err != nil {
 			return false, 0, err
 		}
 		withXrayAPISyncLock(func() {
-			if err1 := s.xrayApi.Init(p.GetAPIPort()); err1 != nil {
+			if err1 := s.xrayApi.Init(currentXrayAPIPort()); err1 != nil {
 				logger.Debug("Unable to init xray api:", err1)
 				needRestart = true
 			} else {
@@ -2138,7 +2188,7 @@ func (s *InboundService) ResetClientTraffic(id int, clientEmail string) (bool, e
 		for _, client := range clients {
 			if client.Email == clientEmail && client.Enable {
 				withXrayAPISyncLock(func() {
-					if err1 := s.xrayApi.Init(p.GetAPIPort()); err1 != nil {
+					if err1 := s.xrayApi.Init(currentXrayAPIPort()); err1 != nil {
 						logger.Debug("Unable to init xray api:", err1)
 						needRestart = true
 					} else {
@@ -2465,20 +2515,18 @@ func (s *InboundService) SearchInbounds(query string) ([]*model.Inbound, error) 
 	return s.inbounds().SearchByRemark(query)
 }
 
-func (s *InboundService) MigrationRequirements() {
-	db := database.GetDB()
-	tx := db.Begin()
-	var err error
-	defer func() {
-		if err == nil {
-			tx.Commit()
-			if dbErr := db.Exec(`VACUUM "main"`).Error; dbErr != nil {
-				logger.Warningf("VACUUM failed: %v", dbErr)
-			}
-		} else {
-			tx.Rollback()
-		}
-	}()
+func (s *InboundService) MigrationRequirements() error {
+	return database.GetDB().Transaction(s.migrationRequirementsOn)
+}
+
+// migrationRequirementsOn applies the historical inbound/client data fixes to
+// the supplied transaction. Keeping the transaction injectable allows an
+// imported database candidate to be migrated and validated before it replaces
+// the active database.
+func (s *InboundService) migrationRequirementsOn(tx *gorm.DB) (err error) {
+	if tx == nil {
+		return fmt.Errorf("migration transaction is nil")
+	}
 
 	// Calculate and backfill all_time from up+down for inbounds and clients
 	err = tx.Exec(`
@@ -2507,7 +2555,9 @@ func (s *InboundService) MigrationRequirements() {
 	}
 	for inbound_index := range inbounds {
 		settings := map[string]any{}
-		err = json.Unmarshal([]byte(inbounds[inbound_index].Settings), &settings)
+		decoder := json.NewDecoder(strings.NewReader(inbounds[inbound_index].Settings))
+		decoder.UseNumber()
+		err = decoder.Decode(&settings)
 		if err != nil {
 			return
 		}
@@ -2516,7 +2566,10 @@ func (s *InboundService) MigrationRequirements() {
 			// Fix Client configuration problems
 			var newClients []any
 			for client_index := range clients {
-				c := clients[client_index].(map[string]any)
+				c, ok := clients[client_index].(map[string]any)
+				if !ok {
+					return fmt.Errorf("inbound %d contains a client with invalid JSON shape", inbounds[inbound_index].Id)
+				}
 
 				// Add email='' if it is not exists
 				if _, ok := c["email"]; !ok {
@@ -2544,11 +2597,14 @@ func (s *InboundService) MigrationRequirements() {
 				if _, ok := c["created_at"]; !ok {
 					c["created_at"] = time.Now().Unix() * 1000
 				}
-				c["updated_at"] = time.Now().Unix() * 1000
+				if _, ok := c["updated_at"]; !ok {
+					c["updated_at"] = c["created_at"]
+				}
 				newClients = append(newClients, any(c))
 			}
 			settings["clients"] = newClients
-			modifiedSettings, err := json.MarshalIndent(settings, "", "  ")
+			modifiedSettings, marshalErr := json.MarshalIndent(settings, "", "  ")
+			err = marshalErr
 			if err != nil {
 				return
 			}
@@ -2557,7 +2613,8 @@ func (s *InboundService) MigrationRequirements() {
 		}
 
 		// Add client traffic row for all clients which has email
-		modelClients, err := s.GetClients(inbounds[inbound_index])
+		modelClients, clientsErr := s.GetClients(inbounds[inbound_index])
+		err = clientsErr
 		if err != nil {
 			return
 		}
@@ -2599,35 +2656,30 @@ func (s *InboundService) MigrationRequirements() {
 	WHERE protocol in ('vmess','vless','trojan')
 	  AND json_extract(stream_settings, '$.security') = 'tls'
 	  AND json_extract(stream_settings, '$.tlsSettings.settings.domains') IS NOT NULL`).Scan(&externalProxy).Error
-	if err != nil || len(externalProxy) == 0 {
+	if err != nil {
 		return
 	}
 
 	for _, ep := range externalProxy {
-		var reverses any
 		var stream map[string]any
-		err = json.Unmarshal(ep.StreamSettings, &stream)
+		decoder := json.NewDecoder(strings.NewReader(string(ep.StreamSettings)))
+		decoder.UseNumber()
+		err = decoder.Decode(&stream)
 		if err != nil {
 			return
 		}
 		if tlsSettings, ok := stream["tlsSettings"].(map[string]any); ok {
 			if settings, ok := tlsSettings["settings"].(map[string]any); ok {
-				if domains, ok := settings["domains"].([]any); ok {
-					for _, domain := range domains {
-						if domainMap, ok := domain.(map[string]any); ok {
-							domainMap["forceTls"] = "same"
-							domainMap["port"] = ep.Port
-							domainMap["dest"] = domainMap["domain"].(string)
-							delete(domainMap, "domain")
-						}
-					}
+				proxies, mergeErr := mergeLegacyExternalProxies(settings["domains"], stream["externalProxy"], ep.Port)
+				if mergeErr != nil {
+					return fmt.Errorf("inbound %d: %w", ep.Id, mergeErr)
 				}
-				reverses = settings["domains"]
+				stream["externalProxy"] = proxies
 				delete(settings, "domains")
 			}
 		}
-		stream["externalProxy"] = reverses
-		newStream, err := json.MarshalIndent(stream, " ", "  ")
+		newStream, streamErr := json.MarshalIndent(stream, " ", "  ")
+		err = streamErr
 		if err != nil {
 			return
 		}
@@ -2637,21 +2689,95 @@ func (s *InboundService) MigrationRequirements() {
 		}
 	}
 
-	err = tx.Raw(`UPDATE inbounds
-	SET tag = REPLACE(tag, '0.0.0.0:', '')
-	WHERE INSTR(tag, '0.0.0.0:') > 0;`).Error
-	if err != nil {
-		return
-	}
+	// Tags are stable identifiers referenced by routing and user templates.
+	// Keep legacy listen prefixes rather than renaming only the inbound row.
+	return nil
 }
 
-func (s *InboundService) MigrateDB() {
-	s.MigrationRequirements()
-	s.MigrationRemoveOrphanedTraffics()
+// mergeLegacyExternalProxies preserves existing endpoints and unknown fields.
+// Only identical JSON entries are deduplicated; different TLS/port choices
+// remain distinct. Unsupported shapes fail the enclosing migration transaction.
+func mergeLegacyExternalProxies(legacy, existing any, port int) ([]any, error) {
+	domains, ok := legacy.([]any)
+	if !ok {
+		return nil, fmt.Errorf("legacy TLS domains must be an array")
+	}
+	var proxies []any
+	if existing != nil {
+		proxies, ok = existing.([]any)
+		if !ok {
+			return nil, fmt.Errorf("externalProxy must be an array before migrating TLS domains")
+		}
+	}
+	merged := make([]any, 0, len(proxies)+len(domains))
+	seen := make(map[string]bool, len(proxies)+len(domains))
+	appendUnique := func(value any) error {
+		if _, ok := value.(map[string]any); !ok {
+			return fmt.Errorf("externalProxy entries must be objects")
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+		if !seen[string(encoded)] {
+			seen[string(encoded)] = true
+			merged = append(merged, value)
+		}
+		return nil
+	}
+	for _, proxy := range proxies {
+		if err := appendUnique(proxy); err != nil {
+			return nil, err
+		}
+	}
+	for _, domain := range domains {
+		fields, ok := domain.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("legacy TLS domain entries must be objects")
+		}
+		name, ok := fields["domain"].(string)
+		if !ok || strings.TrimSpace(name) == "" {
+			return nil, fmt.Errorf("legacy TLS domain must contain a non-empty string domain")
+		}
+		proxy := make(map[string]any, len(fields)+2)
+		for key, value := range fields {
+			proxy[key] = value
+		}
+		delete(proxy, "domain")
+		proxy["dest"], proxy["port"], proxy["forceTls"] = name, port, "same"
+		if err := appendUnique(proxy); err != nil {
+			return nil, err
+		}
+	}
+	return merged, nil
+}
+
+func (s *InboundService) MigrateDB() error {
+	return database.GetDB().Transaction(migratePanelDatabase)
+}
+
+// migrationRemoveOrphanedClientTrafficsOn removes client traffic rows whose
+// email no longer exists in any inbound client list, using the caller's
+// transaction so candidate imports can roll back atomically.
+func migrationRemoveOrphanedClientTrafficsOn(tx *gorm.DB) error {
+	if tx == nil {
+		return fmt.Errorf("migration transaction is nil")
+	}
+	return tx.Exec(`
+		DELETE FROM client_traffics
+		WHERE email NOT IN (
+			SELECT JSON_EXTRACT(client.value, '$.email')
+			FROM inbounds,
+				JSON_EACH(JSON_EXTRACT(inbounds.settings, '$.clients')) AS client
+		)
+	`).Error
 }
 
 func (s *InboundService) GetOnlineClients() []string {
-	return p.GetOnlineClients()
+	if p := currentXrayProcess(); p != nil {
+		return p.GetOnlineClients()
+	}
+	return nil
 }
 
 func (s *InboundService) GetClientsLastOnline() (map[string]int64, error) {
@@ -2770,7 +2896,7 @@ func (s *InboundService) DelInboundClientByEmail(inboundId int, email string) (b
 
 		if needApiDel {
 			withXrayAPISyncLock(func() {
-				if err1 := s.xrayApi.Init(p.GetAPIPort()); err1 != nil {
+				if err1 := s.xrayApi.Init(currentXrayAPIPort()); err1 != nil {
 					logger.Debug("Unable to init xray api:", err1)
 					needRestart = true
 				} else {

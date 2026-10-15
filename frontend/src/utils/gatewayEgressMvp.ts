@@ -152,7 +152,8 @@ export function mergeGatewayEgressMvpConfig(
   const generatedRules = GATEWAY_EGRESS_MVP_PROFILES.flatMap((profile) => buildRules(profile));
   const preservedRules = rules.filter((rule) => !isGeneratedGatewayRule(rule));
 
-  routing.domainStrategy = typeof routing.domainStrategy === 'string' ? routing.domainStrategy : 'AsIs';
+  routing.domainStrategy =
+    typeof routing.domainStrategy === 'string' ? routing.domainStrategy : 'AsIs';
   routing.rules = [
     ...generatedRules,
     {
@@ -192,7 +193,9 @@ export function buildGatewayEgressManifestCsv(
       profile.egressGroup,
       'manual-check',
       `${profile.notes} (${network.strategyLabel})`,
-    ].map(csvCell).join(','),
+    ]
+      .map(csvCell)
+      .join(','),
   );
   return [header, ...rows].join('\n');
 }

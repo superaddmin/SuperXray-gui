@@ -1,9 +1,10 @@
 # ========================================================
 # Stage: Builder
 # ========================================================
-FROM golang:1.26.5-alpine AS builder
+FROM golang:1.27.2-alpine AS builder
 WORKDIR /app
 ARG TARGETARCH
+ARG GOPROXY=https://proxy.golang.org,direct
 
 RUN apk --no-cache --update add \
   build-base \
@@ -11,11 +12,17 @@ RUN apk --no-cache --update add \
   curl \
   unzip
 
-COPY . .
-
 ENV CGO_ENABLED=1
 ENV CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
-RUN go build -ldflags "-w -s" -o build/x-ui main.go
+ENV GOPROXY=$GOPROXY
+
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked go mod download
+
+COPY . .
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
+    --mount=type=cache,id=superxray-go-build-${TARGETARCH},target=/root/.cache/go-build,sharing=locked \
+    go build -mod=readonly -ldflags "-w -s" -o build/x-ui main.go
 RUN chmod +x DockerInit.sh && ./DockerInit.sh "$TARGETARCH"
 
 # ========================================================

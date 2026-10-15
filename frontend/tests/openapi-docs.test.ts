@@ -56,7 +56,10 @@ test('API docs view fetches same-origin OpenAPI JSON without HTML sinks and reso
   assert.match(viewSource, /function resolveReference/);
   assert.match(viewSource, /function resolveOpenAPIValue/);
   assert.match(viewSource, /requestBody:\s*resolveOpenAPIValue\(operation\.requestBody\)/);
-  assert.match(viewSource, /responses:\s*resolveOpenAPIValue\(operation\.responses\s*\|\|\s*\{\}\)/);
+  assert.match(
+    viewSource,
+    /responses:\s*resolveOpenAPIValue\(operation\.responses\s*\|\|\s*\{\}\)/,
+  );
   assert.match(viewSource, /document\.value = undefined/);
 });
 

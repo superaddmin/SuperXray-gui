@@ -78,7 +78,9 @@ export interface PanelSettings {
   ldapDefaultLimitIP: number;
 }
 
-export type PanelSettingsUpdateForm = PanelSettings;
+export type PanelSettingsUpdateForm = PanelSettings & {
+  twoFactorCode?: string;
+};
 
 export interface UserCredentialsUpdateForm {
   oldUsername: string;

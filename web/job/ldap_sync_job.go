@@ -79,7 +79,7 @@ func (j *LdapSyncJob) Run() {
 		UserFilter: mustGetString(j.settingService.GetLdapUserFilter),
 		UserAttr:   mustGetString(j.settingService.GetLdapUserAttr),
 		FlagField:  mustGetStringOr(j.settingService.GetLdapFlagField, mustGetString(j.settingService.GetLdapVlessField)),
-		TruthyVals: splitCsv(mustGetString(j.settingService.GetLdapTruthyValues)),
+		TruthyVals: truthyValuesOrDefault(mustGetString(j.settingService.GetLdapTruthyValues)),
 		Invert:     mustGetBool(j.settingService.GetLdapInvertFlag),
 	}
 
@@ -91,7 +91,7 @@ func (j *LdapSyncJob) Run() {
 	logger.Infof("Fetched %d LDAP flags", len(flags))
 
 	// --- Load all inbounds and all clients once ---
-	inboundTags := splitCsv(mustGetString(j.settingService.GetLdapInboundTags))
+	inboundTags := splitConfiguredTags(mustGetString(j.settingService.GetLdapInboundTags))
 	inbounds, err := j.inboundService.GetAllInbounds()
 	if err != nil {
 		logger.Warning("Failed to get inbounds:", err)
@@ -107,6 +107,14 @@ func (j *LdapSyncJob) Run() {
 			allClients[clients[i].Email] = &clients[i]
 		}
 	}
+	resolvedTags := make([]string, 0, len(inboundTags))
+	for _, tag := range inboundTags {
+		if inboundMap[tag] == nil {
+			logger.Warningf("LDAP inbound tag %s does not match any inbound", tag)
+			continue
+		}
+		resolvedTags = append(resolvedTags, tag)
+	}
 
 	// --- Prepare batch operations ---
 	autoCreate := mustGetBool(j.settingService.GetLdapAutoCreate)
@@ -120,7 +128,7 @@ func (j *LdapSyncJob) Run() {
 
 	for email, allowed := range flags {
 		exists := allClients[email] != nil
-		for _, tag := range inboundTags {
+		for _, tag := range resolvedTags {
 			if !exists && allowed && autoCreate {
 				newClient := j.buildClient(inboundMap[tag], email, defGB, defExpiryDays, defLimitIP)
 				clientsToCreate[tag] = append(clientsToCreate[tag], newClient)
@@ -159,20 +167,29 @@ func (j *LdapSyncJob) Run() {
 
 	// --- Auto delete clients not in LDAP ---
 	autoDelete := mustGetBool(j.settingService.GetLdapAutoDelete)
-	if autoDelete {
+	// An empty successful LDAP response is commonly a bind/filter failure. Never
+	// interpret it as proof that every panel client was removed.
+	if autoDelete && len(flags) > 0 {
 		ldapEmailSet := map[string]struct{}{}
 		for e := range flags {
 			ldapEmailSet[e] = struct{}{}
 		}
-		for _, tag := range inboundTags {
+		for _, tag := range resolvedTags {
 			j.deleteClientsNotInLDAP(tag, ldapEmailSet)
 		}
 	}
 }
 
-func splitCsv(s string) []string {
+func truthyValuesOrDefault(s string) []string {
 	if s == "" {
-		return DefaultTruthyValues
+		return append([]string(nil), DefaultTruthyValues...)
+	}
+	return splitConfiguredTags(s)
+}
+
+func splitConfiguredTags(s string) []string {
+	if s == "" {
+		return nil
 	}
 	parts := strings.Split(s, ",")
 	out := make([]string, 0, len(parts))

@@ -31,7 +31,10 @@ test('generateProtocolToolArgo supports quick and fixed tunnel modes', () => {
     token: 'eyJ.test-token',
   });
   assert.match(fixed.command, /cloudflared tunnel run --token eyJ\.test-token/);
-  assert.match(fixed.systemd || '', /ExecStart=\/usr\/local\/bin\/cloudflared tunnel run --token eyJ\.test-token/);
+  assert.match(
+    fixed.systemd || '',
+    /ExecStart=\/usr\/local\/bin\/cloudflared tunnel run --token eyJ\.test-token/,
+  );
 });
 
 test('generateProtocolToolCombo returns xray-compatible outbound for vless reality vision', () => {
@@ -125,7 +128,10 @@ test('applyWarpMatrixToTemplate preserves non-warp config and replaces old warp 
     ['warp', 'warp-openai'],
   );
 
-  assert.deepEqual(result.outbounds.map((row: { tag: string }) => row.tag), ['direct', 'warp', 'warp-openai']);
+  assert.deepEqual(
+    result.outbounds.map((row: { tag: string }) => row.tag),
+    ['direct', 'warp', 'warp-openai'],
+  );
   assert.equal(result.routing.rules.length, 2);
 });
 
@@ -148,6 +154,9 @@ test('applyWarpMatrixToTemplate does not make plain WARP the global default rout
     ['warp'],
   );
 
-  assert.deepEqual(result.outbounds.map((row: { tag: string }) => row.tag), ['direct', 'warp']);
+  assert.deepEqual(
+    result.outbounds.map((row: { tag: string }) => row.tag),
+    ['direct', 'warp'],
+  );
   assert.deepEqual(result.routing.rules, [{ outboundTag: 'direct', domain: ['geosite:cn'] }]);
 });

@@ -37,9 +37,6 @@ export function stopCore(id: string, options?: ApiRequestOptions): Promise<CoreL
 }
 
 /** 请求后端重启指定内核实例。 */
-export function restartCore(
-  id: string,
-  options?: ApiRequestOptions,
-): Promise<CoreLifecycleResult> {
+export function restartCore(id: string, options?: ApiRequestOptions): Promise<CoreLifecycleResult> {
   return postForm<CoreLifecycleResult>(legacyEndpoints.cores.restart(id), {}, options);
 }

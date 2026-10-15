@@ -2,9 +2,11 @@
 package model
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/superaddmin/SuperXray-gui/v2/util/json_util"
+	"github.com/superaddmin/SuperXray-gui/v2/util/xraycompat"
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
 )
 
@@ -125,22 +127,43 @@ type MigrationEvent struct {
 
 // GenXrayInboundConfig generates an Xray inbound configuration from the Inbound model.
 func (i *Inbound) GenXrayInboundConfig() *xray.InboundConfig {
+	config, err := i.BuildXrayInboundConfig()
+	if err != nil {
+		return nil
+	}
+	return config
+}
+
+// BuildXrayInboundConfig builds a runtime-only view without mutating the
+// stored model. Callers that manage a live core must surface conversion errors.
+func (i *Inbound) BuildXrayInboundConfig() (*xray.InboundConfig, error) {
 	listen := i.Listen
 	// Default to 0.0.0.0 (all interfaces) when listen is empty
 	// This ensures proper dual-stack IPv4/IPv6 binding in systems where bindv6only=0
 	if listen == "" {
 		listen = "0.0.0.0"
 	}
-	listen = fmt.Sprintf("\"%v\"", listen)
+	listenJSON, err := json.Marshal(listen)
+	if err != nil {
+		return nil, err
+	}
+	settings, stream, _, err := xraycompat.NormalizeInbound(string(i.Protocol.XrayProtocol()), i.Settings, i.StreamSettings)
+	if err != nil {
+		return nil, fmt.Errorf("inbound %q: %w", i.Tag, err)
+	}
+	stream, err = xraycompat.InboundRuntimeStream(stream)
+	if err != nil {
+		return nil, fmt.Errorf("inbound %q stream: %w", i.Tag, err)
+	}
 	return &xray.InboundConfig{
-		Listen:         json_util.RawMessage(listen),
+		Listen:         json_util.RawMessage(listenJSON),
 		Port:           i.Port,
 		Protocol:       string(i.Protocol.XrayProtocol()),
-		Settings:       json_util.RawMessage(i.Settings),
-		StreamSettings: json_util.RawMessage(i.StreamSettings),
+		Settings:       json_util.RawMessage(settings),
+		StreamSettings: json_util.RawMessage(stream),
 		Tag:            i.Tag,
 		Sniffing:       json_util.RawMessage(i.Sniffing),
-	}
+	}, nil
 }
 
 // Setting stores key-value configuration settings for the SuperXray panel.

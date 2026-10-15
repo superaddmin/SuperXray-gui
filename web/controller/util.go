@@ -1,11 +1,10 @@
 package controller
 
 import (
-	"net"
 	"net/http"
-	"strings"
 
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
+	"github.com/superaddmin/SuperXray-gui/v2/util/trustedproxy"
 	"github.com/superaddmin/SuperXray-gui/v2/web/entity"
 	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
 
@@ -14,18 +13,7 @@ import (
 
 // getRemoteIp extracts the real IP address from the request headers or remote address.
 func getRemoteIp(c *gin.Context) string {
-	value := c.GetHeader("X-Real-IP")
-	if value != "" {
-		return value
-	}
-	value = c.GetHeader("X-Forwarded-For")
-	if value != "" {
-		ips := strings.Split(value, ",")
-		return ips[0]
-	}
-	addr := c.Request.RemoteAddr
-	ip, _, _ := net.SplitHostPort(addr)
-	return ip
+	return trustedproxy.ClientIP(c)
 }
 
 // jsonMsg sends a JSON response with a message and error status.

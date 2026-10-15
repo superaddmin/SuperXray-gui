@@ -53,3 +53,34 @@ func validAllSettingForTest() *AllSetting {
 		TimeLocation: "Local",
 	}
 }
+
+func TestAllSettingRejectsOverlappingListenerAddresses(t *testing.T) {
+	cases := []struct {
+		web, sub string
+		overlap  bool
+	}{
+		{"", "0.0.0.0", true},
+		{"0.0.0.0", "::", true},
+		{"::", "127.0.0.1", true},
+		{"0:0:0:0:0:0:0:0", "::1", true},
+		{"127.0.0.1", "::ffff:127.0.0.1", true},
+		{"::1", "0:0:0:0:0:0:0:1", true},
+		{"127.0.0.1", "127.0.0.2", false},
+		{"127.0.0.1", "::1", false},
+		{"2001:db8::1", "2001:db8::2", false},
+	}
+	for _, test := range cases {
+		t.Run(test.web+"/"+test.sub, func(t *testing.T) {
+			settings := validAllSettingForTest()
+			settings.WebPort = settings.SubPort
+			settings.WebListen, settings.SubListen = test.web, test.sub
+			if err := settings.CheckValid(); (err != nil) != test.overlap {
+				t.Fatalf("CheckValid() = %v, overlap = %v", err, test.overlap)
+			}
+			settings.WebPort++
+			if err := settings.CheckValid(); err != nil {
+				t.Fatalf("different ports must remain valid: %v", err)
+			}
+		})
+	}
+}

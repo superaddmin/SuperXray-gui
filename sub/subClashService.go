@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	yaml "github.com/goccy/go-yaml"
-
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/web/service"
@@ -152,7 +150,7 @@ func (s *SubClashService) GetClash(subId string, host string) (string, string, e
 		Rules: s.buildClashRules(),
 	}
 
-	finalYAML, err := yaml.Marshal(config)
+	finalYAML, err := marshalClashYAML(config)
 	if err != nil {
 		return "", "", err
 	}
@@ -198,13 +196,16 @@ func (s *SubClashService) getProxies(inbound *model.Inbound, client model.Client
 
 	proxies := make([]map[string]any, 0, len(externalProxies))
 	for _, ep := range externalProxies {
-		extPrxy := ep.(map[string]any)
+		entry, ok := parseExternalProxyEntry(ep)
+		if !ok {
+			continue
+		}
 		workingInbound := *inbound
-		workingInbound.Listen = extPrxy["dest"].(string)
-		workingInbound.Port = int(extPrxy["port"].(float64))
+		workingInbound.Listen = entry.Dest
+		workingInbound.Port = entry.Port
 		workingStream := cloneMap(stream)
 
-		switch extPrxy["forceTls"].(string) {
+		switch entry.ForceTLS {
 		case "tls":
 			if workingStream["security"] != "tls" {
 				workingStream["security"] = "tls"
@@ -218,7 +219,7 @@ func (s *SubClashService) getProxies(inbound *model.Inbound, client model.Client
 			}
 		}
 
-		proxy := s.buildProxy(&workingInbound, client, workingStream, extPrxy["remark"].(string))
+		proxy := s.buildProxy(&workingInbound, client, workingStream, entry.Remark)
 		if len(proxy) > 0 {
 			proxies = append(proxies, proxy)
 		}
@@ -424,6 +425,14 @@ func (s *SubClashService) buildHysteriaProxy(inbound *model.Inbound, client mode
 }
 
 func (s *SubClashService) applyTransport(proxy map[string]any, network string, stream map[string]any) bool {
+	// Mihomo has no XMC transport. Dropping the mask would advertise a node
+	// that cannot complete the server handshake; URI and Xray JSON retain it.
+	for _, raw := range normalizedFinalMaskTCPMasks(stream["finalmask"]) {
+		mask, _ := raw.(map[string]any)
+		if mask["type"] == "xmc" {
+			return false
+		}
+	}
 	switch network {
 	case "", "tcp":
 		proxy["network"] = "tcp"

@@ -2,11 +2,37 @@ package job
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
 )
+
+type timeoutTrafficSettingService struct{ uri string }
+
+func (s *timeoutTrafficSettingService) GetExternalTrafficInformEnable() (bool, error) {
+	return true, nil
+}
+func (s *timeoutTrafficSettingService) GetExternalTrafficInformURI() (string, error) {
+	return s.uri, nil
+}
+
+func TestXrayTrafficExternalInformHasTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		time.Sleep(externalInformTimeout + 500*time.Millisecond)
+	}))
+	defer server.Close()
+
+	job := &XrayTrafficJob{settingService: &timeoutTrafficSettingService{uri: server.URL}}
+	started := time.Now()
+	job.informTrafficToExternalAPI(nil, []*xray.ClientTraffic{{Email: "timeout@example.test"}})
+	if elapsed := time.Since(started); elapsed > externalInformTimeout+time.Second {
+		t.Fatalf("external inform blocked for %s", elapsed)
+	}
+}
 
 func TestXrayTrafficJobAcknowledgesInboundAndOutboundSeparately(t *testing.T) {
 	xrayService := &fakeTrafficXrayService{

@@ -19,6 +19,7 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
 	"github.com/superaddmin/SuperXray-gui/v2/util/random"
+	"github.com/superaddmin/SuperXray-gui/v2/util/trustedproxy"
 	"github.com/superaddmin/SuperXray-gui/v2/web/service"
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
 )
@@ -598,10 +599,33 @@ func (s *SubService) genHysteriaLink(inbound *model.Inbound, email string) strin
 	return buildLinkWithParams(link, params, s.genRemark(inbound, email, ""))
 }
 
-// hysteriaHopPorts returns finalmask.quicParams.udpHop.ports as the
-// Hysteria2 URI `mport` value while keeping the URL authority port numeric.
+// hysteriaHopPorts reads the current UDP hop mask and the legacy QUIC field.
+// Only remote interval hopping maps to Hysteria2 mport / Mihomo ports.
 func hysteriaHopPorts(stream map[string]any) string {
 	finalmask, _ := stream["finalmask"].(map[string]any)
+	if masks, ok := finalmask["udp"].([]any); ok {
+		for _, raw := range masks {
+			mask, _ := raw.(map[string]any)
+			kind, _ := mask["type"].(string)
+			if !strings.EqualFold(kind, "udphop") {
+				continue
+			}
+			settings, _ := mask["settings"].(map[string]any)
+			mode, _ := settings["mode"].(string)
+			for _, part := range strings.Split(mode, ",") {
+				if strings.EqualFold(strings.TrimSpace(part), "intervalRemote") {
+					if ports, ok := settings["remotePorts"].(string); ok {
+						return strings.TrimSpace(ports)
+					}
+					if port, ok := externalProxyPort(settings["remotePorts"]); ok {
+						return strconv.Itoa(port)
+					}
+					return ""
+				}
+			}
+			return ""
+		}
+	}
 	quicParams, _ := finalmask["quicParams"].(map[string]any)
 	udpHop, _ := quicParams["udpHop"].(map[string]any)
 	ports, _ := udpHop["ports"].(string)
@@ -633,7 +657,7 @@ func unmarshalStreamSettings(streamSettings string) map[string]any {
 }
 
 func applyPathAndHostParams(settings map[string]any, params map[string]string) {
-	params["path"] = settings["path"].(string)
+	params["path"], _ = settings["path"].(string)
 	if host, ok := settings["host"].(string); ok && len(host) > 0 {
 		params["host"] = host
 	} else {
@@ -643,7 +667,7 @@ func applyPathAndHostParams(settings map[string]any, params map[string]string) {
 }
 
 func applyPathAndHostObj(settings map[string]any, obj map[string]any) {
-	obj["path"] = settings["path"].(string)
+	obj["path"], _ = settings["path"].(string)
 	if host, ok := settings["host"].(string); ok && len(host) > 0 {
 		obj["host"] = host
 	} else {
@@ -659,9 +683,10 @@ func applyShareNetworkParams(stream map[string]any, streamNetwork string, params
 		header, _ := tcp["header"].(map[string]any)
 		typeStr, _ := header["type"].(string)
 		if typeStr == "http" {
-			request := header["request"].(map[string]any)
-			requestPath, _ := request["path"].([]any)
-			params["path"] = requestPath[0].(string)
+			request, _ := header["request"].(map[string]any)
+			if paths := subscriptionStrings(request["path"]); len(paths) > 0 {
+				params["path"] = paths[0]
+			}
 			headers, _ := request["headers"].(map[string]any)
 			params["host"] = searchHost(headers)
 			params["headerType"] = "http"
@@ -673,9 +698,9 @@ func applyShareNetworkParams(stream map[string]any, streamNetwork string, params
 		applyPathAndHostParams(ws, params)
 	case "grpc":
 		grpc, _ := stream["grpcSettings"].(map[string]any)
-		params["serviceName"] = grpc["serviceName"].(string)
+		params["serviceName"], _ = grpc["serviceName"].(string)
 		params["authority"], _ = grpc["authority"].(string)
-		if grpc["multiMode"].(bool) {
+		if multi, _ := grpc["multiMode"].(bool); multi {
 			params["mode"] = "multi"
 		}
 	case "httpupgrade":
@@ -718,9 +743,10 @@ func applyVmessNetworkParams(stream map[string]any, network string, obj map[stri
 		typeStr, _ := header["type"].(string)
 		obj["type"] = typeStr
 		if typeStr == "http" {
-			request := header["request"].(map[string]any)
-			requestPath, _ := request["path"].([]any)
-			obj["path"] = requestPath[0].(string)
+			request, _ := header["request"].(map[string]any)
+			if paths := subscriptionStrings(request["path"]); len(paths) > 0 {
+				obj["path"] = paths[0]
+			}
 			headers, _ := request["headers"].(map[string]any)
 			obj["host"] = searchHost(headers)
 		}
@@ -731,9 +757,9 @@ func applyVmessNetworkParams(stream map[string]any, network string, obj map[stri
 		applyPathAndHostObj(ws, obj)
 	case "grpc":
 		grpc, _ := stream["grpcSettings"].(map[string]any)
-		obj["path"] = grpc["serviceName"].(string)
-		obj["authority"] = grpc["authority"].(string)
-		if grpc["multiMode"].(bool) {
+		obj["path"], _ = grpc["serviceName"].(string)
+		obj["authority"], _ = grpc["authority"].(string)
+		if multi, _ := grpc["multiMode"].(bool); multi {
 			obj["type"] = "multi"
 		}
 	case "httpupgrade":
@@ -748,11 +774,7 @@ func applyVmessNetworkParams(stream map[string]any, network string, obj map[stri
 func applyShareTLSParams(stream map[string]any, params map[string]string) {
 	params["security"] = "tls"
 	tlsSetting, _ := stream["tlsSettings"].(map[string]any)
-	alpns, _ := tlsSetting["alpn"].([]any)
-	var alpn []string
-	for _, a := range alpns {
-		alpn = append(alpn, a.(string))
-	}
+	alpn := subscriptionStrings(tlsSetting["alpn"])
 	if len(alpn) > 0 {
 		params["alpn"] = strings.Join(alpn, ",")
 	}
@@ -770,12 +792,7 @@ func applyShareTLSParams(stream map[string]any, params map[string]string) {
 
 func applyVmessTLSParams(stream map[string]any, obj map[string]any) {
 	tlsSetting, _ := stream["tlsSettings"].(map[string]any)
-	alpns, _ := tlsSetting["alpn"].([]any)
-	if len(alpns) > 0 {
-		var alpn []string
-		for _, a := range alpns {
-			alpn = append(alpn, a.(string))
-		}
+	if alpn := subscriptionStrings(tlsSetting["alpn"]); len(alpn) > 0 {
 		obj["alpn"] = strings.Join(alpn, ",")
 	}
 	if sniValue, ok := searchKey(tlsSetting, "serverName"); ok {
@@ -796,15 +813,17 @@ func applyShareRealityParams(stream map[string]any, params map[string]string) {
 	realitySettings, _ := searchKey(realitySetting, "settings")
 	if realitySetting != nil {
 		if sniValue, ok := searchKey(realitySetting, "serverNames"); ok {
-			sNames, _ := sniValue.([]any)
-			params["sni"] = sNames[random.Num(len(sNames))].(string)
+			if names := subscriptionStrings(sniValue); len(names) > 0 {
+				params["sni"] = names[random.Num(len(names))]
+			}
 		}
 		if pbkValue, ok := searchKey(realitySettings, "publicKey"); ok {
 			params["pbk"], _ = pbkValue.(string)
 		}
 		if sidValue, ok := searchKey(realitySetting, "shortIds"); ok {
-			shortIds, _ := sidValue.([]any)
-			params["sid"] = shortIds[random.Num(len(shortIds))].(string)
+			if ids := subscriptionStrings(sidValue); len(ids) > 0 {
+				params["sid"] = ids[random.Num(len(ids))]
+			}
 		}
 		if fpValue, ok := searchKey(realitySettings, "fingerprint"); ok {
 			if fp, ok := fpValue.(string); ok && len(fp) > 0 {
@@ -817,6 +836,24 @@ func applyShareRealityParams(stream map[string]any, params map[string]string) {
 			}
 		}
 		params["spx"] = "/" + random.Seq(15)
+	}
+}
+
+// subscriptionStrings keeps valid string entries from optional legacy arrays.
+func subscriptionStrings(value any) []string {
+	switch values := value.(type) {
+	case []string:
+		return values
+	case []any:
+		result := make([]string, 0, len(values))
+		for _, value := range values {
+			if text, ok := value.(string); ok {
+				result = append(result, text)
+			}
+		}
+		return result
+	default:
+		return nil
 	}
 }
 
@@ -1121,6 +1158,10 @@ var xhttpShareExtraKeys = []string{
 	"uplinkHTTPMethod",
 	"sessionPlacement",
 	"sessionKey",
+	"sessionIDPlacement",
+	"sessionIDKey",
+	"sessionIDTable",
+	"sessionIDLength",
 	"seqPlacement",
 	"seqKey",
 	"uplinkDataPlacement",
@@ -1218,12 +1259,14 @@ var validFinalMaskUDPTypes = map[string]struct{}{
 	"xicmp":            {},
 	"noise":            {},
 	"header-custom":    {},
+	"udphop":           {},
 }
 
 var validFinalMaskTCPTypes = map[string]struct{}{
 	"header-custom": {},
 	"fragment":      {},
 	"sudoku":        {},
+	"xmc":           {},
 }
 
 // applyKcpShareParams reconstructs legacy KCP share-link fields from either
@@ -1523,16 +1566,11 @@ func searchHost(headers any) string {
 	data, _ := headers.(map[string]any)
 	for k, v := range data {
 		if strings.EqualFold(k, "host") {
-			switch v.(type) {
-			case []any:
-				hosts, _ := v.([]any)
-				if len(hosts) > 0 {
-					return hosts[0].(string)
-				} else {
-					return ""
-				}
-			case any:
-				return v.(string)
+			if host, ok := v.(string); ok {
+				return host
+			}
+			if hosts := subscriptionStrings(v); len(hosts) > 0 {
+				return hosts[0]
 			}
 		}
 	}
@@ -1543,21 +1581,16 @@ func searchHost(headers any) string {
 // ResolveRequest extracts scheme and host info from request/headers consistently.
 // ResolveRequest extracts scheme, host, and header information from an HTTP request.
 func (s *SubService) ResolveRequest(c *gin.Context) (scheme string, host string, hostWithPort string, hostHeader string) {
-	// scheme
-	scheme = "http"
-	if c.Request.TLS != nil || strings.EqualFold(c.GetHeader("X-Forwarded-Proto"), "https") {
-		scheme = "https"
-	}
+	scheme = trustedproxy.Scheme(c)
 
-	if forwardedHost, forwardedHostWithPort, ok := parseSafeRequestHost(c.GetHeader("X-Forwarded-Host")); ok {
+	if forwardedHost, forwardedHostWithPort, ok := parseSafeRequestHost(trustedproxy.ForwardedHost(c)); ok {
 		host = forwardedHost
 		hostWithPort = forwardedHostWithPort
 	}
-	if host == "" {
-		if realHost, _, ok := parseSafeRequestHost(c.GetHeader("X-Real-IP")); ok {
-			host = realHost
-		}
-	}
+	// X-Real-IP identifies the client, not the public host of a subscription.
+	// Falling back to it made generated links point at an attacker-controlled
+	// header whenever a proxy omitted X-Forwarded-Host. Keep the request Host as
+	// the safe fallback; deployments with a public hostname can use subURI.
 	if requestHost, requestHostWithPort, ok := parseSafeRequestHost(c.Request.Host); ok {
 		if host == "" {
 			host = requestHost

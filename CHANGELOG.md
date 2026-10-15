@@ -6,18 +6,33 @@
 
 ### Added
 
+- 选择性集成 `MHSanaei/3x-ui v3.10.2` 的 Xray v26.10.10 配置兼容层：旧 XHTTP/XDNS/UDP Hop/WireGuard/DNS 字段可幂等转换，无法安全转换的配置会在写入前明确拒绝。
+- 增加固定共同基线、本地 131 条与上游 973 条提交来源清单、双侧文件差异与处理矩阵，区分实际适配、保留本地和未采用范围，详见 `docs/upstream-3x-ui-v3.10.2-integration.md`。
 - 选择性集成 `alireza0/x-ui v1.11.4`：新增受登录与 CSRF 保护的 ECDSA P-256 自签名证书生成接口，以及 Vue TLS 内联证书/私钥填写能力。
 - 补齐 Hysteria QUIC、TUN、XHTTP 扩展与 XMUX 结构化配置，兼容旧字段并保留未知 JSON 扩展。
 
 ### Changed
 
+- 升级 Go 工具链至 1.27.2、Xray-core 至 v26.10.10，并同步发布脚本与 Docker 运行时；保留 SuperXray 的 Vue UI、旧 API、SQLite 入站 JSON 模型、CoreManager 生命周期边界和 Linux amd64/arm64 产物策略。
+- 核心版本选择与安装限定为 `v26.10.10` 及以上稳定版本；替换前校验发布归档摘要及完整候选配置，配置写入原子化，升级/启动失败进入原配置与原核心恢复路径。
+- SQLite 导入先在隔离候选中迁移并生成完整 Xray 配置预检；使用维护租约协调活动访问，失败保留原库，不引入上游 PostgreSQL 或规范化 clients/hosts 模型。
+- 将启动、CLI 与导入的历史迁移纳入同一事务；保留旧入站 tag、现有 externalProxy、未知 JSON 字段和大整数，四条入站写路径在保存或提交失败时完整回滚。
+- 适配上游通用修复：Telegram 自助回调校验用户归属并保护管理员向导、订阅/日志缺字段容错、cron panic 恢复和手动停机保护；Vue 编辑备注时保持原始配额字节数。
+- 将本项目 Vue 依赖更新到 `3.5.44`、Axios 更新到 `1.20.0` 并同步受影响的安全补丁锁文件；保留既有 Vue/Vite 工具链。
 - 同步 `alireza0/x-ui v1.11.4` 的 Go 依赖基线；保留 SuperXray `3.4.3` 版本体系、Vue UI、WARP Matrix、订阅、Gateway Egress、CoreManager 隔离和 `database/model.Inbound` 活跃写模型。
 - 将前端 `axios` 与 `vite` 提升到已修复版本，并更新受影响的间接依赖锁定，消除本轮审核发现的高危 npm advisories。
 - 为 TUN、Hysteria QUIC、XHTTP/XMUX 与自签名证书界面补齐中英文映射和回归测试。
 
 ### Fixed
 
+- 修复旧 XHTTP session、Reality 别名、UDP Hop 与 xDNS 配置在目标核心下的兼容性，并保留入站 tag、未知扩展和已存在的 AES-GCM/XChaCha Shadowsocks 方法；Reality 与非空 TCP finalmask 明确拒绝。
+- 修复 JSON 订阅的 TLS pin 类型、Vision mux 与 loopback 监听语义，安全引用 Clash 标量，并防止 LDAP 空目录触发全部客户端删除。
 - 区分面板出站代理的 `SOCKS5` 本地 DNS 与 `SOCKS5H` 代理端 DNS 语义，并在 Vue 设置页提供明确的代理类型选择。
+
+### Security
+
+- 修改已启用的 TOTP 认证器或禁用二次认证时要求当前旧验证码；首次启用验证新认证器，校验失败不部分保存设置。
+- 新增 `SUPERXRAY_TRUSTED_PROXY_CIDRS` 可信代理边界，统一订阅地址、HTTPS 判断、限流与审计身份；默认只信任 loopback，显式空值关闭代理信任，容器/远程反向代理需配置实际来源 CIDR。
 
 ## [3.4.3] - 2026-07-14
 

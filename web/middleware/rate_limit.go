@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/superaddmin/SuperXray-gui/v2/util/trustedproxy"
 )
 
 // RateLimitOptions configures an in-memory fixed-window rate limiter.
@@ -92,7 +93,7 @@ func RateLimitMiddleware(opts RateLimitOptions) gin.HandlerFunc {
 }
 
 func defaultRateLimitKey(c *gin.Context) string {
-	if ip := c.ClientIP(); ip != "" {
+	if ip := trustedproxy.ClientIP(c); ip != "" {
 		return ip
 	}
 	if c.Request != nil {

@@ -21,6 +21,12 @@ type updateUserForm struct {
 	NewPassword string `json:"newPassword" form:"newPassword"`
 }
 
+// The confirmation code belongs to the request, never to persisted settings.
+type updateSettingForm struct {
+	entity.AllSetting
+	TwoFactorCode string `json:"twoFactorCode" form:"twoFactorCode"`
+}
+
 // SettingController handles settings and user management operations.
 type SettingController struct {
 	settingService service.SettingService
@@ -70,13 +76,13 @@ func (a *SettingController) getDefaultSettings(c *gin.Context) {
 
 // updateSetting updates all settings with the provided data.
 func (a *SettingController) updateSetting(c *gin.Context) {
-	allSetting := &entity.AllSetting{}
-	err := c.ShouldBind(allSetting)
+	form := &updateSettingForm{}
+	err := c.ShouldBind(form)
 	if err != nil {
 		jsonMsg(c, I18nWeb(c, "pages.settings.toasts.modifySettings"), err)
 		return
 	}
-	err = a.settingService.UpdateAllSetting(allSetting)
+	err = a.settingService.UpdateAllSetting(&form.AllSetting, form.TwoFactorCode)
 	jsonMsg(c, I18nWeb(c, "pages.settings.toasts.modifySettings"), err)
 }
 

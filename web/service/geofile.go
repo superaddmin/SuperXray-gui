@@ -406,6 +406,7 @@ func (u geofileUpdater) update(fileName string) error {
 }
 
 func validateGeofile(path, fileName string) error {
+	// #nosec G304 -- caller supplies a private staged download or an allowlisted installed geo filename.
 	file, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("read geofile for validation: %w", err)

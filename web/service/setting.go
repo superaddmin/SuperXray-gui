@@ -1,7 +1,9 @@
 package service
 
 import (
+	"crypto/subtle"
 	_ "embed"
+	"encoding/base32"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +12,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database"
@@ -21,12 +24,16 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/util/reflect_util"
 	"github.com/superaddmin/SuperXray-gui/v2/web/entity"
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
+	"github.com/xlzd/gotp"
+	"gorm.io/gorm"
 )
 
 //go:embed config.json
 var xrayTemplateConfig string
 
 const defaultWebBasePath = "/super/"
+
+var settingsUpdateMu sync.Mutex
 
 var defaultValueMap = map[string]string{
 	"xrayTemplateConfig":          xrayTemplateConfig,
@@ -252,6 +259,9 @@ func (s *SettingService) GetAllSetting() (*entity.AllSetting, error) {
 	}
 
 	allSetting.WebBasePath = normalizePanelBasePath(allSetting.WebBasePath)
+	// An authenticated browser must not be able to clone the existing second
+	// factor. A blank submitted token means to preserve the stored secret.
+	allSetting.TwoFactorToken = ""
 
 	return allSetting, nil
 }
@@ -783,12 +793,66 @@ func (s *SettingService) GetLdapDefaultLimitIP() (int, error) {
 	return s.getInt("ldapDefaultLimitIP")
 }
 
-func (s *SettingService) UpdateAllSetting(allSetting *entity.AllSetting) error {
+func (s *SettingService) UpdateAllSetting(allSetting *entity.AllSetting, twoFactorCode ...string) error {
+	settingsUpdateMu.Lock()
+	defer settingsUpdateMu.Unlock()
+	if allSetting == nil {
+		return errors.New("settings are required")
+	}
+	code := ""
+	if len(twoFactorCode) > 0 {
+		code = strings.TrimSpace(twoFactorCode[0])
+	}
+	// Keep both security fields and the rest of the submitted settings atomic.
+	// An injected repository is used by isolated previews/tests.
+	if s.settingRepository == nil {
+		return database.GetDB().Transaction(func(tx *gorm.DB) error {
+			service := NewSettingService(database.NewRepositories(tx).Settings)
+			return service.updateAllSetting(allSetting, code)
+		})
+	}
+	return s.updateAllSetting(allSetting, code)
+}
+
+func (s *SettingService) updateAllSetting(allSetting *entity.AllSetting, code string) error {
 	if err := allSetting.CheckValid(); err != nil {
 		return err
 	}
+	storedEnabled, err := s.GetTwoFactorEnable()
+	if err != nil {
+		return err
+	}
+	storedToken, err := s.GetTwoFactorToken()
+	if err != nil {
+		return err
+	}
+	submittedToken := strings.TrimSpace(allSetting.TwoFactorToken)
+	if submittedToken == "" {
+		submittedToken = storedToken
+	} else {
+		// Store the canonical unpadded form accepted by the login verifier.
+		submittedToken = strings.ToUpper(strings.TrimRight(submittedToken, "="))
+	}
+	if storedEnabled && (!allSetting.TwoFactorEnable || submittedToken != storedToken) {
+		if !validTwoFactorCode(storedToken, code, time.Now()) {
+			return errors.New("a valid current two-factor code is required to disable or replace the authenticator")
+		}
+	}
+	if allSetting.TwoFactorEnable && (!storedEnabled || submittedToken != storedToken) {
+		if !validTwoFactorSecret(submittedToken) {
+			return errors.New("two-factor token must be a valid Base32 secret of at least 16 characters")
+		}
+		if !storedEnabled && !validTwoFactorCode(submittedToken, code, time.Now()) {
+			return errors.New("a valid code from the new authenticator is required to enable two-factor authentication")
+		}
+	}
+	updated := *allSetting
+	updated.TwoFactorToken = submittedToken
+	if !updated.TwoFactorEnable {
+		updated.TwoFactorToken = ""
+	}
 
-	v := reflect.ValueOf(allSetting).Elem()
+	v := reflect.ValueOf(&updated).Elem()
 	t := reflect.TypeFor[entity.AllSetting]()
 	fields := reflect_util.GetFields(t)
 	errs := make([]error, 0)
@@ -802,6 +866,34 @@ func (s *SettingService) UpdateAllSetting(allSetting *entity.AllSetting) error {
 		}
 	}
 	return common.Combine(errs...)
+}
+
+func validTwoFactorSecret(secret string) bool {
+	if len(secret) < 16 || len(secret) > 128 {
+		return false
+	}
+	unpadded := strings.TrimRight(secret, "=")
+	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(unpadded)
+	return err == nil && len(decoded) >= 10
+}
+
+func validTwoFactorCode(secret, code string, now time.Time) bool {
+	// Validate before invoking gotp, which panics on invalid Base32 input.
+	// Existing installations may have shorter secrets; verify them so users
+	// can still replace or disable a legacy authenticator safely.
+	if secret == "" || len(secret) > 128 || len(code) != 6 {
+		return false
+	}
+	if _, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(strings.TrimRight(secret, "=")); err != nil {
+		return false
+	}
+	for _, character := range code {
+		if character < '0' || character > '9' {
+			return false
+		}
+	}
+	expected := gotp.NewDefaultTOTP(strings.TrimRight(secret, "=")).AtTime(now)
+	return subtle.ConstantTimeCompare([]byte(expected), []byte(code)) == 1
 }
 
 func (s *SettingService) GetDefaultXrayConfig() (any, error) {

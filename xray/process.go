@@ -2,13 +2,16 @@ package xray
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -90,10 +93,8 @@ func GetAccessLogPath() (string, error) {
 		return "", err
 	}
 
-	if jsonConfig["log"] != nil {
-		jsonLog := jsonConfig["log"].(map[string]any)
-		if jsonLog["access"] != nil {
-			accessLogPath := jsonLog["access"].(string)
+	if jsonLog, ok := jsonConfig["log"].(map[string]any); ok {
+		if accessLogPath, ok := jsonLog["access"].(string); ok {
 			return accessLogPath, nil
 		}
 	}
@@ -102,6 +103,9 @@ func GetAccessLogPath() (string, error) {
 
 // stopProcess calls Stop on the given Process instance.
 func stopProcess(p *Process) {
+	if !p.IsRunning() {
+		return
+	}
 	if err := p.Stop(); err != nil {
 		logger.Warning("Failed to stop Xray process finalizer:", err)
 	}
@@ -129,7 +133,10 @@ func NewTestProcess(xrayConfig *Config, configPath string) *Process {
 }
 
 type process struct {
-	cmd *exec.Cmd
+	mu          sync.RWMutex
+	lifecycleMu sync.Mutex
+	cmd         *exec.Cmd
+	done        chan struct{}
 
 	version string
 	apiPort int
@@ -149,7 +156,6 @@ func newProcess(config *Config) *process {
 		version:   "Unknown",
 		config:    config,
 		logWriter: NewLogWriter(),
-		startTime: time.Now(),
 	}
 }
 
@@ -162,87 +168,133 @@ func newTestProcess(config *Config, configPath string) *process {
 
 // IsRunning returns true if the Xray process is currently running.
 func (p *process) IsRunning() bool {
-	if p.cmd == nil || p.cmd.Process == nil {
+	p.mu.RLock()
+	cmd, done := p.cmd, p.done
+	p.mu.RUnlock()
+	if cmd == nil || cmd.Process == nil {
 		return false
 	}
-	if p.cmd.ProcessState == nil {
-		return true
+	if done != nil {
+		select {
+		case <-done:
+			return false
+		default:
+		}
 	}
-	return false
+	return true
 }
 
 // GetErr returns the last error encountered by the Xray process.
 func (p *process) GetErr() error {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.exitErr
 }
 
 // GetResult returns the last log line or error from the Xray process.
 func (p *process) GetResult() string {
-	if len(p.logWriter.lastLine) == 0 && p.exitErr != nil {
-		return p.exitErr.Error()
+	p.mu.RLock()
+	exitErr := p.exitErr
+	p.mu.RUnlock()
+	lastLine := p.logWriter.LastLine()
+	if len(lastLine) == 0 && exitErr != nil {
+		return exitErr.Error()
 	}
-	return p.logWriter.lastLine
+	return lastLine
 }
 
 // GetVersion returns the version string of the Xray process.
 func (p *process) GetVersion() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.version
 }
 
 // GetAPIPort returns the API port used by the Xray process.
 func (p *Process) GetAPIPort() int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.apiPort
 }
 
 // GetConfig returns the configuration used by the Xray process.
 func (p *Process) GetConfig() *Config {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.config
 }
 
 // GetOnlineClients returns the list of online clients for the Xray process.
 func (p *Process) GetOnlineClients() []string {
-	return p.onlineClients
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return append([]string(nil), p.onlineClients...)
 }
 
 // SetOnlineClients sets the list of online clients for the Xray process.
 func (p *Process) SetOnlineClients(users []string) {
-	p.onlineClients = users
+	p.mu.Lock()
+	p.onlineClients = append([]string(nil), users...)
+	p.mu.Unlock()
 }
 
 // GetUptime returns the uptime of the Xray process in seconds.
 func (p *Process) GetUptime() uint64 {
-	return uint64(time.Since(p.startTime).Seconds())
+	p.mu.RLock()
+	started := p.startTime
+	p.mu.RUnlock()
+	if started.IsZero() {
+		return 0
+	}
+	return uint64(time.Since(started).Seconds())
 }
 
 // refreshAPIPort updates the API port from the inbound configs.
 func (p *process) refreshAPIPort() {
+	port := 0
 	for _, inbound := range p.config.InboundConfigs {
 		if inbound.Tag == "api" {
-			p.apiPort = inbound.Port
+			port = inbound.Port
 			break
 		}
 	}
+	p.mu.Lock()
+	p.apiPort = port
+	p.mu.Unlock()
 }
 
 // refreshVersion updates the version string by running the Xray binary with -version.
 func (p *process) refreshVersion() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	// #nosec G204 -- binary path is resolved by project configuration and no shell is invoked.
-	cmd := exec.Command(GetBinaryPath(), "-version")
-	data, err := cmd.Output()
+	cmd := exec.CommandContext(ctx, GetBinaryPath(), "-version")
+	var output cappedBuffer
+	output.limit = 1024
+	cmd.Stdout = &output
+	cmd.Stderr = &output
+	cmd.WaitDelay = time.Second
+	err := cmd.Run()
+	version := "Unknown"
 	if err != nil {
-		p.version = "Unknown"
+		version = "Unknown"
 	} else {
-		datas := bytes.Split(data, []byte(" "))
+		datas := bytes.Split(output.Bytes(), []byte(" "))
 		if len(datas) <= 1 {
-			p.version = "Unknown"
+			version = "Unknown"
 		} else {
-			p.version = string(datas[1])
+			version = string(datas[1])
 		}
 	}
+	p.mu.Lock()
+	p.version = version
+	p.mu.Unlock()
 }
 
 // Start launches the Xray process with the current configuration.
 func (p *process) Start() (err error) {
+	p.lifecycleMu.Lock()
+	defer p.lifecycleMu.Unlock()
 	if p.IsRunning() {
 		return errors.New("xray is already running")
 	}
@@ -250,13 +302,20 @@ func (p *process) Start() (err error) {
 	defer func() {
 		if err != nil {
 			logger.Error("Failure in running xray-core process: ", err)
+			p.mu.Lock()
 			p.exitErr = err
+			p.mu.Unlock()
 		}
 	}()
 
 	data, err := json.MarshalIndent(p.config, "", "  ")
 	if err != nil {
 		return common.NewErrorf("Failed to generate XRAY configuration files: %v", err)
+	}
+	// Service callers also preflight before stopping the previous core. Keep
+	// this check for standalone/test processes and to catch changed assets.
+	if err := ValidateConfig(p.config); err != nil {
+		return common.NewErrorf("Xray configuration rejected by core: %v", err)
 	}
 
 	err = os.MkdirAll(config.GetLogFolder(), 0o750)
@@ -268,61 +327,180 @@ func (p *process) Start() (err error) {
 	if p.configPath != "" {
 		configPath = p.configPath
 	}
-	err = os.WriteFile(configPath, data, 0o600)
-	if err != nil {
-		return common.NewErrorf("Failed to write configuration file: %v", err)
-	}
-
+	p.refreshVersion()
+	p.refreshAPIPort()
 	// #nosec G204 -- binary path and config path are local project-controlled values; no shell is invoked.
 	cmd := exec.Command(GetBinaryPath(), "-c", configPath)
-	p.cmd = cmd
+	if err := p.startWithConfig(configPath, data, cmd); err != nil {
+		return err
+	}
+	return nil
+}
 
+// startWithConfig restores the last runtime file when launching fails or the
+// child exits during its initial startup window (for example, a busy port).
+func (p *process) startWithConfig(configPath string, data []byte, cmd *exec.Cmd) (err error) {
+	// #nosec G304 -- configuration path comes from the panel bin directory or a private test process.
+	previous, readErr := os.ReadFile(configPath)
+	if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
+		return fmt.Errorf("read previous Xray configuration: %w", readErr)
+	}
+	if err := writeConfigAtomic(configPath, data); err != nil {
+		return fmt.Errorf("write Xray configuration: %w", err)
+	}
+	defer func() {
+		if err == nil {
+			return
+		}
+		var restoreErr error
+		if readErr == nil {
+			restoreErr = writeConfigAtomic(configPath, previous)
+		} else {
+			restoreErr = os.Remove(configPath)
+			if errors.Is(restoreErr, os.ErrNotExist) {
+				restoreErr = nil
+			}
+		}
+		if restoreErr != nil {
+			err = errors.Join(err, fmt.Errorf("restore previous Xray configuration: %w", restoreErr))
+		}
+	}()
+	if err := p.startCommand(cmd); err != nil {
+		return fmt.Errorf("start Xray process: %w", err)
+	}
+	p.mu.RLock()
+	done := p.done
+	p.mu.RUnlock()
+	timer := time.NewTimer(500 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case <-done:
+		return fmt.Errorf("xray exited during startup: %w", p.startupError())
+	case <-timer.C:
+		return nil
+	}
+}
+
+func (p *process) startupError() error {
+	if err := p.GetErr(); err != nil {
+		return err
+	}
+	return errors.New("process terminated before becoming ready")
+}
+
+// startCommand publishes only a started command. Readers never observe the
+// exec.Cmd while Start mutates its Process field, or ProcessState during Wait.
+func (p *process) startCommand(cmd *exec.Cmd) error {
 	cmd.Stdout = p.logWriter
 	cmd.Stderr = p.logWriter
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	done := make(chan struct{})
+	p.mu.Lock()
+	p.cmd = cmd
+	p.done = done
+	p.exitErr = nil
+	p.startTime = time.Now()
+	p.mu.Unlock()
 
 	go func() {
-		err := cmd.Run()
+		err := cmd.Wait()
+		p.mu.Lock()
+		if err != nil {
+			p.exitErr = err
+		}
+		close(done)
+		p.mu.Unlock()
 		if err != nil {
 			// On Windows, killing the process results in "exit status 1" which isn't an error for us
 			if runtime.GOOS == "windows" {
 				errStr := strings.ToLower(err.Error())
 				if strings.Contains(errStr, "exit status 1") {
 					// Suppress noisy log on graceful stop
-					p.exitErr = err
 					return
 				}
 			}
 			logger.Error("Failure in running xray-core:", err)
-			p.exitErr = err
 		}
 	}()
 
-	p.refreshVersion()
-	p.refreshAPIPort()
+	return nil
+}
 
+// writeConfigAtomic writes beside the destination and renames only after the
+// complete file has been flushed. A failed marshal/write/rename leaves the
+// previous runtime config intact.
+func writeConfigAtomic(configPath string, data []byte) error {
+	dir := filepath.Dir(configPath)
+	tmp, err := os.CreateTemp(dir, ".xray-config-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if err := tmp.Chmod(0o600); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, configPath); err != nil {
+		return err
+	}
 	return nil
 }
 
 // Stop terminates the running Xray process.
 func (p *process) Stop() error {
-	if !p.IsRunning() {
+	p.lifecycleMu.Lock()
+	defer p.lifecycleMu.Unlock()
+	p.mu.RLock()
+	cmd := p.cmd
+	done := p.done
+	configPath := p.configPath
+	p.mu.RUnlock()
+	if !p.IsRunning() || cmd == nil || cmd.Process == nil {
 		return errors.New("xray is not running")
 	}
 
-	// Remove temporary config file used for test runs so main config is never touched
-	if p.configPath != "" {
-		if p.configPath != GetConfigPath() {
-			// Check if file exists before removing
-			if _, err := os.Stat(p.configPath); err == nil {
-				_ = os.Remove(p.configPath)
-			}
+	var err error
+	if runtime.GOOS == "windows" {
+		err = cmd.Process.Kill()
+	} else {
+		err = cmd.Process.Signal(syscall.SIGTERM)
+	}
+	if err != nil && !errors.Is(err, os.ErrProcessDone) {
+		return err
+	}
+	select {
+	case <-done:
+		if configPath != "" && configPath != GetConfigPath() {
+			_ = os.Remove(configPath)
+		}
+		return nil
+	case <-time.After(5 * time.Second):
+		if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			return err
 		}
 	}
-
-	if runtime.GOOS == "windows" {
-		return p.cmd.Process.Kill()
-	} else {
-		return p.cmd.Process.Signal(syscall.SIGTERM)
+	select {
+	case <-done:
+		if configPath != "" && configPath != GetConfigPath() {
+			_ = os.Remove(configPath)
+		}
+		return nil
+	case <-time.After(2 * time.Second):
+		return errors.New("xray did not exit after termination")
 	}
 }
 

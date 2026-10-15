@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 )
@@ -15,11 +16,21 @@ func NewLogWriter() *LogWriter {
 
 // LogWriter processes and filters log output from the Xray process, handling crash detection and message filtering.
 type LogWriter struct {
+	mu       sync.RWMutex
 	lastLine string
+}
+
+// LastLine returns the most recent unstructured Xray log line safely.
+func (lw *LogWriter) LastLine() string {
+	lw.mu.RLock()
+	defer lw.mu.RUnlock()
+	return lw.lastLine
 }
 
 // Write processes and filters log output from the Xray process, handling crash detection and message filtering.
 func (lw *LogWriter) Write(m []byte) (n int, err error) {
+	lw.mu.Lock()
+	defer lw.mu.Unlock()
 	crashRegex := regexp.MustCompile(`(?i)(panic|exception|stack trace|fatal error)`)
 
 	// Convert the data to a string

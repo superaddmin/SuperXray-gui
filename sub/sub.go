@@ -15,6 +15,7 @@ import (
 
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
+	"github.com/superaddmin/SuperXray-gui/v2/util/trustedproxy"
 	"github.com/superaddmin/SuperXray-gui/v2/web/locale"
 	"github.com/superaddmin/SuperXray-gui/v2/web/middleware"
 	"github.com/superaddmin/SuperXray-gui/v2/web/network"
@@ -64,6 +65,10 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	gin.SetMode(gin.ReleaseMode)
 
 	engine := gin.Default()
+	if err := trustedproxy.Configure(engine); err != nil {
+		return nil, err
+	}
+	engine.Use(middleware.DatabaseLeaseMiddleware())
 	engine.Use(middleware.SecurityHeadersMiddleware())
 
 	subDomain, err := s.settingService.GetSubDomain()

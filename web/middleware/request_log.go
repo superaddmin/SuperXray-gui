@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
+	"github.com/superaddmin/SuperXray-gui/v2/util/trustedproxy"
 
 	"github.com/gin-gonic/gin"
 )
@@ -70,7 +71,7 @@ func StructuredRequestLoggerMiddleware(opts RequestLogOptions) gin.HandlerFunc {
 			Route:      route,
 			Status:     c.Writer.Status(),
 			DurationMs: durationMs(duration),
-			ClientIP:   c.ClientIP(),
+			ClientIP:   trustedproxy.ClientIP(c),
 		}
 		if len(c.Errors) > 0 {
 			entry.Error = c.Errors.String()

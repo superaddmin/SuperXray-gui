@@ -208,7 +208,10 @@ func (s *SubJsonService) GetJson(subId string, host string) (string, string, err
 
 func (s *SubJsonService) getConfig(inbound *model.Inbound, client model.Client, host string) []json_util.RawMessage {
 	var newJsonArray []json_util.RawMessage
-	stream := s.streamData(inbound.StreamSettings)
+	stream, unsupportedTLS := s.streamData(inbound.StreamSettings)
+	if stream == nil {
+		return nil
+	}
 
 	externalProxies, ok := stream["externalProxy"].([]any)
 	if !ok || len(externalProxies) == 0 {
@@ -244,6 +247,10 @@ func (s *SubJsonService) getConfig(inbound *model.Inbound, client model.Client, 
 				newStream["security"] = "none"
 				delete(newStream, "tlsSettings")
 			}
+		}
+		if unsupportedTLS && (newStream["security"] == "tls" || workingInbound.Protocol == model.Hysteria || workingInbound.Protocol == model.Hysteria2) {
+			logger.Warning("SubJsonService: skipped TLS node because target Xray no longer supports allowInsecure=true; configure certificate verification or pinnedPeerCertSha256 before exporting Xray JSON")
+			continue
 		}
 		streamSettings, _ := json.MarshalIndent(newStream, "", "  ")
 
@@ -302,17 +309,24 @@ func (s *SubJsonService) getProxyAccountConfigs(inbound *model.Inbound, account 
 	return newJsonArray
 }
 
-func (s *SubJsonService) streamData(stream string) map[string]any {
+func (s *SubJsonService) streamData(stream string) (map[string]any, bool) {
 	var streamSettings map[string]any
 	if !decodeJSONString(stream, &streamSettings, "json subscription stream settings") {
-		return map[string]any{}
+		return nil, false
 	}
+	unsupportedTLS := false
 	security, _ := streamSettings["security"].(string)
 	switch security {
 	case "tls":
-		streamSettings["tlsSettings"] = s.tlsData(streamSettings["tlsSettings"].(map[string]any))
+		tlsSettings, _ := streamSettings["tlsSettings"].(map[string]any)
+		clientSettings, _ := tlsSettings["settings"].(map[string]any)
+		legacyInsecure, _ := tlsSettings["allowInsecure"].(bool)
+		clientInsecure, _ := clientSettings["allowInsecure"].(bool)
+		unsupportedTLS = legacyInsecure || clientInsecure
+		streamSettings["tlsSettings"] = s.tlsData(tlsSettings)
 	case "reality":
-		streamSettings["realitySettings"] = s.realityData(streamSettings["realitySettings"].(map[string]any))
+		realitySettings, _ := streamSettings["realitySettings"].(map[string]any)
+		streamSettings["realitySettings"] = s.realityData(realitySettings)
 	}
 	delete(streamSettings, "sockopt")
 
@@ -330,7 +344,7 @@ func (s *SubJsonService) streamData(stream string) map[string]any {
 	case "httpupgrade":
 		streamSettings["httpupgradeSettings"] = s.removeAcceptProxy(streamSettings["httpupgradeSettings"])
 	}
-	return streamSettings
+	return streamSettings, unsupportedTLS
 }
 
 func (s *SubJsonService) removeAcceptProxy(setting any) map[string]any {
@@ -350,7 +364,37 @@ func (s *SubJsonService) tlsData(tData map[string]any) map[string]any {
 	if fingerprint, ok := tlsClientSettings["fingerprint"].(string); ok {
 		tlsData["fingerprint"] = fingerprint
 	}
+	if pins, ok := pinnedSha256List(tlsClientSettings); ok {
+		// Current Xray clients parse this as a comma-separated string. Keeping
+		// the panel's legacy array input here preserves imports on older cores.
+		tlsData["pinnedPeerCertSha256"] = strings.Join(pins, ",")
+	}
 	return tlsData
+}
+
+func pinnedSha256List(settings map[string]any) ([]string, bool) {
+	raw, ok := settings["pinnedPeerCertSha256"]
+	if !ok || raw == nil {
+		return nil, false
+	}
+	var values []string
+	switch pins := raw.(type) {
+	case string:
+		for _, value := range strings.Split(pins, ",") {
+			if value = strings.TrimSpace(value); value != "" {
+				values = append(values, value)
+			}
+		}
+	case []string:
+		values = append(values, pins...)
+	case []any:
+		for _, value := range pins {
+			if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
+				values = append(values, strings.TrimSpace(text))
+			}
+		}
+	}
+	return values, len(values) > 0
 }
 
 func (s *SubJsonService) realityData(rData map[string]any) map[string]any {
@@ -364,15 +408,15 @@ func (s *SubJsonService) realityData(rData map[string]any) map[string]any {
 
 	// Set random data
 	rltyData["spiderX"] = "/" + random.Seq(15)
-	shortIds, ok := rData["shortIds"].([]any)
-	if ok && len(shortIds) > 0 {
-		rltyData["shortId"] = shortIds[random.Num(len(shortIds))].(string)
+	shortIds := subscriptionStrings(rData["shortIds"])
+	if len(shortIds) > 0 {
+		rltyData["shortId"] = shortIds[random.Num(len(shortIds))]
 	} else {
 		rltyData["shortId"] = ""
 	}
-	serverNames, ok := rData["serverNames"].([]any)
-	if ok && len(serverNames) > 0 {
-		rltyData["serverName"] = serverNames[random.Num(len(serverNames))].(string)
+	serverNames := subscriptionStrings(rData["serverNames"])
+	if len(serverNames) > 0 {
+		rltyData["serverName"] = serverNames[random.Num(len(serverNames))]
 	} else {
 		rltyData["serverName"] = ""
 	}
@@ -423,14 +467,34 @@ func (s *SubJsonService) genVless(inbound *model.Inbound, streamSettings json_ut
 		inboundSettings = map[string]any{}
 	}
 	encryption, _ := inboundSettings["encryption"].(string)
+	if encryption == "" {
+		encryption = "none"
+	}
 
 	user := map[string]any{
 		"id":         client.ID,
 		"level":      8,
 		"encryption": encryption,
 	}
-	if client.Flow != "" {
+	network := ""
+	security := ""
+	var stream map[string]any
+	if json.Unmarshal(streamSettings, &stream) == nil {
+		network, _ = stream["network"].(string)
+		security, _ = stream["security"].(string)
+	}
+	if client.Flow != "" && strings.EqualFold(network, "tcp") &&
+		(strings.EqualFold(security, "tls") || strings.EqualFold(security, "reality")) {
 		user["flow"] = client.Flow
+		if outbound.Mux != nil {
+			var mux map[string]any
+			if json.Unmarshal(outbound.Mux, &mux) == nil {
+				mux["concurrency"] = -1
+				if raw, err := json.Marshal(mux); err == nil {
+					outbound.Mux = raw
+				}
+			}
+		}
 	}
 
 	vnext := map[string]any{
@@ -511,7 +575,7 @@ func (s *SubJsonService) genHy(inbound *model.Inbound, newStream map[string]any,
 	if !decodeJSONString(inbound.StreamSettings, &stream, "json subscription hysteria stream settings") {
 		return nil
 	}
-	hyStream := stream["hysteriaSettings"].(map[string]any)
+	hyStream, _ := stream["hysteriaSettings"].(map[string]any)
 	outHyStream := map[string]any{
 		"version": int(version),
 		"auth":    client.Auth,

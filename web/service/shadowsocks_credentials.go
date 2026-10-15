@@ -65,7 +65,7 @@ func normalizeShadowsocksInboundSettings(inbound *model.Inbound) error {
 
 func normalizeShadowsocksSettingsText(settingsText string) (string, error) {
 	var settings map[string]any
-	if err := json.Unmarshal([]byte(settingsText), &settings); err != nil {
+	if err := decodeInboundJSON(settingsText, &settings); err != nil {
 		return settingsText, err
 	}
 	if settings == nil {

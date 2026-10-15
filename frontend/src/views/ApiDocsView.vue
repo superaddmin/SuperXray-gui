@@ -378,7 +378,11 @@ const parameterColumns = computed<TableColumnsType<ParameterRow>>(() => [
     key: 'required',
     width: 110,
   },
-  { title: translateText('apiDocs.paramDescription'), dataIndex: 'description', key: 'description' },
+  {
+    title: translateText('apiDocs.paramDescription'),
+    dataIndex: 'description',
+    key: 'description',
+  },
 ]);
 
 onMounted(() => {

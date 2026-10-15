@@ -78,12 +78,12 @@ async function loginWith(page: Page, username: string, password: string) {
   await page.goto(appUrl());
 
   if (!/\/panel\/?$/.test(page.url())) {
-    const usernameInput = page.locator('input[name="username"]');
+    const usernameInput = page.getByLabel("Username", { exact: true });
     await expect(usernameInput).toBeVisible();
     await usernameInput.fill(username);
-    await page.locator('input[name="password"]').fill(password);
+    await page.getByLabel("Password", { exact: true }).fill(password);
 
-    const twoFactorInput = page.locator('input[name="twoFactorCode"]');
+    const twoFactorInput = page.getByLabel("Two-factor code", { exact: true });
     if (
       (await twoFactorInput.count()) > 0 &&
       (await twoFactorInput.isVisible())
@@ -98,7 +98,7 @@ async function loginWith(page: Page, username: string, password: string) {
 
     await Promise.all([
       page.waitForURL(/\/panel\/?$/),
-      page.locator('button[type="submit"]').click(),
+      page.getByRole("button", { name: "Sign in", exact: true }).click(),
     ]);
   }
 
@@ -868,7 +868,7 @@ test.describe("new Vue UI and API baseline", () => {
       await expect(confirmDialog).toBeVisible();
       const saveResponsePromise = page.waitForResponse(
         (response) =>
-          response.url().includes("/panel/setting/update") &&
+          response.url() === appUrl("panel/api/setting/update") &&
           response.request().method() === "POST",
       );
       await confirmDialog.getByRole("button", { name: "Save" }).click();

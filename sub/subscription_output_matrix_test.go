@@ -552,7 +552,7 @@ func matrixHysteriaInbound(port int, client model.Client) *model.Inbound {
 			"serverName": "hy2.example",
 			"alpn":       []string{"h3"},
 			"settings": map[string]any{
-				"allowInsecure": true,
+				"allowInsecure": false,
 				"fingerprint":   "",
 			},
 		},
@@ -821,6 +821,7 @@ func TestResolveRequestIgnoresMalformedForwardedHost(t *testing.T) {
 	context, _ := gin.CreateTestContext(recorder)
 	request := httptest.NewRequest(http.MethodGet, "http://panel.example/sub/sub-id", nil)
 	request.Host = "safe.example:2096"
+	request.RemoteAddr = "127.0.0.1:1234"
 	request.Header.Set("X-Forwarded-Proto", "https")
 	request.Header.Set("X-Forwarded-Host", "evil.example/path@attacker")
 	context.Request = request
@@ -838,6 +839,21 @@ func TestResolveRequestIgnoresMalformedForwardedHost(t *testing.T) {
 	}
 	if hostHeader != "safe.example" {
 		t.Fatalf("hostHeader = %q, want safe.example", hostHeader)
+	}
+}
+
+func TestResolveRequestDoesNotUseClientIPAsSubscriptionHost(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	request := httptest.NewRequest(http.MethodGet, "http://panel.example/sub/sub-id", nil)
+	request.Host = "safe.example:2096"
+	request.Header.Set("X-Real-IP", "198.51.100.20")
+	context.Request = request
+
+	_, host, hostWithPort, _ := (&SubService{}).ResolveRequest(context)
+	if host != "safe.example" || hostWithPort != "safe.example:2096" {
+		t.Fatalf("client IP header influenced subscription host: %q %q", host, hostWithPort)
 	}
 }
 

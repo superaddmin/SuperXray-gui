@@ -83,8 +83,18 @@ export interface WarpMatrixOption {
 }
 
 export const PROTOCOL_TOOL_PRESETS: ProtocolToolPreset[] = [
-  { value: 'vless-reality-vision', label: 'VLESS Reality Vision', runtime: 'xray', saveToXray: true },
-  { value: 'vless-xhttp-reality', label: 'VLESS XHTTP Reality Vision', runtime: 'xray', saveToXray: true },
+  {
+    value: 'vless-reality-vision',
+    label: 'VLESS Reality Vision',
+    runtime: 'xray',
+    saveToXray: true,
+  },
+  {
+    value: 'vless-xhttp-reality',
+    label: 'VLESS XHTTP Reality Vision',
+    runtime: 'xray',
+    saveToXray: true,
+  },
   { value: 'vless-ws-tls', label: 'VLESS WS TLS', runtime: 'xray', saveToXray: true },
   { value: 'trojan-tcp-tls', label: 'Trojan TCP TLS', runtime: 'xray', saveToXray: true },
   { value: 'shadowsocks-2022', label: 'Shadowsocks 2022', runtime: 'xray', saveToXray: true },
@@ -141,7 +151,8 @@ export function generateProtocolToolArgo(
         '    restart: unless-stopped',
         `    command: tunnel run --token ${token}`,
       ].join('\n'),
-      notice: 'Token is generated into this output only and is not submitted to the backend by Protocol Tools.',
+      notice:
+        'Token is generated into this output only and is not submitted to the backend by Protocol Tools.',
     };
   }
 
@@ -253,7 +264,8 @@ export function generateProtocolToolCombo(input: ProtocolToolInput): ProtocolToo
           password: cleanString(input.password, 'change-me'),
           congestion_control: cleanString(input.congestionControl, 'cubic'),
         }),
-        notice: 'TUIC is not supported as an Xray inbound in this panel build; use this as an external sing-box config snippet.',
+        notice:
+          'TUIC is not supported as an Xray inbound in this panel build; use this as an external sing-box config snippet.',
       };
     case 'anytls-singbox':
       return {
@@ -268,7 +280,8 @@ export function generateProtocolToolCombo(input: ProtocolToolInput): ProtocolToo
           server_port: asInt(input.port, 443),
           password: cleanString(input.password, 'change-me'),
         }),
-        notice: 'AnyTLS is not supported as an Xray inbound in this panel build; use this as an external sing-box config snippet.',
+        notice:
+          'AnyTLS is not supported as an Xray inbound in this panel build; use this as an external sing-box config snippet.',
       };
     default:
       return {
@@ -345,7 +358,11 @@ export function applyWarpMatrixToTemplate(
   return template;
 }
 
-function buildVlessOutbound(input: ProtocolToolInput, network: string, security: string): JsonObject {
+function buildVlessOutbound(
+  input: ProtocolToolInput,
+  network: string,
+  security: string,
+): JsonObject {
   const server = cleanString(input.server, 'example.com');
   const port = asInt(input.port, 443);
   const uuid = cleanString(input.uuid, defaultUuid());
@@ -538,9 +555,7 @@ function cloneObject(value: unknown): JsonObject {
 }
 
 function asObject(value: unknown): JsonObject {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as JsonObject)
-    : {};
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonObject) : {};
 }
 
 function asObjectArray(value: JsonValue | undefined): JsonObject[] {

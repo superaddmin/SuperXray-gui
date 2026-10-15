@@ -535,7 +535,12 @@
               />
             </AFormItem>
             <AFormItem label="Traffic Limit GB">
-              <AInputNumber v-model:value="inboundEditor.totalGB" :min="0" class="full-width" />
+              <AInputNumber
+                v-model:value="inboundEditor.totalGB"
+                :min="0"
+                class="full-width"
+                @change="inboundEditor.totalGBEdited = true"
+              />
             </AFormItem>
             <AFormItem label="Expiry Timestamp">
               <AInputNumber v-model:value="inboundEditor.expiryTime" :min="0" class="full-width" />
@@ -821,12 +826,21 @@
             <AFormItem
               v-if="
                 streamEditor.network === 'xhttp' &&
-                  streamEditor.xhttpSessionPlacement &&
-                  streamEditor.xhttpSessionPlacement !== 'path'
+                streamEditor.xhttpSessionPlacement &&
+                streamEditor.xhttpSessionPlacement !== 'path'
               "
               label="Session Key"
             >
               <AInput v-model:value="streamEditor.xhttpSessionKey" placeholder="x_session" />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Session ID Table">
+              <AInput
+                v-model:value="streamEditor.xhttpSessionIdTable"
+                placeholder="Base62 or custom ASCII"
+              />
+            </AFormItem>
+            <AFormItem v-if="streamEditor.network === 'xhttp'" label="Session ID Length">
+              <AInput v-model:value="streamEditor.xhttpSessionIdLength" placeholder="8-16" />
             </AFormItem>
             <AFormItem v-if="streamEditor.network === 'xhttp'" label="Sequence Placement">
               <ASelect
@@ -837,8 +851,8 @@
             <AFormItem
               v-if="
                 streamEditor.network === 'xhttp' &&
-                  streamEditor.xhttpSeqPlacement &&
-                  streamEditor.xhttpSeqPlacement !== 'path'
+                streamEditor.xhttpSeqPlacement &&
+                streamEditor.xhttpSeqPlacement !== 'path'
               "
               label="Sequence Key"
             >
@@ -856,9 +870,9 @@
             <AFormItem
               v-if="
                 streamEditor.network === 'xhttp' &&
-                  streamEditor.xhttpMode === 'packet-up' &&
-                  streamEditor.xhttpUplinkDataPlacement &&
-                  streamEditor.xhttpUplinkDataPlacement !== 'body'
+                streamEditor.xhttpMode === 'packet-up' &&
+                streamEditor.xhttpUplinkDataPlacement &&
+                streamEditor.xhttpUplinkDataPlacement !== 'body'
               "
               label="Uplink Data Key"
             >
@@ -867,9 +881,9 @@
             <AFormItem
               v-if="
                 streamEditor.network === 'xhttp' &&
-                  streamEditor.xhttpMode === 'packet-up' &&
-                  streamEditor.xhttpUplinkDataPlacement &&
-                  streamEditor.xhttpUplinkDataPlacement !== 'body'
+                streamEditor.xhttpMode === 'packet-up' &&
+                streamEditor.xhttpUplinkDataPlacement &&
+                streamEditor.xhttpUplinkDataPlacement !== 'body'
               "
               label="Uplink Chunk Size"
             >
@@ -1112,8 +1126,8 @@
             <AFormItem
               v-if="
                 isHysteriaProtocol(inboundEditor.protocol) &&
-                  streamEditor.hysteriaQuicParamsEnabled &&
-                  streamEditor.hysteriaUdpHopEnabled
+                streamEditor.hysteriaQuicParamsEnabled &&
+                streamEditor.hysteriaUdpHopEnabled
               "
               label="Hop Ports"
             >
@@ -1122,8 +1136,8 @@
             <AFormItem
               v-if="
                 isHysteriaProtocol(inboundEditor.protocol) &&
-                  streamEditor.hysteriaQuicParamsEnabled &&
-                  streamEditor.hysteriaUdpHopEnabled
+                streamEditor.hysteriaQuicParamsEnabled &&
+                streamEditor.hysteriaUdpHopEnabled
               "
               label="Hop Interval"
             >
@@ -1261,6 +1275,7 @@
                 v-model:value="inboundClientEditor.totalGB"
                 :min="0"
                 class="full-width"
+                @change="inboundClientEditor.totalGBEdited = true"
               />
             </AFormItem>
             <AFormItem label="Expiry Timestamp">
@@ -1412,7 +1427,12 @@
         </template>
         <div class="form-grid client-form-grid">
           <AFormItem v-if="clientEditor.protocol !== 'wireguard'" label="Traffic Limit GB">
-            <AInputNumber v-model:value="clientEditor.totalGB" :min="0" class="full-width" />
+            <AInputNumber
+              v-model:value="clientEditor.totalGB"
+              :min="0"
+              class="full-width"
+              @change="clientEditor.totalGBEdited = true"
+            />
           </AFormItem>
           <AFormItem v-if="clientEditor.protocol !== 'wireguard'" label="Expiry Timestamp">
             <AInputNumber v-model:value="clientEditor.expiryTime" :min="0" class="full-width" />
@@ -1738,6 +1758,7 @@ import type {
 } from '@/types/inbound';
 import type { PanelSettings } from '@/types/settings';
 import { formatBytes, formatCount } from '@/utils/format';
+import { bytesToGb, resolveTotalBytes } from '@/utils/trafficQuota';
 import {
   HYSTERIA_QUIC_DEFAULTS,
   SHADOWSOCKS_METHOD_OPTIONS,
@@ -1762,6 +1783,9 @@ import {
   isShadowsocks2022Method,
   isSingleUserShadowsocks2022,
   mergeXhttpSettings,
+  normalizeFinalmaskForXray,
+  normalizeInboundStreamCompatibility,
+  normalizeWireguardSettings,
   mergeSubscriptionEndpointDefaults,
   normalizeTunSettings,
   parseInboundSettings,
@@ -1771,12 +1795,16 @@ import {
   resolveInboundHost,
   resolveXhttpHost,
   resolveXhttpExtraSettings,
+  resolveHysteriaUdpHop,
   separateInboundClients,
   stringifyJson,
   type PanelDefaultTlsCertificate,
   type XhttpFormInput,
   validateTunSettings,
   validateHysteriaQuicFormInput,
+  validateFinalmaskForXray,
+  validateShadowsocksMethod,
+  validateXhttpSessionSettings,
   validateXhttpFormInput,
 } from '@/utils/inboundCompat';
 import {
@@ -1812,6 +1840,8 @@ interface InboundEditorState {
   port: number;
   enable: boolean;
   totalGB: number;
+  originalTotalBytes: number | null;
+  totalGBEdited: boolean;
   expiryTime: number;
   trafficReset: string;
   settings: string;
@@ -1873,6 +1903,8 @@ interface StreamEditorState {
   xhttpUplinkHttpMethod: string;
   xhttpSessionPlacement: string;
   xhttpSessionKey: string;
+  xhttpSessionIdTable: string;
+  xhttpSessionIdLength: string;
   xhttpSeqPlacement: string;
   xhttpSeqKey: string;
   xhttpUplinkDataPlacement: string;
@@ -1957,6 +1989,8 @@ interface ClientEditorState {
   flow: string;
   limitIp: number;
   totalGB: number;
+  originalTotalBytes: number | null;
+  totalGBEdited: boolean;
   expiryTime: number;
   enable: boolean;
   subId: string;
@@ -2601,6 +2635,8 @@ function openEditInbound(record: Inbound | Record<string, unknown>) {
     port: inbound.port,
     enable: inbound.enable,
     totalGB: bytesToGb(inbound.total),
+    originalTotalBytes: inbound.total,
+    totalGBEdited: false,
     expiryTime: inbound.expiryTime || 0,
     trafficReset: inbound.trafficReset || 'never',
     settings: prepareInboundSettingsForEditing(inbound.settings, parsedSettings),
@@ -2664,7 +2700,11 @@ async function submitInbound() {
     id: inboundEditor.id,
     up: existing?.up || 0,
     down: existing?.down || 0,
-    total: gbToBytes(inboundEditor.totalGB),
+    total: resolveTotalBytes(
+      inboundEditor.originalTotalBytes,
+      inboundEditor.totalGB,
+      inboundEditor.totalGBEdited,
+    ),
     allTime: existing?.allTime || 0,
     remark: inboundEditor.remark.trim(),
     enable: inboundEditor.enable,
@@ -2959,6 +2999,8 @@ function openEditClient(inbound: Inbound | null, record: ClientRow | Record<stri
     flow: client.flow || '',
     limitIp: Number(client.limitIp || 0),
     totalGB: bytesToGb(Number(row.traffic?.total ?? client.totalGB ?? 0)),
+    originalTotalBytes: Number(row.traffic?.total ?? client.totalGB ?? 0),
+    totalGBEdited: false,
     expiryTime: Number(row.traffic?.expiryTime ?? client.expiryTime ?? 0),
     enable: client.enable !== false,
     subId: client.subId || randomToken(16),
@@ -3743,6 +3785,8 @@ function createStreamEditor(): StreamEditorState {
     xhttpUplinkHttpMethod: '',
     xhttpSessionPlacement: '',
     xhttpSessionKey: '',
+    xhttpSessionIdTable: '',
+    xhttpSessionIdLength: '',
     xhttpSeqPlacement: '',
     xhttpSeqKey: '',
     xhttpUplinkDataPlacement: '',
@@ -3859,7 +3903,7 @@ function applyTunEditorToSettings(): boolean {
 }
 
 function applyWireguardEditorToSettings() {
-  const settings = parseInboundSettingsText(inboundEditor.settings);
+  const settings = normalizeWireguardSettings(parseInboundSettingsText(inboundEditor.settings));
   settings.mtu = Math.max(0, Number(wireguardEditor.mtu || 0));
   settings.secretKey = wireguardEditor.secretKey.trim();
   settings.pubKey = wireguardEditor.pubKey.trim();
@@ -3886,6 +3930,8 @@ function syncInboundClientEditorFromSettings() {
     flow: stringField(client.flow),
     limitIp: Number(client.limitIp || 0),
     totalGB: bytesToGb(Number(client.totalGB || 0)),
+    originalTotalBytes: Number(client.totalGB || 0),
+    totalGBEdited: false,
     expiryTime: Number(client.expiryTime || 0),
     enable: client.enable !== false,
     subId: stringField(client.subId) || fallback.subId,
@@ -3923,7 +3969,7 @@ function syncStreamEditorFromSettings() {
   const hysteriaSettings = objectField(stream.hysteriaSettings);
   const finalmask = objectField(stream.finalmask);
   const quicParams = objectField(finalmask.quicParams);
-  const udpHop = objectField(quicParams.udpHop);
+  const udpHop = resolveHysteriaUdpHop(finalmask);
 
   Object.assign(streamEditor, {
     network: stringField(stream.network) || defaultNetworkForProtocol(inboundEditor.protocol),
@@ -3960,8 +4006,13 @@ function syncStreamEditorFromSettings() {
     xhttpXPaddingPlacement: stringField(xhttpExtra.xPaddingPlacement),
     xhttpXPaddingMethod: stringField(xhttpExtra.xPaddingMethod),
     xhttpUplinkHttpMethod: stringField(xhttpExtra.uplinkHTTPMethod).toUpperCase(),
-    xhttpSessionPlacement: stringField(xhttpExtra.sessionPlacement),
-    xhttpSessionKey: stringField(xhttpExtra.sessionKey),
+    xhttpSessionPlacement: stringField(
+      xhttpExtra.sessionIDPlacement || xhttpExtra.sessionPlacement,
+    ),
+    xhttpSessionKey: stringField(xhttpExtra.sessionIDKey || xhttpExtra.sessionKey),
+    xhttpSessionIdTable: stringField(xhttpExtra.sessionIDTable),
+    xhttpSessionIdLength:
+      xhttpExtra.sessionIDLength === undefined ? '' : String(xhttpExtra.sessionIDLength),
     xhttpSeqPlacement: stringField(xhttpExtra.seqPlacement),
     xhttpSeqKey: stringField(xhttpExtra.seqKey),
     xhttpUplinkDataPlacement: stringField(xhttpExtra.uplinkDataPlacement),
@@ -4006,10 +4057,10 @@ function syncStreamEditorFromSettings() {
     realityMldsa65Verify: stringField(realityClientSettings.mldsa65Verify),
     hysteriaAuth: stringField(hysteriaSettings.auth),
     hysteriaUdpIdleTimeout: Number(hysteriaSettings.udpIdleTimeout || 60),
-    hysteriaQuicParamsEnabled: Object.keys(quicParams).length > 0,
+    hysteriaQuicParamsEnabled: Object.keys(quicParams).length > 0 || Object.keys(udpHop).length > 0,
     hysteriaUdpHopEnabled: Object.keys(udpHop).length > 0,
     hysteriaUdpHopPorts: stringField(udpHop.ports),
-    hysteriaUdpHopInterval: stringField(udpHop.interval),
+    hysteriaUdpHopInterval: udpHop.interval === undefined ? '' : String(udpHop.interval),
     hysteriaInitStreamReceiveWindow: Number(
       quicParams.initStreamReceiveWindow ?? HYSTERIA_QUIC_DEFAULTS.initStreamReceiveWindow,
     ),
@@ -4144,6 +4195,11 @@ function applyStreamEditorToSettings(): boolean {
   }
   if (network === 'xhttp') {
     stream.xhttpSettings = mergeXhttpSettings(existingXhttpSettings, xhttpInput);
+    const sessionError = validateXhttpSessionSettings(objectField(stream.xhttpSettings));
+    if (sessionError) {
+      error.value = sessionError;
+      return false;
+    }
   }
   if (network === 'hysteria') {
     stream.hysteriaSettings = {
@@ -4206,7 +4262,13 @@ function applyStreamEditorToSettings(): boolean {
     stream.sockopt = buildSockoptSettings();
   }
 
-  inboundEditor.streamSettings = stringifyJson(stream);
+  const normalizedStream = normalizeFinalmaskForXray(stream);
+  const finalmaskError = validateFinalmaskForXray(normalizedStream);
+  if (finalmaskError) {
+    error.value = finalmaskError;
+    return false;
+  }
+  inboundEditor.streamSettings = stringifyJson(normalizedStream);
   return true;
 }
 
@@ -4228,6 +4290,8 @@ function buildXhttpFormInput(): XhttpFormInput {
     uplinkHTTPMethod: streamEditor.xhttpUplinkHttpMethod,
     sessionPlacement: streamEditor.xhttpSessionPlacement,
     sessionKey: streamEditor.xhttpSessionKey,
+    sessionIDTable: streamEditor.xhttpSessionIdTable,
+    sessionIDLength: streamEditor.xhttpSessionIdLength,
     seqPlacement: streamEditor.xhttpSeqPlacement,
     seqKey: streamEditor.xhttpSeqKey,
     uplinkDataPlacement: streamEditor.xhttpUplinkDataPlacement,
@@ -4315,6 +4379,10 @@ function buildTlsSettings(existingTlsSettings: Record<string, unknown>): Record<
 function validateInboundEditorSettings(settingsText: string, streamSettingsText: string): string {
   const settings = parseInboundSettingsText(settingsText);
   const stream = parseInboundStreamSettingsText(streamSettingsText);
+  if (inboundEditor.protocol === 'shadowsocks') {
+    const cipherError = validateShadowsocksMethod(getShadowsocksMethod(settings));
+    if (cipherError) return cipherError;
+  }
   if (isHysteriaProtocol(inboundEditor.protocol)) {
     if (Number(settings.version || 2) !== 2) {
       return 'Hysteria2 settings.version must be 2';
@@ -4377,6 +4445,8 @@ function createInboundEditor(
     port: randomPort(),
     enable: true,
     totalGB: 0,
+    originalTotalBytes: null,
+    totalGBEdited: false,
     expiryTime: 0,
     trafficReset: 'never',
     settings: stringifyJson(defaultInboundSettings(protocol)),
@@ -4411,6 +4481,8 @@ function createClientEditor(
     flow: '',
     limitIp: 0,
     totalGB: 0,
+    originalTotalBytes: null,
+    totalGBEdited: false,
     expiryTime: 0,
     enable: true,
     subId: wireguardPeer?.subId || randomToken(16),
@@ -4427,7 +4499,7 @@ function buildClientPayloadFromEditor(editor: ClientEditorState): InboundClient 
   const client: InboundClient = {
     email: editor.email.trim(),
     limitIp: Math.max(0, Number(editor.limitIp || 0)),
-    totalGB: gbToBytes(editor.totalGB),
+    totalGB: resolveTotalBytes(editor.originalTotalBytes, editor.totalGB, editor.totalGBEdited),
     expiryTime: Math.max(0, Number(editor.expiryTime || 0)),
     enable: editor.enable,
     tgId: 0,
@@ -4740,7 +4812,8 @@ function generateClientCredential(
 function parseInboundSettingsText(text: string): Record<string, unknown> {
   try {
     const parsed = JSON.parse(text) as unknown;
-    return objectField(parsed);
+    const settings = objectField(parsed);
+    return inboundEditor.protocol === 'wireguard' ? normalizeWireguardSettings(settings) : settings;
   } catch {
     return {};
   }
@@ -4749,7 +4822,7 @@ function parseInboundSettingsText(text: string): Record<string, unknown> {
 function parseInboundStreamSettingsText(text: string): Record<string, unknown> {
   try {
     const parsed = JSON.parse(text) as unknown;
-    return objectField(parsed);
+    return normalizeInboundStreamCompatibility(objectField(parsed));
   } catch {
     return defaultStreamSettings(inboundEditor.protocol) as Record<string, unknown>;
   }
@@ -5120,20 +5193,6 @@ function stripClientRow(row: ClientRow): InboundClient {
   delete client.key;
   delete client.traffic;
   return client;
-}
-
-function bytesToGb(value: number): number {
-  if (!Number.isFinite(value) || value <= 0) {
-    return 0;
-  }
-  return Number((value / 1024 ** 3).toFixed(2));
-}
-
-function gbToBytes(value: number): number {
-  if (!Number.isFinite(value) || value <= 0) {
-    return 0;
-  }
-  return Math.round(value * 1024 ** 3);
 }
 
 function randomPort(): number {

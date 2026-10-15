@@ -151,7 +151,7 @@
             <FormSection
               eyebrow="Security"
               title="Two Factor"
-              description="Generate or disable the token here, then save panel settings so the legacy settings page reads the same two-factor fields."
+              description="Saved secrets are hidden. Enter the current authenticator code to replace or disable it; use a code from the new authenticator when enabling for the first time."
             >
               <template #actions>
                 <AButton @click="generateTwoFactorToken">
@@ -164,8 +164,31 @@
                 <AFormItem label="Two Factor">
                   <ASwitch v-model:checked="settings.twoFactorEnable" />
                 </AFormItem>
-                <AFormItem label="Two Factor Token">
-                  <AInput v-model:value="settings.twoFactorToken" type="password" />
+                <AFormItem
+                  label="New Two Factor Token"
+                  help="Leave blank to keep the saved secret."
+                >
+                  <AInput
+                    v-model:value="settings.twoFactorToken"
+                    type="password"
+                    autocomplete="off"
+                  />
+                </AFormItem>
+                <AFormItem
+                  v-if="requiresTwoFactorCode"
+                  :label="
+                    loadedSettings?.twoFactorEnable
+                      ? 'Current Authenticator Code'
+                      : 'New Authenticator Code'
+                  "
+                >
+                  <AInput
+                    v-model:value="twoFactorCode"
+                    aria-label="Two-factor confirmation code"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    :maxlength="6"
+                  />
                 </AFormItem>
                 <AFormItem label="Setup URI">
                   <textarea
@@ -671,6 +694,7 @@ type PanelProxyScheme = 'http' | 'https' | 'socks5' | 'socks5h';
 const activeTab = ref<SettingsTab>('panel');
 const settings = ref<PanelSettings>(createEmptySettings());
 const loadedSettings = ref<PanelSettings | null>(null);
+const twoFactorCode = ref('');
 const panelProxyScheme = ref<PanelProxyScheme>('socks5');
 const credentials = ref<UserCredentialsUpdateForm>({
   oldUsername: '',
@@ -745,6 +769,11 @@ const recommendedSubscriptionProfiles: readonly RecommendedSubscriptionProfile[]
 ];
 
 const settingsLoaded = computed(() => Boolean(loadedSettings.value));
+const requiresTwoFactorCode = computed(() =>
+  loadedSettings.value?.twoFactorEnable
+    ? !settings.value.twoFactorEnable || settings.value.twoFactorToken.trim() !== ''
+    : settings.value.twoFactorEnable,
+);
 const settingsChanged = computed(
   () =>
     Boolean(loadedSettings.value) &&
@@ -807,7 +836,8 @@ const panelProxySchemeOptions: Array<{ label: string; value: PanelProxyScheme }>
   { label: 'SOCKS5H (Remote DNS)', value: 'socks5h' },
 ];
 const panelProxyAddress = computed({
-  get: () => parsePanelProxy(settings.value.panelProxy)?.address ?? settings.value.panelProxy.trim(),
+  get: () =>
+    parsePanelProxy(settings.value.panelProxy)?.address ?? settings.value.panelProxy.trim(),
   set: (address: string) => {
     const trimmed = address.trim();
     settings.value.panelProxy = trimmed ? `${panelProxyScheme.value}://${trimmed}` : '';
@@ -825,6 +855,7 @@ async function loadSettings() {
     const payload = await getAllSettings({ notifyOnError: false });
     settings.value = cloneSettings(payload);
     loadedSettings.value = cloneSettings(payload);
+    twoFactorCode.value = '';
     syncPanelProxyScheme(payload.panelProxy);
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : 'Failed to load settings';
@@ -838,6 +869,7 @@ function resetForm() {
     return;
   }
   settings.value = cloneSettings(loadedSettings.value);
+  twoFactorCode.value = '';
   syncPanelProxyScheme(settings.value.panelProxy);
   error.value = '';
 }
@@ -877,10 +909,20 @@ function confirmSave() {
 }
 
 async function saveSettings() {
+  if (requiresTwoFactorCode.value && !/^\d{6}$/.test(twoFactorCode.value.trim())) {
+    activeTab.value = 'security';
+    error.value = 'Enter the six-digit authenticator code before saving this security change.';
+    return;
+  }
   saving.value = true;
   error.value = '';
   try {
-    await updateSettings(settings.value, { notifyOnError: false });
+    await updateSettings(
+      { ...settings.value, twoFactorCode: twoFactorCode.value.trim() },
+      { notifyOnError: false },
+    );
+    settings.value.twoFactorToken = '';
+    twoFactorCode.value = '';
     loadedSettings.value = cloneSettings(settings.value);
     void message.success('Settings saved');
   } catch (caught) {

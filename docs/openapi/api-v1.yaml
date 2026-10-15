@@ -2,11 +2,12 @@ openapi: 3.1.0
 info:
   title: SuperXray Versioned API
   version: 3.4.3
-  x-source-audit-date: '2026-10-14'
+  x-source-audit-date: '2026-10-15'
   description: |
     Machine-readable contract for the versioned SuperXray API surface.
     Runtime deployments may prepend the configured webBasePath before these paths.
     These three GET endpoints are public and use a per-client fixed-window limit of 120 requests per minute.
+    Client IP is resolved through SUPERXRAY_TRUSTED_PROXY_CIDRS (loopback proxies only by default).
     Live and ready both return HTTP 200 read-only snapshots even when Xray is stopped or in error.
     Readiness does not probe database availability or external dependencies.
 servers:
@@ -108,7 +109,7 @@ components:
                   checkedAt: '2026-06-26T00:00:00Z'
                   xray:
                     state: running
-                    version: v26.3.27
+                    version: v26.10.10
                   metrics:
                     requests:
                       total: 3
@@ -288,7 +289,7 @@ components:
         byStatus:
           type: object
           maxProperties: 64
-          description: Bounded status counters including the overflow bucket. Process-local and reset on restart.
+          description: Bounded status counters including the overflow bucket. Process-local and reset when the Web router is recreated, including SIGHUP restarts.
           additionalProperties:
             type: integer
             format: int64

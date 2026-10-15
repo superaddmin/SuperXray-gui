@@ -5,7 +5,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -105,7 +108,6 @@ type Release struct {
 // It handles system status collection, IP detection, and application statistics.
 type ServerService struct {
 	xrayService        XrayService
-	inboundService     InboundService
 	cachedIPv4         string
 	cachedIPv6         string
 	noIPv6             bool
@@ -410,7 +412,7 @@ func (s *ServerService) GetStatus(lastStatus *Status) *Status {
 	runtime.ReadMemStats(&rtm)
 	status.AppStats.Mem = rtm.Sys
 	status.AppStats.Threads = goroutineCount()
-	if p != nil && p.IsRunning() {
+	if p := currentXrayProcess(); p != nil && p.IsRunning() {
 		status.AppStats.Uptime = p.GetUptime()
 	} else {
 		status.AppStats.Uptime = 0
@@ -570,20 +572,7 @@ func (s *ServerService) GetXrayVersions() ([]string, error) {
 
 	var versions []string
 	for _, release := range releases {
-		tagVersion := strings.TrimPrefix(release.TagName, "v")
-		tagParts := strings.Split(tagVersion, ".")
-		if len(tagParts) != 3 {
-			continue
-		}
-
-		major, err1 := strconv.Atoi(tagParts[0])
-		minor, err2 := strconv.Atoi(tagParts[1])
-		patch, err3 := strconv.Atoi(tagParts[2])
-		if err1 != nil || err2 != nil || err3 != nil {
-			continue
-		}
-
-		if major > 26 || (major == 26 && minor > 3) || (major == 26 && minor == 3 && patch >= 10) {
+		if supportedCoreVersion(release.TagName) {
 			versions = append(versions, release.TagName)
 		}
 	}
@@ -654,39 +643,106 @@ func (s *ServerService) downloadXRay(version string) (string, error) {
 		return "", err
 	}
 
-	_ = os.Remove(fileName)
-	file, err := pathutil.OpenFileUnder(".", fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err := os.MkdirAll(config.GetBinFolderPath(), 0o750); err != nil {
+		return "", err
+	}
+	downloadDir, err := os.MkdirTemp(config.GetBinFolderPath(), ".xray-download-*")
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
-
-	if err = copyLimited(file, resp.Body, maxDownloadFileBytes); err != nil {
-		_ = os.Remove(fileName)
+	downloadPath := filepath.Join(downloadDir, fileName)
+	// #nosec G304 -- fixed release asset basename inside a fresh private download directory.
+	file, err := os.OpenFile(downloadPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0o600)
+	if err != nil {
+		_ = os.RemoveAll(downloadDir)
 		return "", err
 	}
+	copyErr := copyLimited(file, resp.Body, maxDownloadFileBytes)
+	syncErr := file.Sync()
+	closeErr := file.Close()
+	if err := errors.Join(copyErr, syncErr, closeErr); err != nil {
+		_ = os.RemoveAll(downloadDir)
+		return "", err
+	}
+	return downloadPath, nil
+}
 
-	return fileName, nil
+func (s *ServerService) verifyXrayArchive(path string, version string) error {
+	// #nosec G304 -- caller supplies only the private archive returned by downloadXRay.
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	h := sha256.New()
+	n, err := io.Copy(h, io.LimitReader(f, maxDownloadFileBytes+1))
+	if err != nil {
+		return err
+	}
+	if n > maxDownloadFileBytes {
+		return fmt.Errorf("xray archive exceeds %d bytes", maxDownloadFileBytes)
+	}
+	actual := hex.EncodeToString(h.Sum(nil))
+	name := filepath.Base(path)
+	url := fmt.Sprintf("https://github.com/XTLS/Xray-core/releases/download/%s/%s.dgst", version, name)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := serviceHTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("xray digest download failed with status %d", resp.StatusCode)
+	}
+	body, err := readBodyLimited(resp.Body, 64*1024)
+	if err != nil {
+		return err
+	}
+	var expected string
+	for _, line := range strings.Split(string(body), "\n") {
+		field := strings.Fields(line)
+		if len(field) == 2 && field[0] == "SHA2-256=" && len(field[1]) == 64 {
+			if _, e := hex.DecodeString(field[1]); e == nil && expected == "" {
+				expected = strings.ToLower(field[1])
+			} else {
+				return fmt.Errorf("invalid or duplicate SHA-256 digest for %s", name)
+			}
+		}
+	}
+	if expected == "" {
+		return fmt.Errorf("xray digest file contains no SHA-256 for %s", name)
+	}
+	if !strings.EqualFold(actual, expected) {
+		return fmt.Errorf("xray archive SHA-256 mismatch: got %s, want %s", actual, expected)
+	}
+	return nil
 }
 
 func (s *ServerService) UpdateXray(version string) error {
-	// 1. Stop xray before doing anything
-	if err := s.StopXrayService(); err != nil {
-		logger.Warning("failed to stop xray before update:", err)
+	runtimeMaintenanceMu.Lock()
+	defer runtimeMaintenanceMu.Unlock()
+	version = strings.TrimSpace(version)
+	if !supportedCoreVersion(version) {
+		return fmt.Errorf("xray version must be a stable vYY.M.D release at least v26.10.10")
 	}
-
-	// 2. Download the zip
+	// Download and authenticate the archive before interrupting a running core.
 	zipFileName, err := s.downloadXRay(version)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := os.Remove(zipFileName); err != nil && !os.IsNotExist(err) {
-			logger.Warning("Failed to remove downloaded Xray archive:", err)
-		}
-	}()
+	if err := os.MkdirAll(filepath.Dir(xray.GetBinaryPath()), 0o750); err != nil {
+		return err
+	}
+	defer os.RemoveAll(filepath.Dir(zipFileName))
+	if err := s.verifyXrayArchive(zipFileName, version); err != nil {
+		return err
+	}
 
-	zipFile, err := pathutil.OpenUnder(".", zipFileName)
+	// #nosec G304 -- SHA-256 verified archive in this operation's private download directory.
+	zipFile, err := os.Open(zipFileName)
 	if err != nil {
 		return err
 	}
@@ -701,7 +757,17 @@ func (s *ServerService) UpdateXray(version string) error {
 		return err
 	}
 
-	// 3. Helper to extract files
+	stageDir, err := os.MkdirTemp(filepath.Dir(xray.GetBinaryPath()), ".xray-update-*")
+	if err != nil {
+		return err
+	}
+	cleanupStage := true
+	defer func() {
+		if cleanupStage {
+			_ = os.RemoveAll(stageDir)
+		}
+	}()
+	// Extract only the expected files into a private staging directory.
 	copyZipFile := func(zipName string, fileName string) error {
 		zipFile, err := reader.Open(zipName)
 		if err != nil {
@@ -711,39 +777,69 @@ func (s *ServerService) UpdateXray(version string) error {
 		if err := os.MkdirAll(filepath.Dir(fileName), 0o750); err != nil {
 			return err
 		}
-		_ = os.Remove(fileName)
-		// #nosec G302 -- the extracted Xray binary must keep executable bits.
-		file, err := pathutil.OpenFileUnder(filepath.Dir(fileName), fileName, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o750)
+		mode := os.FileMode(0o600)
+		if strings.HasSuffix(fileName, "xray") || strings.HasSuffix(fileName, "xray.exe") {
+			mode = 0o750
+		}
+		// #nosec G304 -- destination is one of three fixed filenames in the private staging directory.
+		file, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
 		if err != nil {
 			return err
 		}
-		defer file.Close()
-		return copyLimited(file, zipFile, maxDownloadFileBytes)
+		copyErr := copyLimited(file, zipFile, maxDownloadFileBytes)
+		return errors.Join(copyErr, file.Sync(), file.Close())
 	}
 
-	// 4. Extract correct binary
+	// Extract correct binary and data files.
+	stageBinary := filepath.Join(stageDir, "xray")
 	if runtime.GOOS == "windows" {
-		err = copyZipFile("xray.exe", xray.GetBinaryPath())
+		stageBinary += ".exe"
+	}
+	stageGeoip := filepath.Join(stageDir, "geoip.dat")
+	stageGeosite := filepath.Join(stageDir, "geosite.dat")
+	if runtime.GOOS == "windows" {
+		err = copyZipFile("xray.exe", stageBinary)
 	} else {
-		err = copyZipFile("xray", xray.GetBinaryPath())
+		err = copyZipFile("xray", stageBinary)
 	}
 	if err != nil {
 		return err
 	}
-	if err = copyZipFile("geoip.dat", xray.GetGeoipPath()); err != nil {
+	if err = copyZipFile("geoip.dat", stageGeoip); err != nil {
 		return err
 	}
-	if err = copyZipFile("geosite.dat", xray.GetGeositePath()); err != nil {
+	if err = copyZipFile("geosite.dat", stageGeosite); err != nil {
 		return err
 	}
-
-	// 5. Restart xray
-	if err := s.xrayService.RestartXray(true); err != nil {
-		logger.Error("start xray failed:", err)
+	candidateConfig, err := s.xrayService.getXrayConfig(false)
+	if err != nil {
 		return err
 	}
-
-	return nil
+	assetDir, err := coreAssetDirectory(candidateConfig)
+	if err != nil {
+		return err
+	}
+	if err := stageSupplementalGeo(assetDir, stageDir); err != nil {
+		return err
+	}
+	if err := xray.ValidateConfigWithBinary(candidateConfig, stageBinary); err != nil {
+		return fmt.Errorf("candidate Xray cannot use the current configuration: %w", err)
+	}
+	files := []coreFileReplacement{
+		{target: xray.GetBinaryPath(), staged: stageBinary, backup: filepath.Join(stageDir, "old-xray")},
+		{target: xray.GetGeoipPath(), staged: stageGeoip, backup: filepath.Join(stageDir, "old-geoip.dat")},
+		{target: xray.GetGeositePath(), staged: stageGeosite, backup: filepath.Join(stageDir, "old-geosite.dat")},
+	}
+	retain, err := installCoreFiles(files, coreUpdateLifecycle{
+		running: s.xrayService.IsXrayRunning,
+		stop:    s.xrayService.stopXray,
+		start:   func() error { return s.xrayService.restartXray(true) },
+	})
+	cleanupStage = !retain
+	if retain {
+		return fmt.Errorf("xray update recovery incomplete; backups retained in %s: %w", stageDir, err)
+	}
+	return err
 }
 
 func (s *ServerService) GetLogs(count string, level string, syslog string) []string {
@@ -814,7 +910,10 @@ func (s *ServerService) GetXrayLogs(
 		Proxied
 	)
 
-	countInt, _ := strconv.Atoi(count)
+	countInt, err := strconv.Atoi(count)
+	if err != nil || countInt < 1 || countInt > 10000 {
+		return nil
+	}
 	var entries []LogEntry
 
 	pathToAccessLog, err := xray.GetAccessLogPath()
@@ -845,15 +944,18 @@ func (s *ServerService) GetXrayLogs(
 
 		var entry LogEntry
 		parts := strings.Fields(line)
+		if len(parts) < 2 {
+			continue
+		}
+		dateTime, err := time.ParseInLocation("2006/01/02 15:04:05.999999", parts[0]+" "+parts[1], time.Local)
+		if err != nil {
+			continue
+		}
+		entry.DateTime = dateTime.UTC()
 
 		for i, part := range parts {
-
-			if i == 0 {
-				dateTime, err := time.ParseInLocation("2006/01/02 15:04:05.999999", parts[0]+" "+parts[1], time.Local)
-				if err != nil {
-					continue
-				}
-				entry.DateTime = dateTime.UTC()
+			if (part == "from" || part == "accepted" || part == "email:") && i+1 >= len(parts) {
+				continue
 			}
 
 			if part == "from" {
@@ -925,28 +1027,30 @@ func (s *ServerService) GetConfigJson() (any, error) {
 }
 
 func (s *ServerService) GetDb() ([]byte, error) {
-	// Update by manually trigger a checkpoint operation
-	err := database.Checkpoint()
+	file, err := os.CreateTemp(config.GetDBFolderPath(), ".superxray-snapshot-*.db")
 	if err != nil {
 		return nil, err
 	}
-	// Open the file for reading
-	file, err := pathutil.OpenUnder(config.GetDBFolderPath(), config.GetDBPath())
-	if err != nil {
+	snapshot := file.Name()
+	defer os.Remove(snapshot)
+	if err := file.Close(); err != nil {
 		return nil, err
 	}
-	defer file.Close()
-
-	// Read the file contents
-	fileContents, err := io.ReadAll(file)
-	if err != nil {
+	if err := os.Remove(snapshot); err != nil {
 		return nil, err
 	}
-
-	return fileContents, nil
+	if err := database.BackupSQLite(snapshot); err != nil {
+		return nil, err
+	}
+	// #nosec G304 -- snapshot was allocated by CreateTemp in the configured DB directory.
+	return os.ReadFile(snapshot)
 }
 
 func (s *ServerService) ImportDB(file multipart.File) error {
+	releaseDatabase := database.AcquireMaintenance()
+	defer releaseDatabase()
+	runtimeMaintenanceMu.Lock()
+	defer runtimeMaintenanceMu.Unlock()
 	// Check if the file is a SQLite database
 	isValidDb, err := database.IsSQLiteDB(file)
 	if err != nil {
@@ -962,21 +1066,12 @@ func (s *ServerService) ImportDB(file multipart.File) error {
 		return common.NewErrorf("Error resetting file reader: %v", err)
 	}
 
-	// Save the file as a temporary file
-	tempPath := fmt.Sprintf("%s.temp", config.GetDBPath())
-
-	// Remove the existing temporary file (if any)
-	if _, err := os.Stat(tempPath); err == nil {
-		if errRemove := os.Remove(tempPath); errRemove != nil {
-			return common.NewErrorf("Error removing existing temporary db file: %v", errRemove)
-		}
-	}
-
-	// Create the temporary file
-	tempFile, err := pathutil.OpenFileUnder(config.GetDBFolderPath(), tempPath, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o600)
+	// Each import owns a private candidate; never reuse a stale upload path.
+	tempFile, err := os.CreateTemp(config.GetDBFolderPath(), ".superxray-import-*.db")
 	if err != nil {
 		return common.NewErrorf("Error creating temporary db file: %v", err)
 	}
+	tempPath := tempFile.Name()
 
 	// Robust deferred cleanup for the temporary file
 	defer func() {
@@ -990,11 +1085,19 @@ func (s *ServerService) ImportDB(file multipart.File) error {
 				logger.Warningf("Warning: failed to remove temp file: %v", rerr)
 			}
 		}
+		for _, suffix := range []string{"-wal", "-shm", "-journal"} {
+			if rerr := os.Remove(tempPath + suffix); rerr != nil && !os.IsNotExist(rerr) {
+				logger.Warningf("Warning: failed to remove temporary database sidecar: %v", rerr)
+			}
+		}
 	}()
 
 	// Save uploaded file to temporary file
 	if err = copyLimited(tempFile, file, MaxImportDBFileSize); err != nil {
 		return common.NewErrorf("Error saving db: %v", err)
+	}
+	if err = tempFile.Sync(); err != nil {
+		return common.NewErrorf("Error syncing temporary db file: %v", err)
 	}
 
 	// Close temp file before opening via sqlite
@@ -1008,65 +1111,19 @@ func (s *ServerService) ImportDB(file multipart.File) error {
 		return common.NewErrorf("Invalid or corrupt db file: %v", err)
 	}
 
-	// Stop Xray (ignore error but log)
-	if errStop := s.StopXrayService(); errStop != nil {
-		logger.Warningf("Failed to stop Xray before DB import: %v", errStop)
+	// Migrate and validate the complete candidate while the original database
+	// and core remain available. Candidate repositories never publish globally.
+	if err := validateImportCandidate(tempPath); err != nil {
+		return common.NewErrorf("Imported database is incompatible: %v", err)
 	}
-
-	// Close existing DB to release file locks (especially on Windows)
-	if errClose := database.CloseDB(); errClose != nil {
-		logger.Warningf("Failed to close existing DB before replacement: %v", errClose)
-	}
-
-	// Backup the current database for fallback
-	fallbackPath := fmt.Sprintf("%s.backup", config.GetDBPath())
-
-	// Remove the existing fallback file (if any)
-	if _, err := os.Stat(fallbackPath); err == nil {
-		if errRemove := os.Remove(fallbackPath); errRemove != nil {
-			return common.NewErrorf("Error removing existing fallback db file: %v", errRemove)
-		}
-	}
-
-	// Move the current database to the fallback location
-	if err = os.Rename(config.GetDBPath(), fallbackPath); err != nil {
-		return common.NewErrorf("Error backing up current db file: %v", err)
-	}
-
-	// Defer fallback cleanup ONLY if everything goes well
-	defer func() {
-		if _, err := os.Stat(fallbackPath); err == nil {
-			if rerr := os.Remove(fallbackPath); rerr != nil {
-				logger.Warningf("Warning: failed to remove fallback file: %v", rerr)
-			}
-		}
-	}()
-
-	// Move temp to DB path
-	if err = os.Rename(tempPath, config.GetDBPath()); err != nil {
-		// Restore from fallback
-		if errRename := os.Rename(fallbackPath, config.GetDBPath()); errRename != nil {
-			return common.NewErrorf("Error moving db file and restoring fallback: %v", errRename)
-		}
-		return common.NewErrorf("Error moving db file: %v", err)
-	}
-
-	// Open & migrate new DB
-	if err = database.InitDB(config.GetDBPath()); err != nil {
-		if errRename := os.Rename(fallbackPath, config.GetDBPath()); errRename != nil {
-			return common.NewErrorf("Error migrating db and restoring fallback: %v", errRename)
-		}
-		return common.NewErrorf("Error migrating db: %v", err)
-	}
-
-	s.inboundService.MigrateDB()
-
-	// Start Xray
-	if err = s.RestartXrayService(); err != nil {
-		return common.NewErrorf("Imported DB but failed to start Xray: %v", err)
-	}
-
-	return nil
+	return replacePreparedDatabase(tempPath, config.GetDBPath(), databaseImportLifecycle{
+		running:    s.xrayService.IsXrayRunning(),
+		stop:       s.xrayService.stopXray,
+		start:      func() error { return s.xrayService.restartXray(true) },
+		checkpoint: database.Checkpoint,
+		close:      database.CloseDB,
+		open:       InitDB,
+	})
 }
 
 func runXrayCommand(args ...string) (string, error) {

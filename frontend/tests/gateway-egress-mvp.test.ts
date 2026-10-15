@@ -40,7 +40,9 @@ test('gateway egress mvp merge defaults to same-network loopback hosts', () => {
   );
   assert.ok(rules.some((rule) => rule.domain?.includes('domain:api.openai.com')));
   assert.ok(rules.some((rule) => rule.domain?.includes('domain:api.anthropic.com')));
-  assert.ok(rules.some((rule) => rule.domain?.includes('domain:generativelanguage.googleapis.com')));
+  assert.ok(
+    rules.some((rule) => rule.domain?.includes('domain:generativelanguage.googleapis.com')),
+  );
   assert.equal(rules.at(-1)?.outboundTag, 'blocked');
 });
 

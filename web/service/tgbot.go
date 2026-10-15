@@ -569,6 +569,9 @@ func (t *Tgbot) decodeQuery(query string) (string, error) {
 	if !hashStorage.IsHash(query) {
 		return query, nil
 	}
+	if hashStorage == nil {
+		return "", common.NewError("hash storage is unavailable")
+	}
 
 	decoded, exists := hashStorage.GetValue(query)
 	if !exists {
@@ -622,28 +625,33 @@ func (t *Tgbot) OnReceive() {
 		tgBotMutex.Unlock()
 
 		h.HandleMessage(func(ctx *th.Context, message telego.Message) error {
+			release := database.AcquireReadLease()
+			defer release()
 			clientStateMutex.Lock()
 			defer clientStateMutex.Unlock()
 			loadClientAddState(message.Chat.ID)
-			deleteUserState(message.Chat.ID)
-			resetClientAddGlobals()
+			resetClientAddStateForAdmin(message.Chat.ID, message.From)
 			saveClientAddState(message.Chat.ID)
 			t.SendMsgToTgbot(message.Chat.ID, t.I18nBot("tgbot.keyboardClosed"), tu.ReplyKeyboardRemove())
 			return nil
 		}, th.TextEqual(t.I18nBot("tgbot.buttons.closeKeyboard")))
 
 		h.HandleMessage(func(ctx *th.Context, message telego.Message) error {
+			if message.From == nil {
+				return nil
+			}
 			// Use goroutine with worker pool for concurrent command processing
 			go func() {
 				messageWorkerPool <- struct{}{}        // Acquire worker
 				defer func() { <-messageWorkerPool }() // Release worker
+				release := database.AcquireReadLease()
+				defer release()
 
 				clientStateMutex.Lock()
 				defer clientStateMutex.Unlock()
 				loadClientAddState(message.Chat.ID)
-				deleteUserState(message.Chat.ID)
-				resetClientAddGlobals()
-				t.answerCommand(&message, message.Chat.ID, checkAdmin(message.From.ID))
+				isAdmin := resetClientAddStateForAdmin(message.Chat.ID, message.From)
+				t.answerCommand(&message, message.Chat.ID, isAdmin)
 				saveClientAddState(message.Chat.ID)
 			}()
 			return nil
@@ -654,12 +662,13 @@ func (t *Tgbot) OnReceive() {
 			go func() {
 				messageWorkerPool <- struct{}{}        // Acquire worker
 				defer func() { <-messageWorkerPool }() // Release worker
+				release := database.AcquireReadLease()
+				defer release()
 
 				clientStateMutex.Lock()
 				defer clientStateMutex.Unlock()
 				chatID := query.Message.GetChat().ID
 				loadClientAddState(chatID)
-				deleteUserState(chatID)
 				t.answerCallback(&query, checkAdmin(query.From.ID))
 				saveClientAddState(chatID)
 			}()
@@ -667,11 +676,19 @@ func (t *Tgbot) OnReceive() {
 		}, th.AnyCallbackQueryWithMessage())
 
 		h.HandleMessage(func(ctx *th.Context, message telego.Message) error {
+			if message.From == nil {
+				return nil
+			}
+			release := database.AcquireReadLease()
+			defer release()
 			clientStateMutex.Lock()
 			defer clientStateMutex.Unlock()
 			loadClientAddState(message.Chat.ID)
 			defer saveClientAddState(message.Chat.ID)
 			if userState, exists := getUserState(message.Chat.ID); exists {
+				if !checkAdmin(message.From.ID) {
+					return nil
+				}
 				switch userState {
 				case "awaiting_id":
 					if client_Id == strings.TrimSpace(message.Text) {
@@ -946,15 +963,29 @@ func (t *Tgbot) randomShadowSocksPassword(method string) string {
 
 // answerCallback processes callback queries from inline keyboards.
 func (t *Tgbot) answerCallback(callbackQuery *telego.CallbackQuery, isAdmin bool) {
+	if callbackQuery == nil || callbackQuery.Message == nil {
+		return
+	}
 	chatId := callbackQuery.Message.GetChat().ID
 
-	if isAdmin {
-		// get query from hash storage
-		decodedQuery, err := t.decodeQuery(callbackQuery.Data)
-		if err != nil {
+	decodedQuery, err := t.decodeQuery(callbackQuery.Data)
+	if err != nil {
+		if isAdmin {
 			t.SendMsgToTgbot(chatId, t.I18nBot("tgbot.noQuery"))
-			return
 		}
+		return
+	}
+	if !isAdmin && !t.isClientSelfCallbackAllowed(decodedQuery, callbackQuery.From.ID) {
+		return
+	}
+	// Decode a copy so long self-service callbacks keep the same authorization
+	// and dispatch behavior as their short forms without mutating the update.
+	decodedCallback := *callbackQuery
+	decodedCallback.Data = decodedQuery
+	callbackQuery = &decodedCallback
+
+	if isAdmin {
+		deleteUserState(chatId)
 		dataArray := strings.Split(decodedQuery, " ")
 
 		if len(dataArray) >= 2 && len(dataArray[1]) > 0 {
@@ -2362,6 +2393,40 @@ func checkAdmin(tgId int64) bool {
 	return false
 }
 
+// resetClientAddStateForAdmin is called with clientStateMutex held and the chat
+// state loaded. A group member closing their keyboard must not cancel a wizard.
+func resetClientAddStateForAdmin(chatID int64, from *telego.User) bool {
+	if from == nil || !checkAdmin(from.ID) {
+		return false
+	}
+	deleteUserState(chatID)
+	resetClientAddGlobals()
+	return true
+}
+
+// isClientSelfCallbackAllowed denies every action except the client's own
+// usage/help/menu actions and links bound to the callback sender's Telegram ID.
+func (t *Tgbot) isClientSelfCallbackAllowed(data string, tgUserID int64) bool {
+	if tgUserID <= 0 {
+		return false
+	}
+	switch data {
+	case "client_traffic", "client_commands", "client_sub_links", "client_individual_links", "client_qr_links":
+		return true
+	}
+	action, email, hasEmail := strings.Cut(data, " ")
+	if !hasEmail || email == "" {
+		return false
+	}
+	switch action {
+	case "client_sub_links", "client_individual_links", "client_qr_links":
+		_, client, err := t.inboundService.GetClientByEmail(email)
+		return err == nil && client != nil && client.TgID == tgUserID
+	default:
+		return false
+	}
+}
+
 // SendAnswer sends a response message with an inline keyboard to the specified chat.
 func (t *Tgbot) SendAnswer(chatId int64, msg string, isAdmin bool) {
 	numericKeyboard := tu.InlineKeyboard(
@@ -2886,7 +2951,7 @@ func (t *Tgbot) prepareServerUsageInfo() string {
 		t.lastStatus = t.serverService.GetStatus(t.lastStatus)
 		t.setCachedStatus(t.lastStatus)
 	}
-	onlines := p.GetOnlineClients()
+	onlines := t.inboundService.GetOnlineClients()
 
 	info += t.I18nBot("tgbot.messages.hostname", "Hostname=="+hostname)
 	info += t.I18nBot("tgbot.messages.version", "Version=="+config.GetVersion())
@@ -3239,7 +3304,7 @@ func (t *Tgbot) clientInfoMsg(
 
 	status := t.I18nBot("tgbot.offline")
 	isOnline := false
-	if p.IsRunning() {
+	if p := currentXrayProcess(); p != nil && p.IsRunning() {
 		if slices.Contains(p.GetOnlineClients(), traffic.Email) {
 			status = t.I18nBot("tgbot.online")
 			isOnline = true
@@ -3767,7 +3832,8 @@ func int64Contains(slice []int64, item int64) bool {
 
 // onlineClients retrieves and sends information about online clients.
 func (t *Tgbot) onlineClients(chatId int64, messageID ...int) {
-	if !p.IsRunning() {
+	p := currentXrayProcess()
+	if p == nil || !p.IsRunning() {
 		return
 	}
 
@@ -3973,16 +4039,21 @@ func (t *Tgbot) SendMsgToTgbotDeleteAfter(chatId int64, msg string, delayInSecon
 		return
 	}
 
-	// Delete the sent message after the specified number of seconds
-	go func() {
-		time.Sleep(time.Duration(delayInSeconds) * time.Second) // Wait for the specified delay
-		t.deleteMessageTgBot(chatId, sentMsg.MessageID)         // Delete the message
-		deleteUserState(chatId)
-	}()
+	go t.deleteMessageAfterDelay(chatId, sentMsg.MessageID, delayInSeconds)
+}
+
+// deleteMessageAfterDelay only removes the old message. Wizard handlers clear
+// their state synchronously; a delayed cleanup must not erase a later step.
+func (t *Tgbot) deleteMessageAfterDelay(chatId int64, messageID, delayInSeconds int) {
+	time.Sleep(time.Duration(delayInSeconds) * time.Second)
+	t.deleteMessageTgBot(chatId, messageID)
 }
 
 // deleteMessageTgBot deletes a message from the chat.
 func (t *Tgbot) deleteMessageTgBot(chatId int64, messageID int) {
+	if bot == nil {
+		return
+	}
 	params := telego.DeleteMessageParams{
 		ChatID:    tu.ID(chatId),
 		MessageID: messageID,

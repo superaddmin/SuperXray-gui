@@ -8,9 +8,9 @@ import (
 	"encoding/base64"
 	"encoding/gob"
 	"net/http"
-	"strings"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
+	"github.com/superaddmin/SuperXray-gui/v2/util/trustedproxy"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -100,7 +100,7 @@ func ClearSession(c *gin.Context) {
 	if cookiePath == "" {
 		cookiePath = "/"
 	}
-	secureCookie := c.Request.TLS != nil || strings.EqualFold(c.GetHeader("X-Forwarded-Proto"), "https")
+	secureCookie := trustedproxy.Scheme(c) == "https"
 	s.Options(sessions.Options{
 		Path:     cookiePath,
 		MaxAge:   -1,

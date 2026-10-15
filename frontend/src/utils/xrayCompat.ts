@@ -654,7 +654,8 @@ export function upsertBalancer(
   const template = cloneObject(config);
   const routing = asObject(template.routing);
   const balancers = asObjectArray(routing.balancers);
-  const existing = index === null || index < 0 || index >= balancers.length ? null : balancers[index];
+  const existing =
+    index === null || index < 0 || index >= balancers.length ? null : balancers[index];
   const oldTag = existing ? stringValue(existing.tag) : '';
   const balancer: JsonObject = {
     tag: form.tag.trim(),
@@ -884,7 +885,8 @@ export function applyRuntimePolicyForm(
 
   const outbounds = asObjectArray(template.outbounds);
   const directIndex = outbounds.findIndex(
-    (outbound) => stringValue(outbound.protocol) === 'freedom' && stringValue(outbound.tag) === 'direct',
+    (outbound) =>
+      stringValue(outbound.protocol) === 'freedom' && stringValue(outbound.tag) === 'direct',
   );
   if (directIndex === -1) {
     outbounds.push({
@@ -912,7 +914,8 @@ export function getObservatoryForm(config: JsonValue | null | undefined): Observ
   const burstObservatory = asObject(template.burstObservatory);
   return {
     observatoryEnable: Object.keys(observatory).length > 0,
-    observatoryJson: Object.keys(observatory).length > 0 ? JSON.stringify(observatory, null, 2) : '',
+    observatoryJson:
+      Object.keys(observatory).length > 0 ? JSON.stringify(observatory, null, 2) : '',
     burstObservatoryEnable: Object.keys(burstObservatory).length > 0,
     burstObservatoryJson:
       Object.keys(burstObservatory).length > 0 ? JSON.stringify(burstObservatory, null, 2) : '',
@@ -971,9 +974,12 @@ function buildReverseRules(form: ReverseEditorForm): JsonObject[] {
 }
 
 function getDirectFreedomOutbound(template: JsonObject): JsonObject | null {
-  return asObjectArray(template.outbounds).find(
-    (outbound) => stringValue(outbound.protocol) === 'freedom' && stringValue(outbound.tag) === 'direct',
-  ) || null;
+  return (
+    asObjectArray(template.outbounds).find(
+      (outbound) =>
+        stringValue(outbound.protocol) === 'freedom' && stringValue(outbound.tag) === 'direct',
+    ) || null
+  );
 }
 
 function syncObservatorySelectors(template: JsonObject): JsonObject {
@@ -986,7 +992,9 @@ function syncObservatorySelectors(template: JsonObject): JsonObject {
 
   if (leastPings.length > 0) {
     const observatory = asObject(next.observatory);
-    observatory.subjectSelector = uniqueList(leastPings.flatMap((row) => splitList(row.selectorText)));
+    observatory.subjectSelector = uniqueList(
+      leastPings.flatMap((row) => splitList(row.selectorText)),
+    );
     next.observatory = observatory;
   } else {
     delete next.observatory;
@@ -1037,7 +1045,9 @@ function getResidentialRoutingTags(template: JsonObject): Set<string> {
 }
 
 function isManagedAiResidentialRule(rule: JsonObject, residentialTags: string[]): boolean {
-  const domains = arrayValue(rule.domain).filter((item): item is string => typeof item === 'string');
+  const domains = arrayValue(rule.domain).filter(
+    (item): item is string => typeof item === 'string',
+  );
   if (!domains.some(isAiResidentialDomainCandidate)) {
     return false;
   }
@@ -1098,9 +1108,7 @@ function cloneObject(value: JsonValue | null | undefined): JsonObject {
 }
 
 function asObject(value: JsonValue | null | undefined): JsonObject {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as JsonObject)
-    : {};
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonObject) : {};
 }
 
 function asObjectArray(value: JsonValue | undefined): JsonObject[] {

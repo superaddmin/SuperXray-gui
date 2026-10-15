@@ -85,6 +85,7 @@ type InboundRepository interface {
 	DeleteClientTrafficsByInboundID(tx *gorm.DB, inboundID int) error
 	DeleteInboundClientIPsByEmail(tx *gorm.DB, email string) error
 	DeleteByID(tx *gorm.DB, id int) error
+	CreateInbound(tx *gorm.DB, inbound *model.Inbound) error
 	SaveInbound(tx *gorm.DB, inbound *model.Inbound) error
 	SaveInbounds(tx *gorm.DB, inbounds []*model.Inbound) error
 	Save(inbound *model.Inbound) error
@@ -684,6 +685,15 @@ func (r *GormInboundRepository) DeleteInboundClientIPsByEmail(tx *gorm.DB, email
 
 func (r *GormInboundRepository) DeleteByID(tx *gorm.DB, id int) error {
 	return tx.Delete(model.Inbound{}, id).Error
+}
+
+func (r *GormInboundRepository) CreateInbound(tx *gorm.DB, inbound *model.Inbound) error {
+	if tx == nil {
+		tx = r.db
+	}
+	// Client statistics are inserted explicitly by the caller. GORM's
+	// association upsert must never reassign an existing traffic record.
+	return tx.Omit("ClientStats").Create(inbound).Error
 }
 
 func (r *GormInboundRepository) SaveInbound(tx *gorm.DB, inbound *model.Inbound) error {

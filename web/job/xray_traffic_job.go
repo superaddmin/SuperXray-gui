@@ -3,6 +3,7 @@ package job
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
@@ -45,6 +46,15 @@ type pendingTraffic struct {
 	inbounds  map[string]trafficDelta
 	clients   map[string]trafficDelta
 	outbounds map[string]trafficDelta
+}
+
+const externalInformTimeout = 3 * time.Second
+
+var externalInformClient = &fasthttp.Client{
+	ReadTimeout:         externalInformTimeout,
+	WriteTimeout:        externalInformTimeout,
+	MaxIdleConnDuration: time.Minute,
+	MaxConnsPerHost:     4,
 }
 
 // XrayTrafficJob collects and processes traffic statistics from Xray, updating the database and optionally informing external APIs.
@@ -285,11 +295,12 @@ func (j *XrayTrafficJob) informTrafficToExternalAPI(inboundTraffics []*xray.Traf
 	defer fasthttp.ReleaseRequest(request)
 	request.Header.SetMethod("POST")
 	request.Header.SetContentType("application/json; charset=UTF-8")
-	request.SetBody([]byte(requestBody))
+	request.SetBody(requestBody)
 	request.SetRequestURI(informURL)
+	request.Header.SetConnectionClose()
 	response := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseResponse(response)
-	if err := fasthttp.Do(request, response); err != nil {
+	if err := externalInformClient.DoTimeout(request, response, externalInformTimeout); err != nil {
 		logger.Warning("POST ExternalTrafficInformURI failed:", err)
 	}
 }

@@ -316,7 +316,7 @@ func TestInboundServiceDelInboundUsesRepositoryLookupAndDelete(t *testing.T) {
 	}
 }
 
-func TestInboundServiceAddInboundUsesRepositorySave(t *testing.T) {
+func TestInboundServiceAddInboundUsesRepositoryCreate(t *testing.T) {
 	setupInboundServiceTestDB(t)
 
 	repo := &fakeInboundRepository{}
@@ -341,8 +341,8 @@ func TestInboundServiceAddInboundUsesRepositorySave(t *testing.T) {
 	if needRestart {
 		t.Fatal("AddInbound() returned needRestart=true, want false for disabled inbound")
 	}
-	if len(repo.saveInboundCalls) != 1 || repo.saveInboundCalls[0].Id != 31 {
-		t.Fatalf("AddInbound() SaveInbound calls = %+v, want inbound 31", repo.saveInboundCalls)
+	if len(repo.createInboundCalls) != 1 || repo.createInboundCalls[0].Id != 1 || len(repo.saveInboundCalls) != 0 {
+		t.Fatalf("AddInbound() CreateInbound calls = %+v, want a newly allocated ID without SaveInbound", repo.createInboundCalls)
 	}
 	if len(repo.createClientTrafficCalls) != 1 || repo.createClientTrafficCalls[0].Email != "created@example.test" {
 		t.Fatalf("AddInbound() CreateClientTraffic calls = %+v, want created@example.test", repo.createClientTrafficCalls)
@@ -745,6 +745,7 @@ type fakeInboundRepository struct {
 	listInvalidClientTrafficTargetsCalls    int
 	disableInvalidClientTrafficsCalls       int
 	saveInboundCalls                        []model.Inbound
+	createInboundCalls                      []model.Inbound
 	saveInboundsCalls                       [][]model.Inbound
 	saveClientTrafficCalls                  []xray.ClientTraffic
 	saveClientTrafficsCalls                 [][]xray.ClientTraffic
@@ -1307,6 +1308,13 @@ func (r *fakeInboundRepository) DeleteDepletedClientTraffics(_ *gorm.DB, inbound
 }
 
 func (r *fakeInboundRepository) Save(_ *model.Inbound) error {
+	return nil
+}
+
+func (r *fakeInboundRepository) CreateInbound(_ *gorm.DB, inbound *model.Inbound) error {
+	inbound.Id = len(r.inbounds) + 1
+	r.createInboundCalls = append(r.createInboundCalls, *copyInboundForRepositoryTest(inbound))
+	r.inbounds = append(r.inbounds, copyInboundForRepositoryTest(inbound))
 	return nil
 }
 

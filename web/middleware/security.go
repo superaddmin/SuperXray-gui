@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/superaddmin/SuperXray-gui/v2/util/trustedproxy"
 	"github.com/superaddmin/SuperXray-gui/v2/web/session"
 
 	"github.com/gin-gonic/gin"
@@ -125,12 +126,5 @@ func hasOriginHeader(c *gin.Context) bool {
 }
 
 func requestScheme(c *gin.Context) string {
-	forwardedProto := c.GetHeader("X-Forwarded-Proto")
-	if forwardedProto != "" {
-		return strings.ToLower(strings.TrimSpace(strings.Split(forwardedProto, ",")[0]))
-	}
-	if c.Request.TLS != nil {
-		return "https"
-	}
-	return "http"
+	return trustedproxy.Scheme(c)
 }

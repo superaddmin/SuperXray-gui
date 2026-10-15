@@ -4,7 +4,10 @@ import (
 	_ "embed"
 	"encoding/json"
 
+	"github.com/superaddmin/SuperXray-gui/v2/database"
+	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
+	"github.com/superaddmin/SuperXray-gui/v2/util/xraycompat"
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
 )
 
@@ -12,6 +15,7 @@ import (
 // It handles validation and storage of Xray template configurations.
 type XraySettingService struct {
 	SettingService
+	validateConfig func(*xray.Config) error
 }
 
 func (s *XraySettingService) SaveXraySetting(newXraySettings string) error {
@@ -21,6 +25,11 @@ func (s *XraySettingService) SaveXraySetting(newXraySettings string) error {
 	// back here. Strip it before validation/storage, otherwise we save
 	// garbage the next read can't recover from without this same call.
 	newXraySettings = UnwrapXrayTemplateConfig(newXraySettings)
+	normalized, _, err := xraycompat.NormalizeConfig(newXraySettings)
+	if err != nil {
+		return err
+	}
+	newXraySettings = normalized
 	if err := s.CheckXrayConfig(newXraySettings); err != nil {
 		return err
 	}
@@ -28,12 +37,32 @@ func (s *XraySettingService) SaveXraySetting(newXraySettings string) error {
 }
 
 func (s *XraySettingService) CheckXrayConfig(XrayTemplateConfig string) error {
-	xrayConfig := &xray.Config{}
-	err := json.Unmarshal([]byte(XrayTemplateConfig), xrayConfig)
+	// Build with a read-only template overlay: routes may refer to the panel's
+	// enabled inbounds, and validation must not persist a candidate or traffic.
+	preview := XrayService{settingService: *NewSettingService(templateSettings{
+		SettingRepository: s.settings(), template: XrayTemplateConfig,
+	})}
+	xrayConfig, err := preview.getXrayConfig(false)
 	if err != nil {
 		return common.NewError("xray template config invalid:", err)
 	}
-	return nil
+	validate := s.validateConfig
+	if validate == nil {
+		validate = xray.ValidateConfig
+	}
+	return validate(xrayConfig)
+}
+
+type templateSettings struct {
+	database.SettingRepository
+	template string
+}
+
+func (s templateSettings) Get(key string) (*model.Setting, error) {
+	if key == "xrayTemplateConfig" {
+		return &model.Setting{Key: key, Value: s.template}, nil
+	}
+	return s.SettingRepository.Get(key)
 }
 
 // UnwrapXrayTemplateConfig returns the raw xray config JSON from `raw`,

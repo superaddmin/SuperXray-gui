@@ -4,7 +4,40 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/superaddmin/SuperXray-gui/v2/database"
 )
+
+func TestCronPanicReleasesDatabaseLeaseAndAllowsNextRun(t *testing.T) {
+	c := newCronScheduler(time.Local)
+	runs := 0
+	id, err := c.AddFunc("@every 1s", func() {
+		runs++
+		if runs == 1 {
+			panic("fixture job panic")
+		}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := c.Entry(id).WrappedJob
+	job.Run()
+	job.Run()
+	if runs != 2 {
+		t.Fatal("panic permanently consumed the non-overlap token")
+	}
+	done := make(chan struct{})
+	go func() {
+		release := database.AcquireMaintenance()
+		release()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("panic leaked the database read lease")
+	}
+}
 
 func TestNewCronSchedulerSkipsOverlappingRuns(t *testing.T) {
 	c := newCronScheduler(time.Local)

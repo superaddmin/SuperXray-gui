@@ -158,10 +158,14 @@ jobs:
           cp x-ui.sh x-ui/
 
           cd x-ui/bin
-          xray_url="https://github.com/XTLS/Xray-core/releases/download/v26.3.27/"
+          xray_url="https://github.com/XTLS/Xray-core/releases/download/v26.10.10/"
           wget -q "${xray_url}${XRAY_ZIP}"
+          wget -q "${xray_url}${XRAY_ZIP}.dgst"
+          expected_sha=$(awk '/^SHA2-256=/{print $2}' "${XRAY_ZIP}.dgst")
+          test "${#expected_sha}" -eq 64
+          printf '%s  %s\n' "$expected_sha" "$XRAY_ZIP" | sha256sum -c -
           unzip -q "$XRAY_ZIP"
-          rm -f "$XRAY_ZIP" geoip.dat geosite.dat
+          rm -f "$XRAY_ZIP" "${XRAY_ZIP}.dgst" geoip.dat geosite.dat
           wget -q https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat
           wget -q https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
           wget -q -O geoip_IR.dat https://github.com/chocolate4u/Iran-v2ray-rules/releases/latest/download/geoip.dat

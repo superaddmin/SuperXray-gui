@@ -2,11 +2,13 @@ openapi: 3.1.0
 info:
   title: SuperXray Panel API
   version: 3.4.3
-  x-source-audit-date: '2026-10-14'
+  x-source-audit-date: '2026-10-15'
   description: |
     Machine-readable contract for the Vue panel API implemented by the local Go/Gin backend.
     Runtime deployments may prepend the configured webBasePath before these paths.
     The legacy response envelope is web/entity.Msg: success, msg, obj.
+    Business failures generally use HTTP 200 with success=false; callers must inspect the envelope.
+    Forwarded scheme and client IP are accepted only from SUPERXRAY_TRUSTED_PROXY_CIDRS.
 servers:
   - url: "{webBasePath}"
     description: Runtime panel base path. The current source default is /super/; deployments may configure another prefix.
@@ -406,6 +408,7 @@ paths:
     post:
       tags: [Inbounds]
       summary: Manually update upload/download traffic for a client email.
+      description: Replaces stored up/down byte counters, rather than adding deltas. Omitted fields bind as zero and overwrite the corresponding counter.
       operationId: updateClientTraffic
       parameters:
         - $ref: '#/components/parameters/EmailPath'
@@ -481,6 +484,7 @@ paths:
     get:
       tags: [Server]
       summary: Get the generated Xray configuration JSON.
+      description: Regenerates from stored settings and enabled inbounds rather than reading the last runtime file. The generation path also evaluates traffic quotas and expiry.
       operationId: getConfigJson
       security:
         - cookieAuth: []
@@ -493,6 +497,7 @@ paths:
     get:
       tags: [Server]
       summary: Download the authenticated panel database backup.
+      description: Returns a consistent VACUUM INTO snapshot including committed WAL pages. Errors use the legacy JSON envelope.
       operationId: downloadDatabase
       security:
         - cookieAuth: []
@@ -595,6 +600,7 @@ paths:
     post:
       tags: [Server]
       summary: Install or update Xray to a selected version.
+      description: Accepts stable vYY.M.D tags from v26.10.10 onward. Validates the effective configuration with staged binary and geo assets before replacing the installation; replacement/startup failures restore previous files.
       operationId: installXray
       parameters:
         - $ref: '#/components/parameters/VersionPath'
@@ -682,6 +688,7 @@ paths:
     post:
       tags: [Server]
       summary: Import a database backup file after size/name/extension validation.
+      description: Migrates a private SQLite candidate and validates its complete configuration with the installed Xray before replacement. A database maintenance lease drains requests/jobs. Open/start failures restore the original database; a previously stopped core remains stopped.
       operationId: importDatabase
       requestBody:
         $ref: '#/components/requestBodies/ImportDatabaseMultipart'
@@ -950,6 +957,7 @@ paths:
     post:
       tags: [Settings]
       summary: Get all panel settings.
+      description: Returns AllSetting; twoFactorToken is always an empty string and never reveals the stored authenticator secret.
       operationId: getAllSettings
       security:
         - cookieAuth: []
@@ -980,6 +988,7 @@ paths:
     post:
       tags: [Settings]
       summary: Update panel settings with legacy-compatible fields.
+      description: Full settings update, not PATCH. Enable 2FA with a new secret and its current code; disable or replace an enabled authenticator with the old authenticator code. Blank twoFactorToken preserves the current secret. twoFactorCode is request-only. Settings are persisted in one transaction.
       operationId: updateSettings
       requestBody:
         $ref: '#/components/requestBodies/AllSettingFormOrJson'
@@ -1077,6 +1086,7 @@ paths:
     post:
       tags: [Xray]
       summary: Get the Xray template, inbound tags, and outbound test URL.
+      description: obj is a JSON-encoded string containing xraySetting (an object), inboundTags (an array), and outboundTestUrl.
       operationId: getXraySetting
       security:
         - cookieAuth: []
@@ -1130,6 +1140,7 @@ paths:
     post:
       tags: [Xray]
       summary: Save the Xray configuration template and outbound test URL.
+      description: Unwraps legacy response envelopes, normalizes compatible fields, and validates the effective template plus enabled inbounds with the installed Xray. Failed validation leaves the template unchanged. Restart is separate. The test URL is saved after the template in a separate write whose error is currently not propagated.
       operationId: updateXraySetting
       requestBody:
         $ref: '#/components/requestBodies/XrayUpdateForm'
@@ -1259,7 +1270,8 @@ components:
       required: true
       schema:
         type: string
-        minLength: 1
+        pattern: '^v[0-9]{2}\.[0-9]{1,2}\.[0-9]{1,2}$'
+      description: Stable Xray release tag from v26.10.10 onward; older versions are rejected by the installer.
     FileNamePath:
       name: fileName
       in: path
@@ -1353,16 +1365,19 @@ components:
               db:
                 type: string
                 format: binary
-                description: .db, .sqlite, or .sqlite3 backup file within the server size limit.
+                description: .db, .sqlite, or .sqlite3 SQLite backup, 16 bytes to 64 MiB. The multipart request limit is 65 MiB. Candidate migration and real-core configuration validation must pass.
     EchCertForm:
-      required: false
+      required: true
       content:
         application/x-www-form-urlencoded:
           schema:
             type: object
+            required: [sni]
             properties:
               sni:
                 type: string
+                minLength: 1
+                description: Required after trimming; must not start with '-' or contain whitespace or NUL.
     SelfSignedCertForm:
       required: false
       content:
@@ -1395,10 +1410,10 @@ components:
       content:
         application/x-www-form-urlencoded:
           schema:
-            $ref: '#/components/schemas/AllSetting'
+            $ref: '#/components/schemas/UpdateSettingsRequest'
         application/json:
           schema:
-            $ref: '#/components/schemas/AllSetting'
+            $ref: '#/components/schemas/UpdateSettingsRequest'
     UpdateUserForm:
       required: true
       content:
@@ -1479,12 +1494,15 @@ components:
           schema:
             $ref: '#/components/schemas/LegacyResponse'
     BinaryFile:
-      description: Authenticated binary file download.
+      description: Authenticated binary file download, or a legacy JSON error envelope if snapshot creation fails.
       content:
         application/octet-stream:
           schema:
             type: string
             format: binary
+        application/json:
+          schema:
+            $ref: '#/components/schemas/LegacyResponse'
     ForbiddenCSRF:
       description: CSRF validation failed for a state-changing request.
       content:
@@ -1648,7 +1666,7 @@ components:
           type: string
     TrafficUpdateRequest:
       type: object
-      required: [upload, download]
+      description: Upload and download replace stored byte counters. Omitted values bind as zero and overwrite existing values.
       properties:
         upload:
           type: integer
@@ -1686,6 +1704,7 @@ components:
           type: string
         webBasePath:
           type: string
+          description: Normalized to leading/trailing slashes. Empty or root values become /super/.
         sessionMaxAge:
           type: integer
         panelProxy:
@@ -1726,6 +1745,7 @@ components:
           type: boolean
         twoFactorToken:
           type: string
+          description: Always empty in settings responses. In update requests, empty preserves the existing secret; disabling clears it after old-code verification.
         subEnable:
           type: boolean
         subJsonEnable:
@@ -1824,6 +1844,15 @@ components:
           type: integer
         ldapDefaultLimitIP:
           type: integer
+    UpdateSettingsRequest:
+      allOf:
+        - $ref: '#/components/schemas/AllSetting'
+        - type: object
+          properties:
+            twoFactorCode:
+              type: string
+              writeOnly: true
+              description: Current 6-digit code, required when enabling, disabling or replacing an authenticator. New code on first enable; old code on disable or replacement. Never persisted.
     UpdateUserForm:
       type: object
       required: [oldUsername, oldPassword, newUsername, newPassword]
