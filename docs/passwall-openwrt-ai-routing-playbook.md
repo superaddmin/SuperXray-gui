@@ -3,7 +3,6 @@
 > 相关总览入口：[服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
 > 适用场景：主 WiFi 默认直连、AI / GFW 域名代理、USA WiFi 全代理的双网络结构。
-> 代码核对日期：2026-10-14。SuperXray-gui 不配置 OpenWrt、Passwall 或 WiFi；下述网络结构是运维规划，实际策略依赖目标固件、Passwall 版本和运行规则。现场案例保留原始记录，本轮未连接设备重新实测。
 
 ## 1. 推荐拓扑
 
@@ -18,8 +17,6 @@
 - 目标：保持单独全代理，用于美国出口专网
 
 ### 实测现状
-
-> 历史现场案例：以下观察只适用于当时环境。缺少客户端代理进程不能单独证明代理一定由 OpenWrt 承担，需结合网关进程、ACL/规则计数交叉验证；trace 返回的出口 IP/colo 也不能单独证明出口长期固定或属于住宅网络。
 
 上表是规划目标，现场可能不同，排障前先按实测值核对（本节数据来自一次实际排查）：
 
@@ -77,12 +74,10 @@ AI 产品通常不止一个首页域名，还会拆分：
 ### 客户端
 
 ```bash
-curl --connect-timeout 5 --max-time 30 https://api.ipify.org
-curl --connect-timeout 5 --max-time 30 -sS -o /dev/null -w 'HTTP %{http_code}\n' https://api.openai.com/v1/models
-curl --connect-timeout 5 --max-time 30 https://chatgpt.com/cdn-cgi/trace
+curl https://api.ipify.org
+curl -I https://api.openai.com/v1/models
+curl -I https://chatgpt.com/cdn-cgi/trace
 ```
-
-`401`/`403` 等响应须区分网络可达、授权失败和平台策略拒绝；基础探测不验证模型推理。trace 需要 GET 正文才能读取 `ip` 与 `colo`。
 
 ### OpenWrt
 
@@ -94,8 +89,6 @@ cat /tmp/etc/passwall/var
 iwinfo
 cat /tmp/dhcp.leases
 ```
-
-这些命令适用于相应 Passwall/iptables 布局。fw4/nftables 环境还需 `nft list ruleset`；没有 `PSW` 链或上述缓存文件时先定位实际版本和规则，不能据此直接判定故障。完整 UCI、运行参数、租约和日志可能含代理密码或设备信息，分享前只保留脱敏摘要。
 
 ### 服务器
 
