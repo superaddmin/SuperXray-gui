@@ -17,6 +17,7 @@ export const legacyEndpoints = {
   server: {
     status: 'panel/api/server/status',
     xrayVersions: 'panel/api/server/getXrayVersion',
+    checkUpdate: 'panel/api/server/checkUpdate',
     restartXray: 'panel/api/server/restartXrayService',
     stopXray: 'panel/api/server/stopXrayService',
     installXray: (version: string) => `panel/api/server/installXray/${encodePath(version)}`,

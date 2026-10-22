@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-10-23
+
+### Added
+
+- 新增受登录保护的 `GET /panel/api/server/checkUpdate`，对比当前面板版本与 GitHub 最新稳定 Release；控制器缓存 10 分钟，Dashboard 和顶部状态栏显示可更新版本与 Release 链接，不自动下载或安装。
+
 ## [3.5.0] - 2026-10-22
 
 ### Added

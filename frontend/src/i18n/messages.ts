@@ -330,6 +330,7 @@ const messages = {
   'status.collapseNav': { 'zh-CN': '收起导航', 'en-US': 'Collapse navigation' },
   'status.closeNav': { 'zh-CN': '关闭导航', 'en-US': 'Close navigation' },
   'status.phase10': { 'zh-CN': '阶段 10', 'en-US': 'Phase 10' },
+  'status.panelUpdate': { 'zh-CN': '面板可更新', 'en-US': 'Update' },
   'xray.configEditor': { 'zh-CN': 'Xray 模板编辑器', 'en-US': 'Xray Template Editor' },
   'xray.description': {
     'zh-CN': '控制旧版 Xray 运行时、模板、版本、出站与提供商工具。',

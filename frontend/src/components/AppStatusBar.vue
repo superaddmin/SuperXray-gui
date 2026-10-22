@@ -4,6 +4,19 @@
       {{ xrayStatusLabel }}
     </ATag>
     <ATag class="status-tag status-tag-phase">{{ phaseLabel }}</ATag>
+    <ATag
+      v-if="serverStore.panelUpdate?.updateAvailable"
+      class="status-tag status-tag-update"
+      color="blue"
+    >
+      <a
+        :href="serverStore.panelUpdate.releaseUrl"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {{ panelUpdateLabel }}
+      </a>
+    </ATag>
     <AButton
       class="language-toggle"
       size="small"
@@ -54,10 +67,15 @@ const xrayStatusColor = computed(() => {
 const languageButtonLabel = computed(() => getLanguageButtonLabel(appStore.locale));
 const languageToggleAriaLabel = computed(() => getLanguageToggleAriaLabel(appStore.locale));
 const phaseLabel = computed(() => translate('status.phase10', appStore.locale));
+const panelUpdateLabel = computed(
+  () =>
+    `${translate('status.panelUpdate', appStore.locale)} v${serverStore.panelUpdate?.latestVersion || ''}`,
+);
 const themeLabel = computed(() => translate('status.darkTheme', appStore.locale));
 
 onMounted(() => {
   serverStore.connectRealtime();
   void serverStore.refreshStatus();
+  void serverStore.refreshPanelUpdate();
 });
 </script>

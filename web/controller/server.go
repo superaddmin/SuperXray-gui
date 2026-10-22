@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
@@ -37,6 +38,10 @@ type ServerController struct {
 
 	lastVersions        []string
 	lastGetVersionsTime int64 // unix seconds
+
+	panelUpdateMu       sync.Mutex
+	lastPanelUpdate     *service.PanelUpdateInfo
+	lastPanelUpdateTime int64 // unix seconds
 }
 
 // NewServerController creates a new ServerController, initializes routes, and starts background tasks.
@@ -53,6 +58,7 @@ func (a *ServerController) initRouter(g *gin.RouterGroup) {
 	g.GET("/status", a.status)
 	g.GET("/cpuHistory/:bucket", a.getCpuHistoryBucket)
 	g.GET("/getXrayVersion", a.getXrayVersion)
+	g.GET("/checkUpdate", a.checkUpdate)
 	g.GET("/getConfigJson", a.getConfigJson)
 	g.GET("/getDb", a.getDb)
 	g.GET("/getNewUUID", a.getNewUUID)
@@ -142,6 +148,29 @@ func (a *ServerController) getXrayVersion(c *gin.Context) {
 	a.lastGetVersionsTime = now
 
 	jsonObj(c, versions, nil)
+}
+
+// checkUpdate reports whether a newer stable SuperXray release exists.
+// The GitHub API result is cached for 10 minutes to stay within unauthenticated rate limits.
+func (a *ServerController) checkUpdate(c *gin.Context) {
+	a.panelUpdateMu.Lock()
+	defer a.panelUpdateMu.Unlock()
+
+	now := time.Now().Unix()
+	if a.lastPanelUpdate != nil && now-a.lastPanelUpdateTime <= 600 {
+		jsonObj(c, a.lastPanelUpdate, nil)
+		return
+	}
+
+	info, err := a.serverService.CheckPanelUpdate()
+	if err != nil {
+		jsonMsg(c, I18nWeb(c, "getVersion"), err)
+		return
+	}
+
+	a.lastPanelUpdate = info
+	a.lastPanelUpdateTime = now
+	jsonObj(c, info, nil)
 }
 
 // installXray installs or updates Xray to the specified version.

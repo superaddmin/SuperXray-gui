@@ -1,14 +1,14 @@
 # API 接口说明
 
 > **目标读者**：集成开发者 / 前端维护者
-> **适用版本**：`v3.5.0`
-> **源码核对日期**：2026-10-15（静态契约与现有回归测试；部署配置和外部服务需在目标环境验证）
+> **适用版本**：`v3.6.0`
+> **源码核对日期**：2026-10-23（静态契约与现有回归测试；部署配置和外部服务需在目标环境验证）
 > **事实来源**：`web/controller/*`、`web/ui.go`、`web/middleware/security.go`、`web/websocket/*`、`sub/*`、`frontend/src/api/*`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [部署指南](deployment.md) | [Panel OpenAPI](openapi/panel-api.yaml) | [Versioned API OpenAPI](openapi/api-v1.yaml)
 
 > **文档职责**：本文保留为面向维护者的人类说明；`docs/openapi/panel-api.yaml` 是 Vue 面板 API 的机器契约，用于路由漂移测试，并通过 `tools/openapiexport` 生成 `frontend/public/openapi.json`，再由 Vite 输出到 `web/ui/openapi.json`。`docs/openapi/api-v1.yaml` 是新增 `/api/v1/*` 版本化 API 的机器契约。
 
-Panel OpenAPI 只覆盖 `/panel/api/*` 的 74 个操作，不含页面、认证、兼容组、WebSocket 和独立订阅服务。机器契约范围外的 20 个面板操作（根/登录/2FA/登出 4 个、CSRF token 1 个、设置 6 个、Xray 9 个）均在下文逐项说明。
+Panel OpenAPI 只覆盖 `/panel/api/*` 的 75 个操作，不含页面、认证、兼容组、WebSocket 和独立订阅服务。机器契约范围外的 20 个面板操作（根/登录/2FA/登出 4 个、CSRF token 1 个、设置 6 个、Xray 9 个）均在下文逐项说明。
 
 ---
 
@@ -37,7 +37,7 @@ window.__SUPERXRAY_UI_CONFIG__ = {
   uiBasePath: "/panel/",
   csrfToken: "<session csrf token>",
   cspNonce: "<request nonce>",
-  version: "3.5.0.<asset-hash>"
+  version: "3.6.0.<asset-hash>"
 }
 ```
 
@@ -534,6 +534,7 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 | `GET` | `/status` | 返回缓存的服务器状态；后台每 2 秒刷新 |
 | `GET` | `/cpuHistory/:bucket` | 返回 CPU 历史聚合，允许 `2/30/60/120/180/300` |
 | `GET` | `/getXrayVersion` | 返回可安装 Xray 版本列表，控制器缓存 60 秒 |
+| `GET` | `/checkUpdate` | 对比当前面板版本与 GitHub 最新稳定 Release；控制器缓存 10 分钟，只返回提示信息，不自动安装 |
 | `GET` | `/getConfigJson` | 从数据库模板及启用入站重新生成配置对象，不是读取最后启动的配置文件；生成时会检查配额/到期状态 |
 | `GET` | `/getDb` | 通过 `VACUUM INTO` 下载包含已提交 WAL 数据的一致性 SQLite 快照，文件名 `x-ui.db` |
 | `GET` | `/getNewUUID` | 生成 UUID |
@@ -541,6 +542,8 @@ Inbound 活跃写模型仍是 `database/model.Inbound`：
 | `GET` | `/getNewmldsa65` | 生成 ML-DSA-65 密钥 |
 | `GET` | `/getNewmlkem768` | 生成 ML-KEM-768 密钥 |
 | `GET` | `/getNewVlessEnc` | 生成 VLESS encryption key |
+
+`/checkUpdate` 读取 `XUI_RELEASE_REPO`（默认 `superaddmin/SuperXray-gui`）的 GitHub 最新稳定 Release，与 `config/version` 比较；只返回版本、Release 名称、链接和发布时间，不下载或安装资产。GitHub API 未认证限流为每小时 60 次，控制器缓存 10 分钟；网络失败返回 legacy 错误响应，前端不弹错误提示。
 
 ### 7.2 Xray 与 Geo 操作
 

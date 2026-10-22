@@ -41,6 +41,15 @@ export interface ServerStatus {
   };
 }
 
+export interface PanelUpdateInfo {
+  currentVersion: string;
+  latestVersion: string;
+  updateAvailable: boolean;
+  releaseName: string;
+  releaseUrl: string;
+  publishedAt: string;
+}
+
 export interface XrayAccessLogEntry {
   DateTime: string;
   FromAddress: string;

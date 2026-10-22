@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia';
 
 import { getApiErrorMessage } from '@/api/request';
-import { getServerStatus } from '@/api/server';
+import { checkPanelUpdate as fetchPanelUpdate, getServerStatus } from '@/api/server';
 import { openPanelWebSocket, type PanelWebSocketMessage } from '@/api/websocket';
-import type { ServerStatus } from '@/types/server';
+import type { PanelUpdateInfo, ServerStatus } from '@/types/server';
 import { hasInjectedRuntimeConfig } from '@/types/runtime';
 
 export const useServerStore = defineStore('server', {
@@ -11,6 +11,9 @@ export const useServerStore = defineStore('server', {
     loadingStatus: false,
     status: null as ServerStatus | null,
     statusError: '',
+    panelUpdate: null as PanelUpdateInfo | null,
+    panelUpdateLoading: false,
+    panelUpdateFetchedAt: 0,
     websocketConnected: false,
     websocketStarted: false,
     websocket: null as WebSocket | null,
@@ -29,6 +32,24 @@ export const useServerStore = defineStore('server', {
         this.statusError = getApiErrorMessage(error);
       } finally {
         this.loadingStatus = false;
+      }
+    },
+    async refreshPanelUpdate(force = false) {
+      if (!hasInjectedRuntimeConfig() || this.panelUpdateLoading) {
+        return;
+      }
+      if (!force && Date.now() - this.panelUpdateFetchedAt < 60_000) {
+        return;
+      }
+
+      this.panelUpdateLoading = true;
+      try {
+        this.panelUpdate = await fetchPanelUpdate({ notifyOnError: false });
+      } catch {
+        this.panelUpdate = null;
+      } finally {
+        this.panelUpdateFetchedAt = Date.now();
+        this.panelUpdateLoading = false;
       }
     },
     connectRealtime() {

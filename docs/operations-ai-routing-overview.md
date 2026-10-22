@@ -1,7 +1,7 @@
 # 服务器部署 + OpenWrt 路由 + AI 出口治理统一总览
 
 > **目标读者**：需要同时维护 SuperXray 服务器节点、OpenWrt/Passwall 分流、AI 平台出口质量与排障流程的开发者 / 运维人员  
-> **适用版本**：`v3.5.0`
+> **适用版本**：`v3.6.0`
 > **核对日期**：2026-10-22。本仓库实现服务器侧 Xray 模板、订阅和 Gateway CSV；默认运行时 Xray 为 `v26.10.21`（兼容基线 `v26.10.10`），模板保存会执行兼容转换及核心预检，仍须显式重启与运行态验证。OpenWrt/Passwall、SSID、网段及外部 Gateway 均为部署环境，以下拓扑与命令是验证模板，不能证明现场已经配置成功。
 > 本文已合并原《OpenWrt / Passwall AI 路由实战手册》的独有内容；该文件不再单独维护。
 > **相关文档**：[部署指南](deployment.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md) | [Gateway 超时修复手册](gateway-egress-timeout-remediation-runbook.md)

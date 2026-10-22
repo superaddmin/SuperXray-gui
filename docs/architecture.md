@@ -1,7 +1,7 @@
 # 系统架构设计
 
 > **目标读者**：开发者 / 架构师 / 发布维护者
-> **适用版本**：`v3.5.0`
+> **适用版本**：`v3.6.0`
 > **源码核对日期**：2026-10-15；版本以 `config/version` 为准，阶段规划以 `plans/STATUS.md` 为准。
 > **事实来源**：`main.go`、`.codex/project.toml`、`web/`、`sub/`、`core/`、`database/`、`frontend/`、`.github/workflows/release.yml`
 > **相关文档**：[核心模块解析](modules.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md)
@@ -17,7 +17,7 @@ SuperXray-gui 是一个以 Xray-core 为主运行核心的 Web 控制面板。�
 | 项目 | 当前实现 |
 |---|---|
 | 应用名 | `x-ui`，由 `config/name` 提供 |
-| 当前版本 | `3.5.0`，由 `config/version` 提供 |
+| 当前版本 | `3.6.0`，由 `config/version` 提供 |
 | 默认面板路径 | `/super/`，由 `web/service/setting.go` 提供；下文面板 API/页面路径均相对于配置的 `webBasePath` |
 | Go module | `github.com/superaddmin/SuperXray-gui/v2` |
 | Go 版本 | `1.27.2`，见 `go.mod` |

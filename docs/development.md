@@ -1,8 +1,8 @@
 # 开发者贡献指南
 
 > **目标读者**：贡献者 / 维护者 / 自动化 Agent
-> **适用版本**：`v3.5.0`
-> **源码核对日期**：2026-10-15；当前分支纳入上游 `MHSanaei/3x-ui v3.10.2`，项目版本仍为 `config/version` 的 `3.5.0`，默认运行时 Xray `v26.10.21`（兼容基线 `v26.10.10`）。
+> **适用版本**：`v3.6.0`
+> **源码核对日期**：2026-10-15；当前分支纳入上游 `MHSanaei/3x-ui v3.10.2`，项目版本仍为 `config/version` 的 `3.6.0`，默认运行时 Xray `v26.10.21`（兼容基线 `v26.10.10`）。
 > **事实来源**：`go.mod`、`.env.example`、`frontend/package.json`、`.github/workflows/*`、`.codex/project.toml`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [部署指南](deployment.md)
 
@@ -87,6 +87,7 @@ XUI_LOG_LEVEL=info
 XUI_DB_FOLDER=/etc/x-ui
 XUI_LOG_FOLDER=/var/log/x-ui
 XUI_BIN_FOLDER=bin
+XUI_RELEASE_REPO=superaddmin/SuperXray-gui
 ```
 
 其中 `/etc/x-ui` 与 `/var/log/x-ui` 是 Linux 示例路径。Windows 本地开发应使用下面的工作区路径或显式绝对路径，不能直接按 Linux 示例推断存储位置。未设置目录变量时，Windows DB 使用可执行程序目录（`go run` 临时程序按当前工作目录回退），日志使用当前工作目录下的 `log/`；Linux 分别为 `/etc/x-ui`、`/var/log/x-ui`。

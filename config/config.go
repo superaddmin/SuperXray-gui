@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
@@ -56,6 +57,20 @@ func GetAssetVersion() string {
 // GetName returns the name of the SuperXray application.
 func GetName() string {
 	return strings.TrimSpace(name)
+}
+
+const defaultReleaseRepo = "superaddmin/SuperXray-gui"
+
+var releaseRepoPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
+
+// GetReleaseRepo returns the GitHub owner/repository used for release checks.
+// Invalid values fall back to the project repository instead of building an invalid URL.
+func GetReleaseRepo() string {
+	repo := strings.TrimSpace(os.Getenv("XUI_RELEASE_REPO"))
+	if repo == "" || strings.Contains(repo, "..") || !releaseRepoPattern.MatchString(repo) {
+		return defaultReleaseRepo
+	}
+	return repo
 }
 
 // GetLogLevel returns the current logging level based on environment variables or defaults to Info.

@@ -3,6 +3,7 @@ import { downloadFile, getJson, postForm, type ApiRequestOptions, uploadForm } f
 
 import type {
   PanelLogRequest,
+  PanelUpdateInfo,
   SelfSignedCertificate,
   ServerStatus,
   XrayAccessLogEntry,
@@ -15,6 +16,10 @@ export function getServerStatus(options?: ApiRequestOptions): Promise<ServerStat
 
 export function getXrayVersions(options?: ApiRequestOptions): Promise<string[]> {
   return getJson<string[]>(legacyEndpoints.server.xrayVersions, options);
+}
+
+export function checkPanelUpdate(options?: ApiRequestOptions): Promise<PanelUpdateInfo | null> {
+  return getJson<PanelUpdateInfo | null>(legacyEndpoints.server.checkUpdate, options);
 }
 
 function restartXrayService(options?: ApiRequestOptions): Promise<void> {

@@ -1078,8 +1078,8 @@
   "info": {
     "description": "Machine-readable contract for the Vue panel API implemented by the local Go/Gin backend.\nRuntime deployments may prepend the configured webBasePath before these paths.\nThe legacy response envelope is web/entity.Msg: success, msg, obj.\nBusiness failures generally use HTTP 200 with success=false; callers must inspect the envelope.\nForwarded scheme and client IP are accepted only from SUPERXRAY_TRUSTED_PROXY_CIDRS.\n",
     "title": "SuperXray Panel API",
-    "version": "3.5.0",
-    "x-source-audit-date": "2026-10-15"
+    "version": "3.6.0",
+    "x-source-audit-date": "2026-10-23"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2212,6 +2212,29 @@
           }
         ],
         "summary": "Get the authenticated runtime OpenAPI document for the Vue panel.",
+        "tags": [
+          "Server"
+        ]
+      }
+    },
+    "/panel/api/server/checkUpdate": {
+      "get": {
+        "description": "Compares the running panel version with the latest stable GitHub release. The controller caches the result for 10 minutes; network or rate-limit failures use the legacy error envelope and never install anything.",
+        "operationId": "checkPanelUpdate",
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "summary": "Check the latest stable SuperXray GitHub release.",
         "tags": [
           "Server"
         ]

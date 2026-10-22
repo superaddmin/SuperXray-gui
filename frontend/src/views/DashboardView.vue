@@ -18,6 +18,25 @@
       :message="serverStore.statusError || inboundsError"
     />
 
+    <AAlert
+      v-if="panelUpdate?.updateAvailable"
+      banner
+      type="info"
+      show-icon
+      class="panel-update-alert"
+    >
+      <template #message>
+        Panel update available: v{{ panelUpdate.latestVersion }} (current v{{
+          panelUpdate.currentVersion
+        }})
+      </template>
+      <template #action>
+        <a :href="panelUpdate.releaseUrl" target="_blank" rel="noopener noreferrer">
+          View release
+        </a>
+      </template>
+    </AAlert>
+
     <div class="status-grid">
       <StatusTile
         label="Xray State"
@@ -223,6 +242,7 @@ const customGeoForm = ref<CustomGeoForm>({
   url: '',
 });
 const status = computed(() => serverStore.status);
+const panelUpdate = computed(() => serverStore.panelUpdate);
 const refreshing = computed(
   () => serverStore.loadingStatus || loadingInbounds.value || customGeoLoading.value,
 );
@@ -383,6 +403,7 @@ const swapHint = computed(() => {
 
 async function refreshDashboard() {
   void serverStore.refreshStatus();
+  void serverStore.refreshPanelUpdate();
   await Promise.all([refreshInbounds(), refreshCustomGeo()]);
 }
 
