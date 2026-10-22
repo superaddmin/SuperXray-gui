@@ -48,6 +48,7 @@ static_analysis_*.md
 
 # Ignore log files
 *.log
+web/job/log/
 
 # Ignore temporary files
 tmp/
