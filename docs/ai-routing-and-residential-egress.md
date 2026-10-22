@@ -1,8 +1,8 @@
 # AI 平台智能分流与住宅出口运行手册
 
 > **目标读者**：需要在 SuperXray 中为 OpenAI/ChatGPT、Anthropic/Claude、Google/Gemini 等 AI 平台配置专用出口的运维人员
-> **适用版本**：`v3.4.3`
-> **代码核对日期**：2026-10-15；当前分支纳入上游 `3x-ui v3.10.2`，目标 Xray 为 `v26.10.10`，项目版本仍由 `config/version` 声明为 `3.4.3`。服务器、住宅供应商和 OpenWrt 的运行状态需在目标环境重新验证。
+> **适用版本**：`v3.5.0`
+> **代码核对日期**：2026-10-15；当前分支纳入上游 `3x-ui v3.10.2`，默认运行时 Xray 为 `v26.10.21`（兼容基线 `v26.10.10`），项目版本仍由 `config/version` 声明为 `3.5.0`。服务器、住宅供应商和 OpenWrt 的运行状态需在目标环境重新验证。
 > **事实来源**：`frontend/src/views/XrayView.vue`、`frontend/src/utils/xrayCompat.ts`、`frontend/src/utils/gatewayEgressMvp.ts`、`web/controller/xray_setting.go`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [入站创建教程](inbound-creation-guide.md) | [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
@@ -555,4 +555,4 @@ AI 平台通常不止一个首页域名，还会拆分为：
 2. OpenWrt 确认 `iptables -vnL` 计数、`/tmp/etc/passwall/var`、Passwall 运行进程。
 3. 服务器确认节点本身可用和真实出口。
 
-如果三者不一致，优先相信运行态计数和进程参数，而不是 UI 设置页的静态显示。更多实战排障步骤见 [OpenWrt / Passwall AI 路由实战手册](passwall-openwrt-ai-routing-playbook.md)。
+如果三者不一致，优先相信运行态计数和进程参数，而不是 UI 设置页的静态显示。更多实战排障步骤见 [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md#3-标准验证顺序)。

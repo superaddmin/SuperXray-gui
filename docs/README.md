@@ -1,6 +1,6 @@
 # 文档索引
 
-核对日期：2026-10-15。当前代码版本为 `3.4.3`（`config/version`），工作区分支为 `integration/3x-ui-v3.10.2`，目标核心为 Xray `26.10.10`，Go 模块声明 `1.27.2`。本文记录当前工作区实现，远端发布和实际部署环境需另行验证。
+核对日期：2026-10-22。当前代码版本为 `3.5.0`（`config/version`），工作区分支为 `integration/3x-ui-v3.10.2`，默认运行时为 Xray `26.10.21`（配置兼容基线 `26.10.10`），Go 模块声明 `1.27.2`。本文记录当前工作区实现，远端发布和实际部署环境需另行验证。
 
 ## 当前实现与使用
 
@@ -21,11 +21,10 @@
 
 | 文档 | 使用范围 |
 |---|---|
-| [部署与路由总览](operations-ai-routing-overview.md) | 服务器、OpenWrt 与 AI 出口的职责分离 |
+| [部署与路由总览](operations-ai-routing-overview.md) | 服务器、OpenWrt/Passwall 与 AI 出口的职责分离、三视角验证和常见误判；已合并原 Passwall 手册 |
 | [AI 分流与住宅出口](ai-routing-and-residential-egress.md) | Xray 模板示例与客户端/网关/服务端取证 |
 | [Gateway MVP 交接](SUPERXRAY_GUI_VPN_LAYER_HANDOFF_CN.md) | SOCKS 入站与 CSV；外部 Gateway 的集成约定 |
 | [Gateway 超时修复](gateway-egress-timeout-remediation-runbook.md) | 分层排障、验证脚本的能力和限制 |
-| [Passwall 操作手册](passwall-openwrt-ai-routing-playbook.md) | OpenWrt 现场方案和案例，不代表仓库默认网络 |
 | [入站/订阅审计模板](server-inbound-subscription-audit.template.md) | 脱敏模板；必须填写现场证据，不能当已验收结果 |
 
 示例中的主机、端口、网段和凭据需替换为本环境值。保存配置不等于运行时生效；必须重新验证实际路由、出口、端口和目标服务。`docs/private-ops/` 是被忽略的本地私有历史记录，不属于公开源码文档或默认配置。
@@ -39,9 +38,8 @@
 | [上游同步政策](upstream-sync-policy.md) | 同步范围、兼容与验证规则 |
 | [上游 v1.11.4 集成记录](upstream-alireza0-v1.11.4-integration.md) | 历史集成记录，不能推定未来上游已同步 |
 | [上游 3x-ui v3.10.2 集成记录](upstream-3x-ui-v3.10.2-integration.md) | 本地定制保护、选择性移植、Xray 迁移及已执行验证 |
-| [2026-10-22 清理与完整性核对](repository-audit-2026-10-22.md) | 旧部署可重建产物删除、依赖/缓存清理、构建与测试复验 |
-| [2026-10-15 清理与核对记录](repository-audit-2026-10-15.md) | 本轮逐文件证据、可恢复清理、依赖审计、验证与限制 |
-| [2026-10-14 历史核对记录](repository-audit-2026-10-14.md) | 保留当时的统计、工具链与检查结果；当前状态见新记录 |
+| [2026-10-22 清理与完整性核对](repository-audit-2026-10-22.md) | 当前工作区的删除、保留、验证与边界 |
+| [2026-10-14 至 10-15 清理历史](repository-audit-history.md) | 已合并前两轮清理记录；只保留时间线、关键数字和隔离位置 |
 
 3x-ui 比较证据包含四份固定基线清单：[本地提交](upstream-3x-ui-v3.10.2-local-commits.tsv)、[上游提交](upstream-3x-ui-v3.10.2-upstream-commits.tsv)、[两侧文件差异](upstream-3x-ui-v3.10.2-file-manifest.tsv)、[直接树差异](upstream-3x-ui-v3.10.2-tree-diff.tsv)。这些是完整盘点结果，`inventory_only` 不表示每条上游变更已审查或合并。
 

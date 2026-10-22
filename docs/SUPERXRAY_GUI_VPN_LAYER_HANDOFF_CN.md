@@ -4,7 +4,7 @@
 > 交接方：Super-Code-Gateway 项目组。  
 > 文档日期：2026-05-16。  
 > 目标：把由 SuperXray-gui 负责的 VPN 层、代理入口、平台专属出口、国家/地区出口和监控验收要求完整拆出，作为跨项目实施依据。
-> 代码复核日期：2026-10-15。本文保留原交接目标与历史现场记录；下文“需要、必须、应”描述验收要求，不表示功能已实现。外部 Gateway、服务器拓扑及历史截图未在本轮重新实测，当前本仓库能力以第 0.3 节为准。当前项目版本 `3.4.3`、上游集成版本 `3x-ui v3.10.2`、目标 Xray `v26.10.10` 分别记录，不能混用。
+> 代码复核日期：2026-10-15。本文保留原交接目标与历史现场记录；下文“需要、必须、应”描述验收要求，不表示功能已实现。外部 Gateway、服务器拓扑及历史截图未在本轮重新实测，当前本仓库能力以第 0.3 节为准。当前项目版本 `3.5.0`、上游集成版本 `3x-ui v3.10.2`、运行时 Xray `v26.10.21`（兼容基线 `v26.10.10`） 分别记录，不能混用。
 
 ## 0. SuperXray-gui 项目内落地裁定（2026-05-16）
 
@@ -157,17 +157,18 @@ Client / SDK / CLI
   -> Super-Code-Gateway
   -> 账号调度
   -> 手动 proxy_id 或 region_code 解析
-  -> 127.0.0.1:1080 / 127.0.0.1:8081
+  -> 127.0.0.1:<Gateway 入口端口>
   -> SuperXray-gui 本机代理入口
   -> 平台/地区出口组
   -> OpenAI / Anthropic / Google Gemini 上游
 ```
 
-Super-Code-Gateway 看到的是一个普通代理：
+当前 MVP 仅生成 `11801/11802/11803/11901/11981` 五个 SOCKS 入口，默认绑定 `127.0.0.1`。下文出现的 `1080` 与 HTTP `8081` 是早期交接目标示例，不代表当前生成器输出。
+
+Super-Code-Gateway 看到的是一个普通 SOCKS5 代理，例如：
 
 ```text
-socks5h://127.0.0.1:1080
-http://127.0.0.1:8081
+socks5h://127.0.0.1:11801
 ```
 
 SuperXray-gui 内部负责把该入口继续分流到：
@@ -207,36 +208,44 @@ MVP 文档中生成的 `127.0.0.1` 清单是“同命名空间默认模板”。
 
 ### 5.1 必须监听本机地址
 
-以下 `1080/8081` 是原交接逻辑示例，MVP 实际仅生成第 0.3 节的 5 个 SOCKS 端口，不生成 HTTP CONNECT 入口。loopback 优先；跨命名空间访问必须选择第 4.1 节的受控网络方案并限制来源。
+当前 MVP 生成以下 5 个 SOCKS 入口，默认 `listenHost` 和 `manifestHost` 均为 `127.0.0.1`：
 
-必须：
+| 端口 | 出口组 | 生成的 inbound tag |
+|---:|---|---|
+| `11801` | `openai-egress` | `gateway-openai-us-primary` |
+| `11802` | `anthropic-egress` | `gateway-anthropic-us-primary` |
+| `11803` | `gemini-egress` | `gateway-gemini-us-primary` |
+| `11901` | `region-us` | `gateway-region-us-primary` |
+| `11981` | `region-jp` | `gateway-region-jp-primary` |
 
-```text
-SOCKS5: 127.0.0.1:1080
-HTTP:   127.0.0.1:8081
-```
+早期交接目标中的 `1080` 和 HTTP `8081` 不属于当前生成器输出；当前不生成 HTTP CONNECT 入口。loopback 优先；跨命名空间访问必须选择第 4.1 节的受控网络方案并限制来源。
 
 禁止：
 
 ```text
-0.0.0.0:1080
-0.0.0.0:8081
-公网 IP:1080
-公网 IP:8081
+0.0.0.0:11801
+0.0.0.0:11802
+0.0.0.0:11803
+0.0.0.0:11901
+0.0.0.0:11981
+公网 IP:<上述任一端口>
 ```
 
 ### 5.2 建议入口命名
 
 ```text
-gateway-socks5-in
-gateway-http-in
+gateway-openai-us-primary
+gateway-anthropic-us-primary
+gateway-gemini-us-primary
+gateway-region-us-primary
+gateway-region-jp-primary
 ```
 
 ### 5.3 协议要求
 
 - SOCKS5 必须支持远端 DNS 解析能力。
 - Gateway 登记 SOCKS5 时推荐使用 `socks5h` 语义。
-- HTTP 入口必须支持 `CONNECT` 隧道。
+- 当前 MVP 生成器不创建 HTTP 入口；若后续实现 HTTP 入口，必须支持 `CONNECT` 隧道。
 - 入口必须支持长连接和流式响应，不得主动短超时断开。
 - 入口不得要求公网访问白名单，仅允许本机访问。
 
@@ -390,21 +399,15 @@ MATCH -> PROXY
 
 ### 8.1 Gateway 到 SuperXray-gui 的映射方式
 
-原交接约定 Gateway 通过代理记录表达出口；以下为对接示例，须在外部 Gateway 验证：
+原交接约定 Gateway 通过代理记录表达出口；以下为当前 MVP 的对接示例，须在外部 Gateway 验证：
 
 ```text
 protocol: socks5h
 host: 127.0.0.1
-port: 1080
+port: 11801
 ```
 
-或者：
-
-```text
-protocol: http
-host: 127.0.0.1
-port: 8081
-```
+`11801/11802/11803/11901/11981` 分别对应第 5.1 节的五个出口组。HTTP `8081` 是早期交接目标，当前生成器不创建该入口。
 
 在 SuperXray-gui 侧，需要支持把不同本机入口或不同认证参数映射到不同出口组。推荐两种方式：
 
@@ -435,7 +438,7 @@ port: 8081
 示例：
 
 ```text
-socks5h://127.0.0.1:1080
+socks5h://127.0.0.1:<当前 MVP 端口，如 11801>
 ```
 
 SuperXray-gui 根据目标域名判断：
@@ -792,10 +795,10 @@ route:
 
 必须关闭公网暴露：
 
-- `1080`
-- `8081`
-- 平台专属本机代理端口
-- 地区专属本机代理端口
+- `1080` / `8081`（早期示例端口；若未部署则无需开放）
+- 当前 MVP 端口 `11801/11802/11803/11901/11981`
+- 后续新增的平台专属本机代理端口
+- 后续新增的地区专属本机代理端口
 - 数据库端口
 - Redis 端口
 - Gateway 内部管理端口

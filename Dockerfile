@@ -5,12 +5,14 @@ FROM golang:1.27.2-alpine AS builder
 WORKDIR /app
 ARG TARGETARCH
 ARG GOPROXY=https://proxy.golang.org,direct
+ARG ALPINE_MIRROR=dl-cdn.alpinelinux.org
 
-RUN apk --no-cache --update add \
-  build-base \
-  gcc \
-  curl \
-  unzip
+RUN sed -i "s#dl-cdn.alpinelinux.org#${ALPINE_MIRROR}#g" /etc/apk/repositories \
+    && apk --no-cache --update add \
+    build-base \
+    gcc \
+    curl \
+    unzip
 
 ENV CGO_ENABLED=1
 ENV CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
@@ -31,14 +33,16 @@ RUN chmod +x DockerInit.sh && ./DockerInit.sh "$TARGETARCH"
 FROM alpine:3.22
 ENV TZ=Asia/Tehran
 WORKDIR /app
+ARG ALPINE_MIRROR=dl-cdn.alpinelinux.org
 
-RUN apk add --no-cache --update \
-  ca-certificates \
-  tzdata \
-  fail2ban \
-  bash \
-  curl \
-  openssl
+RUN sed -i "s#dl-cdn.alpinelinux.org#${ALPINE_MIRROR}#g" /etc/apk/repositories \
+    && apk add --no-cache --update \
+    ca-certificates \
+    tzdata \
+    fail2ban \
+    bash \
+    curl \
+    openssl
 
 COPY --from=builder /app/build/ /app/
 COPY --from=builder /app/DockerEntrypoint.sh /app/

@@ -1,7 +1,7 @@
 # 核心模块解析
 
 > **目标读者**：后端 / 前端维护者
-> **适用版本**：`v3.4.3`
+> **适用版本**：`v3.5.0`
 > **源码核对日期**：2026-10-15
 > **事实来源**：`main.go`、`config/`、`database/`、`web/`、`sub/`、`core/`、`frontend/src`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md)
@@ -41,7 +41,7 @@
 
 | 函数 | 环境变量 | 默认行为 |
 |---|---|---|
-| `GetVersion()` | 无 | 读取 `config/version`，当前 `3.4.3` |
+| `GetVersion()` | 无 | 读取 `config/version`，当前 `3.5.0` |
 | `GetAssetVersion()` | 构建注入 `buildHash` | 返回 `version.buildHash`；未注入时 `config.init()` 使用启动初始化时的十六进制 UnixNano 填充 hash |
 | `GetName()` | 无 | 读取 `config/name`，当前 `x-ui` |
 | `IsDebug()` | `XUI_DEBUG` | 值为 `true` 时启用 debug |

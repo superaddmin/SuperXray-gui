@@ -1,8 +1,8 @@
 # 开发者贡献指南
 
 > **目标读者**：贡献者 / 维护者 / 自动化 Agent
-> **适用版本**：`v3.4.3`
-> **源码核对日期**：2026-10-15；当前分支纳入上游 `MHSanaei/3x-ui v3.10.2`，项目版本仍为 `config/version` 的 `3.4.3`，目标 Xray `v26.10.10`。
+> **适用版本**：`v3.5.0`
+> **源码核对日期**：2026-10-15；当前分支纳入上游 `MHSanaei/3x-ui v3.10.2`，项目版本仍为 `config/version` 的 `3.5.0`，默认运行时 Xray `v26.10.21`（兼容基线 `v26.10.10`）。
 > **事实来源**：`go.mod`、`.env.example`、`frontend/package.json`、`.github/workflows/*`、`.codex/project.toml`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [部署指南](deployment.md)
 
@@ -127,7 +127,7 @@ SUPERXRAY_SING_BOX_LOG_FOLDER=x-ui
 go run main.go
 ```
 
-源码树的 `bin/` 不提供 Xray 或 sing-box 运行核心；启动前应准备与目标平台匹配的核心二进制及需要的 Geo 数据。启动面板成功不代表 Xray 启动成功，应检查状态和日志；官方 Linux 发布包由工作流装配这些运行文件。
+`bin/` 被 `.gitignore` 忽略，克隆后的源码树不包含 Xray 或 sing-box 运行核心；当前工作区可保留本地放入的 `bin/xray-windows-amd64.exe` 作为真实核心测试依赖。启动前应准备与目标平台匹配的核心二进制及需要的 Geo 数据。启动面板成功不代表 Xray 启动成功，应检查状态和日志；官方 Linux 发布包由工作流装配这些运行文件。
 
 首次数据库为空时会创建默认用户 `admin/admin`，面板设置默认端口 `2053`、`webBasePath=/super/`；配置前缀下的 `/panel/login` 即默认登录 URL `http://127.0.0.1:2053/super/panel/login`。部署时必须修改默认账户，并核对端口、base path 和 HTTPS 设置；一键安装脚本通常会生成随机安全值。
 
@@ -399,7 +399,7 @@ PR 至少包含：
 1. `release_gate.py --ci --metadata-only` 校验版本、CHANGELOG 和 release metadata。
 2. 脱敏扫描、Go 格式检查、`go vet`、OpenAPI 契约测试、staticcheck、`go test -race -shuffle=on ./...`。
 3. 设置 Go 和 CGO 工具链，针对 Linux `amd64` / `arm64` 构建 `xui-release`。
-4. 下载 Xray release `v26.10.10`。
+4. 下载 Xray release `v26.10.21`（配置兼容基线为 `v26.10.10`）。
 5. 下载 Geo 数据文件。
 6. 打包：
    - `x-ui-linux-amd64.tar.gz`

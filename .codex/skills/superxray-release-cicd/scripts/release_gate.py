@@ -31,11 +31,18 @@ def version_reference_pattern(version: str) -> str:
     return rf"(^|[^0-9A-Za-z.])v?{escaped}([^0-9A-Za-z-]|$)"
 
 
+HISTORICAL_VERSION_DOC_PREFIXES = (
+    "docs/superpowers/",
+    "docs/repository-audit-",
+    "docs/upstream-",
+)
+
+
 def filter_allowed_stale_version_references(grep_output: str) -> str:
-    """Keep stale SuperXray references while allowing upstream 3x-ui baselines."""
+    """Keep stale SuperXray references while allowing historical and upstream records."""
     findings: list[str] = []
     for line in grep_output.splitlines():
-        if line.startswith("docs/superpowers/"):
+        if line.startswith(HISTORICAL_VERSION_DOC_PREFIXES):
             continue
         is_upstream_policy = line.startswith("docs/upstream-sync-policy.md:")
         is_3x_ui_reference = re.search(r"\b(?:MHSanaei/)?3x-ui\b", line, re.IGNORECASE)

@@ -35,8 +35,8 @@ case ${1:-amd64} in
 esac
 mkdir -p build/bin
 cd build/bin
-download -O "https://github.com/XTLS/Xray-core/releases/download/v26.10.10/Xray-linux-${ARCH}.zip"
-download -O "https://github.com/XTLS/Xray-core/releases/download/v26.10.10/Xray-linux-${ARCH}.zip.dgst"
+download -O "https://github.com/XTLS/Xray-core/releases/download/v26.10.21/Xray-linux-${ARCH}.zip"
+download -O "https://github.com/XTLS/Xray-core/releases/download/v26.10.21/Xray-linux-${ARCH}.zip.dgst"
 expected_sha=$(awk '/^SHA2-256=/{print $2}' "Xray-linux-${ARCH}.zip.dgst")
 test "${#expected_sha}" -eq 64
 printf '%s  %s\n' "$expected_sha" "Xray-linux-${ARCH}.zip" | sha256sum -c -

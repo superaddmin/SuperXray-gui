@@ -131,6 +131,15 @@ class ReleaseMetadataTests(unittest.TestCase):
         files["docs/superpowers/specs/2026-05-01-design.md"] = "Historical design v3.0.3.\n"
         self.make_gate(self.make_repo(files)).check_release_metadata()
 
+    def test_release_metadata_ignores_historical_audit_and_upstream_records(self) -> None:
+        files = self.base_files()
+        files["docs/repository-audit-2026-10-15.md"] = "Historical cleanup for v3.0.3.\n"
+        files["docs/repository-audit-history.md"] = "Timeline entry for v3.0.3.\n"
+        files["docs/upstream-3x-ui-v3.10.2-integration.md"] = "Product v3.0.3.\n"
+        files["docs/upstream-3x-ui-v3.10.2-local-commits.tsv"] = "v3.0.3\n"
+
+        self.make_gate(self.make_repo(files)).check_release_metadata()
+
     def test_release_metadata_still_rejects_stale_readme_references(self) -> None:
         files = self.base_files()
         files["README.zh_CN.md"] = "Install v3.0.7.\n"

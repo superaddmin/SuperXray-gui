@@ -3,7 +3,7 @@
 > 代码核对日期：2026-10-15；历史上游雷达快照日期：2026-08-11
 > 上游仓库：`MHSanaei/3x-ui`、`alireza0/x-ui`
 > 当前固定审查目标：`MHSanaei/3x-ui v3.10.2` = `608ef4e4010bf83e2e78328e08f77efc051ad4d7`；共同基线仍为 `v3.3.1` = `b5ef412b8db999a6b981e1550762551d7b06540f`。另一供应方基线：`alireza0/x-ui v1.11.4` = `73b050c95e3fb25128baedc8668d72a45a7b5b6f`。固定目标不代表上游最新版本，也不代表所有上游功能均已采用。
-> 当前项目版本：`3.4.3`；Go：`1.27.2`；目标运行核心：Xray `v26.10.10`
+> 当前项目版本：`3.5.0`；Go：`1.27.2`；运行核心：Xray `v26.10.21`（兼容基线 `v26.10.10`）
 
 ## 当前 v3.10.2 审查入口
 
@@ -13,7 +13,7 @@
 
 | 范围 | 当前处理 |
 |---|---|
-| 依赖与运行核心 | Go 1.27.2、Xray v26.10.10 和其 gRPC API 依赖固定在 `go.mod/go.sum`；Vue 依赖按本地工具链更新，不复制上游 React lock |
+| 依赖与运行核心 | Go 1.27.2、Xray 运行时 v26.10.21（兼容基线 v26.10.10）和其 gRPC API 依赖固定在 `go.mod/go.sum`；Vue 依赖按本地工具链更新，不复制上游 React lock |
 | 协议与旧配置 | `util/xraycompat` 归一 XHTTP sessionID、Reality dest、sockopt、UDP Hop、xDNS、DNS outbound、WireGuard/freedom 策略及 TLS pin；未知字段保留，冲突或废弃字段需明确报错，不能静默丢弃 |
 | 配置和核心替换 | 完整候选配置预检、原子配置写入、归档 SHA-256 校验、候选核心/资产验证及失败恢复；不改变 legacy Xray 生命周期所有权 |
 | 数据库 | SQLite schema/seed/历史配置转换共用事务；导入独立候选库、完整配置预检、维护租约与失败恢复；保留 JSON 客户端模型 |

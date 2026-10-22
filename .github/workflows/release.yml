@@ -158,7 +158,7 @@ jobs:
           cp x-ui.sh x-ui/
 
           cd x-ui/bin
-          xray_url="https://github.com/XTLS/Xray-core/releases/download/v26.10.10/"
+          xray_url="https://github.com/XTLS/Xray-core/releases/download/v26.10.21/"
           wget -q "${xray_url}${XRAY_ZIP}"
           wget -q "${xray_url}${XRAY_ZIP}.dgst"
           expected_sha=$(awk '/^SHA2-256=/{print $2}' "${XRAY_ZIP}.dgst")

@@ -4,17 +4,19 @@
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-10-22
+
 ### Added
 
-- 选择性集成 `MHSanaei/3x-ui v3.10.2` 的 Xray v26.10.10 配置兼容层：旧 XHTTP/XDNS/UDP Hop/WireGuard/DNS 字段可幂等转换，无法安全转换的配置会在写入前明确拒绝。
+- 选择性集成 `MHSanaei/3x-ui v3.10.2` 的 Xray v26.10.10 配置兼容层：旧 XHTTP/XDNS/UDP Hop/WireGuard/DNS 字段可幂等转换，无法安全转换的配置会在写入前明确拒绝。运行时发行包固定为现有 `v26.10.21`。
 - 增加固定共同基线、本地 131 条与上游 973 条提交来源清单、双侧文件差异与处理矩阵，区分实际适配、保留本地和未采用范围，详见 `docs/upstream-3x-ui-v3.10.2-integration.md`。
 - 选择性集成 `alireza0/x-ui v1.11.4`：新增受登录与 CSRF 保护的 ECDSA P-256 自签名证书生成接口，以及 Vue TLS 内联证书/私钥填写能力。
 - 补齐 Hysteria QUIC、TUN、XHTTP 扩展与 XMUX 结构化配置，兼容旧字段并保留未知 JSON 扩展。
 
 ### Changed
 
-- 升级 Go 工具链至 1.27.2、Xray-core 至 v26.10.10，并同步发布脚本与 Docker 运行时；保留 SuperXray 的 Vue UI、旧 API、SQLite 入站 JSON 模型、CoreManager 生命周期边界和 Linux amd64/arm64 产物策略。
-- 核心版本选择与安装限定为 `v26.10.10` 及以上稳定版本；替换前校验发布归档摘要及完整候选配置，配置写入原子化，升级/启动失败进入原配置与原核心恢复路径。
+- 升级 Go 工具链至 1.27.2，配置兼容基线为 Xray v26.10.10，运行时发行包固定为 v26.10.21；同步发布脚本与 Docker 运行时，保留 SuperXray 的 Vue UI、旧 API、SQLite 入站 JSON 模型、CoreManager 生命周期边界和 Linux amd64/arm64 产物策略。
+- 核心版本选择与安装限定为 `v26.10.10` 及以上稳定版本，默认下载 `v26.10.21`；替换前校验发布归档摘要及完整候选配置，配置写入原子化，升级/启动失败进入原配置与原核心恢复路径。
 - SQLite 导入先在隔离候选中迁移并生成完整 Xray 配置预检；使用维护租约协调活动访问，失败保留原库，不引入上游 PostgreSQL 或规范化 clients/hosts 模型。
 - 将启动、CLI 与导入的历史迁移纳入同一事务；保留旧入站 tag、现有 externalProxy、未知 JSON 字段和大整数，四条入站写路径在保存或提交失败时完整回滚。
 - 适配上游通用修复：Telegram 自助回调校验用户归属并保护管理员向导、订阅/日志缺字段容错、cron panic 恢复和手动停机保护；Vue 编辑备注时保持原始配额字节数。

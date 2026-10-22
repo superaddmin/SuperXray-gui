@@ -1,8 +1,8 @@
 # 服务器环境部署教程
 
 > **目标读者**：准备在 VPS、云服务器或自建 Linux 主机上部署 SuperXray 的运维人员 / 开发者
-> **适用版本**：`v3.4.3`
-> **源码核对日期**：2026-10-15；当前分支纳入上游 `3x-ui v3.10.2`，目标 Xray `v26.10.10`，项目版本仍为 `config/version` 的 `3.4.3`。安装步骤面向 Linux shell，PowerShell 开发命令见 [开发指南](development.md)。镜像/Release 是否已发布需到远端实际核实。
+> **适用版本**：`v3.5.0`
+> **源码核对日期**：2026-10-15；当前分支纳入上游 `3x-ui v3.10.2`，默认运行时 Xray `v26.10.21`（兼容基线 `v26.10.10`），项目版本仍为 `config/version` 的 `3.5.0`。安装步骤面向 Linux shell，PowerShell 开发命令见 [开发指南](development.md)。镜像/Release 是否已发布需到远端实际核实。
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md) | [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
 ---
@@ -147,7 +147,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 如 GitHub latest 正式版接口暂时不可用，也可以显式指定版本号安装：
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.4.3
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.5.0
 ```
 
 安装脚本会自动把 `x86_64` / `amd64` 映射为 `amd64`，把 `aarch64` / `arm64` 映射为 `arm64`，并下载对应的 `x-ui-linux-<arch>.tar.gz`。
@@ -181,11 +181,11 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 安装完成时终端会输出类似信息：
 
 ```text
-Username:    <随机用户名>
-Password:    <随机密码>
-Port:        <面板端口>
+用户名：      <随机用户名>
+密码：        <随机密码>
+端口：        <面板端口>
 WebBasePath: <当前路径>
-Access URL:  https://<域名或IP>:<端口>/<当前路径>
+访问地址：    https://<域名或IP>:<端口>/<当前路径>
 ```
 
 这段输出只出现一次，务必保存到密码管理器。如果忘记，可以通过 `x-ui` 管理菜单重置用户名、密码和 Web 路径。
@@ -460,7 +460,7 @@ systemctl reload caddy
 适合运行发布镜像的服务器。工作流的镜像目标是 GitHub Container Registry；以下标签仅示例当前项目版本，部署前先用 `docker manifest inspect` 或 GHCR 页面核实存在、架构和 digest，不能由本地 `config/version` 推断远端已发布：
 
 ```text
-ghcr.io/superaddmin/superxray-gui:3.4.3
+ghcr.io/superaddmin/superxray-gui:3.5.0
 ghcr.io/superaddmin/superxray-gui:latest
 ```
 
@@ -473,7 +473,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
   -v $PWD/cert:/root/cert \
   -e XRAY_VMESS_AEAD_FORCED=false \
   -e XUI_ENABLE_FAIL2BAN=true \
-  ghcr.io/superaddmin/superxray-gui:3.4.3
+  ghcr.io/superaddmin/superxray-gui:3.5.0
 ```
 
 使用 Compose 时建议写成：
@@ -481,7 +481,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
 ```yaml
 services:
   3xui:
-    image: ghcr.io/superaddmin/superxray-gui:3.4.3
+    image: ghcr.io/superaddmin/superxray-gui:3.5.0
     container_name: 3xui_app
     volumes:
       - $PWD/db/:/etc/x-ui/
@@ -514,7 +514,7 @@ docker compose up -d --build
 
 `Dockerfile` 只构建 Go 和下载运行核心，不运行 npm/Vite。只修改后端时可使用已提交的 `web/ui`；修改前端或面板 OpenAPI 后，先用 Node.js `22.12+` 在 `frontend/` 执行 `npm ci && npm run build`，再构建镜像。`web/ui` 必须保留为 Go embed 输入。
 
-本地构建需要启用 BuildKit（现代 Docker/Compose 默认启用）。Go 依赖由 `go.mod` / `go.sum` 单独下载并缓存，编译缓存按目标架构隔离。当前 `DockerInit.sh` 下载固定版本 Xray `v26.10.10` 并校验官方 SHA256；核心与 Geo 数据下载均设置连接超时、总超时和有限重试。
+本地构建需要启用 BuildKit（现代 Docker/Compose 默认启用）。Go 依赖由 `go.mod` / `go.sum` 单独下载并缓存，编译缓存按目标架构隔离。当前 `DockerInit.sh` 下载固定版本 Xray `v26.10.21` 并校验官方 SHA256（配置兼容基线为 `v26.10.10`）；核心与 Geo 数据下载均设置连接超时、总超时和有限重试。网络受限时可显式指定 `--build-arg ALPINE_MIRROR=mirrors.aliyun.com` 和 `--build-arg GOPROXY=https://goproxy.cn,direct`；默认仍使用官方 Alpine 源与 `proxy.golang.org`。
 
 也可以在仓库根目录用 Buildx 分别构建两个架构。以下 PowerShell 命令包含前端构建前置步骤；每一步成功后再执行下一步：
 
@@ -548,7 +548,7 @@ docker buildx build --network host --platform linux/amd64 --build-arg GOPROXY=ht
 如果想复用官方 GHCR 镜像，把 Compose 中的 `build:` 段替换为：
 
 ```yaml
-image: ghcr.io/superaddmin/superxray-gui:3.4.3
+image: ghcr.io/superaddmin/superxray-gui:3.5.0
 ```
 
 ### 7.3 数据目录
@@ -677,7 +677,7 @@ TAG="$(curl -fsSL https://api.github.com/repos/superaddmin/SuperXray-gui/release
   | sed -E 's/.*"([^"]+)".*/\1/')"
 
 if [ -z "${TAG}" ]; then
-  echo "Failed to resolve latest release tag. Set TAG manually, for example: TAG=v3.4.3" >&2
+  echo "Failed to resolve latest release tag. Set TAG manually, for example: TAG=v3.5.0" >&2
   exit 1
 fi
 
@@ -1178,7 +1178,7 @@ x-ui restart-xray
 一键脚本和构建流程都需要访问 GitHub Release。可选处理：
 
 - 如果提示 `获取 SuperXray Release 版本失败`，先打开 `https://github.com/superaddmin/SuperXray-gui/releases` 确认是否存在可下载的 Release。
-- 如果仓库只有预发布版本，使用显式版本安装命令，例如：`bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.4.3`。
+- 如果仓库只有预发布版本，使用显式版本安装命令，例如：`bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.5.0`。
 - 换用可访问 GitHub 的网络环境。
 - 手动下载 Release 包后上传到服务器。
 - 使用企业内网制品库缓存 Release 包。

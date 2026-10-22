@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SuperXray Versioned API
-  version: 3.4.3
+  version: 3.5.0
   x-source-audit-date: '2026-10-15'
   description: |
     Machine-readable contract for the versioned SuperXray API surface.
@@ -109,7 +109,7 @@ components:
                   checkedAt: '2026-06-26T00:00:00Z'
                   xray:
                     state: running
-                    version: v26.10.10
+                    version: v26.10.21
                   metrics:
                     requests:
                       total: 3

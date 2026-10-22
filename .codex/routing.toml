@@ -64,7 +64,7 @@ verification = ["python scripts/secret_scan.py"]
 name = "operational-network-docs"
 globs = [
   "docs/ai-routing-and-residential-egress.md",
-  "docs/passwall-openwrt-ai-routing-playbook.md",
+  "docs/operations-ai-routing-overview.md",
   "docs/superpowers/retrospectives/*network-routing*.md",
 ]
 priority = 41

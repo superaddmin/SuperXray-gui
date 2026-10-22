@@ -159,7 +159,7 @@ gosec v2.29.0 自带的 x/tools v0.49.0 无法解析本次工具链的类型信�
 - `tmp/SuperXray-gui-arm64`：SHA-256 `337c7d9ecd2e848ba628551e81c7c97f78b0843d62626e6b522015dbd0fe6029`；64,275,864 bytes，静态 musl AArch64，Docker / QEMU 运行版本检查通过。
 - `tmp/linux-build/x-ui-linux-arm64`：从最终 arm64 Docker 镜像提取，SHA-256 `da7cc1a6143eda93a153dd0a8d0b56225c03b3415dd1fd9e38b167ffbf58bf9d`，由 Alpine GCC / CGO 构建。
 
-2026-10-15 仓库清理将这些本地构建产物和验证工具移至仓库外的 `F:/SuperXray-gui-cleanup-20261015-v3102/`，保留相对路径及搬迁清单。上述路径用于描述历史构建，不表示文件仍在工作区；清理后的布局、重建与恢复办法见 [本轮仓库审计](repository-audit-2026-10-15.md)。本机 Docker 镜像未因文件整理而移除。
+2026-10-15 仓库清理将这些本地构建产物和验证工具移至仓库外的 `F:/SuperXray-gui-cleanup-20261015-v3102/`，保留相对路径及搬迁清单。上述路径用于描述历史构建，不表示文件仍在工作区；清理后的布局、重建与恢复办法见 [仓库清理历史记录](repository-audit-history.md) 和 [2026-10-22 审计](repository-audit-2026-10-22.md)。本机 Docker 镜像未因文件整理而移除。
 
 最终本地镜像（未推送）：
 

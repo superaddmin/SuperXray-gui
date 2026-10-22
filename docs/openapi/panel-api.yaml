@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SuperXray Panel API
-  version: 3.4.3
+  version: 3.5.0
   x-source-audit-date: '2026-10-15'
   description: |
     Machine-readable contract for the Vue panel API implemented by the local Go/Gin backend.

@@ -6,7 +6,7 @@
 >
 > **适用范围：** SuperXray-gui 当前 Go 后端，含 `web/`、`sub/`、`database/`、`xray/`、`core/`、`config/`、`main.go`
 >
-> **版本约束：** 仓库安装/打包默认 Xray-core release tag 为 `v26.10.10`，面板安装器允许该版本及以后符合 `vYY.M.D` 形式的正式版本。release tag 不等同于 `github.com/xtls/xray-core` Go module 版本。
+> **版本约束：** 仓库安装/打包默认 Xray-core release tag 为 `v26.10.21`，配置兼容基线为 `v26.10.10`；面板安装器允许 `v26.10.10` 及以后符合 `vYY.M.D` 形式的正式版本。release tag 不等同于 `github.com/xtls/xray-core` Go module 版本。
 
 本文是后端重基线的第一份可执行契约。它不要求一次性搬迁目录，而是先固定目标 `internal/` 边界、依赖方向、API 契约和迁移验收口径。后续代码迁移必须以本文为约束，避免在 controller、service、database、xray runtime 之间继续扩大隐式耦合。
 
@@ -276,11 +276,11 @@ migration_events(id, version, direction, started_at, finished_at, status, error,
 3. baseline 记录可重复执行，不重复插入管理记录；不能将整个 InitDB 称为只读操作。
 4. 任何 destructive migration 必须先创建备份路径并记录到 `migration_events`（后续 destructive migration 需遵循此约束）。
 
-## 6. Xray-core v26.10.10 集成约束
+## 6. Xray-core 运行时与 v26.10.10 兼容约束
 
 | 链路 | 约束 |
 |---|---|
-| release tag | `v26.10.10` 只用于运行时二进制下载、Docker 初始化、release 打包、用户文档 |
+| release tag | 运行时默认 `v26.10.21`；`v26.10.10` 作为配置兼容基线和安装器最低版本 |
 | Go module | 保持 `go.mod` 的合法 module 版本，不把 `v26.10.10` 写成 module 依赖 |
 | 进程管理 | `Start/Stop/Restart/Reload/Validate/Health` 作为目标动作集 |
 | gRPC | stats 读取和 handler 控制分离，所有调用必须带 timeout 和错误映射 |
@@ -300,7 +300,7 @@ migration_events(id, version, direction, started_at, finished_at, status, error,
 | API 响应包、错误码、版本策略 | 完成 | 本文第 3 节 |
 | 登录、入站、流量、订阅、热重载数据流 | 完成 | 本文第 4 节 |
 | 当前 DB 模型与 ORM 迁移方向 | 完成 | 本文第 5 节 |
-| Xray-core `v26.10.10` release 与 Go module 分离说明 | 完成 | 本文第 6 节 |
+| Xray-core release tag（运行时 `v26.10.21`、兼容基线 `v26.10.10`）与 Go module 分离说明 | 完成 | 本文第 6 节 |
 
 ## 8. 下一阶段执行队列
 
