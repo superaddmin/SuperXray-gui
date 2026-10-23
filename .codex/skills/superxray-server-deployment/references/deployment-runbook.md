@@ -2,6 +2,46 @@
 
 本文只描述交付格式和验证顺序。真实服务器值必须写入 `.local/ops/<deployment-id>/` 或密码管理器；不要把真实值复制回本文。
 
+## 标准订阅交付格式
+
+新服务器交付必须输出以下文本（真实值只放在受保护的本地 manifest 中）：
+
+```text
+面板安装完成！   <COUNTRY> <SERVER_IP>
+
+https://<PANEL_HOST>:<WEB_PORT><WEB_BASE_PATH>/
+用户名: <PANEL_USERNAME>
+密码: <PANEL_PASSWORD>
+
+URI/Base64:
+https://<PUBLIC_HOST>:<SUB_PORT>/sub/<MAIN_SUB_ID>
+
+Xray JSON:
+https://<PUBLIC_HOST>:<SUB_PORT>/json/<MAIN_SUB_ID>
+
+Clash/Mihomo:
+https://<PUBLIC_HOST>:<SUB_PORT>/clash/<MAIN_SUB_ID>
+
+SOCKS5 订阅
+协议: SOCKS5
+主机: <SOCKS_HOST>
+端口: <SOCKS_PORT>
+用户名: <SOCKS_USERNAME>
+密码: <SOCKS_PASSWORD>
+SOCKS5 订阅链接: https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SOCKS_SUB_ID>
+三个月有效期（UTC 到期: <YYYY-MM-DD HH:MM:SS>） https://<PUBLIC_HOST>:<SUB_PORT>/clash/<THREE_MONTH_SUB_ID>
+六个月有效期（UTC 到期: <YYYY-MM-DD HH:MM:SS>） https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SIX_MONTH_SUB_ID>
+```
+
+字段约束：
+
+1. URI/JSON/Clash 三段使用长期主节点的同一 `subId`；
+2. 三个月/六个月行使用各自期限 client 的 `/clash/<subId>`，不要复用长期 `subId`；
+3. 有效证书环境下全部使用 `https://`，并确认 `subJsonEnable=true`；
+4. SOCKS5 段先给连接参数，再给长期账号自己的 Clash 订阅链接（`/clash/<SOCKS_SUB_ID>`），不附加限时 SOCKS5 链接；
+5. UTC 到期时间由 `expiryTimeMs / 1000` 转换，格式固定为 `YYYY-MM-DD HH:MM:SS`；
+6. 使用 `scripts/render_subscription_delivery.py` 生成文本，避免手工拼接导致路径或时间格式漂移。
+
 ## 脱敏交付 manifest
 
 建议每台服务器生成一个本地 JSON，结构如下：

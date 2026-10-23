@@ -1,6 +1,6 @@
 ---
 name: superxray-server-deployment
-description: "Deploy and verify SuperXray on a Linux server, then produce a redacted delivery manifest for three-month and six-month Clash/Mihomo subscriptions and a generic authenticated SOCKS5 connection. Use for server rollout, post-deployment checks, subscription delivery, or deployment incident retrospectives."
+description: "Deploy and verify SuperXray on a Linux server, then produce the standard delivery text for long-term, three-month and six-month Clash/Mihomo subscriptions plus one long-term authenticated SOCKS5 connection. Use for server rollout, post-deployment checks, subscription delivery, or deployment incident retrospectives."
 ---
 
 # SuperXray 服务器部署与交付
@@ -9,8 +9,8 @@ description: "Deploy and verify SuperXray on a Linux server, then produce a reda
 
 把“代码已推送”与“服务器已可用”分开验证。每次部署都要留下可复现的运行态证据，并输出一份脱敏交付摘要，至少包含：
 
-- 三个月和六个月的 Clash/Mihomo 订阅入口、到期时间和诊断计数；
-- 通用 SOCKS5 的主机、端口、用户名、密码和 URI 格式；
+- 长期、三个月和六个月的 Clash/Mihomo 订阅入口、到期时间和诊断计数；
+- 一个长期 SOCKS5 的主机、端口、用户名、密码和 URI 格式；
 - 面板、Xray、订阅服务、监听端口、TLS 握手和实际代理出口状态；
 - 首个错误、回滚点和未验证项。
 
@@ -29,9 +29,9 @@ description: "Deploy and verify SuperXray on a Linux server, then produce a reda
 2. **核对发布产物**：读取 `config/version`、`CHANGELOG.md` 和 Release 资产；目标服务器先执行 `uname -m`，将 `x86_64` 映射到 `amd64`，将 `aarch64/arm64` 映射到 `arm64`。不要把错误架构的面板或 Xray 二进制上传到服务器。
 3. **安全连接服务器**：优先使用 SSH key；密码只能由交互式提示或受保护的凭据注入提供，不能写入命令行、脚本、日志或 Git。固定并核对主机指纹；Windows OpenSSH 遇到 `known_hosts` 权限错误时使用临时受保护的 known-hosts 文件，不能为了省事关闭主机校验。
 4. **安装/更新**：备份 `/etc/x-ui/x-ui.db`、证书和当前二进制；复制 Release 包或源码构建产物；写入 `/etc/default/x-ui`；运行 `x-ui migrate` 和安全的用户名、密码、随机 `webBasePath` 配置；改动 systemd unit 后执行 `systemctl daemon-reload`，再 `enable --now x-ui`。
-5. **生成期限订阅**：三个月和六个月必须各有独立的可识别 `subId`/客户端或独立入站。`expiryTime` 是 Unix 毫秒；有效期按日历月 `AddDate(0, 3, 0)` / `AddDate(0, 6, 0)` 计算，同时记录 UTC 可读时间。当前代码不会读取 `mixed` 入站 `settings.accounts[].expiryTime`，所以不能靠一个 Mixed 入站的多个账号实现独立到期。
+5. **创建主节点与期限订阅**：在同一个 VLESS（TLS Vision 或 Reality）入站内创建三个 client：长期（`expiryTime=0`）、三个月、六个月，各自拥有独立 `subId`。`expiryTime` 是 Unix 毫秒；有效期按日历月 `AddDate(0, 3, 0)` / `AddDate(0, 6, 0)` 计算，同时记录 UTC 可读时间。不要把三个月/六个月放到 mixed/SOCKS5 入站：当前代码不会读取 `mixed` 入站 `settings.accounts[].expiryTime`。
    生成时记录同一个 `issuedAt`，分别计算 `issuedAt.AddDate(0, 3, 0)` 和 `issuedAt.AddDate(0, 6, 0)`，为每个期限分配独立客户端/subId，保存 Unix 毫秒后再用 GET 和 diagnose 回读核对。
-6. **生成通用 SOCKS5**：使用 `protocol: "mixed"` 入站和 `settings.accounts[]` 账号，确认端口唯一、`listen` 与防火墙策略一致。输出配置字段和 URI：
+6. **生成长期 SOCKS5**：使用 `protocol: "mixed"` 入站和 `settings.accounts[]` 账号，只创建一个长期账号，确认端口唯一、`listen` 与防火墙策略一致。标准交付只输出连接参数，不输出 SOCKS5 订阅 URL；输出配置字段和 URI：
 
    ```text
    协议: SOCKS5
@@ -46,7 +46,44 @@ description: "Deploy and verify SuperXray on a Linux server, then produce a reda
 7. **验证服务端运行态**：在服务器执行 `systemctl is-active x-ui.service`、`ss -lntp`、`journalctl -u x-ui.service --since "5 min ago"`，分别核对面板、订阅和 Xray TCP 监听；Mixed 设置 `udp: true` 时追加 `ss -lunp` 和云安全组/本机防火墙 UDP 检查。不要把 `x-ui` active 当成 Xray 入站可用的唯一证据。
 8. **验证公网订阅**：订阅入口只保证 GET 和 `/<subId>/diagnose`，没有 HEAD 路由。用实际 GET 请求解析 Clash/Mihomo 内容中的 `type`、`server`、`port`、`username`、`password`，再检查诊断 `outputNodes >= 1`、`skippedNodes == 0`。订阅服务独立于 `webBasePath`；反向代理的 `/sub/`、`/json/`、`/clash/` 都必须传递 `X-Forwarded-Host`，并优先固定 `subURI/subJsonURI/subClashURI`，避免生成的节点主机漂移到客户端 IP。
 9. **验证实际代理链路**：通用 SOCKS5 至少从客户端运行一次 `curl --socks5-hostname` 到 `https://api.ipify.org`，出口应与预期服务器一致；再选择一个稳定 HTTPS 目标检查 HTTP 状态。Google 单一探测超时只能记录为该目标/线路结果，不能据此宣称 SOCKS5 服务失效。
-10. **形成交付摘要**：使用 `scripts/validate_deployment_outputs.py` 检查脱敏 manifest；报告只保留占位符、状态、计数、到期时间和验证命令，不复制完整订阅响应、账号密码或原始日志。
+10. **形成标准交付信息**：先调用 `scripts/render_subscription_delivery.py --manifest <private-delivery.json>` 生成“标准订阅交付格式”文本，再用 `scripts/validate_deployment_outputs.py` 检查脱敏 manifest；公开报告只保留占位符、状态、计数、到期时间和验证命令，不复制完整订阅响应、账号密码或原始日志。
+
+## 标准订阅交付格式
+
+所有新部署必须按以下顺序和字段输出。示例只使用占位符，真实值只写入 `.local/ops/<deployment-id>/`：
+
+```text
+面板安装完成！   <COUNTRY> <SERVER_IP>
+
+https://<PANEL_HOST>:<WEB_PORT><WEB_BASE_PATH>/
+用户名: <PANEL_USERNAME>
+密码: <PANEL_PASSWORD>
+
+URI/Base64:
+https://<PUBLIC_HOST>:<SUB_PORT>/sub/<MAIN_SUB_ID>
+
+Xray JSON:
+https://<PUBLIC_HOST>:<SUB_PORT>/json/<MAIN_SUB_ID>
+
+Clash/Mihomo:
+https://<PUBLIC_HOST>:<SUB_PORT>/clash/<MAIN_SUB_ID>
+
+SOCKS5 订阅
+协议: SOCKS5
+主机: <SOCKS_HOST>
+端口: <SOCKS_PORT>
+用户名: <SOCKS_USERNAME>
+密码: <SOCKS_PASSWORD>
+SOCKS5 订阅链接: https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SOCKS_SUB_ID>
+三个月有效期（UTC 到期: <YYYY-MM-DD HH:MM:SS>） https://<PUBLIC_HOST>:<SUB_PORT>/clash/<THREE_MONTH_SUB_ID>
+六个月有效期（UTC 到期: <YYYY-MM-DD HH:MM:SS>） https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SIX_MONTH_SUB_ID>
+```
+
+- URI/JSON/Clash 三段固定使用长期主节点的 `subId`；三个月/六个月行使用各自期限 client 的 `/clash/<subId>`；
+- 有可用证书时所有链接使用 `https://`，并先开启 `subJsonEnable`，确保 `/json/` 返回 200；
+- SOCKS5 段先给协议/主机/端口/用户名/密码，再给该长期账号自己的 Clash 订阅链接（`/clash/<SOCKS_SUB_ID>`），不附带限时 SOCKS5 链接；
+- UTC 到期时间由 `expiryTimeMs / 1000` 转换，格式固定为 `YYYY-MM-DD HH:MM:SS`；
+- 交付前逐项验证 6 个 URL（面板、/sub/、/json/、长期 /clash/、SOCKS5 /clash/、3/6 月 /clash/）均为 HTTPS 200，并至少实测一次 VLESS 与 SOCKS5 代理出口。
 
 ## 期限订阅契约
 
@@ -54,7 +91,7 @@ description: "Deploy and verify SuperXray on a Linux server, then produce a reda
 
 - 普通客户端/入站的 `expiryTime` 由服务端过滤，单位为 Unix milliseconds；
 - Mixed/HTTP 的 `settings.accounts[]` 目前按 `subId` 匹配账号，但不读取账号级 `expiryTime`；
-- 因此三个月和六个月的 SOCKS5 账号若要独立到期，必须创建两个独立入站/订阅，或补充代码让账号到期字段参与过滤、诊断和输出；
+- 标准部署把长期、三个月、六个月放在同一个 VLESS 入站的三个独立 client 中；SOCKS5 只有一个长期账号，不生成限时 SOCKS5 订阅，也不依赖 mixed 账号级到期；
 - 到期时间应同时输出 `expiryTimeMs` 与 ISO 8601 UTC 字符串，并在验证时确认仍晚于当前时间；
 - Clash 与 Mihomo 使用同一 `/clash/<subId>` YAML 入口，URI、JSON、Clash 端点均用 GET 验证。
 

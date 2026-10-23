@@ -23,11 +23,19 @@ def require(mapping: dict, key: str, path: str):
     return value
 
 
+def pick_entry(mapping: dict, *names: str):
+    for name in names:
+        value = mapping.get(name)
+        if isinstance(value, dict):
+            return value, name
+    raise ValueError(f"subscriptions must contain one of: {', '.join(names)}")
+
+
 def validate(manifest: dict, *, require_redacted: bool = True) -> list[str]:
     server = require(manifest, "server", "manifest")
     service = require(manifest, "service", "manifest")
     subscriptions = require(manifest, "subscriptions", "manifest")
-    socks5 = require(manifest, "socks5", "manifest")
+    socks5 = manifest.get("socks5") or subscriptions.get("socks5LongTerm") or subscriptions.get("socks5")
     if not all(isinstance(value, dict) for value in (server, service, subscriptions, socks5)):
         raise ValueError("server, service, subscriptions and socks5 must be objects")
 
@@ -44,10 +52,9 @@ def validate(manifest: dict, *, require_redacted: bool = True) -> list[str]:
     now = datetime.now(timezone.utc)
     summaries: list[str] = []
     expiry_values: dict[str, int] = {}
-    for name in ("threeMonth", "sixMonth"):
-        entry = require(subscriptions, name, "subscriptions")
-        if not isinstance(entry, dict):
-            raise ValueError(f"subscriptions.{name} must be an object")
+    three_entry, _ = pick_entry(subscriptions, "threeMonth", "3-month", "clashThreeMonth")
+    six_entry, _ = pick_entry(subscriptions, "sixMonth", "6-month", "clashSixMonth")
+    for name, entry in (("threeMonth", three_entry), ("sixMonth", six_entry)):
         expiry_ms = require(entry, "expiryTimeMs", f"subscriptions.{name}")
         if not isinstance(expiry_ms, int) or expiry_ms <= 0:
             raise ValueError(f"subscriptions.{name}.expiryTimeMs must be a positive integer in milliseconds")
@@ -60,7 +67,9 @@ def validate(manifest: dict, *, require_redacted: bool = True) -> list[str]:
             raise ValueError(f"subscriptions.{name}.expiresUtc does not match expiryTimeMs")
         if parsed.astimezone(timezone.utc) <= now:
             raise ValueError(f"subscriptions.{name} is already expired")
-        url = require(entry, "clashUrl", f"subscriptions.{name}")
+        url = entry.get("clashUrl") or entry.get("clash") or entry.get("clashSubscription")
+        if not url:
+            raise ValueError(f"subscriptions.{name}.clashUrl is required")
         if not isinstance(url, str) or not url.startswith(("https://", "http://", "<REDACTED_")):
             raise ValueError(f"subscriptions.{name}.clashUrl must be an HTTP(S) URL or redacted placeholder")
         if require_redacted and not url.startswith("<REDACTED_"):

@@ -753,7 +753,7 @@ wss://<host>:<webPort>/<webBasePath>ws
 
 订阅服务由 `sub.Server` 独立监听，只有 `subEnable=true` 时启动。它不使用面板登录认证，但可配置独立监听地址、端口、证书和域名校验。
 
-源码默认 `subEnable=true`、`subJsonEnable=false`、`subClashEnable=true`；订阅路径独立于 `webBasePath`，实际启用格式和入口以当前设置为准。
+源码默认 `subEnable=true`、`subJsonEnable=false`、`subClashEnable=true`；订阅路径独立于 `webBasePath`，实际启用格式和入口以当前设置为准。标准服务器交付需要开启 `/json/` 时，先设置 `subJsonEnable=true` 并重启面板；完整交付格式见 [部署指南 9.4 节](deployment.md#94-标准订阅交付格式)。
 
 默认路径来自设置：
 

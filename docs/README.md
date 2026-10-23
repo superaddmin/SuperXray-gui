@@ -1,6 +1,6 @@
 # 文档索引
 
-核对日期：2026-10-23。当前代码版本为 `3.6.0`（`config/version`），工作区分支为 `integration/3x-ui-v3.10.2`，默认运行时为 Xray `26.10.21`（配置兼容基线 `26.10.10`），Go 模块声明 `1.27.2`。本文记录当前工作区实现，远端发布和实际部署环境需另行验证。
+核对日期：2026-10-23。当前代码版本为 `3.6.0`（`config/version`），工作区分支为 `main`，默认运行时为 Xray `26.10.21`（配置兼容基线 `26.10.10`），Go 模块声明 `1.27.2`。本文记录当前工作区实现，远端发布和实际部署环境需另行验证。
 
 ## 当前实现与使用
 
@@ -12,7 +12,7 @@
 | [面板 OpenAPI](openapi/panel-api.yaml) | 面板源契约；`tools/openapiexport` 生成前端 JSON |
 | [版本化 OpenAPI](openapi/api-v1.yaml) | `/api/v1/health/live`、`health/ready`、`metrics`，Go 契约测试守护 |
 | [开发指南](development.md) | 工具链、构建、验证、Go embed、目录拓扑、发布流程 |
-| [部署指南](deployment.md) | Linux 安装、Docker、反向代理、备份和恢复；以安装脚本/工作流为准 |
+| [部署指南](deployment.md) | Linux 安装、Docker、反向代理、备份和恢复、标准订阅交付格式；以安装脚本/工作流为准 |
 | [入站创建指南](inbound-creation-guide.md) | 现有 Vue 表单、协议、客户端和导出 |
 | [运行可靠性](runtime-reliability.md) | HTTP 超时、调度、Xray 进程与运行边界 |
 | [后端重基线契约](backend-internal-rebaseline-contract.md) | 已实现的渐进边界与未落地的目标架构 |

@@ -2,7 +2,7 @@
 
 > **目标读者**：准备在 VPS、云服务器或自建 Linux 主机上部署 SuperXray 的运维人员 / 开发者
 > **适用版本**：`v3.6.0`
-> **源码核对日期**：2026-10-15；当前分支纳入上游 `3x-ui v3.10.2`，默认运行时 Xray `v26.10.21`（兼容基线 `v26.10.10`），项目版本仍为 `config/version` 的 `3.6.0`。安装步骤面向 Linux shell，PowerShell 开发命令见 [开发指南](development.md)。镜像/Release 是否已发布需到远端实际核实。
+> **源码核对日期**：2026-10-23；当前分支为 `main`，纳入上游 `3x-ui v3.10.2`，默认运行时 Xray `v26.10.21`（兼容基线 `v26.10.10`），项目版本仍为 `config/version` 的 `3.6.0`。安装步骤面向 Linux shell，PowerShell 开发命令见 [开发指南](development.md)。镜像/Release 是否已发布需到远端实际核实。
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md) | [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
 ---
@@ -955,6 +955,45 @@ VLESS Reality 入站保存前必须提供有效 `target`，否则 Xray 会拒绝
 ### 9.3 AI 平台分流与住宅出口
 
 对于 OpenAI/ChatGPT、Anthropic/Claude、Google/Gemini 等对出口质量敏感的平台，推荐使用 Xray 的 `outbounds`、`routing.rules`、`routing.balancers`、`observatory` 与 DNS 配置做域名级分流：AI 相关域名走专用住宅 SOCKS 出口，其他流量保持 `direct` 或常规线路。完整配置模板、健康检测、DNS 策略、泄漏防护边界和回滚步骤见 [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md)。
+
+### 9.4 标准订阅交付格式
+
+新服务器部署完成后，统一按以下格式交付。真实主机、凭据、`subId` 和订阅 URL 只保存在受保护的本地运维目录或密码管理器中：
+
+```text
+面板安装完成！   <COUNTRY> <SERVER_IP>
+
+https://<PANEL_HOST>:<WEB_PORT><WEB_BASE_PATH>/
+用户名: <PANEL_USERNAME>
+密码: <PANEL_PASSWORD>
+
+URI/Base64:
+https://<PUBLIC_HOST>:<SUB_PORT>/sub/<MAIN_SUB_ID>
+
+Xray JSON:
+https://<PUBLIC_HOST>:<SUB_PORT>/json/<MAIN_SUB_ID>
+
+Clash/Mihomo:
+https://<PUBLIC_HOST>:<SUB_PORT>/clash/<MAIN_SUB_ID>
+
+SOCKS5 订阅
+协议: SOCKS5
+主机: <SOCKS_HOST>
+端口: <SOCKS_PORT>
+用户名: <SOCKS_USERNAME>
+密码: <SOCKS_PASSWORD>
+SOCKS5 订阅链接: https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SOCKS_SUB_ID>
+三个月有效期（UTC 到期: <YYYY-MM-DD HH:MM:SS>） https://<PUBLIC_HOST>:<SUB_PORT>/clash/<THREE_MONTH_SUB_ID>
+六个月有效期（UTC 到期: <YYYY-MM-DD HH:MM:SS>） https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SIX_MONTH_SUB_ID>
+```
+
+- 长期、三个月和六个月订阅是 VLESS 主节点（TLS Vision 或 Reality）的三个独立 client，各自使用独立 `subId`；它们才会出现在 `/clash/` 输出中并携带 `expire`。
+- SOCKS5 只保留一个长期 `mixed` 入站账号；标准交付先给出协议、主机、端口、用户名和密码，再给出该账号自己的 `/clash/<subId>` 订阅链接，不生成限时 SOCKS5 订阅。
+- 当前代码按 `subId` 匹配 `mixed` 入站的 `settings.accounts[]`，但不读取账号级 `expiryTime`；不要用多个 SOCKS5 账号模拟三个月/六个月到期。
+- 有可用证书时，面板和订阅服务都使用 HTTPS；`/json/` 需要 `subJsonEnable=true`，否则该路径返回 404。
+- 交付前必须用 GET 验证面板、`/sub/`、`/json/`、长期 `/clash/`、SOCKS5 `/clash/`、三个月 `/clash/`、六个月 `/clash/` 均为 200，并至少实测一次 VLESS 与 SOCKS5 的出口 IP。
+
+> 部署技能与自动生成脚本见 `.codex/skills/superxray-server-deployment/SKILL.md` 和其 `scripts/render_subscription_delivery.py`。
 
 ---
 

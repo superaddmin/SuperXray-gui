@@ -29,6 +29,14 @@ Current anchors:
 - Keep secrets, private keys, runtime databases, subscription data, and audit artifacts out of Git.
 - Update user-facing documentation when behavior or interfaces change.
 
+## 服务器部署交付规范
+
+- 新服务器部署统一遵循 `.codex/skills/superxray-server-deployment/SKILL.md`，并按 `references/deployment-runbook.md` 的“标准订阅交付格式”输出交付信息。
+- 标准交付固定包含：面板 HTTPS 地址与账号、URI/Base64、Xray JSON、Clash/Mihomo 长期链接、SOCKS5 连接参数（协议/主机/端口/用户名/密码）及其 Clash 订阅链接、三个月与六个月 Clash/Mihomo 链接及 UTC 到期时间。
+- 三个月/六个月订阅是 VLESS 主节点的独立 client；SOCKS5 只保留一个长期订阅，不生成限时 SOCKS5 链接。
+- 有可用证书时，面板与订阅服务默认启用 HTTPS，并开启 `subJsonEnable`；交付前必须验证 `/sub/`、`/json/`、`/clash/` 三个入口均为 HTTPS 200。
+- 真实主机、凭据、subId 和订阅 URL 只写入 `.local/ops/<deployment-id>/`，不得提交到 Git。
+
 ## Common verification
 
 Installed npm dependencies can contain unrelated Go fixtures, so enumerate project packages and exclude import paths under `node_modules` before full Go tests.
