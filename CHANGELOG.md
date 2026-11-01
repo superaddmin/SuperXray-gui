@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [3.7.0] - 2026-11-01
+
 ### Added
 
 - 新增可选的 Clash 完整模板开关 `subClashFullTemplateEnable`：开启后 `/clash/` 输出 DNS、sniffer、5 个 AgentRoute 远程规则集和完整规则顺序，并自动生成节点服务器直连例外；默认关闭，保持原最小输出，切换后需重启面板。
