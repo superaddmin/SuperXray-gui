@@ -2,6 +2,7 @@ package sub
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
@@ -10,17 +11,26 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
 )
 
+const (
+	clashFullTemplateProviderBase     = "https://raw.githubusercontent.com/ryuu-restart/agent-route/release/mihomo/"
+	clashFullTemplateProviderInterval = 86400
+)
+
 type SubClashService struct {
 	inboundService service.InboundService
 	SubService     *SubService
 	routingEnabled bool
 	routingRules   string
+	fullTemplate   bool
 }
 
 type ClashConfig struct {
-	Proxies     []map[string]any `yaml:"proxies"`
-	ProxyGroups []map[string]any `yaml:"proxy-groups"`
-	Rules       []string         `yaml:"rules"`
+	Proxies       []map[string]any `yaml:"proxies"`
+	ProxyGroups   []map[string]any `yaml:"proxy-groups"`
+	DNS           map[string]any   `yaml:"dns,omitempty"`
+	RuleProviders map[string]any   `yaml:"rule-providers,omitempty"`
+	Sniffer       map[string]any   `yaml:"sniffer,omitempty"`
+	Rules         []string         `yaml:"rules"`
 }
 
 func NewSubClashService(subService *SubService) *SubClashService {
@@ -34,6 +44,12 @@ func (s *SubClashService) WithRoutingRules(rules string) *SubClashService {
 func (s *SubClashService) WithRoutingSettings(enabled bool, rules string) *SubClashService {
 	s.routingEnabled = enabled
 	s.routingRules = rules
+	return s
+}
+
+// WithFullTemplate emits DNS, sniffer and remote rule providers for Mihomo clients.
+func (s *SubClashService) WithFullTemplate(enabled bool) *SubClashService {
+	s.fullTemplate = enabled
 	return s
 }
 
@@ -149,6 +165,13 @@ func (s *SubClashService) GetClash(subId string, host string) (string, string, e
 		}},
 		Rules: s.buildClashRules(),
 	}
+	if s.fullTemplate {
+		nodeRules, nodeDomains := clashNodeAddressExceptions(proxies)
+		config.Rules = s.buildFullClashRules(nodeRules)
+		config.DNS = clashFullTemplateDNS(nodeDomains)
+		config.RuleProviders = clashFullTemplateRuleProviders()
+		config.Sniffer = clashFullTemplateSniffer()
+	}
 
 	finalYAML, err := marshalClashYAML(config)
 	if err != nil {
@@ -179,6 +202,149 @@ func (s *SubClashService) buildClashRules() []string {
 		rules = append(rules, "MATCH,PROXY")
 	}
 	return rules
+}
+
+// buildFullClashRules keeps user exceptions first, then node addresses, LAN,
+// DNS resolver paths and the shared rule sets. MATCH is generated once at the end.
+func (s *SubClashService) buildFullClashRules(nodeRules []string) []string {
+	rules := make([]string, 0, len(nodeRules)+32)
+	rules = append(rules, s.clashUserExceptionRules()...)
+	rules = append(rules, nodeRules...)
+	rules = append(rules,
+		"IP-CIDR,192.168.0.0/16,DIRECT,no-resolve",
+		"IP-CIDR,10.0.0.0/8,DIRECT,no-resolve",
+		"IP-CIDR,172.16.0.0/12,DIRECT,no-resolve",
+		"IP-CIDR,127.0.0.1/8,DIRECT,no-resolve",
+		"IP-CIDR,169.254.0.0/16,DIRECT,no-resolve",
+		"IP-CIDR6,fc00::/7,DIRECT,no-resolve",
+		"IP-CIDR6,::1/128,DIRECT,no-resolve",
+		"IP-CIDR,1.1.1.1/32,PROXY,no-resolve",
+		"IP-CIDR,1.0.0.1/32,PROXY,no-resolve",
+		"IP-CIDR,223.5.5.5/32,DIRECT,no-resolve",
+		"IP-CIDR,223.6.6.6/32,DIRECT,no-resolve",
+		"IP-CIDR,119.29.29.29/32,DIRECT,no-resolve",
+		"DST-PORT,3478,PROXY",
+		"DST-PORT,5349,PROXY",
+		"DST-PORT,19302,PROXY",
+		"RULE-SET,sr-private,DIRECT",
+		"RULE-SET,sr-reject,REJECT",
+		"RULE-SET,sr-proxy,PROXY",
+		"RULE-SET,sr-direct,DIRECT",
+		"RULE-SET,sr-cn-ip,DIRECT",
+		"MATCH,PROXY",
+	)
+	return rules
+}
+
+// clashUserExceptionRules drops MATCH lines so they cannot bypass the built-in order.
+func (s *SubClashService) clashUserExceptionRules() []string {
+	if !s.routingEnabled {
+		return nil
+	}
+	rules := make([]string, 0)
+	for _, line := range strings.Split(s.routingRules, "\n") {
+		rule := strings.TrimSpace(line)
+		if rule == "" || strings.HasPrefix(rule, "#") || !strings.Contains(rule, ",") {
+			continue
+		}
+		ruleType := strings.TrimSpace(strings.SplitN(rule, ",", 2)[0])
+		if strings.EqualFold(ruleType, "MATCH") {
+			continue
+		}
+		rules = append(rules, rule)
+	}
+	return rules
+}
+
+// clashNodeAddressExceptions keeps the proxies reachable without sending their
+// own connection back through PROXY. Domain nodes also need a real DNS answer.
+func clashNodeAddressExceptions(proxies []map[string]any) ([]string, []string) {
+	rules := make([]string, 0, len(proxies))
+	domains := make([]string, 0, len(proxies))
+	seenRules := make(map[string]struct{}, len(proxies))
+	seenDomains := make(map[string]struct{}, len(proxies))
+	for _, proxy := range proxies {
+		server, _ := proxy["server"].(string)
+		server = strings.TrimSpace(server)
+		if server == "" {
+			continue
+		}
+		if ip := net.ParseIP(server); ip != nil {
+			rule := "IP-CIDR," + ip.String() + "/32,DIRECT,no-resolve"
+			if ip.To4() == nil {
+				rule = "IP-CIDR6," + ip.String() + "/128,DIRECT,no-resolve"
+			}
+			if _, ok := seenRules[rule]; ok {
+				continue
+			}
+			seenRules[rule] = struct{}{}
+			rules = append(rules, rule)
+			continue
+		}
+		host := strings.ToLower(server)
+		rule := "DOMAIN," + host + ",DIRECT"
+		if _, ok := seenRules[rule]; ok {
+			continue
+		}
+		seenRules[rule] = struct{}{}
+		rules = append(rules, rule)
+		if _, ok := seenDomains[host]; ok {
+			continue
+		}
+		seenDomains[host] = struct{}{}
+		domains = append(domains, host)
+	}
+	return rules, domains
+}
+
+func clashFullTemplateDNS(nodeDomains []string) map[string]any {
+	fakeIPFilter := []string{"rule-set:sr-private", "*.local", "*.lan"}
+	fakeIPFilter = append(fakeIPFilter, nodeDomains...)
+	return map[string]any{
+		"enable":                          true,
+		"enhanced-mode":                   "fake-ip",
+		"fake-ip-range":                   "198.18.0.1/16",
+		"respect-rules":                   true,
+		"default-nameserver":              []string{"223.5.5.5", "119.29.29.29"},
+		"proxy-server-nameserver":         []string{"https://223.5.5.5/dns-query"},
+		"direct-nameserver":               []string{"https://223.5.5.5/dns-query", "https://223.6.6.6/dns-query"},
+		"direct-nameserver-follow-policy": true,
+		"nameserver":                      []string{"https://1.1.1.1/dns-query", "https://1.0.0.1/dns-query"},
+		"nameserver-policy":               map[string]any{"rule-set:sr-private": []string{"system"}},
+		"fake-ip-filter":                  fakeIPFilter,
+	}
+}
+
+func clashFullTemplateRuleProviders() map[string]any {
+	return map[string]any{
+		"sr-private": clashFullTemplateRuleProvider("private.yaml", "domain"),
+		"sr-reject":  clashFullTemplateRuleProvider("reject.yaml", "domain"),
+		"sr-proxy":   clashFullTemplateRuleProvider("proxy.yaml", "domain"),
+		"sr-direct":  clashFullTemplateRuleProvider("direct.yaml", "domain"),
+		"sr-cn-ip":   clashFullTemplateRuleProvider("cn-ip.yaml", "ipcidr"),
+	}
+}
+
+func clashFullTemplateRuleProvider(file string, behavior string) map[string]any {
+	return map[string]any{
+		"type":     "http",
+		"behavior": behavior,
+		"url":      clashFullTemplateProviderBase + file,
+		"interval": clashFullTemplateProviderInterval,
+		"proxy":    "PROXY",
+	}
+}
+
+func clashFullTemplateSniffer() map[string]any {
+	return map[string]any{
+		"enable":        true,
+		"parse-pure-ip": true,
+		"sniff": map[string]any{
+			"TLS":  map[string]any{"ports": []int{443, 8443}},
+			"HTTP": map[string]any{"ports": []int{80, 8080, 8888}},
+			"QUIC": map[string]any{"ports": []int{443, 8443}},
+		},
+	}
 }
 
 func (s *SubClashService) getProxies(inbound *model.Inbound, client model.Client, host string) []map[string]any {

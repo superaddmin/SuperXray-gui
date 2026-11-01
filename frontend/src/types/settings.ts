@@ -50,6 +50,7 @@ export interface PanelSettings {
   subJsonPath: string;
   subJsonURI: string;
   subClashEnable: boolean;
+  subClashFullTemplateEnable: boolean;
   subClashPath: string;
   subClashURI: string;
   subJsonFragment: string;

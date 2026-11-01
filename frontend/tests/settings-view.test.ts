@@ -87,6 +87,7 @@ test('settings view keeps representative field bindings from every tab', () => {
     'settings.subEnable',
     'settings.subJsonEnable',
     'settings.subClashEnable',
+    'settings.subClashFullTemplateEnable',
     'settings.subEncrypt',
     'settings.subShowInfo',
     'settings.subEnableRouting',

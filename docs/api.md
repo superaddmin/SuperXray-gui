@@ -283,6 +283,7 @@ HTTP 状态码为 `403`。
 | `subEnable` / `subListen` / `subPort` / `subPath` | mixed | 订阅服务开关、监听和 URI 路径 |
 | `subURI` / `subJsonURI` / `subClashURI` | string | 公开订阅入口 |
 | `subJsonEnable` / `subClashEnable` | bool | JSON 和 Clash 输出开关 |
+| `subClashFullTemplateEnable` | bool | Clash 完整模板开关：增加 DNS、sniffer 和 AgentRoute 远程规则集；仅面向 Mihomo 1.19+，保存后需重启面板 |
 | `subJsonFragment` / `subJsonNoises` / `subJsonMux` / `subJsonRules` | string | JSON 订阅增强片段 |
 | `ldap*` | mixed | LDAP 登录和同步配置 |
 
@@ -771,7 +772,7 @@ GET /json/:subid/diagnose
 GET /clash/:subid/diagnose
 ```
 
-诊断直接返回 JSON，包含 `subId/target/format/supportedFormats/supportedProtocols/totalInbounds/outputNodes/skippedNodes/warnings/skipReasons`；跳过项包含 `inboundId/protocol/reason`，不返回完整客户端凭证。数据库读取失败返回 500 和 `error`。普通格式生成失败或没有可输出内容则返回 HTTP 400、文本 `Error!`。
+诊断直接返回 JSON，包含 `subId/target/format/supportedFormats/supportedProtocols/totalInbounds/outputNodes/skippedNodes/udpCapableNodes/udpUnsupportedNodes/warnings/skipReasons`；跳过项包含 `inboundId/protocol/reason`，不返回完整客户端凭证。`udpCapableNodes` 表示生成代理声明可承载 UDP 的节点数，`udpUnsupportedNodes` 包含 HTTP 代理账户和 `udp=false` 的 Mixed 账户；存在不支持节点时 `warnings` 会追加提示。数据库读取失败返回 500 和 `error`。普通格式生成失败或没有可输出内容则返回 HTTP 400、文本 `Error!`。
 
 ### 12.1 GET `/sub/:subid`
 

@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- 新增可选的 Clash 完整模板开关 `subClashFullTemplateEnable`：开启后 `/clash/` 输出 DNS、sniffer、5 个 AgentRoute 远程规则集和完整规则顺序，并自动生成节点服务器直连例外；默认关闭，保持原最小输出，切换后需重启面板。
+- 完整模板增加 `DST-PORT,3478/5349/19302,PROXY`，让 STUN/TURN 端口在 TUN/增强模式下优先走代理。
+- 订阅诊断新增 `udpCapableNodes` / `udpUnsupportedNodes`，并在存在不支持 UDP 的节点时追加警告。
+
+### Changed
+
+- 订阅交付技能、部署文档和 `render_subscription_delivery.py` 在交付末尾附公开的终端侧 DNS/WebRTC 自查链接（第三方指南，不表示已验收）。
+
 ## [3.6.0] - 2026-10-23
 
 ### Added

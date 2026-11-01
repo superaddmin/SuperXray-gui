@@ -15,6 +15,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 
+SELF_CHECK_URL = "https://github.com/ryuu-restart/agent-route/blob/master/docs/DNS-WEBRTC.md"
+
+
 def fail(message: str) -> int:
     print(f"ERROR: {message}", file=sys.stderr)
     return 1
@@ -168,6 +171,8 @@ def render(manifest: dict, *, redact: bool) -> str:
         f"SOCKS5 订阅链接: {values['SOCKS5_CLASH_URL']}",
         f"三个月有效期（UTC 到期: {values['THREE_MONTH_UTC']}） {values['THREE_MONTH_URL']}",
         f"六个月有效期（UTC 到期: {values['SIX_MONTH_UTC']}） {values['SIX_MONTH_URL']}",
+        "",
+        f"终端侧 DNS/WebRTC 自查（第三方指南）: {SELF_CHECK_URL}",
     ]
     for url in (values["URI_URL"], values["JSON_URL"], values["CLASH_URL"], values["SOCKS5_CLASH_URL"], values["THREE_MONTH_URL"], values["SIX_MONTH_URL"]):
         if not redact and not str(url).startswith("https://"):

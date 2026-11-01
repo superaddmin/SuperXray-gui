@@ -8,16 +8,18 @@ import (
 
 // SubscriptionDiagnostic 表示订阅诊断接口返回的节点生成统计和可读提示。
 type SubscriptionDiagnostic struct {
-	SubID              string                       `json:"subId"`
-	Target             string                       `json:"target"`
-	Format             string                       `json:"format"`
-	SupportedFormats   []string                     `json:"supportedFormats"`
-	SupportedProtocols []string                     `json:"supportedProtocols"`
-	TotalInbounds      int                          `json:"totalInbounds"`
-	OutputNodes        int                          `json:"outputNodes"`
-	SkippedNodes       int                          `json:"skippedNodes"`
-	Warnings           []string                     `json:"warnings"`
-	SkipReasons        []SubscriptionDiagnosticSkip `json:"skipReasons"`
+	SubID               string                       `json:"subId"`
+	Target              string                       `json:"target"`
+	Format              string                       `json:"format"`
+	SupportedFormats    []string                     `json:"supportedFormats"`
+	SupportedProtocols  []string                     `json:"supportedProtocols"`
+	TotalInbounds       int                          `json:"totalInbounds"`
+	OutputNodes         int                          `json:"outputNodes"`
+	SkippedNodes        int                          `json:"skippedNodes"`
+	UDPCapableNodes     int                          `json:"udpCapableNodes"`
+	UDPUnsupportedNodes int                          `json:"udpUnsupportedNodes"`
+	Warnings            []string                     `json:"warnings"`
+	SkipReasons         []SubscriptionDiagnosticSkip `json:"skipReasons"`
 }
 
 // SubscriptionDiagnosticSkip 表示单个入站在订阅诊断中被跳过的协议和原因。
@@ -71,6 +73,7 @@ func diagnoseSubscriptionInbounds(inbounds []*model.Inbound, subId string, forma
 				continue
 			}
 			diagnostic.OutputNodes += len(peers)
+			diagnostic.UDPCapableNodes += len(peers)
 			continue
 		}
 		if isProxyAccountProtocol(inbound.Protocol) {
@@ -85,6 +88,11 @@ func diagnoseSubscriptionInbounds(inbounds []*model.Inbound, subId string, forma
 				continue
 			}
 			diagnostic.OutputNodes += len(accounts)
+			if subscriptionNodeUDPCapable(inbound) {
+				diagnostic.UDPCapableNodes += len(accounts)
+			} else {
+				diagnostic.UDPUnsupportedNodes += len(accounts)
+			}
 			continue
 		}
 
@@ -114,6 +122,11 @@ func diagnoseSubscriptionInbounds(inbounds []*model.Inbound, subId string, forma
 			continue
 		}
 		diagnostic.OutputNodes += matched
+		if subscriptionNodeUDPCapable(inbound) {
+			diagnostic.UDPCapableNodes += matched
+		} else {
+			diagnostic.UDPUnsupportedNodes += matched
+		}
 	}
 
 	if diagnostic.OutputNodes == 0 {
@@ -122,7 +135,21 @@ func diagnoseSubscriptionInbounds(inbounds []*model.Inbound, subId string, forma
 	if diagnostic.SkippedNodes > 0 {
 		diagnostic.Warnings = append(diagnostic.Warnings, fmt.Sprintf("%d inbound(s) were skipped during subscription generation", diagnostic.SkippedNodes))
 	}
+	if diagnostic.UDPUnsupportedNodes > 0 {
+		diagnostic.Warnings = append(diagnostic.Warnings, fmt.Sprintf("%d output node(s) cannot carry UDP; WebRTC/STUN may leak or fail when one of them is selected", diagnostic.UDPUnsupportedNodes))
+	}
 	return diagnostic
+}
+
+// subscriptionNodeUDPCapable reports whether the generated proxy advertises UDP.
+func subscriptionNodeUDPCapable(inbound *model.Inbound) bool {
+	switch inbound.Protocol {
+	case model.HTTP:
+		return false
+	case model.Mixed:
+		return mixedProxyUDPEnabled(inbound)
+	}
+	return slicesContainsProtocol(subscriptionStandardClientProtocols(), inbound.Protocol) || inbound.Protocol == model.WireGuard
 }
 
 func supportedSubscriptionFormats() []string {

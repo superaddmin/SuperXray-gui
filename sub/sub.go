@@ -186,6 +186,11 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 		SubRoutingRules = ""
 	}
 
+	SubClashFullTemplateEnable, err := s.settingService.GetSubClashFullTemplateEnable()
+	if err != nil {
+		SubClashFullTemplateEnable = false
+	}
+
 	// set per-request localizer from headers/cookies
 	engine.Use(locale.LocalizerMiddleware())
 
@@ -194,7 +199,7 @@ func (s *Server) initRouter() (*gin.Engine, error) {
 	s.sub = NewSUBController(
 		g, LinksPath, JsonPath, ClashPath, subJsonEnable, subClashEnable, Encrypt, ShowInfo, RemarkModel, SubUpdates,
 		SubJsonFragment, SubJsonNoises, SubJsonMux, SubJsonRules, SubTitle, SubSupportUrl,
-		SubProfileUrl, SubAnnounce, SubEnableRouting, SubRoutingRules)
+		SubProfileUrl, SubAnnounce, SubEnableRouting, SubRoutingRules, SubClashFullTemplateEnable)
 
 	return engine, nil
 }

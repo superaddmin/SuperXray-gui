@@ -896,7 +896,7 @@ func TestBrowserSubscriptionRequestReturnsPlainTextWithoutLegacyVisualPage(t *te
 	router.Use(func(c *gin.Context) {
 		c.Set("base_path", "/sub/")
 	})
-	NewSUBController(router.Group("/"), "/sub/", "/json/", "/clash/", true, true, false, true, "-ieo", "12", "", "", "", "", "", "", "", "", true, "")
+	NewSUBController(router.Group("/"), "/sub/", "/json/", "/clash/", true, true, false, true, "-ieo", "12", "", "", "", "", "", "", "", "", true, "", false)
 
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/sub/matrix-sub", nil)
@@ -1096,4 +1096,202 @@ func assertProxyMatrixServerUser(t *testing.T, outbound map[string]any, user str
 	if gotUser["user"] != user || gotUser["pass"] != pass {
 		t.Fatalf("proxy user = %#v, want user=%q pass=%q", gotUser, user, pass)
 	}
+}
+
+func TestClashNodeAddressExceptionsCoverIPAndDomainNodes(t *testing.T) {
+	proxies := []map[string]any{
+		{"server": "203.0.113.10"},
+		{"server": "Node.Example.COM"},
+		{"server": "node.example.com"},
+		{"server": "2001:db8::1"},
+		{"server": ""},
+	}
+
+	rules, domains := clashNodeAddressExceptions(proxies)
+
+	wantRules := []string{
+		"IP-CIDR,203.0.113.10/32,DIRECT,no-resolve",
+		"DOMAIN,node.example.com,DIRECT",
+		"IP-CIDR6,2001:db8::1/128,DIRECT,no-resolve",
+	}
+	if strings.Join(rules, "\n") != strings.Join(wantRules, "\n") {
+		t.Fatalf("node rules = %#v, want %#v", rules, wantRules)
+	}
+	if len(domains) != 1 || domains[0] != "node.example.com" {
+		t.Fatalf("node domains = %#v, want [node.example.com]", domains)
+	}
+}
+
+func TestSubClashFullTemplateRulesKeepOrderAndSingleMatch(t *testing.T) {
+	service := NewSubClashService(&SubService{}).WithFullTemplate(true).WithRoutingRules(`
+DOMAIN-SUFFIX,corp.example,DIRECT
+MATCH,DIRECT
+match,proxy
+`)
+	nodeRules, _ := clashNodeAddressExceptions([]map[string]any{{"server": "203.0.113.10"}})
+	rules := service.buildFullClashRules(nodeRules)
+
+	if rules[0] != "DOMAIN-SUFFIX,corp.example,DIRECT" {
+		t.Fatalf("first rule = %q, want user exception first", rules[0])
+	}
+	if rules[1] != "IP-CIDR,203.0.113.10/32,DIRECT,no-resolve" {
+		t.Fatalf("second rule = %q, want node address before LAN", rules[1])
+	}
+	joined := strings.Join(rules, "\n")
+	for _, earlyMatch := range []string{"MATCH,DIRECT", "match,proxy"} {
+		if strings.Contains(joined, earlyMatch) {
+			t.Fatalf("full template kept early MATCH rule %q:\n%s", earlyMatch, joined)
+		}
+	}
+	if rules[len(rules)-1] != "MATCH,PROXY" {
+		t.Fatalf("last rule = %q, want MATCH,PROXY", rules[len(rules)-1])
+	}
+	if got := strings.Count(joined, "MATCH,"); got != 1 {
+		t.Fatalf("MATCH rule count = %d, want 1:\n%s", got, joined)
+	}
+	for _, ruleSet := range []string{"sr-private", "sr-reject", "sr-proxy", "sr-direct", "sr-cn-ip"} {
+		if !strings.Contains(joined, "RULE-SET,"+ruleSet+",") {
+			t.Fatalf("full template missing rule set %q:\n%s", ruleSet, joined)
+		}
+	}
+	for _, portRule := range []string{"DST-PORT,3478,PROXY", "DST-PORT,5349,PROXY", "DST-PORT,19302,PROXY"} {
+		if !strings.Contains(joined, portRule) {
+			t.Fatalf("full template missing STUN/TURN rule %q:\n%s", portRule, joined)
+		}
+	}
+}
+
+func TestSubClashFullTemplateRulesWorkWithoutRoutingExceptions(t *testing.T) {
+	service := NewSubClashService(&SubService{}).WithFullTemplate(true).WithRoutingSettings(false, "DOMAIN-SUFFIX,corp.example,DIRECT")
+	rules := service.buildFullClashRules(nil)
+
+	joined := strings.Join(rules, "\n")
+	if strings.Contains(joined, "corp.example") {
+		t.Fatalf("routing exceptions should be ignored when routing is disabled:\n%s", joined)
+	}
+	if !strings.Contains(joined, "RULE-SET,sr-direct,DIRECT") || rules[len(rules)-1] != "MATCH,PROXY" {
+		t.Fatalf("full template rules missing built-in fallback:\n%s", joined)
+	}
+}
+
+func TestClashFullTemplateDNSAndRuleProviders(t *testing.T) {
+	dns := clashFullTemplateDNS([]string{"node.example.com"})
+
+	if dns["respect-rules"] != true {
+		t.Fatalf("respect-rules = %#v, want true", dns["respect-rules"])
+	}
+	if dns["enhanced-mode"] != "fake-ip" {
+		t.Fatalf("enhanced-mode = %#v, want fake-ip", dns["enhanced-mode"])
+	}
+	fakeIPFilter, ok := dns["fake-ip-filter"].([]string)
+	if !ok || !containsString(fakeIPFilter, "rule-set:sr-private") || !containsString(fakeIPFilter, "node.example.com") {
+		t.Fatalf("fake-ip-filter = %#v, want private rule set and node domain", dns["fake-ip-filter"])
+	}
+	policies, ok := dns["nameserver-policy"].(map[string]any)
+	if !ok {
+		t.Fatalf("nameserver-policy has unexpected shape: %#v", dns["nameserver-policy"])
+	}
+	if _, ok := policies["rule-set:sr-private"]; !ok {
+		t.Fatalf("nameserver-policy missing private rule set: %#v", policies)
+	}
+
+	providers := clashFullTemplateRuleProviders()
+	if len(providers) != 5 {
+		t.Fatalf("rule provider count = %d, want 5", len(providers))
+	}
+	cnIP, ok := providers["sr-cn-ip"].(map[string]any)
+	if !ok || cnIP["behavior"] != "ipcidr" {
+		t.Fatalf("sr-cn-ip = %#v, want ipcidr provider", providers["sr-cn-ip"])
+	}
+	if url, _ := cnIP["url"].(string); !strings.HasSuffix(url, "/cn-ip.yaml") {
+		t.Fatalf("sr-cn-ip url = %q, want release cn-ip.yaml", url)
+	}
+	if cnIP["proxy"] != "PROXY" {
+		t.Fatalf("sr-cn-ip proxy = %#v, want PROXY", cnIP["proxy"])
+	}
+}
+
+func TestClashConfigMinimalOutputOmitsFullTemplateSections(t *testing.T) {
+	data, err := marshalClashYAML(ClashConfig{
+		Proxies:     []map[string]any{{"name": "node-a", "server": "203.0.113.10"}},
+		ProxyGroups: []map[string]any{{"name": "PROXY", "type": "select"}},
+		Rules:       []string{"MATCH,PROXY"},
+	})
+	if err != nil {
+		t.Fatalf("marshal minimal clash config: %v", err)
+	}
+	text := string(data)
+	for _, section := range []string{"dns:", "rule-providers:", "sniffer:"} {
+		if strings.Contains(text, section) {
+			t.Fatalf("minimal config unexpectedly contains %q:\n%s", section, text)
+		}
+	}
+}
+
+func TestClashConfigFullTemplateOutputContainsDNSSnifferAndProviders(t *testing.T) {
+	config := ClashConfig{
+		Proxies:       []map[string]any{{"name": "node-a", "server": "node.example.com"}},
+		ProxyGroups:   []map[string]any{{"name": "PROXY", "type": "select"}},
+		DNS:           clashFullTemplateDNS([]string{"node.example.com"}),
+		RuleProviders: clashFullTemplateRuleProviders(),
+		Sniffer:       clashFullTemplateSniffer(),
+		Rules:         []string{"MATCH,PROXY"},
+	}
+	data, err := marshalClashYAML(config)
+	if err != nil {
+		t.Fatalf("marshal full clash config: %v", err)
+	}
+	text := string(data)
+	for _, want := range []string{"dns:", "rule-providers:", "sniffer:", "sr-private", "cn-ip.yaml", "node.example.com"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("full config missing %q:\n%s", want, text)
+		}
+	}
+}
+
+func TestSubClashFullTemplateGetClashWiresDNSSnifferAndProviders(t *testing.T) {
+	setupSubscriptionDiagnosticDB(t)
+	const subID = "full-template-sub"
+	client := matrixClient("full-template@example")
+	client.SubID = subID
+	inbound := matrixInbound(model.VLESS, 13201, client)
+	inbound.Listen = "node.example.com"
+	inbound.Enable = true
+	if err := database.GetDB().Create(inbound).Error; err != nil {
+		t.Fatalf("create full template inbound failed: %v", err)
+	}
+
+	subService := &SubService{
+		remarkModel:    "-ieo",
+		inboundService: service.InboundService{},
+	}
+	clashService := NewSubClashService(subService).
+		WithRoutingSettings(true, "DOMAIN-SUFFIX,corp.example,DIRECT").
+		WithFullTemplate(true)
+	clashText, _, err := clashService.GetClash(subID, "node.example.com")
+	if err != nil {
+		t.Fatalf("GetClash returned error: %v", err)
+	}
+	for _, want := range []string{
+		"dns:",
+		"respect-rules: true",
+		"rule-providers:",
+		"sr-private",
+		"sniffer:",
+		"DOMAIN,node.example.com,DIRECT",
+		"DOMAIN-SUFFIX,corp.example,DIRECT",
+	} {
+		if !strings.Contains(clashText, want) {
+			t.Fatalf("full template clash output missing %q:\n%s", want, clashText)
+		}
+	}
+}
+
+func containsString(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
 }

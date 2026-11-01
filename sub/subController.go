@@ -51,6 +51,7 @@ func NewSUBController(
 	subAnnounce string,
 	subEnableRouting bool,
 	subRoutingRules string,
+	subClashFullTemplate bool,
 ) *SUBController {
 	sub := NewSubService(showInfo, rModel)
 	a := &SUBController{
@@ -70,7 +71,7 @@ func NewSUBController(
 
 		subService:      sub,
 		subJsonService:  NewSubJsonService(jsonFragment, jsonNoise, jsonMux, jsonRules, sub),
-		subClashService: NewSubClashService(sub).WithRoutingSettings(subEnableRouting, subRoutingRules),
+		subClashService: NewSubClashService(sub).WithRoutingSettings(subEnableRouting, subRoutingRules).WithFullTemplate(subClashFullTemplate),
 	}
 	a.initRouter(g)
 	return a

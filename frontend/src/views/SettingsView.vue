@@ -249,6 +249,12 @@
                 <ACheckbox v-model:checked="settings.subEnable">URI</ACheckbox>
                 <ACheckbox v-model:checked="settings.subJsonEnable">JSON</ACheckbox>
                 <ACheckbox v-model:checked="settings.subClashEnable">Clash/Mihomo</ACheckbox>
+                <ACheckbox
+                  v-model:checked="settings.subClashFullTemplateEnable"
+                  title="Mihomo 1.19+: add DNS, sniffer and AgentRoute rule providers. Restart the panel to apply. Keep off for Stash."
+                >
+                  Clash Full Template
+                </ACheckbox>
                 <ACheckbox v-model:checked="settings.subEncrypt">Encrypted</ACheckbox>
                 <ACheckbox v-model:checked="settings.subShowInfo">Show Info</ACheckbox>
                 <ACheckbox v-model:checked="settings.subEnableRouting">Routing</ACheckbox>
@@ -1220,6 +1226,7 @@ function createEmptySettings(): PanelSettings {
     subJsonPath: '/json/',
     subJsonURI: '',
     subClashEnable: true,
+    subClashFullTemplateEnable: false,
     subClashPath: '/clash/',
     subClashURI: '',
     subJsonFragment: '',

@@ -927,6 +927,43 @@ systemctl daemon-reload
 
 新 UI 的入站列表已经补齐旧 UI 的关键导出入口：顶部支持“导出全部分享链接”和“导出全部订阅”，单个入站行支持“导出链接”“导出订阅”“导出入站 JSON”“QR”“Clone”“Reset”“Edit”“Delete”。当订阅开关已启用但 `subURI`、`subJsonURI` 或 `subClashURI` 尚未持久化时，新 UI 会读取后端默认值补齐公开 URI，再生成订阅链接；如果仍然为空，应先在 **设置 → 订阅设置** 中执行默认值填充或手动填写公开地址。
 
+Clash 输出默认只包含 `proxies`、`proxy-groups` 和最终规则。需要在面板侧下发 DNS、sniffer 与共享规则集时，可在 **设置 → 订阅设置 → Feature Flags** 开启 `Clash Full Template`：
+
+- 生成 `dns`（FakeIP、`respect-rules`、国内外 DoH 路径）、`sniffer`、5 个 `rule-providers` 和完整规则顺序；节点服务器地址会自动加入直连例外，域名节点同时进入 `fake-ip-filter`；
+- 规则集来自 AgentRoute 的公开 release（`raw.githubusercontent.com`），由客户端按 `interval` 拉取并经 `PROXY` 下载；面板本身不发起这些请求；
+- 该开关面向 Mihomo 1.19+。Stash 等客户端不保证支持全部字段，应保持关闭；切换后需重启面板/订阅服务生效；
+- 规则源属于第三方依赖，首次拉取失败时客户端会保留上一份缓存，最终仍有 `MATCH,PROXY` 兜底；
+- 规则包含 `DST-PORT,3478/5349/19302,PROXY`，用于让 STUN/TURN 端口优先走代理；这些规则只有在客户端 TUN/增强模式接管 UDP 时才有效。
+
+### 9.1.1 WebRTC 与 UDP 出口验收
+
+WebRTC 的公网候选来自浏览器本地 UDP 的 STUN 查询，HTTP/SOCKS 系统代理不会自动接管这条路径。要让测试页显示服务器出口而不是国内运营商 IP，必须同时满足：
+
+1. 客户端已开启 TUN/增强模式或全隧道 VPN，并允许 UDP；仅开系统代理不算。
+2. 订阅节点的协议支持 UDP：VMess/VLESS/Trojan、Shadowsocks、Hysteria/Hysteria2、WireGuard 默认可以；Mixed 入站必须在 `settings.udp` 中启用，HTTP 代理账户只能承载 TCP。
+3. 服务器安全组、本机防火墙和 Xray 路由没有丢弃 UDP；需要时用 `ss -lunp` 核对 Mixed 的 UDP 监听。
+4. IPv4 与 IPv6 分别验收，IPv4 成功不能证明 IPv6 也被接管。
+
+先检查诊断计数：
+
+```bash
+curl -fsS "https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SUB_ID>/diagnose"
+```
+
+- `udpCapableNodes > 0` 表示至少有一个输出节点声明可承载 UDP；
+- `udpUnsupportedNodes > 0` 时，诊断会附带警告；选到这些节点时 STUN 可能直连泄漏或直接失败；
+- HTTP 代理账户计入不支持项；Mixed 的 `udp=false` 同样计入。
+
+浏览器验收时保持现有代理开启，不要为了取基线关闭代理：
+
+- 访问 `https://browserleaks.com/webrtc` 或 Trickle ICE 示例，比较 `srflx` 公网候选与节点出口；
+- 看到国内运营商公网 IP：UDP 未进隧道，属于泄漏；
+- 看到节点/服务器出口 IP：UDP 已接管；
+- 没有候选不等于安全，可能是 STUN 被阻断或 UDP 未生效；
+- `WebRTC Network Limiter` 的 `disable_non_proxied_udp` 只能阻止非代理 UDP，不能保证候选变成服务器 IP；需要完整 UDP 隧道时仍应使用 TUN/增强模式。
+
+若服务器把 UDP 交给住宅出口或其他 balancer，测试页显示的会是该实际出口 IP，而不是面板服务器 IP，应以实际路由为准。
+
 订阅 HTML 可视页已随旧 UI 退役。浏览器和订阅客户端访问 `/sub/<subId>` 都接收 Base64 或明文链接（由 `subEncrypt` 控制，默认 `true`）；`target=xray`、`target=mihomo/stash` 可在对应输出开关启用时切换为 JSON/YAML，关闭时回退 URI。诊断 JSON 使用对应路径的 `/<subId>/diagnose`，二维码/分享在新 UI 的客户端操作中生成。
 
 订阅端口的开放策略：
@@ -985,6 +1022,8 @@ SOCKS5 订阅
 SOCKS5 订阅链接: https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SOCKS_SUB_ID>
 三个月有效期（UTC 到期: <YYYY-MM-DD HH:MM:SS>） https://<PUBLIC_HOST>:<SUB_PORT>/clash/<THREE_MONTH_SUB_ID>
 六个月有效期（UTC 到期: <YYYY-MM-DD HH:MM:SS>） https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SIX_MONTH_SUB_ID>
+
+终端侧 DNS/WebRTC 自查（第三方指南）: https://github.com/ryuu-restart/agent-route/blob/master/docs/DNS-WEBRTC.md
 ```
 
 - 长期、三个月和六个月订阅是 VLESS 主节点（TLS Vision 或 Reality）的三个独立 client，各自使用独立 `subId`；它们才会出现在 `/clash/` 输出中并携带 `expire`。
@@ -992,6 +1031,7 @@ SOCKS5 订阅链接: https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SOCKS_SUB_ID>
 - 当前代码按 `subId` 匹配 `mixed` 入站的 `settings.accounts[]`，但不读取账号级 `expiryTime`；不要用多个 SOCKS5 账号模拟三个月/六个月到期。
 - 有可用证书时，面板和订阅服务都使用 HTTPS；`/json/` 需要 `subJsonEnable=true`，否则该路径返回 404。
 - 交付前必须用 GET 验证面板、`/sub/`、`/json/`、长期 `/clash/`、SOCKS5 `/clash/`、三个月 `/clash/`、六个月 `/clash/` 均为 200，并至少实测一次 VLESS 与 SOCKS5 的出口 IP。
+- 订阅只包含节点与分流规则，不含浏览器 DNS/WebRTC 设置；交付末尾附公开的终端侧自查指南链接，仅作参考，不表示已在用户设备验收。
 
 > 部署技能与自动生成脚本见 `.codex/skills/superxray-server-deployment/SKILL.md` 和其 `scripts/render_subscription_delivery.py`。
 

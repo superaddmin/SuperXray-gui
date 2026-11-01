@@ -44,7 +44,7 @@ description: "Deploy and verify SuperXray on a Linux server, then produce the st
 
    通用代理客户端使用上述五项；它不需要 Clash/Mihomo 订阅 URL。密码含 `@`、`:`, `/` 或 `%` 时只对 URI 中的用户名/密码做 URL 编码，表单字段仍填写原始值。支持远程 DNS 的客户端可使用 `socks5h` 语义。
 7. **验证服务端运行态**：在服务器执行 `systemctl is-active x-ui.service`、`ss -lntp`、`journalctl -u x-ui.service --since "5 min ago"`，分别核对面板、订阅和 Xray TCP 监听；Mixed 设置 `udp: true` 时追加 `ss -lunp` 和云安全组/本机防火墙 UDP 检查。不要把 `x-ui` active 当成 Xray 入站可用的唯一证据。
-8. **验证公网订阅**：订阅入口只保证 GET 和 `/<subId>/diagnose`，没有 HEAD 路由。用实际 GET 请求解析 Clash/Mihomo 内容中的 `type`、`server`、`port`、`username`、`password`，再检查诊断 `outputNodes >= 1`、`skippedNodes == 0`。订阅服务独立于 `webBasePath`；反向代理的 `/sub/`、`/json/`、`/clash/` 都必须传递 `X-Forwarded-Host`，并优先固定 `subURI/subJsonURI/subClashURI`，避免生成的节点主机漂移到客户端 IP。
+8. **验证公网订阅**：订阅入口只保证 GET 和 `/<subId>/diagnose`，没有 HEAD 路由。用实际 GET 请求解析 Clash/Mihomo 内容中的 `type`、`server`、`port`、`username`、`password`，再检查诊断 `outputNodes >= 1`、`skippedNodes == 0`；需要 WebRTC/UDP 时再检查 `udpCapableNodes > 0`，并记录 `udpUnsupportedNodes` 的原因。订阅服务独立于 `webBasePath`；反向代理的 `/sub/`、`/json/`、`/clash/` 都必须传递 `X-Forwarded-Host`，并优先固定 `subURI/subJsonURI/subClashURI`，避免生成的节点主机漂移到客户端 IP。若启用 `Clash Full Template`，再确认 `/clash/` 输出含 `dns`、`rule-providers`、`sniffer` 和 `DST-PORT,3478/5349/19302,PROXY`，且节点服务器地址出现在规则开头的直连例外中。
 9. **验证实际代理链路**：通用 SOCKS5 至少从客户端运行一次 `curl --socks5-hostname` 到 `https://api.ipify.org`，出口应与预期服务器一致；再选择一个稳定 HTTPS 目标检查 HTTP 状态。Google 单一探测超时只能记录为该目标/线路结果，不能据此宣称 SOCKS5 服务失效。
 10. **形成标准交付信息**：先调用 `scripts/render_subscription_delivery.py --manifest <private-delivery.json>` 生成“标准订阅交付格式”文本，再用 `scripts/validate_deployment_outputs.py` 检查脱敏 manifest；公开报告只保留占位符、状态、计数、到期时间和验证命令，不复制完整订阅响应、账号密码或原始日志。
 
@@ -77,13 +77,16 @@ SOCKS5 订阅
 SOCKS5 订阅链接: https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SOCKS_SUB_ID>
 三个月有效期（UTC 到期: <YYYY-MM-DD HH:MM:SS>） https://<PUBLIC_HOST>:<SUB_PORT>/clash/<THREE_MONTH_SUB_ID>
 六个月有效期（UTC 到期: <YYYY-MM-DD HH:MM:SS>） https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SIX_MONTH_SUB_ID>
+
+终端侧 DNS/WebRTC 自查（第三方指南）: https://github.com/ryuu-restart/agent-route/blob/master/docs/DNS-WEBRTC.md
 ```
 
 - URI/JSON/Clash 三段固定使用长期主节点的 `subId`；三个月/六个月行使用各自期限 client 的 `/clash/<subId>`；
 - 有可用证书时所有链接使用 `https://`，并先开启 `subJsonEnable`，确保 `/json/` 返回 200；
 - SOCKS5 段先给协议/主机/端口/用户名/密码，再给该长期账号自己的 Clash 订阅链接（`/clash/<SOCKS_SUB_ID>`），不附带限时 SOCKS5 链接；
 - UTC 到期时间由 `expiryTimeMs / 1000` 转换，格式固定为 `YYYY-MM-DD HH:MM:SS`；
-- 交付前逐项验证 6 个 URL（面板、/sub/、/json/、长期 /clash/、SOCKS5 /clash/、3/6 月 /clash/）均为 HTTPS 200，并至少实测一次 VLESS 与 SOCKS5 代理出口。
+- 交付前逐项验证 6 个 URL（面板、/sub/、/json/、长期 /clash/、SOCKS5 /clash/、3/6 月 /clash/）均为 HTTPS 200，并至少实测一次 VLESS 与 SOCKS5 代理出口；
+- 交付文本只随附上面的公开自查链接；DNS/WebRTC 防护发生在终端侧，订阅不包含浏览器设置，也不要把该链接写成“已验收”。
 
 ## 期限订阅契约
 

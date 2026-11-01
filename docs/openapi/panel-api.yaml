@@ -1805,6 +1805,8 @@ components:
           type: string
         subClashEnable:
           type: boolean
+        subClashFullTemplateEnable:
+          type: boolean
         subClashPath:
           type: string
         subClashURI:

@@ -83,6 +83,7 @@ var defaultValueMap = map[string]string{
 	"subJsonPath":                 "/json/",
 	"subJsonURI":                  "",
 	"subClashEnable":              "true",
+	"subClashFullTemplateEnable":  "false",
 	"subClashPath":                "/clash/",
 	"subClashURI":                 "",
 	"subJsonFragment":             "",
@@ -642,6 +643,10 @@ func (s *SettingService) GetSubJsonURI() (string, error) {
 
 func (s *SettingService) GetSubClashEnable() (bool, error) {
 	return s.getBool("subClashEnable")
+}
+
+func (s *SettingService) GetSubClashFullTemplateEnable() (bool, error) {
+	return s.getBool("subClashFullTemplateEnable")
 }
 
 func (s *SettingService) GetSubClashPath() (string, error) {

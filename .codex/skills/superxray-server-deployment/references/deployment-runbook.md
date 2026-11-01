@@ -31,6 +31,8 @@ SOCKS5 订阅
 SOCKS5 订阅链接: https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SOCKS_SUB_ID>
 三个月有效期（UTC 到期: <YYYY-MM-DD HH:MM:SS>） https://<PUBLIC_HOST>:<SUB_PORT>/clash/<THREE_MONTH_SUB_ID>
 六个月有效期（UTC 到期: <YYYY-MM-DD HH:MM:SS>） https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SIX_MONTH_SUB_ID>
+
+终端侧 DNS/WebRTC 自查（第三方指南）: https://github.com/ryuu-restart/agent-route/blob/master/docs/DNS-WEBRTC.md
 ```
 
 字段约束：
@@ -40,7 +42,8 @@ SOCKS5 订阅链接: https://<PUBLIC_HOST>:<SUB_PORT>/clash/<SOCKS_SUB_ID>
 3. 有效证书环境下全部使用 `https://`，并确认 `subJsonEnable=true`；
 4. SOCKS5 段先给连接参数，再给长期账号自己的 Clash 订阅链接（`/clash/<SOCKS_SUB_ID>`），不附加限时 SOCKS5 链接；
 5. UTC 到期时间由 `expiryTimeMs / 1000` 转换，格式固定为 `YYYY-MM-DD HH:MM:SS`；
-6. 使用 `scripts/render_subscription_delivery.py` 生成文本，避免手工拼接导致路径或时间格式漂移。
+6. 使用 `scripts/render_subscription_delivery.py` 生成文本，避免手工拼接导致路径或时间格式漂移；
+7. 末尾只附公开的终端侧 DNS/WebRTC 自查外链，不添加浏览器设置或第三方规则，也不把它标成“已验证”。
 
 ## 脱敏交付 manifest
 

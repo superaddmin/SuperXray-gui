@@ -619,6 +619,9 @@
           "subClashEnable": {
             "type": "boolean"
           },
+          "subClashFullTemplateEnable": {
+            "type": "boolean"
+          },
           "subClashPath": {
             "type": "string"
           },
