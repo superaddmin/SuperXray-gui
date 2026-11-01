@@ -48,9 +48,11 @@ func (j *ClearLogsJob) Run() {
 	for i := range len(logFiles) {
 		if i > 0 {
 			// Copy to previous logs
-			logFilePrev, err := pathutil.OpenFileUnder(filepath.Dir(logFilesPrev[i-1]), logFilesPrev[i-1], os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+			// #nosec G602 -- i > 0 and logFilesPrev has exactly one fewer entry than logFiles.
+			previousLogPath := logFilesPrev[i-1]
+			logFilePrev, err := pathutil.OpenFileUnder(filepath.Dir(previousLogPath), previousLogPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 			if err != nil {
-				logger.Warning("Failed to open previous log file for writing:", logFilesPrev[i-1], "-", err)
+				logger.Warning("Failed to open previous log file for writing:", previousLogPath, "-", err)
 				continue
 			}
 
@@ -58,21 +60,21 @@ func (j *ClearLogsJob) Run() {
 			if err != nil {
 				logger.Warning("Failed to open current log file for reading:", logFiles[i], "-", err)
 				if closeErr := logFilePrev.Close(); closeErr != nil {
-					logger.Warning("Failed to close previous log file:", logFilesPrev[i-1], "-", closeErr)
+					logger.Warning("Failed to close previous log file:", previousLogPath, "-", closeErr)
 				}
 				continue
 			}
 
 			_, err = io.Copy(logFilePrev, logFile)
 			if err != nil {
-				logger.Warning("Failed to copy log file:", logFiles[i], "to", logFilesPrev[i-1], "-", err)
+				logger.Warning("Failed to copy log file:", logFiles[i], "to", previousLogPath, "-", err)
 			}
 
 			if closeErr := logFile.Close(); closeErr != nil {
 				logger.Warning("Failed to close current log file:", logFiles[i], "-", closeErr)
 			}
 			if closeErr := logFilePrev.Close(); closeErr != nil {
-				logger.Warning("Failed to close previous log file:", logFilesPrev[i-1], "-", closeErr)
+				logger.Warning("Failed to close previous log file:", previousLogPath, "-", closeErr)
 			}
 		}
 
