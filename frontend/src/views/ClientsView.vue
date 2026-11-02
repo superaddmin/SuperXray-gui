@@ -5,7 +5,12 @@
       title="Clients"
       description="Aggregated client details across all inbounds, including traffic, expiry and online status."
     >
-      <AButton :loading="loading" type="primary" @click="refresh">
+      <AButton
+        :disabled="Boolean(clientActionKey)"
+        :loading="loading"
+        type="primary"
+        @click="refresh"
+      >
         <template #icon><ReloadOutlined /></template>
         Refresh
       </AButton>
@@ -110,6 +115,19 @@
           <template v-else-if="column.key === 'lastOnline'">
             {{ record.lastOnlineLabel }}
           </template>
+          <template v-else-if="column.key === 'actions'">
+            <AButton
+              :aria-label="`${record.clientEnabled ? 'Stop' : 'Start'} client ${record.email || record.key}`"
+              :danger="record.clientEnabled"
+              :disabled="clientActionDisabled(asClientRow(record))"
+              :loading="clientActionKey === record.key"
+              size="small"
+              type="link"
+              @click="toggleClient(asClientRow(record))"
+            >
+              {{ record.clientEnabled ? 'Stop' : 'Start' }}
+            </AButton>
+          </template>
         </template>
       </ATable>
     </ACard>
@@ -129,16 +147,28 @@ import {
   Table as ATable,
   Tag as ATag,
 } from 'ant-design-vue';
+import type { TableColumnsType } from 'ant-design-vue';
 import { computed, onMounted, ref } from 'vue';
 
-import { getClientsLastOnline, getOnlineClients, listInbounds } from '@/api/inbounds';
+import {
+  getClientsLastOnline,
+  getOnlineClients,
+  listInbounds,
+  updateInbound,
+  updateInboundClient,
+} from '@/api/inbounds';
 import PageHeader from '@/components/PageHeader.vue';
 import StatusTile from '@/components/StatusTile.vue';
 import { protocolSupportsClients } from '@/schemas/protocolRegistry';
-import type { Inbound } from '@/types/inbound';
+import type { Inbound, InboundClient } from '@/types/inbound';
 import { hasInjectedRuntimeConfig } from '@/types/runtime';
 import { formatBytes, formatCount } from '@/utils/format';
-import { getClientPrimaryId, getInboundClients } from '@/utils/inboundCompat';
+import {
+  getClientPrimaryId,
+  getInboundClients,
+  parseInboundSettings,
+  stringifyJson,
+} from '@/utils/inboundCompat';
 
 interface AggregatedClientRow {
   key: string;
@@ -152,6 +182,8 @@ interface AggregatedClientRow {
   trafficLabel: string;
   expiryLabel: string;
   enabled: boolean;
+  client: InboundClient;
+  clientEnabled: boolean;
   online: boolean;
   lastOnlineLabel: string;
 }
@@ -163,8 +195,9 @@ const loading = ref(false);
 const error = ref('');
 const search = ref('');
 const inboundFilter = ref<number | 'all'>('all');
+const clientActionKey = ref('');
 
-const columns = [
+const columns: TableColumnsType<AggregatedClientRow> = [
   { title: 'Inbound', key: 'inbound', width: 230 },
   { title: 'Email', key: 'email', width: 220 },
   { title: 'Protocol', key: 'protocol', width: 110 },
@@ -175,6 +208,7 @@ const columns = [
   { title: 'Enabled', key: 'enabled', width: 110 },
   { title: 'Online', key: 'online', width: 110 },
   { title: 'Last Online', key: 'lastOnline', width: 190 },
+  { title: 'Actions', key: 'actions', width: 110, fixed: 'right' },
 ];
 
 const rows = computed<AggregatedClientRow[]>(() =>
@@ -201,6 +235,8 @@ const rows = computed<AggregatedClientRow[]>(() =>
         trafficLabel: formatTraffic(used, total),
         expiryLabel: formatTimestamp(expiryTime),
         enabled: client.enable !== false && (stats?.enable ?? true),
+        client: { ...client },
+        clientEnabled: client.enable !== false,
         online: onlineClients.value.includes(client.email),
         lastOnlineLabel: formatTimestamp(lastOnline),
       };
@@ -248,6 +284,69 @@ function formatTimestamp(value: number): string {
   }
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+}
+
+function asClientRow(record: AggregatedClientRow | Record<string, unknown>): AggregatedClientRow {
+  return record as AggregatedClientRow;
+}
+
+function clientActionDisabled(row: AggregatedClientRow): boolean {
+  return (
+    Boolean(clientActionKey.value) ||
+    !inbounds.value.some((inbound) => inbound.id === row.inboundId) ||
+    !getClientPrimaryId(row.protocol, row.client)
+  );
+}
+
+async function toggleClient(row: AggregatedClientRow) {
+  if (clientActionDisabled(row)) {
+    return;
+  }
+  const inbound = inbounds.value.find((item) => item.id === row.inboundId);
+  if (!inbound) {
+    return;
+  }
+
+  const enabled = !row.clientEnabled;
+  const clientId = getClientPrimaryId(row.protocol, row.client);
+  clientActionKey.value = row.key;
+  error.value = '';
+  try {
+    if (row.protocol === 'wireguard') {
+      const settings = parseInboundSettings(inbound);
+      const peers = Array.isArray(settings.peers) ? settings.peers : [];
+      let matched = false;
+      settings.peers = peers.map((peer) => {
+        if (getClientPrimaryId(row.protocol, peer) !== clientId) {
+          return peer;
+        }
+        matched = true;
+        return { ...peer, enable: enabled };
+      });
+      if (!matched) {
+        throw new Error('Client no longer exists');
+      }
+      await updateInbound(
+        inbound.id,
+        { ...inbound, settings: stringifyJson(settings) },
+        { notifyOnError: false },
+      );
+    } else {
+      await updateInboundClient(
+        clientId,
+        {
+          id: inbound.id,
+          settings: stringifyJson({ clients: [{ ...row.client, enable: enabled }] }),
+        },
+        { notifyOnError: false },
+      );
+    }
+    await refresh();
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : 'Failed to update client';
+  } finally {
+    clientActionKey.value = '';
+  }
 }
 
 async function refresh() {
