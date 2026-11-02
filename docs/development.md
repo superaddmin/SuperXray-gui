@@ -1,8 +1,8 @@
 # 开发者贡献指南
 
 > **目标读者**：贡献者 / 维护者 / 自动化 Agent
-> **适用版本**：`v3.7.1`
-> **源码核对日期**：2026-10-15；当前分支纳入上游 `MHSanaei/3x-ui v3.10.2`，项目版本仍为 `config/version` 的 `3.7.1`，默认运行时 Xray `v26.10.21`（兼容基线 `v26.10.10`）。
+> **适用版本**：`v3.7.2`
+> **源码核对日期**：2026-10-15；当前分支纳入上游 `MHSanaei/3x-ui v3.10.2`，项目版本仍为 `config/version` 的 `3.7.2`，默认运行时 Xray `v26.10.21`（兼容基线 `v26.10.10`）。
 > **事实来源**：`go.mod`、`.env.example`、`frontend/package.json`、`.github/workflows/*`、`.codex/project.toml`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [部署指南](deployment.md)
 

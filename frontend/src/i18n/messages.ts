@@ -178,6 +178,37 @@ const messages = {
   'common.value': { 'zh-CN': '值', 'en-US': 'Value' },
   'common.write': { 'zh-CN': '写入', 'en-US': 'Write' },
   'common.xrayState': { 'zh-CN': 'Xray 状态', 'en-US': 'Xray State' },
+  'clients.allInbounds': { 'zh-CN': '全部入站', 'en-US': 'All inbounds' },
+  'clients.clearFilters': { 'zh-CN': '清除筛选', 'en-US': 'Clear filters' },
+  'clients.description': {
+    'zh-CN': '汇总所有入站中的客户端详情，包括流量、到期时间和在线状态。',
+    'en-US':
+      'Aggregated client details across all inbounds, including traffic, expiry and online status.',
+  },
+  'clients.detailsDescription': {
+    'zh-CN':
+      '汇总 VMess、VLESS、Trojan、Shadowsocks、Hysteria2 和 WireGuard 客户端，不包含 SOCKS5/mixed 账号。',
+    'en-US':
+      'Aggregated view of VMess, VLESS, Trojan, Shadowsocks, Hysteria2 and WireGuard clients. SOCKS5/mixed accounts are excluded.',
+  },
+  'clients.detailsTitle': { 'zh-CN': '客户端详情', 'en-US': 'Client Details' },
+  'clients.filterInboundLabel': { 'zh-CN': '按入站筛选', 'en-US': 'Filter by inbound' },
+  'clients.filterLabel': { 'zh-CN': '筛选客户端', 'en-US': 'Filter clients' },
+  'clients.filtersActive': { 'zh-CN': '筛选已启用', 'en-US': 'Filters are active' },
+  'clients.noMatches': {
+    'zh-CN': '没有符合筛选条件的客户端。',
+    'en-US': 'No clients match these filters.',
+  },
+  'clients.noSupported': {
+    'zh-CN': '没有找到支持的客户端。',
+    'en-US': 'No supported clients found.',
+  },
+  'clients.refreshLabel': { 'zh-CN': '刷新客户端列表', 'en-US': 'Refresh client list' },
+  'clients.searchLabel': { 'zh-CN': '搜索客户端', 'en-US': 'Search clients' },
+  'clients.searchPlaceholder': {
+    'zh-CN': '搜索邮箱、凭据或订阅 ID…',
+    'en-US': 'Search email, credential, subId...',
+  },
   'dashboard.customGeo': { 'zh-CN': '自定义 Geo', 'en-US': 'Custom Geo' },
   'dashboard.description': {
     'zh-CN': '专为ChatGPT Claude Gemini设计的网络防封控管理工具。',

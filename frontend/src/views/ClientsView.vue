@@ -1,11 +1,13 @@
 <template>
-  <section class="page-stack">
+  <section class="page-stack clients-page" :aria-busy="loading">
     <PageHeader
       eyebrow="Overview"
       title="Clients"
-      description="Aggregated client details across all inbounds, including traffic, expiry and online status."
+      :description="translate('clients.description', appStore.locale)"
     >
       <AButton
+        :aria-label="translate('clients.refreshLabel', appStore.locale)"
+        class="clients-refresh-button"
         :disabled="Boolean(clientActionKey)"
         :loading="loading"
         type="primary"
@@ -16,7 +18,16 @@
       </AButton>
     </PageHeader>
 
-    <AAlert v-if="error" banner type="warning" :message="error" />
+    <AAlert
+      v-if="error"
+      class="clients-error"
+      banner
+      closable
+      show-icon
+      type="warning"
+      :message="error"
+      @close="error = ''"
+    />
 
     <div class="status-grid">
       <StatusTile
@@ -46,35 +57,65 @@
     </div>
 
     <ACard class="work-panel" :bordered="false">
-      <div class="section-toolbar">
-        <div>
-          <h2>Client Details</h2>
+      <div class="section-toolbar clients-toolbar">
+        <div class="clients-toolbar-copy">
+          <div class="clients-title-row">
+            <h2>{{ translate('clients.detailsTitle', appStore.locale) }}</h2>
+            <ATag class="clients-result-tag" color="blue">
+              {{ resultSummary }}
+            </ATag>
+          </div>
           <p>
-            Aggregated view of VMess, VLESS, Trojan, Shadowsocks, Hysteria2 and WireGuard clients.
-            SOCKS5/mixed accounts are excluded.
+            {{ translate('clients.detailsDescription', appStore.locale) }}
           </p>
         </div>
-        <ASpace wrap>
+        <div
+          class="client-filter-toolbar"
+          role="search"
+          :aria-label="translate('clients.filterLabel', appStore.locale)"
+        >
           <AInput
             v-model:value="search"
+            :aria-label="translate('clients.searchLabel', appStore.locale)"
+            class="client-filter-input"
             allow-clear
-            placeholder="Search email, credential, subId..."
-            style="width: 280px"
-          />
-          <ASelect v-model:value="inboundFilter" style="width: 220px">
-            <ASelectOption value="all">All inbounds</ASelectOption>
+            :placeholder="translate('clients.searchPlaceholder', appStore.locale)"
+          >
+            <template #prefix><SearchOutlined /></template>
+          </AInput>
+          <ASelect
+            v-model:value="inboundFilter"
+            :aria-label="translate('clients.filterInboundLabel', appStore.locale)"
+            class="client-filter-select"
+          >
+            <ASelectOption value="all">
+              {{ translate('clients.allInbounds', appStore.locale) }}
+            </ASelectOption>
             <ASelectOption v-for="inbound in inbounds" :key="inbound.id" :value="inbound.id">
               {{ inboundLabel(inbound) }}
             </ASelectOption>
           </ASelect>
-        </ASpace>
+          <AButton v-if="hasFilters" class="client-clear-filters" type="text" @click="clearFilters">
+            {{ translate('clients.clearFilters', appStore.locale) }}
+          </AButton>
+        </div>
+      </div>
+
+      <div class="client-table-meta" aria-live="polite">
+        <span>{{ resultSummary }}</span>
+        <span v-if="hasFilters" class="client-table-meta-hint">
+          {{ translate('clients.filtersActive', appStore.locale) }}
+        </span>
       </div>
 
       <ATable
+        class="client-table"
         :columns="columns"
         :data-source="filteredRows"
+        :locale="tableLocale"
         :loading="loading"
         :pagination="{ pageSize: 20, showSizeChanger: true }"
+        :row-class-name="rowClassName"
         row-key="key"
         size="middle"
         :scroll="{ x: 1500 }"
@@ -117,14 +158,19 @@
           </template>
           <template v-else-if="column.key === 'actions'">
             <AButton
-              :aria-label="`${record.clientEnabled ? 'Stop' : 'Start'} client ${record.email || record.key}`"
+              :aria-label="clientActionAriaLabel(asClientRow(record))"
+              class="client-action-button"
               :danger="record.clientEnabled"
               :disabled="clientActionDisabled(asClientRow(record))"
               :loading="clientActionKey === record.key"
-              size="small"
-              type="link"
+              size="middle"
+              type="text"
               @click="toggleClient(asClientRow(record))"
             >
+              <template #icon>
+                <StopOutlined v-if="record.clientEnabled" />
+                <PlayCircleOutlined v-else />
+              </template>
               {{ record.clientEnabled ? 'Stop' : 'Start' }}
             </AButton>
           </template>
@@ -135,7 +181,12 @@
 </template>
 
 <script setup lang="ts">
-import { ReloadOutlined } from '@ant-design/icons-vue';
+import {
+  PlayCircleOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  StopOutlined,
+} from '@ant-design/icons-vue';
 import {
   Alert as AAlert,
   Button as AButton,
@@ -143,7 +194,6 @@ import {
   Input as AInput,
   Select as ASelect,
   SelectOption as ASelectOption,
-  Space as ASpace,
   Table as ATable,
   Tag as ATag,
 } from 'ant-design-vue';
@@ -159,7 +209,9 @@ import {
 } from '@/api/inbounds';
 import PageHeader from '@/components/PageHeader.vue';
 import StatusTile from '@/components/StatusTile.vue';
+import { translate } from '@/i18n/messages';
 import { protocolSupportsClients } from '@/schemas/protocolRegistry';
+import { useAppStore } from '@/stores/app';
 import type { Inbound, InboundClient } from '@/types/inbound';
 import { hasInjectedRuntimeConfig } from '@/types/runtime';
 import { formatBytes, formatCount } from '@/utils/format';
@@ -188,6 +240,7 @@ interface AggregatedClientRow {
   lastOnlineLabel: string;
 }
 
+const appStore = useAppStore();
 const inbounds = ref<Inbound[]>([]);
 const onlineClients = ref<string[]>([]);
 const lastOnlineMap = ref<Record<string, number>>({});
@@ -261,6 +314,24 @@ const filteredRows = computed(() => {
 
 const enabledCount = computed(() => rows.value.filter((row) => row.enabled).length);
 const onlineCount = computed(() => rows.value.filter((row) => row.online).length);
+const hasFilters = computed(() => Boolean(search.value.trim()) || inboundFilter.value !== 'all');
+const resultSummary = computed(() => {
+  const visible = filteredRows.value.length;
+  const total = rows.value.length;
+  return appStore.locale === 'zh-CN'
+    ? hasFilters.value
+      ? `${visible} / ${total} 个客户端`
+      : `${total} 个客户端`
+    : hasFilters.value
+      ? `${visible} of ${total} clients shown`
+      : `${total} clients`;
+});
+const tableLocale = computed(() => ({
+  emptyText:
+    rows.value.length === 0
+      ? translate('clients.noSupported', appStore.locale)
+      : translate('clients.noMatches', appStore.locale),
+}));
 
 function inboundLabel(inbound: Inbound): string {
   return inbound.remark || inbound.tag || `Inbound ${inbound.id}`;
@@ -288,6 +359,23 @@ function formatTimestamp(value: number): string {
 
 function asClientRow(record: AggregatedClientRow | Record<string, unknown>): AggregatedClientRow {
   return record as AggregatedClientRow;
+}
+
+function clearFilters() {
+  search.value = '';
+  inboundFilter.value = 'all';
+}
+
+function rowClassName(record: AggregatedClientRow): string {
+  return record.clientEnabled ? '' : 'client-row-disabled';
+}
+
+function clientActionAriaLabel(row: AggregatedClientRow): string {
+  const action = translate(row.clientEnabled ? 'action.stop' : 'action.start', appStore.locale);
+  const client = translate('common.clients', appStore.locale);
+  return appStore.locale === 'zh-CN'
+    ? `${action}${client} ${row.email || row.key}`
+    : `${action} client ${row.email || row.key}`;
 }
 
 function clientActionDisabled(row: AggregatedClientRow): boolean {
@@ -377,8 +465,154 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.client-credential {
+.clients-page {
+  --clients-surface: rgba(255, 255, 255, 0.035);
+}
+
+.clients-refresh-button {
+  min-width: 112px;
+  min-height: 44px;
+}
+
+.clients-error {
+  margin-bottom: 0;
+}
+
+.clients-toolbar {
+  align-items: stretch;
+  gap: 24px;
+}
+
+.clients-toolbar-copy {
+  flex: 1 1 360px;
+  min-width: 0;
+}
+
+.clients-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.clients-title-row h2 {
+  margin-bottom: 0;
+}
+
+.clients-result-tag {
+  margin: 0;
+  border: 1px solid rgba(82, 139, 255, 0.32);
+  background: rgba(0, 102, 255, 0.12);
+  color: var(--brand-primary-soft);
   font-size: 12px;
-  word-break: break-all;
+  line-height: 24px;
+}
+
+.client-filter-toolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.1fr) minmax(190px, 0.9fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: min(640px, 100%);
+  padding: 10px;
+  border: 1px solid var(--brand-border-soft);
+  border-radius: 14px;
+  background: var(--clients-surface);
+}
+
+.client-filter-input,
+.client-filter-select {
+  min-width: 0;
+  width: 100%;
+}
+
+.client-filter-input :deep(.ant-input-affix-wrapper),
+.client-filter-select :deep(.ant-select-selector) {
+  min-height: 44px;
+}
+
+.client-clear-filters {
+  min-height: 44px;
+  padding-inline: 12px;
+  color: var(--brand-muted-strong);
+  white-space: nowrap;
+}
+
+.client-clear-filters:hover,
+.client-clear-filters:focus {
+  color: var(--brand-ink) !important;
+}
+
+.client-table-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -2px 0 12px;
+  color: var(--brand-muted-strong);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.client-table-meta-hint {
+  color: var(--brand-primary-soft);
+  font-weight: 600;
+}
+
+.client-table :deep(.client-row-disabled > td) {
+  opacity: 0.68;
+}
+
+.client-table :deep(.client-row-disabled:hover > td) {
+  opacity: 0.86;
+}
+
+.client-table :deep(.client-row-disabled .client-action-button) {
+  opacity: 1;
+}
+
+.client-action-button {
+  min-width: 84px;
+  min-height: 44px;
+  padding-inline: 8px;
+  font-weight: 800;
+}
+
+.client-credential {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  word-break: normal;
+}
+
+@media (max-width: 1100px) {
+  .clients-toolbar {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .client-filter-toolbar {
+    min-width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .clients-toolbar {
+    gap: 14px;
+  }
+
+  .client-filter-toolbar {
+    grid-template-columns: 1fr;
+    padding: 8px;
+  }
+
+  .client-clear-filters {
+    width: 100%;
+  }
+
+  .client-table-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
 }
 </style>

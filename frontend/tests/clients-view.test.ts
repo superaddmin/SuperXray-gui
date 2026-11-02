@@ -27,3 +27,15 @@ test('clients overview exposes start and stop actions backed by inbound client u
   assert.match(source, /settings\.peers = peers\.map/);
   assert.match(source, /record\.clientEnabled \? 'Stop' : 'Start'/);
 });
+
+test('clients overview makes filtering state visible and accessible', () => {
+  assert.match(source, /role="search"/);
+  assert.match(source, /clients\.filterLabel/);
+  assert.match(source, /clients\.searchLabel/);
+  assert.match(source, /clients\.filterInboundLabel/);
+  assert.match(source, /aria-live="polite"/);
+  assert.match(source, /function clearFilters\(\)/);
+  assert.match(source, /clients\.noSupported/);
+  assert.match(source, /clients\.noMatches/);
+  assert.match(source, /client-action-button/);
+});
