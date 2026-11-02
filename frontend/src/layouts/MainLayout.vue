@@ -99,6 +99,7 @@ import {
   MenuUnfoldOutlined,
   SettingOutlined,
   SwapOutlined,
+  TeamOutlined,
 } from '@ant-design/icons-vue';
 import {
   Button as AButton,
@@ -140,6 +141,11 @@ const menuItems = computed<ItemType[]>(() => [
     key: 'inbounds',
     icon: () => h(SwapOutlined),
     label: translate('nav.inbounds', appStore.locale),
+  },
+  {
+    key: 'clients',
+    icon: () => h(TeamOutlined),
+    label: translate('nav.clients', appStore.locale),
   },
   {
     key: 'settings',

@@ -940,9 +940,11 @@ delete_ports() {
 }
 
 update_all_geofiles() {
-    update_geofiles "main"
-    update_geofiles "IR"
-    update_geofiles "RU"
+    local failed=0
+    update_geofiles "main" || failed=1
+    update_geofiles "IR" || failed=1
+    update_geofiles "RU" || failed=1
+    return $failed
 }
 
 update_geofiles() {
@@ -951,12 +953,39 @@ update_geofiles() {
         "IR") dat_files=(geoip_IR geosite_IR); dat_source="chocolate4u/Iran-v2ray-rules" ;;
         "RU") dat_files=(geoip_RU geosite_RU); dat_source="runetfreedom/russia-v2ray-rules-dat";;
     esac
+    local failed=0 http_code
     for dat in "${dat_files[@]}"; do
         # Remove suffix for remote filename (e.g., geoip_IR -> geoip)
         remote_file="${dat%%_*}"
-        curl -fLRo ${xui_folder}/bin/${dat}.dat -z ${xui_folder}/bin/${dat}.dat \
-            https://github.com/${dat_source}/releases/latest/download/${remote_file}.dat
+        # -z skips the download (server answers 304) when the local copy is already current.
+        if ! http_code=$(curl -sSfLRo "${xui_folder}/bin/${dat}.dat" \
+            -z "${xui_folder}/bin/${dat}.dat" -w '%{http_code}' \
+            "https://github.com/${dat_source}/releases/latest/download/${remote_file}.dat"); then
+            echo -e "${red}${dat}.dat: 下载失败${plain}"
+            failed=1
+        elif [[ "${http_code}" == "304" ]]; then
+            echo -e "${dat}.dat: 已是最新"
+        else
+            echo -e "${green}${dat}.dat: 已更新${plain}"
+            geo_updated=1
+        fi
     done
+    return $failed
+}
+
+run_geo_update() {
+    local name="$1"
+    shift
+    geo_updated=0
+    "$@"
+    if [[ $? -ne 0 ]]; then
+        echo -e "${red}${name} 部分文件更新失败，请检查上面的错误。${plain}"
+    elif [[ ${geo_updated:-0} -eq 1 ]]; then
+        echo -e "${green}${name}已成功更新！${plain}"
+        restart
+    else
+        echo -e "${green}${name}已是最新，无需重启。${plain}"
+    fi
 }
 
 update_geo() {
@@ -972,24 +1001,16 @@ update_geo() {
         show_menu
         ;;
     1)
-        update_geofiles "main"
-        echo -e "${green}Loyalsoldier 数据集已更新成功！${plain}"
-        restart
+        run_geo_update "Loyalsoldier 数据集" update_geofiles "main"
         ;;
     2)
-        update_geofiles "IR"
-        echo -e "${green}chocolate4u 数据集已更新成功！${plain}"
-        restart
+        run_geo_update "chocolate4u 数据集" update_geofiles "IR"
         ;;
     3)
-        update_geofiles "RU"
-        echo -e "${green}runetfreedom 数据集已更新成功！${plain}"
-        restart
+        run_geo_update "runetfreedom 数据集" update_geofiles "RU"
         ;;
     4)
-        update_all_geofiles
-        echo -e "${green}全部 geo 文件已更新成功！${plain}"
-        restart
+        run_geo_update "全部 geo 文件" update_all_geofiles
         ;;
     *)
         echo -e "${red}无效选项，请选择正确数字。${plain}\n"
@@ -2395,7 +2416,16 @@ if [[ $# > 0 ]]; then
         check_install 0 && uninstall 0
         ;;
     "update-all-geofiles")
-        check_install 0 && update_all_geofiles 0 && restart 0
+        geo_updated=0
+        if ! check_install 0; then
+            exit 1
+        fi
+        if ! update_all_geofiles 0; then
+            exit 1
+        fi
+        if [[ ${geo_updated:-0} -eq 1 ]]; then
+            restart 0
+        fi
         ;;
     *) show_usage ;;
     esac

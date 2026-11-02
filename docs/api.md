@@ -152,6 +152,7 @@ HTTP 状态码为 `403`。
 | `GET` | `/panel/cores` | Core 实例页 |
 | `GET` | `/panel/xray` | Xray 配置与工具页 |
 | `GET` | `/panel/inbounds` | Inbounds 管理页 |
+| `GET` | `/panel/clients` | 客户端总览页 |
 | `GET` | `/panel/settings` | 设置页 |
 | `GET` | `/panel/docs` | API 文档页 |
 | `GET` | `/panel/assets/*path` | 新 UI 构建资源 |

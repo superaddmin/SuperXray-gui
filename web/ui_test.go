@@ -148,6 +148,7 @@ func TestNewUIRoutesServeTopLevelVuePagesForLoggedInUser(t *testing.T) {
 		"/panel/cores",
 		"/panel/xray",
 		"/panel/inbounds",
+		"/panel/clients",
 		"/panel/settings",
 		"/panel/docs",
 	} {

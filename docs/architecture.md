@@ -78,7 +78,7 @@ flowchart TB
 
 | UI | 路由 | 技术栈 | 数据写入约束 |
 |---|---|---|---|
-| 新 UI | `/panel/`、`/panel/logs`、`/panel/cores`、`/panel/xray`、`/panel/inbounds`、`/panel/settings`、`/panel/docs` | Vue 3/Vite/TS/Pinia/Ant Design Vue 4 | 继续写旧 API 和 `model.Inbound` 兼容数据 |
+| 新 UI | `/panel/`、`/panel/logs`、`/panel/cores`、`/panel/xray`、`/panel/inbounds`、`/panel/clients`、`/panel/settings`、`/panel/docs` | Vue 3/Vite/TS/Pinia/Ant Design Vue 4 | 继续写旧 API 和 `model.Inbound` 兼容数据 |
 | 兼容新 UI 入口 | `/panel/ui/*` | 同上 | 同上 |
 
 旧 HTML UI 已退役，`web/html`、`web/assets` 和 `/panel/legacy*` 页面路由不再注册。新 UI 的 runtime config 由 `web/ui.go` 注入 `window.__SUPERXRAY_UI_CONFIG__`。所有页面统一使用 nonce CSP，不再保留 legacy UI 的 `unsafe-inline` / `unsafe-eval` CSP 例外。

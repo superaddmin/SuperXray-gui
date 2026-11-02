@@ -8,7 +8,7 @@
 
 - 默认新 UI 入口：
   - `/panel` 重定向到 `/panel/`。
-  - `/panel/`、`/panel/dashboard`、`/panel/logs`、`/panel/xray`、`/panel/inbounds`、`/panel/settings` 均返回新 Vue SPA。
+  - `/panel/`、`/panel/dashboard`、`/panel/logs`、`/panel/xray`、`/panel/inbounds`、`/panel/clients`、`/panel/settings` 均返回新 Vue SPA。
   - `/panel/assets/*` 托管新 UI 构建产物。
 - 兼容新 UI 入口：
   - `/panel/ui/` 继续可用，用于灰度期兼容旧链接和回滚。

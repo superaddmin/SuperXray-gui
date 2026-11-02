@@ -51,6 +51,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Inbounds' },
       },
       {
+        path: 'clients',
+        name: 'clients',
+        component: () => import('@/views/ClientsView.vue'),
+        meta: { title: 'Clients' },
+      },
+      {
         path: 'settings',
         name: 'settings',
         component: () => import('@/views/SettingsView.vue'),

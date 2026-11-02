@@ -59,6 +59,7 @@
 | `/panel/cores` | 已迁移 | Core 实例 |
 | `/panel/xray` | 已迁移 | Xray 配置工作台 |
 | `/panel/inbounds` | 已迁移 | Inbounds 管理 |
+| `/panel/clients` | 新增页面 | 客户端总览 |
 | `/panel/settings` | 已迁移 | 设置 |
 | `/panel/docs` | 新增页面 | API Docs，读取已登录 `/panel/api/openapi.json` |
 | `/panel/ui/*` | 兼容入口 | 仍指向新 UI |

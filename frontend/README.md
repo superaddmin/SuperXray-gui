@@ -7,7 +7,7 @@
 - Application source: `frontend/src`.
 - Unit tests: `frontend/tests/*.test.ts`, executed with Node's test runner.
 - Main libraries: Vue Router 4, Pinia 3, Ant Design Vue 4, and Axios.
-- Routes: login, dashboard, logs, core instances, Xray, inbounds, settings, API docs, and the not-found view.
+- Routes: login, dashboard, logs, core instances, Xray, inbounds, clients, settings, API docs, and the not-found view.
 - API wrappers live in `src/api`; shared protocol and compatibility logic lives in `src/schemas` and `src/utils`.
 - `vite.config.ts` writes production output to `../web/ui` with a relative asset base.
 - `web/ui.go` embeds `web/ui` and serves the application at `/panel/`, with `/panel/ui/` retained as a compatible route.

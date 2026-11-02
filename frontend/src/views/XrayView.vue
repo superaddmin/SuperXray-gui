@@ -255,7 +255,7 @@
             Refresh Traffic
           </AButton>
           <AButton
-            :disabled="outboundsFromConfig.length === 0"
+            :disabled="!firstOutboundTestable"
             :loading="testingOutbound"
             type="primary"
             @click="runFirstOutboundTest"
@@ -1410,6 +1410,14 @@ const outboundsFromConfig = computed<JsonObject[]>(() => {
   }
   return config.outbounds.filter(isJsonObject);
 });
+const firstOutboundTestIndex = computed(() =>
+  outboundsFromConfig.value.findIndex((outbound) => {
+    const protocol = typeof outbound.protocol === 'string' ? outbound.protocol.trim().toLowerCase() : '';
+    const tag = typeof outbound.tag === 'string' ? outbound.tag : '';
+    return !['blackhole', 'loopback', 'freedom', 'dns'].includes(protocol) && tag !== 'blocked';
+  }),
+);
+const firstOutboundTestable = computed(() => firstOutboundTestIndex.value >= 0);
 const advancedRows = computed(() => [
   {
     key: 'outbounds',
@@ -2341,8 +2349,8 @@ async function saveConfig(parsed: JsonValue) {
 }
 
 async function runFirstOutboundTest() {
-  const outbound = outboundsFromConfig.value[0];
-  if (!outbound) {
+  const outbound = outboundsFromConfig.value[firstOutboundTestIndex.value];
+  if (!outbound || !firstOutboundTestable.value) {
     return;
   }
 

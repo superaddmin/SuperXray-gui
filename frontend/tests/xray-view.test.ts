@@ -82,6 +82,15 @@ test('xray view exposes protocol tools and warp matrix workflows', () => {
   assert.match(source, /warpMatrixSelected/);
 });
 
+test('xray view disables the first outbound test for direct and non-proxy outbounds', () => {
+  assert.match(source, /:disabled="!firstOutboundTestable"/);
+  assert.match(source, /outbound\.protocol\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(source, /\['blackhole', 'loopback', 'freedom', 'dns'\]/);
+  assert.match(source, /firstOutboundTestIndex = computed\(\(\) =>/);
+  assert.match(source, /outboundsFromConfig\.value\[firstOutboundTestIndex\.value\]/);
+  assert.match(source, /!outbound \|\| !firstOutboundTestable\.value/);
+});
+
 test('xray view exposes dns presets and observatory log policy workflows', () => {
   for (const title of ['DNS Presets', 'Runtime Policy', 'Observatory']) {
     assert.match(source, new RegExp(`title="${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));

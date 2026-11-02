@@ -47,6 +47,7 @@ func (s *Server) registerNewUIRoutes(g *gin.RouterGroup, basePath string) {
 		"/panel/cores",
 		"/panel/xray",
 		"/panel/inbounds",
+		"/panel/clients",
 		"/panel/settings",
 		"/panel/docs",
 	} {
