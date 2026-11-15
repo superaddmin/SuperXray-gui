@@ -80,6 +80,11 @@ func NewSUBController(
 // initRouter registers HTTP routes for subscription links and JSON endpoints
 // on the provided router group.
 func (a *SUBController) initRouter(g *gin.RouterGroup) {
+	// Apply before handlers so errors and diagnostics cannot be cached either.
+	g = g.Group("", func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
+		c.Next()
+	})
 	gLink := g.Group(a.subPath)
 	gLink.GET(":subid", a.subs)
 	gLink.GET(":subid/diagnose", a.diagnoseSubs)

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
+	"github.com/superaddmin/SuperXray-gui/v2/util/crypto"
 )
 
 func TestInitDBCreatesMigrationMetadata(t *testing.T) {
@@ -57,9 +58,13 @@ func TestInitDBSeederIsIdempotentAndDoesNotRehash(t *testing.T) {
 	if err := InitDB(dbPath); err != nil {
 		t.Fatalf("first InitDB() failed: %v", err)
 	}
-	var first model.User
-	if err := GetDB().Where("username = ?", "admin").First(&first).Error; err != nil {
-		t.Fatalf("load default user: %v", err)
+	hash, err := crypto.HashPasswordAsBcrypt("existing-test-password")
+	if err != nil {
+		t.Fatalf("hash fixture password: %v", err)
+	}
+	first := model.User{Username: "existing-operator", Password: hash}
+	if err := GetDB().Create(&first).Error; err != nil {
+		t.Fatalf("create existing user: %v", err)
 	}
 	firstHash := first.Password
 	if err := CloseDB(); err != nil {
@@ -70,7 +75,7 @@ func TestInitDBSeederIsIdempotentAndDoesNotRehash(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = CloseDB() })
 	var second model.User
-	if err := GetDB().Where("username = ?", "admin").First(&second).Error; err != nil {
+	if err := GetDB().Where("username = ?", first.Username).First(&second).Error; err != nil {
 		t.Fatalf("load user after retry: %v", err)
 	}
 	if second.Password != firstHash {

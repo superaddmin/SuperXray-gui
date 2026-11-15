@@ -29,8 +29,6 @@ import (
 var db atomic.Pointer[gorm.DB]
 
 const (
-	defaultUsername           = "admin"
-	defaultPassword           = "admin"
 	baselineMigrationVersion  = "202606260001"
 	baselineMigrationName     = "baseline-auto-migrate"
 	baselineMigrationChecksum = "gorm-auto-migrate-current-models"
@@ -86,30 +84,6 @@ func recordBaselineMigration(gdb *gorm.DB) error {
 			Attrs(event).
 			FirstOrCreate(&event).Error
 	})
-}
-
-// initUser creates a default admin user if the users table is empty.
-func initUser(gdb *gorm.DB) error {
-	empty, err := isTableEmpty(gdb, "users")
-	if err != nil {
-		log.Printf("Error checking if users table is empty: %v", err)
-		return err
-	}
-	if empty {
-		hashedPassword, err := crypto.HashPasswordAsBcrypt(defaultPassword)
-
-		if err != nil {
-			log.Printf("Error hashing default password: %v", err)
-			return err
-		}
-
-		user := &model.User{
-			Username: defaultUsername,
-			Password: hashedPassword,
-		}
-		return gdb.Create(user).Error
-	}
-	return nil
 }
 
 // runSeeders migrates user passwords to bcrypt and records seeder execution to prevent re-running.
@@ -248,9 +222,8 @@ func PrepareDBWithMigration(dbPath string, migrate func(*gorm.DB) error) (*gorm.
 		if err != nil {
 			return err
 		}
-		if err := initUser(tx); err != nil {
-			return err
-		}
+		// Leave fresh databases without a login until the local setting CLI
+		// configures one; never expose a shared or logged bootstrap credential.
 		if err := runSeeders(tx, isUsersEmpty); err != nil {
 			return err
 		}

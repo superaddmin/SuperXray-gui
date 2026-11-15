@@ -33,13 +33,16 @@ func initRepositoryTestDB(t *testing.T) *gorm.DB {
 func TestRepositoriesReadAndWriteCurrentGORMModels(t *testing.T) {
 	gdb := initRepositoryTestDB(t)
 	repos := NewRepositories(gdb)
+	if err := repos.Users.Save(&model.User{Username: "repository-user", Password: "repository-password"}); err != nil {
+		t.Fatalf("seed repository user: %v", err)
+	}
 
 	user, err := repos.Users.First()
 	if err != nil {
 		t.Fatalf("Users.First() failed: %v", err)
 	}
-	if user.Username != defaultUsername {
-		t.Fatalf("Users.First().Username = %q, want %q", user.Username, defaultUsername)
+	if user.Username != "repository-user" {
+		t.Fatalf("Users.First().Username = %q, want repository-user", user.Username)
 	}
 	if err := repos.Users.UpdateCredentials(user.Id, "phase2-admin", "phase2-password"); err != nil {
 		t.Fatalf("Users.UpdateCredentials() failed: %v", err)

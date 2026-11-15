@@ -12,6 +12,7 @@ import (
 	_ "unsafe"
 
 	"github.com/superaddmin/SuperXray-gui/v2/config"
+	"github.com/superaddmin/SuperXray-gui/v2/database"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/sub"
 	"github.com/superaddmin/SuperXray-gui/v2/util/crypto"
@@ -50,6 +51,13 @@ func runWebServer() {
 	err := service.InitDB(config.GetDBPath())
 	if err != nil {
 		log.Fatalf("Error initializing database: %v", err)
+	}
+	needsCredentials, err := hasDefaultPanelCredential()
+	if err != nil {
+		log.Fatalf("Error checking panel credential setup: %v", err)
+	}
+	if needsCredentials {
+		log.Println("Panel credentials require setup; run the panel binary with setting -username <username> -password <password> before logging in.")
 	}
 
 	var server *web.Server
@@ -153,6 +161,20 @@ func resetSetting() error {
 	return nil
 }
 
+// hasDefaultPanelCredential preserves the installer's setup signal for both
+// fresh databases without users and existing installations using legacy defaults.
+func hasDefaultPanelCredential() (bool, error) {
+	userService := service.UserService{}
+	user, err := userService.GetFirstUser()
+	if database.IsNotFound(err) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return user.Username == "admin" && crypto.CheckPasswordHash(user.Password, "admin"), nil
+}
+
 // showSetting displays the current panel settings if show is true.
 func showSetting(show bool) {
 	if show {
@@ -176,14 +198,10 @@ func showSetting(show bool) {
 			fmt.Println("get key file failed, error info:", err)
 		}
 
-		userService := service.UserService{}
-		userModel, err := userService.GetFirstUser()
+		hasDefaultCredential, err := hasDefaultPanelCredential()
 		if err != nil {
 			fmt.Println("get current user info failed, error info:", err)
-		}
-
-		if userModel.Username == "" || userModel.Password == "" {
-			fmt.Println("current username or password is empty")
+			return
 		}
 
 		fmt.Println("current panel settings as follows:")
@@ -192,10 +210,6 @@ func showSetting(show bool) {
 		} else {
 			fmt.Println("Panel is secure with SSL")
 		}
-
-		hasDefaultCredential := func() bool {
-			return userModel.Username == "admin" && crypto.CheckPasswordHash(userModel.Password, "admin")
-		}()
 
 		fmt.Println("hasDefaultCredential:", hasDefaultCredential)
 		fmt.Println("port:", port)

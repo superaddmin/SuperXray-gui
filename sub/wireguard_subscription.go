@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/netip"
 	"strings"
+	"unicode"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/util/json_util"
@@ -135,26 +136,32 @@ func (s *SubService) genWireguardConfig(inbound *model.Inbound, peer wireguardPe
 		return ""
 	}
 
-	var b strings.Builder
-	b.WriteString("[Interface]\n")
-	b.WriteString("PrivateKey = " + node.WireguardPeer.PrivateKey + "\n")
-	b.WriteString("Address = " + node.WireguardClientAddress + "\n")
-	b.WriteString("DNS = 1.1.1.1, 1.0.0.1\n")
-	if node.WireguardSettings.MTU > 0 {
-		b.WriteString(fmt.Sprintf("MTU = %d\n", node.WireguardSettings.MTU))
+	lines := []string{
+		"[Interface]",
+		"PrivateKey = " + node.WireguardPeer.PrivateKey,
+		"Address = " + node.WireguardClientAddress,
+		"DNS = 1.1.1.1, 1.0.0.1",
 	}
-	b.WriteString("\n# " + s.genRemark(inbound, node.WireguardPeer.Email, "") + "\n")
-	b.WriteString("[Peer]\n")
-	b.WriteString("PublicKey = " + node.WireguardSettings.PublicKey + "\n")
-	b.WriteString("AllowedIPs = 0.0.0.0/0, ::/0\n")
-	b.WriteString(fmt.Sprintf("Endpoint = %s:%d", node.Address, node.Port))
+	if node.WireguardSettings.MTU > 0 {
+		lines = append(lines, fmt.Sprintf("MTU = %d", node.WireguardSettings.MTU))
+	}
+	lines = append(lines, "", "# "+s.genRemark(inbound, node.WireguardPeer.Email, ""),
+		"[Peer]", "PublicKey = "+node.WireguardSettings.PublicKey,
+		"AllowedIPs = 0.0.0.0/0, ::/0", fmt.Sprintf("Endpoint = %s:%d", node.Address, node.Port))
 	if node.WireguardPeer.PreSharedKey != "" {
-		b.WriteString("\nPresharedKey = " + node.WireguardPeer.PreSharedKey)
+		lines = append(lines, "PresharedKey = "+node.WireguardPeer.PreSharedKey)
 	}
 	if node.WireguardPeer.KeepAlive > 0 {
-		b.WriteString(fmt.Sprintf("\nPersistentKeepalive = %d\n", node.WireguardPeer.KeepAlive))
+		lines = append(lines, fmt.Sprintf("PersistentKeepalive = %d", node.WireguardPeer.KeepAlive))
 	}
-	return b.String()
+	// Every interpolated value must stay on one line: wg-quick executes hooks
+	// from [Interface], so even a remark must not inject another directive.
+	for _, line := range lines {
+		if strings.ContainsFunc(line, unicode.IsControl) {
+			return ""
+		}
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func (s *SubJsonService) genWireguard(inbound *model.Inbound, peer wireguardPeer, host string) json_util.RawMessage {

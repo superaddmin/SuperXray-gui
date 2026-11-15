@@ -180,6 +180,9 @@ func TestPanelMigrationRejectsInvalidExistingExternalProxyAtomically(t *testing.
 func TestPanelDatabaseMigrationRollsBackAllStagesOnHistoricalFailure(t *testing.T) {
 	setupInboundServiceTestDB(t)
 	active := database.GetDB()
+	if err := (&UserService{}).UpdateFirstUser("migration-operator", "migration-test-password"); err != nil {
+		t.Fatalf("seed active user: %v", err)
+	}
 	candidate := filepath.Join(t.TempDir(), "candidate.db")
 	gdb, err := database.PrepareDB(candidate)
 	if err != nil {
