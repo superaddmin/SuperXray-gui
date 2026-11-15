@@ -31,10 +31,10 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 Чтобы установить текущий релиз явно:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.3
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.4
 ```
 
-Официальные бинарные релизы сейчас публикуются для Linux `amd64` и `arm64`. В конце установки скрипт выводит сгенерированные имя пользователя, пароль, порт панели и `webBasePath`; сохраните эти данные. Docker-образ доступен как `ghcr.io/superaddmin/superxray-gui:3.7.3`. В новой базе данных нет учетной записи по умолчанию: перед первым входом в Docker создайте ее командой `docker exec <container> /app/x-ui setting -username '<username>' -password '<strong-password>'`. Существующие учетные записи сохраняются. См. [инициализацию учетной записи](docs/upstream-v3.7.3-bootstrap.md) и [руководство по развертыванию](docs/deployment.md).
+Официальные бинарные релизы сейчас публикуются для Linux `amd64` и `arm64`. В конце установки скрипт выводит сгенерированные имя пользователя, пароль, порт панели и `webBasePath`; сохраните эти данные. Docker-образ доступен как `ghcr.io/superaddmin/superxray-gui:3.7.4`. В новой базе данных нет учетной записи по умолчанию: перед первым входом в Docker создайте ее командой `docker exec <container> /app/x-ui setting -username '<username>' -password '<strong-password>'`. Существующие учетные записи сохраняются. См. [инициализацию учетной записи](docs/upstream-v3.7.3-bootstrap.md) и [руководство по развертыванию](docs/deployment.md).
 
 Полную документацию смотрите в [вики проекта](https://github.com/superaddmin/SuperXray-gui/wiki).
 

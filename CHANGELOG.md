@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [3.7.4] - 2026-11-15
+
+### Added
+
+- Clash/Mihomo 精简与完整模板内置 Claude 代理规则：`claude.ai`、`claude.com`、`anthropic.com`、`claudeusercontent.com` 及其子域，以及三个已确认的 Desktop/Code 遥测主机，优先路由到独立的 `CLAUDE` 选择组；每条代理规则后紧跟同域名 `REJECT`，避免节点不支持 UDP 时回落到后续直连规则。规则源 `sub/rules/claude.txt` 编译期嵌入，不依赖完整模板、自定义路由开关或远程规则集。
+
+### Changed
+
+- 将 Clash 配置组装抽取为 `buildClashConfig`，精简与完整模板共用同一代理组和规则入口；补充规则顺序、组名冲突与真实订阅输出回归测试。
+- 更新部署指南与 API 文档，说明 Claude 规则的分组、优先级、UDP 拒绝语义和客户端验收步骤；新增 Claude 订阅来源隐私审计与本机 Claude Desktop 网络信息审计。
+
 ## [3.7.3] - 2026-11-15
 
 ### Security

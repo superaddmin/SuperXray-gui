@@ -31,10 +31,10 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 برای نصب صریح نسخه فعلی:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.3
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.4
 ```
 
-بسته‌های رسمی فعلاً برای Linux `amd64` و `arm64` منتشر می‌شوند. اسکریپت نصب در پایان نام کاربری، گذرواژه، پورت پنل و `webBasePath` تولیدشده را نمایش می‌دهد؛ این اطلاعات را ذخیره کنید. تصویر Docker با نام `ghcr.io/superaddmin/superxray-gui:3.7.3` در دسترس است. پایگاه دادهٔ جدید حساب پیش‌فرض ندارد؛ پیش از اولین ورود در Docker، حساب را با دستور `docker exec <container> /app/x-ui setting -username '<username>' -password '<strong-password>'` ایجاد کنید. حساب‌های موجود حفظ می‌شوند. [راهنمای ایجاد حساب](docs/upstream-v3.7.3-bootstrap.md) و [راهنمای استقرار](docs/deployment.md) را ببینید.
+بسته‌های رسمی فعلاً برای Linux `amd64` و `arm64` منتشر می‌شوند. اسکریپت نصب در پایان نام کاربری، گذرواژه، پورت پنل و `webBasePath` تولیدشده را نمایش می‌دهد؛ این اطلاعات را ذخیره کنید. تصویر Docker با نام `ghcr.io/superaddmin/superxray-gui:3.7.4` در دسترس است. پایگاه دادهٔ جدید حساب پیش‌فرض ندارد؛ پیش از اولین ورود در Docker، حساب را با دستور `docker exec <container> /app/x-ui setting -username '<username>' -password '<strong-password>'` ایجاد کنید. حساب‌های موجود حفظ می‌شوند. [راهنمای ایجاد حساب](docs/upstream-v3.7.3-bootstrap.md) و [راهنمای استقرار](docs/deployment.md) را ببینید.
 
 برای مستندات کامل، لطفاً به [ویکی پروژه](https://github.com/superaddmin/SuperXray-gui/wiki) مراجعه کنید.
 

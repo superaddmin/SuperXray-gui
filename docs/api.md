@@ -1,7 +1,7 @@
 # API 接口说明
 
 > **目标读者**：集成开发者 / 前端维护者
-> **适用版本**：`v3.7.3`
+> **适用版本**：`v3.7.4`
 > **源码核对日期**：2026-10-23（静态契约与现有回归测试；部署配置和外部服务需在目标环境验证）
 > **事实来源**：`web/controller/*`、`web/ui.go`、`web/middleware/security.go`、`web/websocket/*`、`sub/*`、`frontend/src/api/*`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [部署指南](deployment.md) | [Panel OpenAPI](openapi/panel-api.yaml) | [Versioned API OpenAPI](openapi/api-v1.yaml)
@@ -37,7 +37,7 @@ window.__SUPERXRAY_UI_CONFIG__ = {
   uiBasePath: "/panel/",
   csrfToken: "<session csrf token>",
   cspNonce: "<request nonce>",
-  version: "3.7.3.<asset-hash>"
+  version: "3.7.4.<asset-hash>"
 }
 ```
 
@@ -790,6 +790,15 @@ GET /clash/:subid/diagnose
 ### 12.3 GET `/clash/:subid`
 
 返回 Clash/Mihomo YAML，Content-Type 为 `application/yaml; charset=utf-8`。
+
+精简与完整模板均内置 Claude 代理规则，不依赖 `subClashFullTemplateEnable`、自定义路由开关或远程 rule-provider。规则源 `sub/rules/claude.txt` 在编译时嵌入服务端，客户端不单独下载该文件：
+
+- `DOMAIN-SUFFIX` 覆盖 `claude.ai`、`claude.com`、`anthropic.com`、`claudeusercontent.com` 及其子域；`DOMAIN` 精确匹配 `o1158394.ingest.us.sentry.io`、`http-intake.logs.us5.datadoghq.com`、`browser-intake-us5-datadoghq.com`。
+- 规则目标为独立的 `select` 组，默认名 `CLAUDE`；与节点名冲突时自动追加数字后缀。组成员仅为当前订阅的实际代理节点，不包含 `DIRECT` 或通用 `PROXY` 组。
+- 内置规则位于规则列表最前，优先于用户自定义 `DIRECT`、`MATCH`、节点/LAN/DNS 例外及远程 `RULE-SET`，其他规则保持原有相对顺序。通用 `PROXY` 组选择直连不影响 Claude 专用组。
+- 每条代理规则后紧跟同域名的 `REJECT` 规则。Mihomo 因所选节点不支持 UDP 而继续匹配时，会拒绝该请求，避免落入后续直连规则。普通拨号失败不配置 `DIRECT` 回退，也不承诺自动切换节点。
+
+部署包含此变更的服务端版本并重启后，客户端刷新原订阅链接即可获取规则。客户端必须载入订阅中的组与规则并使用规则模式；仅导入节点、覆写规则或未接管相关流量时，不能保证生效。此行为仅适用于 Clash/Mihomo YAML（包括实际返回 YAML 的 `target=mihomo/stash` 请求），不改变 URI/Base64、Xray JSON、原生 WireGuard 配置或系统 TUN 设置，也不修改请求正文或保证地区匿名。验收步骤见 [部署指南 9.1 节](deployment.md#91-订阅服务与新-ui-导出入口)。
 
 ### 12.4 通用订阅响应头
 

@@ -1,6 +1,6 @@
 # 入站规则创建填写教程
 
-> 目标读者：面板管理员。基础源码核对日期：2026-10-15，本轮增量：2026-11-15；项目版本：`v3.7.3`。当前选择性吸收 `3x-ui v3.11.0` 与 `x-ui v1.15.0`，默认运行时 Xray：`v26.10.21`；API 类型依赖仍为 `v26.10.10` 基线。新增兼容校验和暂缓向导见 [v3.7.3 集成记录](upstream-v3.7.3-integration.md)。
+> 目标读者：面板管理员。基础源码核对日期：2026-10-15，本轮增量：2026-11-15；项目版本：`v3.7.4`。当前选择性吸收 `3x-ui v3.11.0` 与 `x-ui v1.15.0`，默认运行时 Xray：`v26.10.21`；API 类型依赖仍为 `v26.10.10` 基线。新增兼容校验和暂缓向导见 [上游集成记录](upstream-v3.7.3-integration.md)。
 > 事实来源：`frontend/src/views/InboundsView.vue`、`frontend/src/schemas/protocolRegistry.ts`、`frontend/src/utils/inboundCompat.ts`、`frontend/src/utils/realitySettings.ts`、`web/controller/inbound.go`、`web/service/protocol_validation.go`、`database/repository.go`。
 
 打开运行时 `webBasePath + "panel/inbounds"`，点击 `New Inbound`（中文界面对应“添加入站”）。页面使用当前 Vue 表单，下文保留源码中的英文标签便于对照。编辑已有入站时 Protocol 禁用。

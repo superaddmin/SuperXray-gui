@@ -1,8 +1,8 @@
 # 服务器环境部署教程
 
 > **目标读者**：准备在 VPS、云服务器或自建 Linux 主机上部署 SuperXray 的运维人员 / 开发者
-> **适用版本**：`v3.7.3`
-> **源码核对日期**：基础文档 2026-10-23；本轮增量 2026-11-15。当前分支为 `main`，选择性吸收 `3x-ui v3.11.0` 与 `x-ui v1.15.0`；运行时 Xray `v26.10.21`，API 类型依赖仍为 `v26.10.10` 基线，项目版本由 `config/version` 声明为 `3.7.3`。安装步骤面向 Linux shell，PowerShell 开发命令见 [开发指南](development.md)，升级取舍见 [v3.7.3 集成记录](upstream-v3.7.3-integration.md)。镜像/Release 是否已发布需到远端实际核实。
+> **适用版本**：`v3.7.4`
+> **源码核对日期**：基础文档 2026-10-23；本轮增量 2026-11-15。当前分支为 `main`，选择性吸收 `3x-ui v3.11.0` 与 `x-ui v1.15.0`；运行时 Xray `v26.10.21`，API 类型依赖仍为 `v26.10.10` 基线，项目版本由 `config/version` 声明为 `3.7.4`。安装步骤面向 Linux shell，PowerShell 开发命令见 [开发指南](development.md)，升级取舍见 [上游集成记录](upstream-v3.7.3-integration.md)。镜像/Release 是否已发布需到远端实际核实。
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md) | [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
 ---
@@ -147,7 +147,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 如 GitHub latest 正式版接口暂时不可用，也可以显式指定版本号安装：
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.3
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.4
 ```
 
 安装脚本会自动把 `x86_64` / `amd64` 映射为 `amd64`，把 `aarch64` / `arm64` 映射为 `arm64`，并下载对应的 `x-ui-linux-<arch>.tar.gz`。
@@ -460,7 +460,7 @@ systemctl reload caddy
 适合运行发布镜像的服务器。工作流的镜像目标是 GitHub Container Registry；以下标签仅示例当前项目版本，部署前先用 `docker manifest inspect` 或 GHCR 页面核实存在、架构和 digest，不能由本地 `config/version` 推断远端已发布：
 
 ```text
-ghcr.io/superaddmin/superxray-gui:3.7.3
+ghcr.io/superaddmin/superxray-gui:3.7.4
 ghcr.io/superaddmin/superxray-gui:latest
 ```
 
@@ -473,7 +473,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
   -v $PWD/cert:/root/cert \
   -e XRAY_VMESS_AEAD_FORCED=false \
   -e XUI_ENABLE_FAIL2BAN=true \
-  ghcr.io/superaddmin/superxray-gui:3.7.3
+  ghcr.io/superaddmin/superxray-gui:3.7.4
 ```
 
 使用 Compose 时建议写成：
@@ -481,7 +481,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
 ```yaml
 services:
   3xui:
-    image: ghcr.io/superaddmin/superxray-gui:3.7.3
+    image: ghcr.io/superaddmin/superxray-gui:3.7.4
     container_name: 3xui_app
     volumes:
       - $PWD/db/:/etc/x-ui/
@@ -548,7 +548,7 @@ docker buildx build --network host --platform linux/amd64 --build-arg GOPROXY=ht
 如果想复用官方 GHCR 镜像，把 Compose 中的 `build:` 段替换为：
 
 ```yaml
-image: ghcr.io/superaddmin/superxray-gui:3.7.3
+image: ghcr.io/superaddmin/superxray-gui:3.7.4
 ```
 
 ### 7.3 数据目录
@@ -677,7 +677,7 @@ TAG="$(curl -fsSL https://api.github.com/repos/superaddmin/SuperXray-gui/release
   | sed -E 's/.*"([^"]+)".*/\1/')"
 
 if [ -z "${TAG}" ]; then
-  echo "Failed to resolve latest release tag. Set TAG manually, for example: TAG=v3.7.3" >&2
+  echo "Failed to resolve latest release tag. Set TAG manually, for example: TAG=v3.7.4" >&2
   exit 1
 fi
 
@@ -927,7 +927,21 @@ systemctl daemon-reload
 
 新 UI 的入站列表已经补齐旧 UI 的关键导出入口：顶部支持“导出全部分享链接”和“导出全部订阅”，单个入站行支持“导出链接”“导出订阅”“导出入站 JSON”“QR”“Clone”“Reset”“Edit”“Delete”。当订阅开关已启用但 `subURI`、`subJsonURI` 或 `subClashURI` 尚未持久化时，新 UI 会读取后端默认值补齐公开 URI，再生成订阅链接；如果仍然为空，应先在 **设置 → 订阅设置** 中执行默认值填充或手动填写公开地址。
 
-Clash 输出默认只包含 `proxies`、`proxy-groups` 和最终规则。需要在面板侧下发 DNS、sniffer 与共享规则集时，可在 **设置 → 订阅设置 → Feature Flags** 开启 `Clash Full Template`：
+Clash 精简与完整模板都内置 Claude 代理规则，覆盖 `claude.ai`、`claude.com`、`anthropic.com`、`claudeusercontent.com` 及其子域，并精确匹配以下已知遥测端点：`o1158394.ingest.us.sentry.io`、`http-intake.logs.us5.datadoghq.com`、`browser-intake-us5-datadoghq.com`。规则源文件为 `sub/rules/claude.txt`，编译时嵌入订阅服务，客户端无需单独下载。生成规则位于规则列表最前，优先于自定义规则（包括 `DIRECT`、`MATCH`）、节点/LAN/DNS 例外和远程规则集；其他规则保持原有相对顺序。这些规则不依赖 `Clash Full Template`、自定义路由开关或第三方规则下载。
+
+Claude 使用独立的 `select` 组，默认名为 `CLAUDE`；如与订阅节点名称冲突，会自动追加数字后缀。该组仅包含当前订阅的实际代理节点，不包含 `DIRECT` 或通用 `PROXY` 组，因此在通用组中选择直连不会改变 Claude 的规则目标。用户可在该组中选择用于 Claude 的代理节点。
+
+每条 Claude 代理规则后紧跟同域名的 `REJECT` 规则：Mihomo 在所选节点不支持 UDP 而继续匹配后续规则时，会拒绝该 UDP 请求，避免落入后面的自定义直连规则。普通拨号失败也未配置 `DIRECT` 回退；该选择组不承诺自动切换节点。
+
+部署包含此变更的服务端版本并重启面板/订阅服务后，在客户端刷新原有 Clash/Mihomo 订阅链接即可，无需更换链接。刷新后应确认：
+
+1. 客户端处于规则模式，并载入订阅的 `proxy-groups` 与 `rules`；仅导入节点、使用全局直连模式或覆写规则，不能保证这些规则生效。
+2. 存在仅含代理节点的 Claude 专用组，域名规则位于自定义 `DIRECT`、`MATCH` 和 `RULE-SET` 之前。
+3. 用客户端连接日志核对 `claude.ai`、`api.anthropic.com` 等请求实际命中该组及所选节点；路由器用户还需确认 IPv4、IPv6 和 UDP 已被接管。
+
+此功能只改变 Clash/Mihomo YAML 的分流行为，URI/Base64、Xray JSON 和原生 WireGuard 配置不受影响，也不会启用系统 TUN 或修改应用请求正文。域名规则只作用于客户端已接管且能识别目标域名的连接；它不阻止应用读取或通过正文传送网卡地址、时区等信息，也不保证所有第三方端点均已覆盖，因此不能作为地区匿名或真实 IP 不泄漏的保证。
+
+Clash 精简模板包含 `proxies`、`proxy-groups`、上述 Claude 规则及其他分流规则。需要在面板侧下发 DNS、sniffer 与共享规则集时，可在 **设置 → 订阅设置 → Feature Flags** 开启 `Clash Full Template`：
 
 - 生成 `dns`（FakeIP、`respect-rules`、国内外 DoH 路径）、`sniffer`、5 个 `rule-providers` 和完整规则顺序；节点服务器地址会自动加入直连例外，域名节点同时进入 `fake-ip-filter`；
 - 规则集来自 AgentRoute 的公开 release（`raw.githubusercontent.com`），由客户端按 `interval` 拉取并经 `PROXY` 下载；面板本身不发起这些请求；
@@ -1257,7 +1271,7 @@ x-ui restart-xray
 一键脚本和构建流程都需要访问 GitHub Release。可选处理：
 
 - 如果提示 `获取 SuperXray Release 版本失败`，先打开 `https://github.com/superaddmin/SuperXray-gui/releases` 确认是否存在可下载的 Release。
-- 如果仓库只有预发布版本，使用显式版本安装命令，例如：`bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.3`。
+- 如果仓库只有预发布版本，使用显式版本安装命令，例如：`bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.4`。
 - 换用可访问 GitHub 的网络环境。
 - 手动下载 Release 包后上传到服务器。
 - 使用企业内网制品库缓存 Release 包。
@@ -1266,7 +1280,7 @@ x-ui restart-xray
 
 ### 12.6 Docker 新安装无法登录或旧库仍是默认账号
 
-v3.7.3 新数据库没有默认账号，不能使用 `admin/admin` 登录；Docker 入口不会自动初始化。已有数据库不会改写账号，若仍使用历史默认账号也应主动更改。使用服务所在容器的 CLI 设置账号，详见[首次账号初始化](upstream-v3.7.3-bootstrap.md)：
+v3.7.4 新数据库没有默认账号，不能使用 `admin/admin` 登录；Docker 入口不会自动初始化。已有数据库不会改写账号，若仍使用历史默认账号也应主动更改。使用服务所在容器的 CLI 设置账号，详见[首次账号初始化](upstream-v3.7.3-bootstrap.md)：
 
 ```bash
 docker exec -it 3xui_app /app/x-ui setting -username '<新用户名>' -password '<强密码>' -webBasePath '/panel-secret/'

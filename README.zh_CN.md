@@ -121,7 +121,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 如需固定安装当前版本：
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.3
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.4
 ```
 
 一键脚本会自动安装基础依赖，下载匹配架构的 GitHub Release 包，并在安装结束时输出随机生成的用户名、密码、面板端口和 `webBasePath`。这段输出只出现一次，请保存到密码管理器。当前官方 Release 二进制包覆盖 Linux `amd64` 与 `arm64`。
@@ -165,7 +165,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
   -v $PWD/cert:/root/cert \
   -e XRAY_VMESS_AEAD_FORCED=false \
   -e XUI_ENABLE_FAIL2BAN=true \
-  ghcr.io/superaddmin/superxray-gui:3.7.3
+  ghcr.io/superaddmin/superxray-gui:3.7.4
 ```
 
 如果需要基于本地源码构建：
@@ -199,7 +199,7 @@ services:
     restart: unless-stopped
 ```
 
-> Docker 新数据库不创建默认账号。首次登录前使用 `docker exec superxray-gui /app/x-ui setting -username '<用户名>' -password '<强密码>'` 初始化账号，再核对端口、`webBasePath` 和证书；已有账号保持不变。Compose 示例容器名是 `3xui_app`，执行时替换容器名。详见[首次账号初始化](docs/upstream-v3.7.3-bootstrap.md)和 [v3.7.3 上游集成记录](docs/upstream-v3.7.3-integration.md)。
+> Docker 新数据库不创建默认账号。首次登录前使用 `docker exec superxray-gui /app/x-ui setting -username '<用户名>' -password '<强密码>'` 初始化账号，再核对端口、`webBasePath` 和证书；已有账号保持不变。Compose 示例容器名是 `3xui_app`，执行时替换容器名。详见[首次账号初始化](docs/upstream-v3.7.3-bootstrap.md)和 [上游集成记录](docs/upstream-v3.7.3-integration.md)。
 
 ### 方式三：手动构建
 

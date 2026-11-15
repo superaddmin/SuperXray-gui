@@ -148,30 +148,7 @@ func (s *SubClashService) GetClash(subId string, host string) (string, string, e
 		}
 	}
 
-	proxyNames := make([]string, 0, len(proxies)+1)
-	for _, proxy := range proxies {
-		if name, ok := proxy["name"].(string); ok && name != "" {
-			proxyNames = append(proxyNames, name)
-		}
-	}
-	proxyNames = append(proxyNames, "DIRECT")
-
-	config := ClashConfig{
-		Proxies: proxies,
-		ProxyGroups: []map[string]any{{
-			"name":    "PROXY",
-			"type":    "select",
-			"proxies": proxyNames,
-		}},
-		Rules: s.buildClashRules(),
-	}
-	if s.fullTemplate {
-		nodeRules, nodeDomains := clashNodeAddressExceptions(proxies)
-		config.Rules = s.buildFullClashRules(nodeRules)
-		config.DNS = clashFullTemplateDNS(nodeDomains)
-		config.RuleProviders = clashFullTemplateRuleProviders()
-		config.Sniffer = clashFullTemplateSniffer()
-	}
+	config := s.buildClashConfig(proxies)
 
 	finalYAML, err := marshalClashYAML(config)
 	if err != nil {
