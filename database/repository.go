@@ -489,7 +489,10 @@ func (r *GormInboundRepository) DisableInvalidInbounds(tx *gorm.DB, now int64) (
 	}
 	result := tx.Model(model.Inbound{}).
 		Where("((total > 0 and up + down >= total) or (expiry_time > 0 and expiry_time <= ?)) and enable = ?", now, true).
-		Update("enable", false)
+		Updates(map[string]any{
+			"enable":         false,
+			"quota_disabled": gorm.Expr("total > 0 AND up + down >= total AND (expiry_time <= 0 OR expiry_time > ?)", now),
+		})
 	return result.RowsAffected, result.Error
 }
 
@@ -634,7 +637,13 @@ func (r *GormInboundRepository) ResetAllTraffics() error {
 func (r *GormInboundRepository) ResetInboundTraffic(id int) error {
 	return r.db.Model(model.Inbound{}).
 		Where("id = ?", id).
-		Updates(map[string]any{"up": 0, "down": 0}).
+		Updates(map[string]any{
+			"up": 0, "down": 0,
+			// Only an explicit automatic quota disable may be undone by a reset.
+			// Existing disabled rows without the marker stay disabled on upgrade.
+			"enable":         gorm.Expr("enable OR (quota_disabled AND (expiry_time <= 0 OR expiry_time > ?))", time.Now().UnixMilli()),
+			"quota_disabled": false,
+		}).
 		Error
 }
 

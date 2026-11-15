@@ -405,6 +405,9 @@ func (s *XrayService) restartXray(isForce bool) (err error) {
 	return nil
 }
 
+// ErrXrayNotRunning means there is no running Xray process to stop.
+var ErrXrayNotRunning = errors.New("xray is not running")
+
 // StopXray stops the running Xray process.
 func (s *XrayService) StopXray() error {
 	runtimeMaintenanceMu.Lock()
@@ -421,7 +424,7 @@ func (s *XrayService) stopXray() error {
 	if p != nil && p.IsRunning() {
 		return p.Stop()
 	}
-	return errors.New("xray is not running")
+	return ErrXrayNotRunning
 }
 
 // SetToNeedRestart marks that Xray needs to be restarted.

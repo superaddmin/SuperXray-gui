@@ -52,7 +52,7 @@ func newHTTPServer(handler http.Handler) *http.Server {
 func newCronScheduler(loc *time.Location) *cron.Cron {
 	return cron.New(
 		cron.WithLocation(loc),
-		cron.WithSeconds(),
+		cron.WithParser(cron.NewParser(cron.SecondOptional|cron.Minute|cron.Hour|cron.Dom|cron.Month|cron.Dow|cron.Descriptor)),
 		cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger), cron.Recover(cron.DefaultLogger), func(j cron.Job) cron.Job {
 			return cron.FuncJob(func() {
 				release := database.AcquireReadLease()
@@ -408,7 +408,7 @@ func (s *Server) Start() (err error) {
 // Stop gracefully shuts down the web server, stops Xray, cron jobs, and Telegram bot.
 func (s *Server) Stop() error {
 	s.cancel()
-	if err := s.xrayService.StopXray(); err != nil {
+	if err := s.xrayService.StopXray(); err != nil && !errors.Is(err, service.ErrXrayNotRunning) {
 		logger.Warning("Failed to stop Xray:", err)
 	}
 	if s.cron != nil {
@@ -424,10 +424,15 @@ func (s *Server) Stop() error {
 	var err1 error
 	var err2 error
 	if s.httpServer != nil {
-		err1 = s.httpServer.Shutdown(s.ctx)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		err1 = s.httpServer.Shutdown(shutdownCtx)
 	}
 	if s.listener != nil {
 		err2 = s.listener.Close()
+		if errors.Is(err2, net.ErrClosed) {
+			err2 = nil
+		}
 	}
 	return common.Combine(err1, err2)
 }

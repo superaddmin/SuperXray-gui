@@ -108,9 +108,7 @@ type Release struct {
 // It handles system status collection, IP detection, and application statistics.
 type ServerService struct {
 	xrayService        XrayService
-	cachedIPv4         string
-	cachedIPv6         string
-	noIPv6             bool
+	publicIPs          publicIPCache
 	mu                 sync.Mutex
 	lastCPUTimes       cpu.TimesStat
 	hasLastCPUSample   bool
@@ -350,47 +348,7 @@ func (s *ServerService) GetStatus(lastStatus *Status) *Status {
 		logger.Warning("get udp connections failed:", err)
 	}
 
-	// IP fetching with caching
-	showIp4ServiceLists := []string{
-		"https://api4.ipify.org",
-		"https://ipv4.icanhazip.com",
-		"https://v4.api.ipinfo.io/ip",
-		"https://ipv4.myexternalip.com/raw",
-		"https://4.ident.me",
-		"https://check-host.net/ip",
-	}
-	showIp6ServiceLists := []string{
-		"https://api6.ipify.org",
-		"https://ipv6.icanhazip.com",
-		"https://v6.api.ipinfo.io/ip",
-		"https://ipv6.myexternalip.com/raw",
-		"https://6.ident.me",
-	}
-
-	if s.cachedIPv4 == "" {
-		for _, ip4Service := range showIp4ServiceLists {
-			s.cachedIPv4 = getPublicIP(ip4Service)
-			if s.cachedIPv4 != "N/A" {
-				break
-			}
-		}
-	}
-
-	if s.cachedIPv6 == "" && !s.noIPv6 {
-		for _, ip6Service := range showIp6ServiceLists {
-			s.cachedIPv6 = getPublicIP(ip6Service)
-			if s.cachedIPv6 != "N/A" {
-				break
-			}
-		}
-	}
-
-	if s.cachedIPv6 == "N/A" {
-		s.noIPv6 = true
-	}
-
-	status.PublicIP.IPv4 = s.cachedIPv4
-	status.PublicIP.IPv6 = s.cachedIPv6
+	status.PublicIP.IPv4, status.PublicIP.IPv6 = s.publicIPs.snapshot(now, getPublicIP)
 
 	// Xray status
 	if s.xrayService.IsXrayRunning() {

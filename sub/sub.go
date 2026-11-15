@@ -287,10 +287,15 @@ func (s *Server) Stop() error {
 	var err1 error
 	var err2 error
 	if s.httpServer != nil {
-		err1 = s.httpServer.Shutdown(s.ctx)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		err1 = s.httpServer.Shutdown(shutdownCtx)
 	}
 	if s.listener != nil {
 		err2 = s.listener.Close()
+		if errors.Is(err2, net.ErrClosed) {
+			err2 = nil
+		}
 	}
 	return common.Combine(err1, err2)
 }

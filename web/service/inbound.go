@@ -582,6 +582,8 @@ func (s *InboundService) UpdateInbound(inbound *model.Inbound) (*model.Inbound, 
 	oldInbound.Total = inbound.Total
 	oldInbound.Remark = inbound.Remark
 	oldInbound.Enable = inbound.Enable
+	// An explicit update owns the enable state, even when traffic is over quota.
+	oldInbound.QuotaDisabled = false
 	oldInbound.ExpiryTime = inbound.ExpiryTime
 	oldInbound.TrafficReset = inbound.TrafficReset
 	oldInbound.Listen = inbound.Listen
