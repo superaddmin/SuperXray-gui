@@ -103,6 +103,8 @@ export function mergeSubscriptionEndpointDefaults(
 }
 
 interface ShareLinkBuildOptions {
+  cipherSuites?: string;
+  fingerprint?: string;
   address?: string;
   port?: number;
   forceTls?: string;
@@ -213,6 +215,10 @@ export function normalizeInboundStreamCompatibility(
     next.sockopt = normalizeSockoptCompatibility(next.sockopt);
   }
 
+  if (isRecord(next.xdriveSettings) && next.xdriveSettings.service === 'Google Drive') {
+    next.xdriveSettings = { ...next.xdriveSettings, service: 'google-drive' };
+  }
+
   return next;
 }
 
@@ -287,7 +293,9 @@ export function normalizeFinalmaskForXray(stream: InboundStreamSettings): Inboun
   }
 
   if (udpMasks.length > 0) {
-    nextFinalmask.udp = udpMasks.map((entry) => normalizeXdnsMask(entry));
+    nextFinalmask.udp = udpMasks.map((entry) =>
+      normalizeXdnsMask(normalizeLegacyKcpMask(entry).mask),
+    );
   }
   const result: InboundStreamSettings = { ...stream, finalmask: nextFinalmask };
   if (Object.keys(nextFinalmask).length === 0) delete result.finalmask;
@@ -305,6 +313,10 @@ export function validateFinalmaskForXray(stream: InboundStreamSettings): string 
     if (tcp.length > 0) return 'REALITY cannot be combined with a TCP finalmask';
   }
   const udp = Array.isArray(finalmask.udp) ? finalmask.udp : [];
+  for (const mask of udp) {
+    const { error } = normalizeLegacyKcpMask(mask);
+    if (error) return error;
+  }
   for (const raw of udp) {
     const mask = asRecord(raw);
     if (String(mask.type).toLowerCase() === 'salamander') {
@@ -1407,7 +1419,7 @@ function buildVmessShareLink(
 ): string {
   const stream = parseInboundStreamSettings(inbound);
   const security = resolveShareSecurity(stream, options.forceTls);
-  const payload = {
+  const payload: Record<string, unknown> = {
     v: '2',
     ps: shareLinkRemark(inbound, client, options),
     add: shareLinkAddress(inbound, options),
@@ -1423,6 +1435,14 @@ function buildVmessShareLink(
     sni: '',
   };
 
+  if (security === 'tls') {
+    const params = new URLSearchParams();
+    appendTlsParams(params, stream, options);
+    for (const field of ['cs', 'fp', 'sni', 'alpn']) {
+      if (params.has(field)) payload[field] = params.get(field);
+    }
+  }
+
   return `vmess://${base64Utf8(JSON.stringify(payload))}`;
 }
 
@@ -1434,7 +1454,7 @@ function buildVlessShareLink(
   const stream = parseInboundStreamSettings(inbound);
   const params = new URLSearchParams();
   params.set('encryption', 'none');
-  appendSecurityParams(params, stream, resolveShareSecurity(stream, options.forceTls));
+  appendSecurityParams(params, stream, resolveShareSecurity(stream, options.forceTls), options);
   params.set('type', stream.network || 'tcp');
   if (client.flow) {
     params.set('flow', client.flow);
@@ -1458,7 +1478,7 @@ function buildTrojanShareLink(
 
   const stream = parseInboundStreamSettings(inbound);
   const params = new URLSearchParams();
-  appendSecurityParams(params, stream, resolveShareSecurity(stream, options.forceTls));
+  appendSecurityParams(params, stream, resolveShareSecurity(stream, options.forceTls), options);
   params.set('type', stream.network || 'tcp');
 
   const label = encodeURIComponent(shareLinkRemark(inbound, client, options));
@@ -1494,7 +1514,7 @@ function buildShadowsocksShareLink(
   return `ss://${userInfo}@${shareLinkAddress(inbound, options)}:${shareLinkPort(
     inbound,
     options,
-  )}#${label}`;
+  )}${shadowsocksTlsQuery(inbound, options)}#${label}`;
 }
 
 function buildSingleUserShadowsocksShareLink(
@@ -1513,7 +1533,16 @@ function buildSingleUserShadowsocksShareLink(
   return `ss://${userInfo}@${shareLinkAddress(inbound, options)}:${shareLinkPort(
     inbound,
     options,
-  )}#${label}`;
+  )}${shadowsocksTlsQuery(inbound, options)}#${label}`;
+}
+
+function shadowsocksTlsQuery(inbound: Inbound, options: ShareLinkBuildOptions): string {
+  const stream = parseInboundStreamSettings(inbound);
+  if (resolveShareSecurity(stream, options.forceTls) !== 'tls') return '';
+  const params = new URLSearchParams();
+  appendSecurityParams(params, stream, 'tls', options);
+  params.set('type', stream.network || 'tcp');
+  return `?${params.toString()}`;
 }
 
 function buildHysteriaShareLink(
@@ -1527,11 +1556,9 @@ function buildHysteriaShareLink(
 
   const stream = parseInboundStreamSettings(inbound);
   const tlsSettings = asRecord(stream.tlsSettings);
-  const tlsClientSettings = asRecord(tlsSettings.settings);
   const params = new URLSearchParams();
   params.set('security', 'tls');
-  setParamIfPresent(params, 'sni', stringValue(tlsSettings.serverName));
-  setParamIfPresent(params, 'fp', stringValue(tlsClientSettings.fingerprint));
+  appendTlsParams(params, stream, options);
   const alpn = arrayOrCsv(tlsSettings.alpn);
   if (alpn) {
     params.set('alpn', alpn);
@@ -1655,6 +1682,8 @@ function buildShareLinkTargets(inbound: Inbound, clientEmail: string): ShareLink
     port: proxy.port || inbound.port,
     forceTls: proxy.forceTls || 'same',
     remark: formatShareRemark(inbound, clientEmail, proxy.remark),
+    cipherSuites: proxy.cipherSuites,
+    fingerprint: proxy.fingerprint,
   }));
 }
 
@@ -1663,6 +1692,8 @@ function normalizeExternalProxy(value: unknown): {
   port: number;
   forceTls: string;
   remark: string;
+  cipherSuites?: string;
+  fingerprint?: string;
 } {
   const proxy = asRecord(value);
   return {
@@ -1670,6 +1701,8 @@ function normalizeExternalProxy(value: unknown): {
     port: Number(proxy.port || 0),
     forceTls: stringValue(proxy.forceTls || 'same'),
     remark: stringValue(proxy.remark).trim(),
+    cipherSuites: typeof proxy.cipherSuites === 'string' ? proxy.cipherSuites : undefined,
+    fingerprint: typeof proxy.fingerprint === 'string' ? proxy.fingerprint : undefined,
   };
 }
 
@@ -1710,10 +1743,11 @@ function appendSecurityParams(
   params: URLSearchParams,
   stream: InboundStreamSettings,
   security: string,
+  options: ShareLinkBuildOptions = {},
 ) {
   params.set('security', security || 'none');
   if (security === 'tls') {
-    appendTlsParams(params, stream);
+    appendTlsParams(params, stream, options);
     return;
   }
   if (security === 'reality') {
@@ -1721,10 +1755,17 @@ function appendSecurityParams(
   }
 }
 
-function appendTlsParams(params: URLSearchParams, stream: InboundStreamSettings) {
+function appendTlsParams(
+  params: URLSearchParams,
+  stream: InboundStreamSettings,
+  options: ShareLinkBuildOptions = {},
+) {
   const tlsSettings = asRecord(stream.tlsSettings);
   const tlsClientSettings = asRecord(tlsSettings.settings);
-  setParamIfPresent(params, 'fp', stringValue(tlsClientSettings.fingerprint));
+  const cipherSuites = options.cipherSuites || stringValue(tlsSettings.cipherSuites);
+  const fingerprint = options.fingerprint ?? stringValue(tlsClientSettings.fingerprint);
+  setParamIfPresent(params, 'cs', cipherSuites);
+  setParamIfPresent(params, 'fp', fingerprint || (cipherSuites ? 'unsafe' : ''));
   setParamIfPresent(params, 'sni', stringValue(tlsSettings.serverName));
   const alpn = arrayOrCsv(tlsSettings.alpn);
   if (alpn) {
@@ -2044,6 +2085,17 @@ function isValidIpv6(value: string): boolean {
 }
 
 function serializeShareableFinalMask(finalmask: unknown): string {
+  if (isRecord(finalmask)) {
+    const clientMask = { ...finalmask };
+    for (const key of ['tcp', 'udp']) {
+      const masks = clientMask[key];
+      if (!Array.isArray(masks)) continue;
+      const kept = masks.filter((entry) => String(asRecord(entry).type).toLowerCase() !== 'filter');
+      if (kept.length > 0) clientMask[key] = kept;
+      else delete clientMask[key];
+    }
+    finalmask = clientMask;
+  }
   if (!hasShareableFinalMaskValue(finalmask)) {
     return '';
   }
@@ -2052,6 +2104,53 @@ function serializeShareableFinalMask(finalmask: unknown): string {
   } catch {
     return '';
   }
+}
+
+function normalizeLegacyKcpMask(value: unknown): { mask: unknown; error: string } {
+  const mask = asRecord(value);
+  const type = stringValue(mask.type);
+  const headers: Record<string, string> = {
+    'header-dns': 'dns',
+    'header-dtls': 'dtls',
+    'header-srtp': 'srtp',
+    'header-utp': 'utp',
+    'header-wechat': 'wechat',
+    'header-wireguard': 'wireguard',
+  };
+  const header = headers[type] || '';
+  if (!header && type !== 'mkcp-original' && type !== 'mkcp-aes128gcm') {
+    return { mask: value, error: '' };
+  }
+  const fail = (error: string) => ({ mask: value, error });
+  if (mask.settings != null && !isRecord(mask.settings)) {
+    return fail('Legacy KCP mask settings must be an object');
+  }
+  const settings = { ...asRecord(mask.settings) };
+  if (Object.hasOwn(settings, 'header') && settings.header !== header) {
+    return fail('Legacy KCP mask header conflicts with its type');
+  }
+  if (header) settings.header = header;
+  if (type === 'mkcp-aes128gcm' && !stringValue(settings.password)) {
+    return fail(
+      'Legacy KCP AES mask needs a non-empty password; an empty value would disable encryption',
+    );
+  }
+  const legacyKey = type === 'mkcp-aes128gcm' ? 'password' : type === 'header-dns' ? 'domain' : '';
+  if (legacyKey && Object.hasOwn(settings, legacyKey)) {
+    const previous = settings[legacyKey];
+    if (typeof previous !== 'string') return fail('Legacy KCP mask value must be a string');
+    if (Object.hasOwn(settings, 'value') && settings.value !== previous) {
+      return fail('Legacy KCP mask value conflicts with its legacy field');
+    }
+    settings.value = previous;
+    delete settings[legacyKey];
+  } else if (!legacyKey && !header && stringValue(settings.value)) {
+    return fail('Original KCP mask cannot gain an encryption value');
+  }
+  return {
+    mask: { ...mask, type: 'mkcp-legacy', ...(Object.keys(settings).length ? { settings } : {}) },
+    error: '',
+  };
 }
 
 function hasShareableFinalMaskValue(value: unknown): boolean {

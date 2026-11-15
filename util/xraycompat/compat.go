@@ -33,6 +33,9 @@ func NormalizeConfig(raw string) (string, bool, error) {
 	if !ok {
 		return raw, false, errors.New("xray config must be a JSON object")
 	}
+	if err := validateLuaConfig(cfg); err != nil {
+		return raw, false, err
+	}
 	changed := false
 	if values, ok := cfg["inbounds"].([]any); ok {
 		for _, item := range values {
@@ -148,6 +151,9 @@ func NormalizeInbound(protocol, settings, stream string) (string, string, bool, 
 	if err != nil {
 		return settings, stream, false, err
 	}
+	if err := validateXDriveInbound(protocol, ns, nstream); err != nil {
+		return settings, stream, false, err
+	}
 	return ns, nstream, changed || c, nil
 }
 
@@ -162,6 +168,10 @@ func NormalizeStream(raw string) (string, bool, error) {
 		return raw, false, err
 	}
 	changed := false
+	if drive := stringMap(doc["xdriveSettings"]); drive != nil && drive["service"] == "Google Drive" {
+		drive["service"] = "google-drive"
+		changed = true
+	}
 	if tls := stringMap(doc["tlsSettings"]); tls != nil {
 		if insecure, _ := tls["allowInsecure"].(bool); insecure {
 			return raw, false, errors.New("tlsSettings.allowInsecure was removed by Xray; configure pinnedPeerCertSha256 or verifyPeerCertByName before upgrading")
@@ -305,6 +315,9 @@ func normalizeOutbound(obj map[string]any) (bool, error) {
 	}
 	proto := strings.ToLower(stringValue(obj["protocol"]))
 	settings, _ := obj["settings"].(map[string]any)
+	if err := validateXDriveOutbound(proto, settings, stream, obj["mux"]); err != nil {
+		return false, err
+	}
 	if proto == "freedom" && settings != nil {
 		if sock, _ := stream["sockopt"].(map[string]any); sock != nil {
 			if _, ok := sock["addressPortStrategy"]; ok {
@@ -530,6 +543,11 @@ func normalizeFinalmask(fm map[string]any) (bool, error) {
 		kept := make([]any, 0, len(masks))
 		for _, m := range masks {
 			mm := stringMap(m)
+			if c, err := normalizeLegacyKCPMask(mm); err != nil {
+				return false, err
+			} else {
+				changed = changed || c
+			}
 			typ := strings.ToLower(stringValue(mm["type"]))
 			if typ == "salamander" && len(stringValue(stringMap(mm["settings"])["password"])) < 4 {
 				return false, errors.New("salamander finalmask password must be at least 4 bytes")

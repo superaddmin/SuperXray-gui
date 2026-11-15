@@ -11,6 +11,7 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/util/json_util"
 	"github.com/superaddmin/SuperXray-gui/v2/util/random"
+	"github.com/superaddmin/SuperXray-gui/v2/util/xraycompat"
 	"github.com/superaddmin/SuperXray-gui/v2/web/service"
 	"github.com/superaddmin/SuperXray-gui/v2/xray"
 )
@@ -248,6 +249,25 @@ func (s *SubJsonService) getConfig(inbound *model.Inbound, client model.Client, 
 				delete(newStream, "tlsSettings")
 			}
 		}
+		if newStream["security"] == "tls" {
+			tls, _ := newStream["tlsSettings"].(map[string]any)
+			tls = cloneMap(tls)
+			if tls == nil {
+				tls = map[string]any{}
+			}
+			if suites, ok := entry.Raw["cipherSuites"].(string); ok && suites != "" {
+				tls["cipherSuites"] = suites
+			}
+			if fingerprint, ok := entry.Raw["fingerprint"].(string); ok {
+				tls["fingerprint"] = fingerprint
+			}
+			if suites, _ := tls["cipherSuites"].(string); suites != "" {
+				if fingerprint, _ := tls["fingerprint"].(string); fingerprint == "" {
+					tls["fingerprint"] = "unsafe"
+				}
+			}
+			newStream["tlsSettings"] = tls
+		}
 		if unsupportedTLS && (newStream["security"] == "tls" || workingInbound.Protocol == model.Hysteria || workingInbound.Protocol == model.Hysteria2) {
 			logger.Warning("SubJsonService: skipped TLS node because target Xray no longer supports allowInsecure=true; configure certificate verification or pinnedPeerCertSha256 before exporting Xray JSON")
 			continue
@@ -260,7 +280,11 @@ func (s *SubJsonService) getConfig(inbound *model.Inbound, client model.Client, 
 		case "vmess":
 			newOutbounds = append(newOutbounds, s.genVnext(&workingInbound, streamSettings, client))
 		case "vless":
-			newOutbounds = append(newOutbounds, s.genVless(&workingInbound, streamSettings, client))
+			outbound := s.genVless(&workingInbound, streamSettings, client)
+			if outbound == nil {
+				continue
+			}
+			newOutbounds = append(newOutbounds, outbound)
 		case "trojan", "shadowsocks":
 			newOutbounds = append(newOutbounds, s.genServer(&workingInbound, streamSettings, client))
 		case "hysteria", "hysteria2":
@@ -329,6 +353,17 @@ func (s *SubJsonService) streamData(stream string) (map[string]any, bool) {
 		streamSettings["realitySettings"] = s.realityData(realitySettings)
 	}
 	delete(streamSettings, "sockopt")
+	if finalmask, ok := streamSettings["finalmask"].(map[string]any); ok {
+		clientMask := xraycompat.ClientFinalMask(finalmask)
+		if len(clientMask) == 0 {
+			delete(streamSettings, "finalmask")
+		} else {
+			streamSettings["finalmask"] = clientMask
+		}
+	}
+	if drive, ok := streamSettings["xdriveSettings"].(map[string]any); ok && drive["service"] == "Google Drive" {
+		drive["service"] = "google-drive"
+	}
 
 	if s.fragmentOrNoises {
 		streamSettings["sockopt"] = json_util.RawMessage(`{"dialerProxy": "direct_out", "tcpKeepAliveIdle": 100}`)
@@ -363,6 +398,12 @@ func (s *SubJsonService) tlsData(tData map[string]any) map[string]any {
 	tlsData["alpn"] = tData["alpn"]
 	if fingerprint, ok := tlsClientSettings["fingerprint"].(string); ok {
 		tlsData["fingerprint"] = fingerprint
+	}
+	if ciphers, ok := tData["cipherSuites"].(string); ok && strings.TrimSpace(ciphers) != "" {
+		tlsData["cipherSuites"] = ciphers
+		if fingerprint, _ := tlsData["fingerprint"].(string); fingerprint == "" {
+			tlsData["fingerprint"] = "unsafe"
+		}
 	}
 	if pins, ok := pinnedSha256List(tlsClientSettings); ok {
 		// Current Xray clients parse this as a comma-separated string. Keeping
@@ -482,6 +523,15 @@ func (s *SubJsonService) genVless(inbound *model.Inbound, streamSettings json_ut
 	if json.Unmarshal(streamSettings, &stream) == nil {
 		network, _ = stream["network"].(string)
 		security, _ = stream["security"].(string)
+	}
+	if network == "xdrive" {
+		if encryption == "none" {
+			logger.Warning("SubJsonService: skipped XDRIVE node without VLESS client encryption")
+			return nil
+		}
+		if !xraycompat.XDriveMuxValid(s.mux) {
+			outbound.Mux = json_util.RawMessage(`{"enabled":true}`)
+		}
 	}
 	if client.Flow != "" && strings.EqualFold(network, "tcp") &&
 		(strings.EqualFold(security, "tls") || strings.EqualFold(security, "reality")) {

@@ -409,9 +409,6 @@ func (s *SubClashService) buildProxy(inbound *model.Inbound, client model.Client
 	}
 
 	network, _ := stream["network"].(string)
-	if !s.applyTransport(proxy, network, stream) {
-		return nil
-	}
 
 	switch inbound.Protocol {
 	case model.VMESS:
@@ -460,6 +457,9 @@ func (s *SubClashService) buildProxy(inbound *model.Inbound, client model.Client
 			}
 		}
 	default:
+		return nil
+	}
+	if !s.applyTransport(proxy, network, stream) {
 		return nil
 	}
 
@@ -608,6 +608,17 @@ func (s *SubClashService) applyTransport(proxy map[string]any, network string, s
 			if header != nil {
 				typeStr, _ := header["type"].(string)
 				if typeStr != "" && typeStr != "none" {
+					if proxy["type"] == "ss" && typeStr == "http" && tcpHeaderAcceptsRootPath(header) {
+						proxy["plugin"] = "obfs"
+						opts := map[string]any{"mode": "http"}
+						request, _ := header["request"].(map[string]any)
+						headers, _ := request["headers"].(map[string]any)
+						if host := searchHost(headers); host != "" {
+							opts["host"] = host
+						}
+						proxy["plugin-opts"] = opts
+						return true
+					}
 					return false
 				}
 			}
@@ -651,6 +662,37 @@ func (s *SubClashService) applyTransport(proxy map[string]any, network string, s
 	default:
 		return false
 	}
+}
+
+// Mihomo's simple-obfs always sends GET /. Xray must accept that path;
+// malformed path values cannot be treated as an absent/default path.
+func tcpHeaderAcceptsRootPath(header map[string]any) bool {
+	request, _ := header["request"].(map[string]any)
+	raw, present := request["path"]
+	if !present || raw == nil {
+		return true
+	}
+	switch paths := raw.(type) {
+	case []any:
+		if len(paths) == 0 {
+			return true
+		}
+		for _, path := range paths {
+			if path == "/" {
+				return true
+			}
+		}
+	case []string:
+		if len(paths) == 0 {
+			return true
+		}
+		for _, path := range paths {
+			if path == "/" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (s *SubClashService) applySecurity(proxy map[string]any, security string, stream map[string]any) bool {

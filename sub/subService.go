@@ -787,6 +787,9 @@ func applyShareTLSParams(stream map[string]any, params map[string]string) {
 		if fpValue, ok := searchKey(tlsSettings, "fingerprint"); ok {
 			params["fp"], _ = fpValue.(string)
 		}
+		if suites, ok := tlsSetting["cipherSuites"].(string); ok && suites != "" {
+			params["cs"] = suites
+		}
 	}
 }
 
@@ -803,6 +806,9 @@ func applyVmessTLSParams(stream map[string]any, obj map[string]any) {
 	if tlsSetting != nil {
 		if fpValue, ok := searchKey(tlsSettings, "fingerprint"); ok {
 			obj["fp"], _ = fpValue.(string)
+		}
+		if suites, ok := tlsSetting["cipherSuites"].(string); ok && suites != "" {
+			obj["cs"] = suites
 		}
 	}
 }
@@ -858,6 +864,12 @@ func subscriptionStrings(value any) []string {
 }
 
 func buildVmessLink(obj map[string]any) string {
+	if suites, _ := obj["cs"].(string); suites != "" {
+		if fingerprint, _ := obj["fp"].(string); fingerprint == "" {
+			obj = cloneMap(obj)
+			obj["fp"] = "unsafe"
+		}
+	}
 	jsonStr, _ := json.MarshalIndent(obj, "", "  ")
 	return "vmess://" + base64.StdEncoding.EncodeToString(jsonStr)
 }
@@ -865,7 +877,7 @@ func buildVmessLink(obj map[string]any) string {
 func cloneVmessShareObj(baseObj map[string]any, newSecurity string) map[string]any {
 	newObj := map[string]any{}
 	for key, value := range baseObj {
-		if !(newSecurity == "none" && (key == "alpn" || key == "sni" || key == "fp")) {
+		if !(newSecurity == "none" && (key == "alpn" || key == "sni" || key == "fp" || key == "cs")) {
 			newObj[key] = value
 		}
 	}
@@ -944,6 +956,14 @@ func (s *SubService) buildVmessExternalProxyLinks(externalProxies []any, baseObj
 		if entry.ForceTLS != "same" {
 			newObj["tls"] = entry.ForceTLS
 		}
+		if newObj["tls"] == "tls" {
+			if suites, ok := entry.Raw["cipherSuites"].(string); ok && suites != "" {
+				newObj["cs"] = suites
+			}
+			if fingerprint, ok := entry.Raw["fingerprint"].(string); ok {
+				newObj["fp"] = fingerprint
+			}
+		}
 		links = append(links, buildVmessLink(newObj))
 	}
 	return strings.Join(links, "\n")
@@ -973,10 +993,15 @@ func appendQueryAndFragment(link string, params map[string]string, fragment, sec
 		if v == "" {
 			continue
 		}
-		if omitTLSFields && (k == "alpn" || k == "sni" || k == "fp" || k == "pcs") {
+		if omitTLSFields && (k == "alpn" || k == "sni" || k == "fp" || k == "pcs" || k == "cs") {
 			continue
 		}
 		q.Add(k, v)
+	}
+	// Xray's default uTLS fingerprint ignores cipherSuites. Decide after
+	// external-proxy overrides so an explicit fingerprint always wins.
+	if q.Get("cs") != "" && q.Get("fp") == "" {
+		q.Set("fp", "unsafe")
 	}
 	if encoded := q.Encode(); encoded != "" {
 		if strings.Contains(link, "?") {
@@ -1015,12 +1040,22 @@ func (s *SubService) buildExternalProxyURLLinks(
 		if entry.ForceTLS != "same" {
 			securityToApply = entry.ForceTLS
 		}
+		endpointParams := params
+		if securityToApply == "tls" {
+			endpointParams = cloneStringMap(params)
+			if suites, ok := entry.Raw["cipherSuites"].(string); ok && suites != "" {
+				endpointParams["cs"] = suites
+			}
+			if fingerprint, ok := entry.Raw["fingerprint"].(string); ok {
+				endpointParams["fp"] = fingerprint
+			}
+		}
 
 		links = append(
 			links,
 			buildLinkWithParamsAndSecurity(
 				makeLink(entry.Dest, entry.Port),
-				params,
+				endpointParams,
 				makeRemark(entry.Raw),
 				securityToApply,
 				entry.ForceTLS == "none",
@@ -1247,6 +1282,7 @@ var kcpMaskToHeaderType = map[string]string{
 
 var validFinalMaskUDPTypes = map[string]struct{}{
 	"salamander":       {},
+	"mkcp-legacy":      {},
 	"mkcp-aes128gcm":   {},
 	"header-dns":       {},
 	"header-dtls":      {},
@@ -1338,6 +1374,15 @@ func extractKcpShareFields(stream map[string]any) kcpShareFields {
 		}
 
 		switch maskType {
+		case "mkcp-legacy":
+			settings, _ := mask["settings"].(map[string]any)
+			header, _ := settings["header"].(string)
+			if header == "" {
+				fields.seed, _ = settings["value"].(string)
+			} else if mapped, ok := kcpMaskToHeaderType["header-"+header]; ok {
+				// A DNS mask's value is its domain, never an encryption seed.
+				fields.headerType = mapped
+			}
 		case "mkcp-original":
 			fields.seed = ""
 		case "mkcp-aes128gcm":
