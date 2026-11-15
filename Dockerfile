@@ -1,7 +1,7 @@
 # ========================================================
 # Stage: Builder
 # ========================================================
-FROM golang:1.27.2-alpine AS builder
+FROM golang:1.27.4-alpine AS builder
 WORKDIR /app
 ARG TARGETARCH
 ARG GOPROXY=https://proxy.golang.org,direct
