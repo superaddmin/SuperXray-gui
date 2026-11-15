@@ -1,0 +1,1 @@
+import{Yn as e,gr as t}from"./button-D1W8W6dh.js";import{a as n}from"./input-e2dza4tZ.js";var r=(()=>{let r=t(!1);return e(()=>{r.value=n()}),r});export{r as t};

@@ -1,6 +1,6 @@
 # 文档索引
 
-核对日期：2026-10-23。当前代码版本为 `3.7.2`（`config/version`），工作区分支为 `main`，默认运行时为 Xray `26.10.21`（配置兼容基线 `26.10.10`），Go 模块声明 `1.27.2`。本文记录当前工作区实现，远端发布和实际部署环境需另行验证。
+版本与本轮增量核对日期：2026-11-15。当前代码版本为 `3.7.3`（`config/version`），工作区分支为 `main`，默认运行时为 Xray `26.10.21`（API 类型依赖与原兼容基线 `26.10.10`，本轮增加 `26.10.21` 规则），Go 模块声明 `1.27.4`。本文记录当前工作区实现，远端发布和实际部署环境需另行验证。
 
 ## 当前实现与使用
 
@@ -13,6 +13,7 @@
 | [版本化 OpenAPI](openapi/api-v1.yaml) | `/api/v1/health/live`、`health/ready`、`metrics`，Go 契约测试守护 |
 | [开发指南](development.md) | 工具链、构建、验证、Go embed、目录拓扑、发布流程 |
 | [部署指南](deployment.md) | Linux 安装、Docker、反向代理、备份和恢复、标准订阅交付格式；以安装脚本/工作流为准 |
+| [首次账号初始化](upstream-v3.7.3-bootstrap.md) | v3.7.3 新库不创建默认账号；CLI 初始化与既有账号兼容 |
 | [入站创建指南](inbound-creation-guide.md) | 现有 Vue 表单、协议、客户端和导出 |
 | [运行可靠性](runtime-reliability.md) | HTTP 超时、调度、Xray 进程与运行边界 |
 | [后端重基线契约](backend-internal-rebaseline-contract.md) | 已实现的渐进边界与未落地的目标架构 |
@@ -36,6 +37,7 @@
 | [Legacy → Vue 对账](legacy-vue-ui-parity-audit.md) | 保留历史迁移证据，并对照当前 Vue 实现 |
 | [UI/UX 审计](ui-ux-audit.md) | 历史截图/视觉结论与当前源码对照；本次未重新视觉验收 |
 | [上游同步政策](upstream-sync-policy.md) | 同步范围、兼容与验证规则 |
+| [v3.7.3 上游集成记录](upstream-v3.7.3-integration.md) | 3x-ui v3.11.0 与 x-ui v1.15.0 共 130 条增量的逐项取舍、实际适配及回滚 |
 | [上游 v1.11.4 集成记录](upstream-alireza0-v1.11.4-integration.md) | 历史集成记录，不能推定未来上游已同步 |
 | [上游 3x-ui v3.10.2 集成记录](upstream-3x-ui-v3.10.2-integration.md) | 本地定制保护、选择性移植、Xray 迁移及已执行验证 |
 | [2026-10-22 清理与完整性核对](repository-audit-2026-10-22.md) | 当前工作区的删除、保留、验证与边界 |

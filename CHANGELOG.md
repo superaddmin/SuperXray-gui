@@ -4,6 +4,31 @@
 
 ## [Unreleased]
 
+## [3.7.3] - 2026-11-15
+
+### Security
+
+- 新数据库不再创建固定默认管理员；一键安装器继续初始化账号，直接运行二进制或 Docker 时须先通过本地 `setting` CLI 设置用户名和密码。已有账号保持不变，日志不输出初始凭据，详见 `docs/upstream-v3.7.3-bootstrap.md`。
+- WireGuard 客户端配置逐行拒绝控制字符，避免备注、地址或密钥注入额外配置指令；所有订阅格式、诊断及错误响应统一发送 `Cache-Control: no-store`。
+- Xray JSON 订阅与 Vue 分享链接移除仅服务端使用的 finalmask 源 IP `filter`，保留数据库中的原配置及其他扩展字段。
+
+### Fixed
+
+- 修复配额耗尽入站的周期重置：记录内部 `QuotaDisabled` 原因，仅恢复被配额自动关闭且未过期的入站；手动关闭和历史无原因标记的关闭状态保持不变。周期重置成功后同步运行核心，尊重手动停机。
+- 定时任务兼容标准五字段及带秒的六字段 cron 表达式，保留配置时区、`CRON_TZ` 和描述符语义。
+- Web/Sub 关闭使用独立的 5 秒退出上下文，忽略已关闭监听器及未运行核心的预期状态，避免重复关闭的误报。
+- 公网 IPv4/IPv6 查询改为异步刷新：成功缓存 5 分钟，任一地址族失败后 1 分钟重试并保留最后成功地址，避免状态请求被外网查询阻塞。
+- TLS 分享链接和 JSON 订阅保留 `cipherSuites`；自定义密码套件且未显式指定指纹时使用 `unsafe`，逐个隔离 `externalProxy` 覆盖，明文链接不携带 TLS 参数。
+- Shadowsocks 的 TCP HTTP 根路径伪装可导出为 Mihomo `obfs` 插件；不兼容路径和其他协议继续拒绝该映射。
+
+### Changed
+
+- 选择性吸收 `MHSanaei/3x-ui v3.11.0` 与 `alireza0/x-ui v1.15.0`，对两个固定稳定版区间的 130 条提交逐项记录已有覆盖、实际适配和暂缓原因，详见 `docs/upstream-v3.7.3-integration.md` 及两份 TSV。
+- 补齐 XDRIVE 的 VLESS、encryption、flow、testpre 与 mux 约束及服务名归一；校验 Lua DNS/路由互斥字段；原子转换旧 KCP finalmask 为 `mkcp-legacy`，冲突或空加密口令明确报错。XDRIVE 的完整专用向导、MASQUE、节点/Host 模型及 Telegram 整包重构仍未采用。
+- 保留 Vue UI、SQLite 入站 JSON 活跃模型、CoreManager 生命周期边界、Xray v26.10.21 运行时及 Linux amd64/arm64 发布策略；API 类型依赖仍按既有 v26.10.10 基线锁定。
+- 根据发布漏洞门禁将 Go 工具链更新到 `1.27.4`，brotli 更新到 `1.2.7`、compress 更新到 `1.20.2`，修复可达的 Go 安全告警。
+- 将 Vite 从 `8.2.1` 更新到 `8.2.6`、间接依赖 follow-redirects 从 `1.16.0` 更新到 `1.16.3`，修复本轮 npm 高危告警。生产依赖审核为 0 漏洞；全量审核仍有 8 项来自 typescript-eslint/minimatch 开发工具链的中危告警，未强制跨主版本升级。
+
 ## [3.7.2] - 2026-11-02
 
 ### Changed

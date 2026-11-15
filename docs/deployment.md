@@ -1,8 +1,8 @@
 # 服务器环境部署教程
 
 > **目标读者**：准备在 VPS、云服务器或自建 Linux 主机上部署 SuperXray 的运维人员 / 开发者
-> **适用版本**：`v3.7.2`
-> **源码核对日期**：2026-10-23；当前分支为 `main`，纳入上游 `3x-ui v3.10.2`，默认运行时 Xray `v26.10.21`（兼容基线 `v26.10.10`），项目版本仍为 `config/version` 的 `3.7.2`。安装步骤面向 Linux shell，PowerShell 开发命令见 [开发指南](development.md)。镜像/Release 是否已发布需到远端实际核实。
+> **适用版本**：`v3.7.3`
+> **源码核对日期**：基础文档 2026-10-23；本轮增量 2026-11-15。当前分支为 `main`，选择性吸收 `3x-ui v3.11.0` 与 `x-ui v1.15.0`；运行时 Xray `v26.10.21`，API 类型依赖仍为 `v26.10.10` 基线，项目版本由 `config/version` 声明为 `3.7.3`。安装步骤面向 Linux shell，PowerShell 开发命令见 [开发指南](development.md)，升级取舍见 [v3.7.3 集成记录](upstream-v3.7.3-integration.md)。镜像/Release 是否已发布需到远端实际核实。
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md) | [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
 ---
@@ -147,7 +147,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 如 GitHub latest 正式版接口暂时不可用，也可以显式指定版本号安装：
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.2
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.3
 ```
 
 安装脚本会自动把 `x86_64` / `amd64` 映射为 `amd64`，把 `aarch64` / `arm64` 映射为 `arm64`，并下载对应的 `x-ui-linux-<arch>.tar.gz`。
@@ -162,7 +162,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 6. 创建 `/var/log/x-ui` 日志目录。
 7. 安装 systemd unit 或 Alpine OpenRC 服务。
 8. 初始化数据库并执行迁移。
-9. 检测默认凭据和过短的 `webBasePath`，必要时生成随机用户名、密码、端口和 Web 路径。
+9. 检测未初始化账号、历史默认凭据和过短的 `webBasePath`，必要时生成随机用户名、密码、端口和 Web 路径。
 10. 引导配置 SSL 证书。
 
 ### 4.2 安装过程中的关键选择
@@ -171,12 +171,12 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 
 | 已有状态 | 实际初始化行为 |
 |---|---|
-| 去掉开头 `/` 后的路径长度小于 4，且仍是默认凭据 | 随机用户名、密码和路径；询问端口，未自定义时随机选择 `1024-62000` |
+| 去掉开头 `/` 后的路径长度小于 4，且未初始化账号或仍是默认凭据 | 随机用户名、密码和路径；询问端口，未自定义时随机选择 `1024-62000` |
 | 路径过短，但账号已修改 | 仅生成新路径，保留账号和端口 |
-| 路径长度足够，但仍是默认凭据 | 仅随机用户名、密码，保留路径和端口 |
+| 路径长度足够，但未初始化账号或仍是默认凭据 | 仅随机用户名、密码，保留路径和端口 |
 | 账号已修改且路径长度足够 | 保留账号、路径和端口 |
 
-当前空库默认路径 `/super/` 已满足长度检查，因此通常只随机用户名/密码，保留 `2053` 和 `/super/`。缺少证书时脚本提供 SSL 配置引导；是否成功必须以证书加载日志与实际 HTTPS 握手为准，菜单输出不能替代验证。需要随机路径或其他端口时，可在安装后用管理命令设置。
+当前空库没有默认账号，`setting -show true` 仍以 `hasDefaultCredential: true` 让安装器识别初始化需求。默认路径 `/super/` 已满足长度检查，因此通常只随机用户名/密码，保留 `2053` 和 `/super/`。缺少证书时脚本提供 SSL 配置引导；是否成功必须以证书加载日志与实际 HTTPS 握手为准，菜单输出不能替代验证。需要随机路径或其他端口时，可在安装后用管理命令设置。直接二进制或 Docker 安装见[首次账号初始化](upstream-v3.7.3-bootstrap.md)。
 
 安装完成时终端会输出类似信息：
 
@@ -460,7 +460,7 @@ systemctl reload caddy
 适合运行发布镜像的服务器。工作流的镜像目标是 GitHub Container Registry；以下标签仅示例当前项目版本，部署前先用 `docker manifest inspect` 或 GHCR 页面核实存在、架构和 digest，不能由本地 `config/version` 推断远端已发布：
 
 ```text
-ghcr.io/superaddmin/superxray-gui:3.7.2
+ghcr.io/superaddmin/superxray-gui:3.7.3
 ghcr.io/superaddmin/superxray-gui:latest
 ```
 
@@ -473,7 +473,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
   -v $PWD/cert:/root/cert \
   -e XRAY_VMESS_AEAD_FORCED=false \
   -e XUI_ENABLE_FAIL2BAN=true \
-  ghcr.io/superaddmin/superxray-gui:3.7.2
+  ghcr.io/superaddmin/superxray-gui:3.7.3
 ```
 
 使用 Compose 时建议写成：
@@ -481,7 +481,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
 ```yaml
 services:
   3xui:
-    image: ghcr.io/superaddmin/superxray-gui:3.7.2
+    image: ghcr.io/superaddmin/superxray-gui:3.7.3
     container_name: 3xui_app
     volumes:
       - $PWD/db/:/etc/x-ui/
@@ -548,7 +548,7 @@ docker buildx build --network host --platform linux/amd64 --build-arg GOPROXY=ht
 如果想复用官方 GHCR 镜像，把 Compose 中的 `build:` 段替换为：
 
 ```yaml
-image: ghcr.io/superaddmin/superxray-gui:3.7.2
+image: ghcr.io/superaddmin/superxray-gui:3.7.3
 ```
 
 ### 7.3 数据目录
@@ -571,7 +571,7 @@ network_mode: host
 
 ### 7.4 Docker 初始安全设置
 
-Docker 入口不会执行一键脚本里的随机化配置。空数据库首次启动使用源码默认账号 `admin/admin`、面板端口 `2053`、`webBasePath=/super/`，登录页为 `/super/panel/login`。已有数据库保留原配置，不会重置为默认值。请立即修改默认账号并核对访问设置：
+Docker 入口不会执行一键脚本里的随机化配置。空数据库没有默认账号，首次登录前必须通过本地 CLI 初始化；面板端口默认 `2053`、`webBasePath=/super/`，登录页为 `/super/panel/login`。已有数据库保留原账号和配置，历史默认账号需要主动修改。日志不输出随机初始密码，详见[首次账号初始化](upstream-v3.7.3-bootstrap.md)。请初始化账号并核对访问设置：
 
 以下命令按 Compose 示例的 `container_name: 3xui_app` 编写；如果使用上面的 `docker run --name superxray-gui`，请把 `3xui_app` 替换为 `superxray-gui`。
 
@@ -677,7 +677,7 @@ TAG="$(curl -fsSL https://api.github.com/repos/superaddmin/SuperXray-gui/release
   | sed -E 's/.*"([^"]+)".*/\1/')"
 
 if [ -z "${TAG}" ]; then
-  echo "Failed to resolve latest release tag. Set TAG manually, for example: TAG=v3.7.2" >&2
+  echo "Failed to resolve latest release tag. Set TAG manually, for example: TAG=v3.7.3" >&2
   exit 1
 fi
 
@@ -1257,16 +1257,16 @@ x-ui restart-xray
 一键脚本和构建流程都需要访问 GitHub Release。可选处理：
 
 - 如果提示 `获取 SuperXray Release 版本失败`，先打开 `https://github.com/superaddmin/SuperXray-gui/releases` 确认是否存在可下载的 Release。
-- 如果仓库只有预发布版本，使用显式版本安装命令，例如：`bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.2`。
+- 如果仓库只有预发布版本，使用显式版本安装命令，例如：`bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.3`。
 - 换用可访问 GitHub 的网络环境。
 - 手动下载 Release 包后上传到服务器。
 - 使用企业内网制品库缓存 Release 包。
 - 手动构建并复制 `/usr/local/x-ui`、`/usr/bin/x-ui`、systemd unit 和 `bin/` 目录。
 - Docker 拉取失败时，确认服务器能访问 `ghcr.io/superaddmin/superxray-gui`，或改用本地 `docker compose up -d --build` 构建。
 
-### 12.6 Docker 容器启动后仍是默认账号
+### 12.6 Docker 新安装无法登录或旧库仍是默认账号
 
-这是正常现象：Docker 入口不会执行一键脚本的随机化安全初始化。立即执行：
+v3.7.3 新数据库没有默认账号，不能使用 `admin/admin` 登录；Docker 入口不会自动初始化。已有数据库不会改写账号，若仍使用历史默认账号也应主动更改。使用服务所在容器的 CLI 设置账号，详见[首次账号初始化](upstream-v3.7.3-bootstrap.md)：
 
 ```bash
 docker exec -it 3xui_app /app/x-ui setting -username '<新用户名>' -password '<强密码>' -webBasePath '/panel-secret/'

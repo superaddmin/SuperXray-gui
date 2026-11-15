@@ -1,7 +1,7 @@
 # 核心模块解析
 
 > **目标读者**：后端 / 前端维护者
-> **适用版本**：`v3.7.2`
+> **适用版本**：`v3.7.3`
 > **源码核对日期**：2026-10-15
 > **事实来源**：`main.go`、`config/`、`database/`、`web/`、`sub/`、`core/`、`frontend/src`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md)
@@ -41,7 +41,7 @@
 
 | 函数 | 环境变量 | 默认行为 |
 |---|---|---|
-| `GetVersion()` | 无 | 读取 `config/version`，当前 `3.7.2` |
+| `GetVersion()` | 无 | 读取 `config/version`，当前 `3.7.3` |
 | `GetAssetVersion()` | 构建注入 `buildHash` | 返回 `version.buildHash`；未注入时 `config.init()` 使用启动初始化时的十六进制 UnixNano 填充 hash |
 | `GetName()` | 无 | 读取 `config/name`，当前 `x-ui` |
 | `IsDebug()` | `XUI_DEBUG` | 值为 `true` 时启用 debug |
@@ -65,7 +65,7 @@
 2. 按 `config.IsDebug()` 决定 GORM logger。
 3. 使用 SQLite driver 打开数据库。
 4. 在同一事务中执行 `initModels()`/`AutoMigrate` 和 `recordBaselineMigration()`，幂等记录 baseline 到 `schema_migrations`、`migration_events`。
-5. 同一事务内为无用户的空库创建 `admin/admin` 管理员（存储 bcrypt），运行密码 seeder（已有 bcrypt 不重复哈希），记录 `HistoryOfSeeders`。
+5. 无用户的空库保持没有账号，通过本地 `setting` CLI 显式初始化；同一事务内运行密码 seeder（已有 bcrypt 不重复哈希），记录 `HistoryOfSeeders`，不改变已有账号。初始化步骤见[首次账号初始化](upstream-v3.7.3-bootstrap.md)。
 6. 同一事务内调用 `normalizeStoredXrayConfig` 转换入站及模板兼容字段，再执行 service 提供的历史入站字段/客户端流量迁移与孤立统计清理；任何步骤失败全部回滚。
 7. 事务提交后原子替换全局连接，关闭旧连接。候选库入口 `PrepareDBWithMigration` 不发布全局连接，由调用方关闭。
 

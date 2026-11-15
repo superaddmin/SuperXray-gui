@@ -121,7 +121,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 如需固定安装当前版本：
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.2
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.3
 ```
 
 一键脚本会自动安装基础依赖，下载匹配架构的 GitHub Release 包，并在安装结束时输出随机生成的用户名、密码、面板端口和 `webBasePath`。这段输出只出现一次，请保存到密码管理器。当前官方 Release 二进制包覆盖 Linux `amd64` 与 `arm64`。
@@ -165,7 +165,7 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
   -v $PWD/cert:/root/cert \
   -e XRAY_VMESS_AEAD_FORCED=false \
   -e XUI_ENABLE_FAIL2BAN=true \
-  ghcr.io/superaddmin/superxray-gui:3.7.2
+  ghcr.io/superaddmin/superxray-gui:3.7.3
 ```
 
 如果需要基于本地源码构建：
@@ -199,7 +199,7 @@ services:
     restart: unless-stopped
 ```
 
-> Docker 入口不会执行一键脚本的随机化安全初始化。首次启动后请立即使用 `/app/x-ui setting ...` 修改默认用户名、密码、端口和 `webBasePath`，并配置证书；`docker run` 示例容器名是 `superxray-gui`，Compose 示例容器名是 `3xui_app`。
+> Docker 新数据库不创建默认账号。首次登录前使用 `docker exec superxray-gui /app/x-ui setting -username '<用户名>' -password '<强密码>'` 初始化账号，再核对端口、`webBasePath` 和证书；已有账号保持不变。Compose 示例容器名是 `3xui_app`，执行时替换容器名。详见[首次账号初始化](docs/upstream-v3.7.3-bootstrap.md)和 [v3.7.3 上游集成记录](docs/upstream-v3.7.3-integration.md)。
 
 ### 方式三：手动构建
 
@@ -208,7 +208,7 @@ services:
 git clone https://github.com/superaddmin/SuperXray-gui.git
 cd SuperXray-gui
 
-# 编译（需要 Go 1.27.2 和 CGO）
+# 编译（需要 Go 1.27.4 和 CGO）
 CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 # 运行
@@ -224,8 +224,8 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 ### 登录面板
 
 1. 一键脚本部署时，浏览器访问安装结束输出的 `https://<域名或IP>:<端口>/<webBasePath>`。
-2. Docker 或源码调试启动时，若尚未手动修改配置，默认端口通常为 `2053`，默认路径为 `/`。
-3. 输入用户名和密码登录，并在 **设置 → 面板设置** 中确认端口、证书、根路径和安全选项。
+2. Docker 或源码调试使用空库时，先通过二进制的 `setting` CLI 初始化账号。默认端口为 `2053`，默认路径为 `/super/`，登录页为 `/super/panel/login`。
+3. 输入已配置的用户名和密码登录，并在 **设置 → 面板设置** 中确认端口、证书、根路径和安全选项。
 
 ### 添加入站（Inbound）
 
@@ -289,7 +289,7 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
-| Go | 1.27.2 | 后端开发语言 |
+| Go | 1.27.4 | 后端开发语言 |
 | Gin | v1.12.0 | HTTP Web 框架 |
 | GORM | v1.31.1 | ORM 框架 |
 | SQLite | - | 嵌入式数据库 |
@@ -368,7 +368,7 @@ SuperXray-gui/
 ### 环境准备
 
 ```bash
-# 安装 Go 1.27.2
+# 安装 Go 1.27.4
 go version
 
 # 克隆仓库

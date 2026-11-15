@@ -1,8 +1,8 @@
 # 开发者贡献指南
 
 > **目标读者**：贡献者 / 维护者 / 自动化 Agent
-> **适用版本**：`v3.7.2`
-> **源码核对日期**：2026-10-15；当前分支纳入上游 `MHSanaei/3x-ui v3.10.2`，项目版本仍为 `config/version` 的 `3.7.2`，默认运行时 Xray `v26.10.21`（兼容基线 `v26.10.10`）。
+> **适用版本**：`v3.7.3`
+> **源码核对日期**：基础文档 2026-10-15；本轮增量 2026-11-15。当前分支选择性吸收 `MHSanaei/3x-ui v3.11.0` 与 `alireza0/x-ui v1.15.0`，项目版本由 `config/version` 声明为 `3.7.3`；运行时 Xray `v26.10.21`，API 类型依赖仍为 `v26.10.10` 基线，新增兼容规则见 [v3.7.3 集成记录](upstream-v3.7.3-integration.md)。
 > **事实来源**：`go.mod`、`.env.example`、`frontend/package.json`、`.github/workflows/*`、`.codex/project.toml`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [部署指南](deployment.md)
 
@@ -36,7 +36,7 @@
 `go.mod` 声明：
 
 ```text
-go 1.27.2
+go 1.27.4
 ```
 
 本地构建需要 CGO 和当前目标平台的 C 编译器，因为项目使用 SQLite。Windows 可使用已配置的 MinGW GCC；Linux 使用 GCC。Go module 缓存属于工具链目录，不随项目清理。
@@ -130,7 +130,7 @@ go run main.go
 
 `bin/` 被 `.gitignore` 忽略，克隆后的源码树不包含 Xray 或 sing-box 运行核心；当前工作区可保留本地放入的 `bin/xray-windows-amd64.exe` 作为真实核心测试依赖。启动前应准备与目标平台匹配的核心二进制及需要的 Geo 数据。启动面板成功不代表 Xray 启动成功，应检查状态和日志；官方 Linux 发布包由工作流装配这些运行文件。
 
-首次数据库为空时会创建默认用户 `admin/admin`，面板设置默认端口 `2053`、`webBasePath=/super/`；配置前缀下的 `/panel/login` 即默认登录 URL `http://127.0.0.1:2053/super/panel/login`。部署时必须修改默认账户，并核对端口、base path 和 HTTPS 设置；一键安装脚本通常会生成随机安全值。
+空数据库不创建默认用户；直接运行开发二进制前，使用同一 `XUI_DB_FOLDER` 执行 `bin/SuperXray.exe setting -username '<用户名>' -password '<强密码>'` 初始化账号。面板设置默认端口 `2053`、`webBasePath=/super/`；默认登录 URL 为 `http://127.0.0.1:2053/super/panel/login`。已有数据库保留账号；一键安装脚本继续生成随机安全值，详见[首次账号初始化](upstream-v3.7.3-bootstrap.md)。
 
 ### 3.2 前端开发
 

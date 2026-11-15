@@ -1,7 +1,7 @@
 # 系统架构设计
 
 > **目标读者**：开发者 / 架构师 / 发布维护者
-> **适用版本**：`v3.7.2`
+> **适用版本**：`v3.7.3`
 > **源码核对日期**：2026-10-15；版本以 `config/version` 为准，阶段规划以 `plans/STATUS.md` 为准。
 > **事实来源**：`main.go`、`.codex/project.toml`、`web/`、`sub/`、`core/`、`database/`、`frontend/`、`.github/workflows/release.yml`
 > **相关文档**：[核心模块解析](modules.md) | [API 接口说明](api.md) | [开发者贡献指南](development.md) | [AI 平台智能分流与住宅出口运行手册](ai-routing-and-residential-egress.md)
@@ -17,10 +17,10 @@ SuperXray-gui 是一个以 Xray-core 为主运行核心的 Web 控制面板。�
 | 项目 | 当前实现 |
 |---|---|
 | 应用名 | `x-ui`，由 `config/name` 提供 |
-| 当前版本 | `3.7.2`，由 `config/version` 提供 |
+| 当前版本 | `3.7.3`，由 `config/version` 提供 |
 | 默认面板路径 | `/super/`，由 `web/service/setting.go` 提供；下文面板 API/页面路径均相对于配置的 `webBasePath` |
 | Go module | `github.com/superaddmin/SuperXray-gui/v2` |
-| Go 版本 | `1.27.2`，见 `go.mod` |
+| Go 版本 | `1.27.4`，见 `go.mod` |
 | 数据库 | SQLite + GORM |
 | 主运行核心 | legacy XrayService + `database/model.Inbound` |
 | 新 UI | Vue 3 / Vite / TypeScript / Pinia / Ant Design Vue 4 |
@@ -29,7 +29,7 @@ SuperXray-gui 是一个以 Xray-core 为主运行核心的 Web 控制面板。�
 | 旧 HTML UI | 已退役；`web/html`、`web/assets` 和 `/panel/legacy*` 不再注册 |
 | 实验核心入口 | `/panel/api/cores`，当前注册 `default-xray` 和 `experimental-sing-box` |
 
-Release 工作流打包时下载 Xray release `v26.10.21`；配置兼容基线仍为 `v26.10.10`。Go 依赖仍按 `go.mod` 锁定的 `github.com/xtls/xray-core` 版本提供 API 类型和集成代码。
+Release 工作流打包时下载 Xray release `v26.10.21`；原配置兼容基线为 `v26.10.10`，v3.7.3 增加 XDRIVE、Lua 与 KCP 的 `v26.10.21` 兼容规则。Go 依赖仍按 `go.mod` 锁定的 `github.com/xtls/xray-core` 版本提供 API 类型和集成代码；本次未整体升级 API 依赖。增量见 [v3.7.3 集成记录](upstream-v3.7.3-integration.md)。
 
 ---
 

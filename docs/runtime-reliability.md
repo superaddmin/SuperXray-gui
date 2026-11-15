@@ -1,6 +1,6 @@
 # 请求、数据库迁移、Xray 与流量统计可靠性
 
-> 源码核对日期：2026-10-15。事实来源：`database/`、`web/web.go`、`sub/sub.go`、`web/middleware/`、`web/service/{metrics,geofile,inbound,outbound,database_import,xray,xray_update}.go`、`web/job/xray_traffic_job.go`、`xray/` 及其回归测试。
+> 源码核对日期：基础文档 2026-10-15；v3.7.3 增量 2026-11-15。事实来源：`database/`、`web/web.go`、`sub/sub.go`、`web/middleware/`、`web/service/{metrics,geofile,inbound,outbound,database_import,xray,xray_update,public_ip_cache}.go`、`web/job/`、`xray/` 及其回归测试。
 
 本文记录请求观测、HTTP 超时、定时任务、数据库迁移、Xray/Geo 更新与流量统计的当前行为和验证方式。
 
@@ -19,6 +19,8 @@
 ## 数据库迁移、备份与导入
 
 `service.InitDB` 将建表、baseline、密码 seeder、旧 Xray JSON 规范化、历史入站/客户端迁移及孤立流量清理放入同一事务。成功提交后才原子发布连接；字段转换失败包含相关入站或设置上下文并回滚全部数据写入。再次运行不会重复创建 baseline 或对 bcrypt 再次哈希。当前没有通用 down migration runner。
+
+v3.7.3 新库保持没有账号，使用本地 CLI [显式初始化](upstream-v3.7.3-bootstrap.md)。新增的内部 `inbounds.quota_disabled` 列默认 `false`，不对 API JSON/表单开放；旧版没有原因标记的关闭状态不会被迁移推断为配额关闭。
 
 导出通过 SQLite `VACUUM INTO` 生成包括已提交 WAL 页的独立快照。导入最多接收 64 MiB 数据库，先在私有候选库运行 `integrity_check`、完整迁移和实际 Xray 配置预检；预检期间不把候选连接发布到全局，也不调用流量更新。导入需要可用的本机 Xray 以及配置引用的证书和 Geo 文件。
 
@@ -50,6 +52,8 @@ Web/Sub 请求和 cron 持有数据库读租约；导入持有独占维护锁，
 
 **待重试增量仅保存在面板进程内存中。** 面板进程退出时可能丢失尚未落库的数据；本次修复不提供持久化 exactly-once 计费保证。
 
+达到入站配额时记录内部自动关闭原因；重置流量只恢复带该标记且未过期的入站。手动关闭、到期关闭及旧版无标记的关闭状态保持关闭。周期重置任何一项持久化操作成功后，若 Xray 正在运行，则设置重新同步标记以恢复运行态；核心手动停止时不会被该任务启动。旧版因配额关闭的入站，升级后需管理员核实后手动启用一次。
+
 ## HTTP 超时与定时任务
 
 Web Server 与独立 Sub Server 的 `newHTTPServer` 都使用以下限制；反向代理或客户端可另设更短超时。
@@ -62,11 +66,13 @@ Web Server 与独立 Sub Server 的 `newHTTPServer` 都使用以下限制；反�
 | IdleTimeout | 120 秒 |
 | MaxHeaderBytes | 512 KiB |
 
-Web cron 使用配置时区、秒字段解析和 `cron.SkipIfStillRunning`。同一个调度项上次仍在执行时跳过本次触发，不排队补跑；不同任务仍可同时运行。`XrayTrafficJob` 自身还有互斥锁，Geo 默认更新另有批次锁。
+Web cron 使用配置时区、可选秒字段解析和 `cron.SkipIfStillRunning`，兼容五字段、六字段、`CRON_TZ` 与 `@every` 等描述符。同一个调度项上次仍在执行时跳过本次触发，不排队补跑；不同任务仍可同时运行。`XrayTrafficJob` 自身还有互斥锁，Geo 默认更新另有批次锁。
 
 启动初始化先尝试重启 Xray，然后注册每秒运行检查与每 30 秒重启标志检查。流量采集任务在延迟 5 秒后注册 `@every 10s`，因此不是承诺启动第 5 秒已完成第一次采集。客户端 IP 检查每 10 秒、日志清理每日、流量自动重置按小时/日/周/月调度；服务器状态由控制器每 2 秒刷新。
 
 LDAP 同步仅在启用 LDAP 时注册，缺失计划默认 `@every 1m`。TG 统计通知仅在启用 Bot 时注册；非法或空计划按实现记录警告/回退，CPU 告警还要求阈值大于 0。关闭这些功能不会注册对应功能任务。调度注册失败会记录警告；HTTP 成功不能证明定时任务或外部通知已经成功。
+
+Web/Sub 关闭 HTTP 服务使用独立的 5 秒超时上下文，已关闭的监听器与未运行的 Xray 属于预期状态，不再作为重复停机错误记录。公网 IP 状态读取立即返回缓存并在后台刷新：完整成功缓存 5 分钟，任一地址族失败后 1 分钟重试，保留最后成功地址；首次查询完成前为 `N/A`。此处公网地址用于状态展示，不能替代代理出口或实际业务连通性验证。
 
 ## 本地验证
 
