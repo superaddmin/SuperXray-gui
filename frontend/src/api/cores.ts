@@ -8,11 +8,6 @@ export function listCoreInstances(options?: ApiRequestOptions): Promise<CoreInst
   return getJson<CoreInstance[]>(legacyEndpoints.cores.instances, options);
 }
 
-/** 获取指定内核实例的完整元数据。 */
-export function getCoreInstance(id: string, options?: ApiRequestOptions): Promise<CoreInstance> {
-  return getJson<CoreInstance>(legacyEndpoints.cores.instance(id), options);
-}
-
 /** 获取指定内核实例的实时状态。 */
 export function getCoreStatus(id: string, options?: ApiRequestOptions): Promise<CoreStatus> {
   return getJson<CoreStatus>(legacyEndpoints.cores.status(id), options);

@@ -9,6 +9,11 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 )
 
+var (
+	crashPattern   = regexp.MustCompile(`(?i)(panic|exception|stack trace|fatal error)`)
+	logLinePattern = regexp.MustCompile(`^(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}\.\d{6}) \[([^\]]+)\] (.+)$`)
+)
+
 // NewLogWriter returns a new LogWriter for processing Xray log output.
 func NewLogWriter() *LogWriter {
 	return &LogWriter{}
@@ -31,7 +36,6 @@ func (lw *LogWriter) LastLine() string {
 func (lw *LogWriter) Write(m []byte) (n int, err error) {
 	lw.mu.Lock()
 	defer lw.mu.Unlock()
-	crashRegex := regexp.MustCompile(`(?i)(panic|exception|stack trace|fatal error)`)
 
 	// Convert the data to a string
 	message := strings.TrimSpace(string(m))
@@ -43,7 +47,7 @@ func (lw *LogWriter) Write(m []byte) (n int, err error) {
 	}
 
 	// Check if the message contains a crash
-	if crashRegex.MatchString(message) {
+	if crashPattern.MatchString(message) {
 		logger.Debug("Core crash detected:\n", message)
 		lw.lastLine = message
 		err1 := writeCrashReport(m)
@@ -53,11 +57,10 @@ func (lw *LogWriter) Write(m []byte) (n int, err error) {
 		return len(m), nil
 	}
 
-	regex := regexp.MustCompile(`^(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}\.\d{6}) \[([^\]]+)\] (.+)$`)
 	messages := strings.SplitSeq(message, "\n")
 
 	for msg := range messages {
-		matches := regex.FindStringSubmatch(msg)
+		matches := logLinePattern.FindStringSubmatch(msg)
 
 		if len(matches) > 3 {
 			level := matches[2]

@@ -1133,10 +1133,10 @@ func (r *fakeInboundRepository) ResetAllClientTraffics(id int) error {
 	return nil
 }
 
-func (r *fakeInboundRepository) ResetAllTraffics() error {
+func (r *fakeInboundRepository) ResetAllTraffics(userID int) error {
 	r.resetAllTrafficsCalled = true
 	for i := range r.inbounds {
-		if r.inbounds[i].UserId > 0 {
+		if r.inbounds[i].UserId == userID {
 			r.inbounds[i].Up = 0
 			r.inbounds[i].Down = 0
 		}
@@ -1153,6 +1153,15 @@ func (r *fakeInboundRepository) ResetInboundTraffic(id int) error {
 		}
 	}
 	return nil
+}
+
+func (r *fakeInboundRepository) ResetUserInboundTraffic(userID, id int) error {
+	for _, inbound := range r.inbounds {
+		if inbound.Id == id && inbound.UserId == userID {
+			return r.ResetInboundTraffic(id)
+		}
+	}
+	return gorm.ErrRecordNotFound
 }
 
 func (r *fakeInboundRepository) DeleteClientTrafficByEmail(_ *gorm.DB, email string) error {

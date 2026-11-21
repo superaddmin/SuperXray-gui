@@ -4,7 +4,6 @@ package websocket
 import (
 	"context"
 	"encoding/json"
-	"runtime"
 	"sync"
 	"time"
 
@@ -33,11 +32,11 @@ type Message struct {
 
 // Client represents a WebSocket client connection
 type Client struct {
-	ID        string
-	Send      chan []byte
-	Hub       *Hub
-	Topics    map[MessageType]bool // Subscribed topics
-	closeOnce sync.Once            // Ensures Send channel is closed exactly once
+	ID     string
+	Send   chan []byte
+	Hub    *Hub
+	Topics map[MessageType]bool // Subscribed topics
+	closed bool                 // Protected by the owning hub's mutex
 }
 
 // Hub maintains the set of active clients and broadcasts messages to them
@@ -48,44 +47,23 @@ type Hub struct {
 	// Inbound messages from clients
 	broadcast chan []byte
 
-	// Register requests from clients
-	register chan *Client
-
-	// Unregister requests from clients
-	unregister chan *Client
-
 	// Mutex for thread-safe operations
 	mu sync.RWMutex
 
 	// Context for graceful shutdown
 	ctx    context.Context
 	cancel context.CancelFunc
-
-	// Worker pool for parallel broadcasting
-	workerPoolSize int
 }
 
 // NewHub creates a new WebSocket hub
 func NewHub() *Hub {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Calculate optimal worker pool size (CPU cores * 2, but max 100)
-	workerPoolSize := runtime.NumCPU() * 2
-	if workerPoolSize > 100 {
-		workerPoolSize = 100
-	}
-	if workerPoolSize < 10 {
-		workerPoolSize = 10
-	}
-
 	return &Hub{
-		clients:        make(map[*Client]bool),
-		broadcast:      make(chan []byte, 2048), // Increased from 256 to 2048 for high load
-		register:       make(chan *Client, 100), // Buffered channel for fast registration
-		unregister:     make(chan *Client, 100), // Buffered channel for fast unregistration
-		ctx:            ctx,
-		cancel:         cancel,
-		workerPoolSize: workerPoolSize,
+		clients:   make(map[*Client]bool),
+		broadcast: make(chan []byte, 2048), // Increased from 256 to 2048 for high load
+		ctx:       ctx,
+		cancel:    cancel,
 	}
 }
 
@@ -105,132 +83,43 @@ func (h *Hub) Run() {
 			// Graceful shutdown: close all clients
 			h.mu.Lock()
 			for client := range h.clients {
-				client.closeOnce.Do(func() {
-					close(client.Send)
-				})
+				h.removeClientLocked(client)
 			}
-			h.clients = make(map[*Client]bool)
 			h.mu.Unlock()
 			logger.Info("WebSocket hub stopped gracefully")
 			return
-
-		case client := <-h.register:
-			if client == nil {
-				continue
-			}
-			h.mu.Lock()
-			h.clients[client] = true
-			count := len(h.clients)
-			h.mu.Unlock()
-			logger.Debugf("WebSocket client connected: %s (total: %d)", client.ID, count)
-
-		case client := <-h.unregister:
-			if client == nil {
-				continue
-			}
-			h.mu.Lock()
-			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
-				client.closeOnce.Do(func() {
-					close(client.Send)
-				})
-			}
-			count := len(h.clients)
-			h.mu.Unlock()
-			logger.Debugf("WebSocket client disconnected: %s (total: %d)", client.ID, count)
 
 		case message := <-h.broadcast:
 			if message == nil {
 				continue
 			}
-			// Optimization: quickly copy client list and release lock
-			h.mu.RLock()
-			clientCount := len(h.clients)
-			if clientCount == 0 {
-				h.mu.RUnlock()
-				continue
-			}
-
-			// Pre-allocate memory for client list
-			clients := make([]*Client, 0, clientCount)
-			for client := range h.clients {
-				clients = append(clients, client)
-			}
-			h.mu.RUnlock()
-
-			// Parallel broadcast using worker pool
-			h.broadcastParallel(clients, message)
+			h.deliver(message, "")
 		}
 	}
 }
 
-// broadcastParallel sends message to all clients in parallel for maximum performance
-func (h *Hub) broadcastParallel(clients []*Client, message []byte) {
-	if len(clients) == 0 {
-		return
-	}
-
-	// For small number of clients, use simple parallel sending
-	if len(clients) < h.workerPoolSize {
-		var wg sync.WaitGroup
-		for _, client := range clients {
-			wg.Add(1)
-			go func(c *Client) {
-				defer wg.Done()
-				defer func() {
-					if r := recover(); r != nil {
-						// Channel may be closed, safely ignore
-						logger.Debugf("WebSocket broadcast panic recovered for client %s: %v", c.ID, r)
-					}
-				}()
-				select {
-				case c.Send <- message:
-				default:
-					// Client's send buffer is full, disconnect
-					logger.Debugf("WebSocket client %s send buffer full, disconnecting", c.ID)
-					h.Unregister(c)
-				}
-			}(client)
+// Enqueuing is nonblocking. Membership, sends, and channel closure share one lock.
+func (h *Hub) deliver(message []byte, topic MessageType) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for client := range h.clients {
+		if topic != "" && len(client.Topics) != 0 && !client.Topics[topic] {
+			continue
 		}
-		wg.Wait()
-		return
+		select {
+		case client.Send <- message:
+		default:
+			h.removeClientLocked(client)
+		}
 	}
+}
 
-	// For large number of clients, use worker pool for optimal performance
-	clientChan := make(chan *Client, len(clients))
-	for _, client := range clients {
-		clientChan <- client
+func (h *Hub) removeClientLocked(client *Client) {
+	delete(h.clients, client)
+	if !client.closed {
+		client.closed = true
+		close(client.Send)
 	}
-	close(clientChan)
-
-	// Use a local WaitGroup to avoid blocking hub shutdown
-	var wg sync.WaitGroup
-	wg.Add(h.workerPoolSize)
-	for i := 0; i < h.workerPoolSize; i++ {
-		go func() {
-			defer wg.Done()
-			for client := range clientChan {
-				func() {
-					defer func() {
-						if r := recover(); r != nil {
-							// Channel may be closed, safely ignore
-							logger.Debugf("WebSocket broadcast panic recovered for client %s: %v", client.ID, r)
-						}
-					}()
-					select {
-					case client.Send <- message:
-					default:
-						// Client's send buffer is full, disconnect
-						logger.Debugf("WebSocket client %s send buffer full, disconnecting", client.ID)
-						h.Unregister(client)
-					}
-				}()
-			}
-		}()
-	}
-
-	// Wait for all workers to finish
-	wg.Wait()
 }
 
 // Broadcast sends a message to all connected clients
@@ -314,20 +203,7 @@ func (h *Hub) BroadcastToTopic(messageType MessageType, payload any) {
 		return
 	}
 
-	h.mu.RLock()
-	// Filter clients by topics and quickly release lock
-	subscribedClients := make([]*Client, 0)
-	for client := range h.clients {
-		if len(client.Topics) == 0 || client.Topics[messageType] {
-			subscribedClients = append(subscribedClients, client)
-		}
-	}
-	h.mu.RUnlock()
-
-	// Parallel send to subscribed clients
-	if len(subscribedClients) > 0 {
-		h.broadcastParallel(subscribedClients, data)
-	}
+	h.deliver(data, messageType)
 }
 
 // GetClientCount returns the number of connected clients
@@ -339,14 +215,19 @@ func (h *Hub) GetClientCount() int {
 
 // Register registers a new client with the hub
 func (h *Hub) Register(client *Client) {
-	if h == nil || client == nil {
+	if h == nil || client == nil || client.Send == nil {
 		return
 	}
-	select {
-	case h.register <- client:
-	case <-h.ctx.Done():
-		// Hub is shutting down
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if client.closed {
+		return
 	}
+	if h.ctx.Err() != nil {
+		h.removeClientLocked(client)
+		return
+	}
+	h.clients[client] = true
 }
 
 // Unregister unregisters a client from the hub
@@ -354,10 +235,10 @@ func (h *Hub) Unregister(client *Client) {
 	if h == nil || client == nil {
 		return
 	}
-	select {
-	case h.unregister <- client:
-	case <-h.ctx.Done():
-		// Hub is shutting down
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.clients[client] {
+		h.removeClientLocked(client)
 	}
 }
 

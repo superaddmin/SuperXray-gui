@@ -14,8 +14,6 @@ export const useServerStore = defineStore('server', {
     panelUpdate: null as PanelUpdateInfo | null,
     panelUpdateLoading: false,
     panelUpdateFetchedAt: 0,
-    websocketConnected: false,
-    websocketStarted: false,
     websocket: null as WebSocket | null,
   }),
   actions: {
@@ -53,20 +51,16 @@ export const useServerStore = defineStore('server', {
       }
     },
     connectRealtime() {
-      if (this.websocketStarted || !hasInjectedRuntimeConfig()) {
+      if (this.websocket || !hasInjectedRuntimeConfig()) {
         return;
       }
 
-      this.websocketStarted = true;
       this.websocket = openPanelWebSocket(
         (message) => this.handleRealtimeMessage(message),
         () => {
-          this.websocketConnected = false;
-          this.websocketStarted = false;
           this.websocket = null;
         },
       );
-      this.websocketConnected = Boolean(this.websocket);
     },
     handleRealtimeMessage(message: PanelWebSocketMessage) {
       if (message.type === 'status') {

@@ -248,6 +248,57 @@ func TestShadowsocksInboundWritesPreserveUnknownFieldsAndLargeIntegers(t *testin
 	}
 }
 
+func TestVLESSFallbacksValidatedBeforeInboundWrites(t *testing.T) {
+	setupInboundServiceTestDB(t)
+	service := &InboundService{}
+	inbound := inboundWriteFixture("fallbacks", "")
+	base := `{"clients":[],"decryption":"test-decryption","vendor":9007199254740993`
+	inbound.Settings = base + `,"fallbacks":[{"dest":443}]}`
+	if _, restart, err := service.AddInbound(inbound); err == nil || !strings.Contains(err.Error(), "server decryption") || restart {
+		t.Fatalf("create/import conflict: restart=%v err=%v", restart, err)
+	}
+	assertInboundWriteCounts(t, 0, 0)
+	inbound.Settings = `{"clients":[],"fallbacks":[{"dest":443}]}`
+	if _, restart, err := service.AddInbound(inbound); err == nil || !strings.Contains(err.Error(), "explicit decryption") || restart {
+		t.Fatalf("create/import missing decryption: restart=%v err=%v", restart, err)
+	}
+	assertInboundWriteCounts(t, 0, 0)
+	inbound.Settings = base + `,"fallbacks":[]}`
+	if _, _, err := service.AddInbound(inbound); err != nil {
+		t.Fatal(err)
+	}
+	initial, err := service.GetInbound(inbound.Id)
+	if err != nil || strings.Contains(initial.Settings, "fallbacks") || !strings.Contains(initial.Settings, "9007199254740993") {
+		t.Fatalf("empty fallback normalization lost extension or failed: %v, %v", initial, err)
+	}
+	for _, raw := range []string{
+		base + `,"fallbacks":[{"dest":80}]}`,
+		base + `,"Fallbacks":[{"dest":80}]}`,
+		`{"clients":[],"decryption":"","fallbacks":[{"dest":443}]}`,
+		`{"clients":[],"decryption":"none","fallbacks":[null]}`,
+		`{"clients":[],"decryption":"none","fallbacks":"disabled"}`,
+		`{"clients":[],"decryption":"none","fallbacks":[{"dest":443,"path":"invalid"}]}`,
+		`{"clients":[],"decryption":"none","fallbacks":[{"dest":443,"xver":3}]}`,
+	} {
+		inbound.Settings = raw
+		if _, restart, err := service.UpdateInbound(inbound); err == nil || !strings.Contains(strings.ToLower(err.Error()), "fallback") || restart {
+			t.Fatalf("invalid update: restart=%v err=%v", restart, err)
+		}
+		stored, err := service.GetInbound(inbound.Id)
+		if err != nil || stored.Settings != initial.Settings {
+			t.Fatalf("rejected update changed stored inbound: %v", err)
+		}
+	}
+	inbound.Settings = `{"clients":[],"decryption":"none","fallbacks":[{"dest":443,"path":"/site","xver":1}]}`
+	if _, _, err := service.UpdateInbound(inbound); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := service.GetInbound(inbound.Id)
+	if err != nil || !strings.Contains(stored.Settings, "/site") {
+		t.Fatalf("valid fallback was not saved: %v", err)
+	}
+}
+
 func inboundWriteFixture(tag, email string) *model.Inbound {
 	return &model.Inbound{
 		UserId: 1, Remark: tag, Port: 19991, Protocol: model.VLESS, Tag: tag,

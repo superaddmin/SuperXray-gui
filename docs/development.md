@@ -1,8 +1,8 @@
 # 开发者贡献指南
 
 > **目标读者**：贡献者 / 维护者 / 自动化 Agent
-> **适用版本**：`v3.7.4`
-> **源码核对日期**：基础文档 2026-10-15；本轮增量 2026-11-15。当前分支选择性吸收 `MHSanaei/3x-ui v3.11.0` 与 `alireza0/x-ui v1.15.0`，项目版本由 `config/version` 声明为 `3.7.4`；运行时 Xray `v26.10.21`，API 类型依赖仍为 `v26.10.10` 基线，新增兼容规则见 [上游集成记录](upstream-v3.7.3-integration.md)。
+> **适用版本**：`v3.7.5`
+> **源码核对日期**：基础文档 2026-10-15；本轮增量 2026-11-21。当前分支选择性吸收 `MHSanaei/3x-ui v3.11.0` 与 `alireza0/x-ui v1.15.0`，项目版本由 `config/version` 声明为 `3.7.5`；运行时 Xray `v26.11.9`，API 类型依赖仍为 `v26.10.10` 基线，新增兼容规则见 [本轮同步与验证](upstream-sync-assessment-2026-11-21.md)。
 > **事实来源**：`go.mod`、`.env.example`、`frontend/package.json`、`.github/workflows/*`、`.codex/project.toml`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [部署指南](deployment.md)
 
@@ -400,7 +400,7 @@ PR 至少包含：
 1. `release_gate.py --ci --metadata-only` 校验版本、CHANGELOG 和 release metadata。
 2. 脱敏扫描、Go 格式检查、`go vet`、OpenAPI 契约测试、staticcheck、`go test -race -shuffle=on ./...`。
 3. 设置 Go 和 CGO 工具链，针对 Linux `amd64` / `arm64` 构建 `xui-release`。
-4. 下载 Xray release `v26.10.21`（配置兼容基线为 `v26.10.10`）。
+4. 下载 Xray release `v26.11.9`（配置兼容基线为 `v26.10.10`）。
 5. 下载 Geo 数据文件。
 6. 打包：
    - `x-ui-linux-amd64.tar.gz`

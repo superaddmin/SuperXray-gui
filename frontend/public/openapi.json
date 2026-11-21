@@ -1946,7 +1946,38 @@
             "csrfToken": []
           }
         ],
-        "summary": "Reset all inbound traffic counters.",
+        "summary": "Reset all owned inbound counters and restore non-expired inbounds disabled by quota.",
+        "tags": [
+          "Inbounds"
+        ]
+      }
+    },
+    "/panel/api/inbounds/resetTraffic/{id}": {
+      "post": {
+        "operationId": "resetInboundTraffic",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IDPath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/LegacyMsg"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenCSRF"
+          },
+          "404": {
+            "$ref": "#/components/responses/AuthNotFound"
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          }
+        ],
+        "summary": "Reset counters for one owned inbound and restore it if disabled by quota and still valid.",
         "tags": [
           "Inbounds"
         ]

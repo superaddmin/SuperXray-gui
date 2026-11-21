@@ -99,6 +99,10 @@ export function resetInboundClientTraffic(
   return postForm<void>(legacyEndpoints.inbounds.resetClientTraffic(id, email), {}, options);
 }
 
+export function resetInboundTraffic(id: number, options?: ApiRequestOptions): Promise<void> {
+  return postForm<void>(legacyEndpoints.inbounds.resetTraffic(id), {}, options);
+}
+
 export function resetAllInboundTraffics(options?: ApiRequestOptions): Promise<void> {
   return postForm<void>(legacyEndpoints.inbounds.resetAllTraffics, {}, options);
 }

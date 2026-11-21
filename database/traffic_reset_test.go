@@ -108,3 +108,44 @@ func TestQuotaDisabledMarkerCannotBeImportedOrExportedAsJSON(t *testing.T) {
 		t.Fatalf("internal quota marker accepted from JSON: %v", err)
 	}
 }
+
+func TestUserTrafficResetsAreScopedAndIdempotent(t *testing.T) {
+	for _, batch := range []bool{false, true} {
+		db := initRepositoryTestDB(t)
+		repo := NewRepositories(db).Inbounds
+		rows := []model.Inbound{
+			{UserId: 1, Tag: "quota", Up: 123, QuotaDisabled: true},
+			{UserId: 1, Tag: "expired", Down: 123, QuotaDisabled: true, ExpiryTime: 1},
+			{UserId: 1, Tag: "manual", Up: 123},
+			{UserId: 2, Tag: "other owner's quota", Down: 123, QuotaDisabled: true},
+		}
+		if err := db.Create(&rows).Error; err != nil {
+			t.Fatal(err)
+		}
+		if err := repo.ResetUserInboundTraffic(1, rows[3].Id); !IsNotFound(err) {
+			t.Fatalf("other owner's inbound: %v", err)
+		}
+		for range 2 {
+			if batch {
+				if err := repo.ResetAllTraffics(1); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				for _, row := range rows[:3] {
+					if err := repo.ResetUserInboundTraffic(1, row.Id); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+		}
+		for i, row := range rows {
+			var stored model.Inbound
+			if err := db.First(&stored, row.Id).Error; err != nil {
+				t.Fatal(err)
+			}
+			if stored.Enable != (i == 0) || stored.QuotaDisabled != (i == 3) || stored.Up != 0 || (i == 3 && stored.Down != 123) || (i != 3 && stored.Down != 0) {
+				t.Fatalf("unexpected batch=%t result for %s", batch, row.Tag)
+			}
+		}
+	}
+}

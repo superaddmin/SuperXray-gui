@@ -74,7 +74,8 @@ type InboundRepository interface {
 	SaveClientTraffic(traffic *xray.ClientTraffic) error
 	SaveClientTraffics(tx *gorm.DB, traffics []*xray.ClientTraffic) error
 	ResetAllClientTraffics(id int) error
-	ResetAllTraffics() error
+	ResetAllTraffics(userID int) error
+	ResetUserInboundTraffic(userID, id int) error
 	ResetInboundTraffic(id int) error
 	CreateClientTraffic(tx *gorm.DB, clientTraffic *xray.ClientTraffic) error
 	UpdateClientTrafficByEmail(tx *gorm.DB, email string, client *model.Client) error
@@ -627,24 +628,31 @@ func (r *GormInboundRepository) ResetAllClientTraffics(id int) error {
 	})
 }
 
-func (r *GormInboundRepository) ResetAllTraffics() error {
-	return r.db.Model(model.Inbound{}).
-		Where("user_id > ?", 0).
-		Updates(map[string]any{"up": 0, "down": 0}).
-		Error
+func (r *GormInboundRepository) ResetAllTraffics(userID int) error {
+	return resetInboundCounters(r.db.Where("user_id = ?", userID)).Error
+}
+
+func (r *GormInboundRepository) ResetUserInboundTraffic(userID, id int) error {
+	result := resetInboundCounters(r.db.Where("user_id = ? AND id = ?", userID, id))
+	if result.Error == nil && result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return result.Error
 }
 
 func (r *GormInboundRepository) ResetInboundTraffic(id int) error {
-	return r.db.Model(model.Inbound{}).
-		Where("id = ?", id).
+	return resetInboundCounters(r.db.Where("id = ?", id)).Error
+}
+
+func resetInboundCounters(query *gorm.DB) *gorm.DB {
+	return query.Model(&model.Inbound{}).
 		Updates(map[string]any{
 			"up": 0, "down": 0,
 			// Only an explicit automatic quota disable may be undone by a reset.
 			// Existing disabled rows without the marker stay disabled on upgrade.
 			"enable":         gorm.Expr("enable OR (quota_disabled AND (expiry_time <= 0 OR expiry_time > ?))", time.Now().UnixMilli()),
 			"quota_disabled": false,
-		}).
-		Error
+		})
 }
 
 func (r *GormInboundRepository) CreateClientTraffic(tx *gorm.DB, clientTraffic *xray.ClientTraffic) error {

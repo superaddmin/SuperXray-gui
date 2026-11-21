@@ -2067,10 +2067,9 @@ function isValidIpv6(value: string): boolean {
   const halves = value.split('::');
   const groups = halves.flatMap((half) => (half ? half.split(':') : []));
   let groupCount = 0;
-  for (let index = 0; index < groups.length; index += 1) {
-    const group = groups[index];
+  for (const [index, group] of groups.entries()) {
     if (group.includes('.')) {
-      if (index !== groups.length - 1 || !isValidIpv4(group)) {
+      if (index !== groups.length - 1 || !value.endsWith(group) || !isValidIpv4(group)) {
         return false;
       }
       groupCount += 2;

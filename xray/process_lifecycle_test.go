@@ -12,6 +12,10 @@ import (
 	"time"
 )
 
+// A race-instrumented test executable may take longer than the production
+// startup window to reach TestProcessHelper on a busy CI worker.
+const helperExitWindow = 15 * time.Second
+
 // This helper exercises real process creation, output pipes and Wait on every
 // supported OS without requiring an installed Xray binary or network listener.
 func TestProcessHelper(t *testing.T) {
@@ -58,7 +62,7 @@ func TestStartWithConfigRestoresPreviousFileOnFailure(t *testing.T) {
 				cmd = exec.Command(filepath.Join(t.TempDir(), "missing-xray"))
 			}
 			p := newProcess(&Config{})
-			if err := p.startWithConfig(configPath, []byte("candidate"), cmd); err == nil {
+			if err := p.startWithConfig(configPath, []byte("candidate"), cmd, helperExitWindow); err == nil {
 				t.Fatal("startup unexpectedly succeeded")
 			}
 			if p.IsRunning() {
@@ -75,7 +79,7 @@ func TestStartWithConfigRestoresPreviousFileOnFailure(t *testing.T) {
 func TestStartWithConfigRemovesFailedFirstConfiguration(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.json")
 	p := newProcess(&Config{})
-	if err := p.startWithConfig(configPath, []byte("candidate"), processHelperCommand(t, "fail")); err == nil {
+	if err := p.startWithConfig(configPath, []byte("candidate"), processHelperCommand(t, "fail"), helperExitWindow); err == nil {
 		t.Fatal("startup unexpectedly succeeded")
 	}
 	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
@@ -116,7 +120,7 @@ func TestProcessLifecycleConcurrentReaders(t *testing.T) {
 		}
 	})
 	for range 2 {
-		if err := p.startWithConfig(configPath, []byte("candidate"), processHelperCommand(t, "wait")); err != nil {
+		if err := p.startWithConfig(configPath, []byte("candidate"), processHelperCommand(t, "wait"), startupWindow); err != nil {
 			t.Fatalf("start: %v", err)
 		}
 		if !p.IsRunning() {

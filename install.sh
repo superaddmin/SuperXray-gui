@@ -6,8 +6,6 @@ blue='\033[0;34m'
 yellow='\033[0;33m'
 plain='\033[0m'
 
-cur_dir=$(pwd)
-
 xui_folder="${XUI_MAIN_FOLDER:=/usr/local/x-ui}"
 xui_service="${XUI_SERVICE:=/etc/systemd/system}"
 script_repo="${XUI_SCRIPT_REPO:=superaddmin/SuperXray-gui}"
@@ -23,9 +21,12 @@ RELEASE_TAG_SOURCE=""
 
 # Check OS and set release variable
 if [[ -f /etc/os-release ]]; then
+    # The target system supplies its release metadata at runtime.
+    # shellcheck source=/dev/null
     source /etc/os-release
     release=$ID
-    elif [[ -f /usr/lib/os-release ]]; then
+elif [[ -f /usr/lib/os-release ]]; then
+    # shellcheck source=/dev/null
     source /usr/lib/os-release
     release=$ID
 else
@@ -37,12 +38,13 @@ echo "当前系统发行版：$release"
 arch() {
     case "$(uname -m)" in
         x86_64 | x64 | amd64) echo 'amd64' ;;
-        armv8* | armv8 | arm64 | aarch64) echo 'arm64' ;;
-        *) echo -e "${red}不支持的 CPU 架构：$(uname -m)。SuperXray 服务器安装包仅发布 amd64 和 arm64。${plain}" && rm -f install.sh && exit 1 ;;
+        armv8* | arm64 | aarch64) echo 'arm64' ;;
+        *) echo -e "${red}不支持的 CPU 架构：$(uname -m)。SuperXray 服务器安装包仅发布 amd64 和 arm64。${plain}" >&2; return 1 ;;
     esac
 }
 
-echo "CPU 架构：$(arch)"
+package_arch=$(arch) || exit 1
+echo "CPU 架构：$package_arch"
 
 # Simple helpers
 is_ipv4() {
@@ -50,9 +52,6 @@ is_ipv4() {
 }
 is_ipv6() {
     [[ "$1" =~ : ]] && return 0 || return 1
-}
-is_ip() {
-    is_ipv4 "$1" || is_ipv6 "$1"
 }
 is_domain() {
     [[ "$1" =~ ^([A-Za-z0-9](-*[A-Za-z0-9])*\.)+(xn--[a-z0-9]{2,}|[A-Za-z]{2,})$ ]] && return 0 || return 1
@@ -116,15 +115,15 @@ resolve_release_tag() {
 is_port_in_use() {
     local port="$1"
     if command -v ss >/dev/null 2>&1; then
-        ss -ltn 2>/dev/null | awk -v p=":${port}$" '$4 ~ p {exit 0} END {exit 1}'
+        ss -ltn 2>/dev/null | awk -v p=":${port}$" '$4 ~ p {found = 1; exit} END {exit !found}'
         return
     fi
     if command -v netstat >/dev/null 2>&1; then
-        netstat -lnt 2>/dev/null | awk -v p=":${port} " '$4 ~ p {exit 0} END {exit 1}'
+        netstat -lnt 2>/dev/null | awk -v p=":${port}$" '$4 ~ p {found = 1; exit} END {exit !found}'
         return
     fi
     if command -v lsof >/dev/null 2>&1; then
-        lsof -nP -iTCP:${port} -sTCP:LISTEN >/dev/null 2>&1 && return 0
+        lsof -nP "-iTCP:$port" -sTCP:LISTEN >/dev/null 2>&1 && return 0
     fi
     return 1
 }
@@ -169,8 +168,7 @@ gen_random_string() {
 install_acme() {
     echo -e "${green}正在安装 acme.sh，用于管理 SSL 证书...${plain}"
     cd ~ || return 1
-    curl -s https://get.acme.sh | sh >/dev/null 2>&1
-    if [ $? -ne 0 ]; then
+    if ! curl -s https://get.acme.sh | sh >/dev/null 2>&1; then
         echo -e "${red}acme.sh 安装失败${plain}"
         return 1
     else
@@ -179,72 +177,6 @@ install_acme() {
     return 0
 }
 
-setup_ssl_certificate() {
-    local domain="$1"
-    local server_ip="$2"
-    local existing_port="$3"
-    local existing_webBasePath="$4"
-    
-    echo -e "${green}正在配置 SSL 证书...${plain}"
-    
-    # Check if acme.sh is installed
-    if ! command -v ~/.acme.sh/acme.sh &>/dev/null; then
-        install_acme
-        if [ $? -ne 0 ]; then
-            echo -e "${yellow}acme.sh 安装失败，已跳过 SSL 配置${plain}"
-            return 1
-        fi
-    fi
-    
-    # Create certificate directory
-    local certPath="/root/cert/${domain}"
-    mkdir -p "$certPath"
-    
-    # Issue certificate
-    echo -e "${green}正在为 ${domain} 签发 SSL 证书...${plain}"
-    echo -e "${yellow}说明：80 端口必须开放，并可从公网访问${plain}"
-    
-    ~/.acme.sh/acme.sh --set-default-ca --server letsencrypt --force >/dev/null 2>&1
-    ~/.acme.sh/acme.sh --issue -d ${domain} --listen-v6 --standalone --httpport 80 --force
-    
-    if [ $? -ne 0 ]; then
-        echo -e "${yellow}${domain} 的证书签发失败${plain}"
-        echo -e "${yellow}请确认 80 端口已开放，稍后可通过 x-ui 重新尝试${plain}"
-        rm -rf ~/.acme.sh/${domain} 2>/dev/null
-        rm -rf "$certPath" 2>/dev/null
-        return 1
-    fi
-    
-    # Install certificate
-    ~/.acme.sh/acme.sh --installcert -d ${domain} \
-        --key-file /root/cert/${domain}/privkey.pem \
-        --fullchain-file /root/cert/${domain}/fullchain.pem \
-        --reloadcmd "systemctl restart x-ui" >/dev/null 2>&1
-    
-    if [ $? -ne 0 ]; then
-        echo -e "${yellow}证书安装失败${plain}"
-        return 1
-    fi
-    
-    # Enable auto-renew
-    ~/.acme.sh/acme.sh --upgrade --auto-upgrade >/dev/null 2>&1
-    # Secure permissions: private key readable only by owner
-    chmod 600 $certPath/privkey.pem 2>/dev/null
-    chmod 644 $certPath/fullchain.pem 2>/dev/null
-    
-    # Set certificate for panel
-    local webCertFile="/root/cert/${domain}/fullchain.pem"
-    local webKeyFile="/root/cert/${domain}/privkey.pem"
-    
-    if [[ -f "$webCertFile" && -f "$webKeyFile" ]]; then
-        ${xui_folder}/x-ui cert -webCert "$webCertFile" -webCertKey "$webKeyFile" >/dev/null 2>&1
-        echo -e "${green}SSL 证书已安装并配置成功！${plain}"
-        return 0
-    else
-        echo -e "${yellow}未找到证书文件${plain}"
-        return 1
-    fi
-}
 
 # Issue Let's Encrypt IP certificate with shortlived profile (~6 days validity)
 # Requires acme.sh and port 80 open for HTTP-01 challenge
@@ -258,8 +190,7 @@ setup_ip_certificate() {
 
     # Check for acme.sh
     if ! command -v ~/.acme.sh/acme.sh &>/dev/null; then
-        install_acme
-        if [ $? -ne 0 ]; then
+        if ! install_acme; then
             echo -e "${red}acme.sh 安装失败${plain}"
             return 1
         fi
@@ -281,9 +212,9 @@ setup_ip_certificate() {
     mkdir -p "$certDir"
 
     # Build domain arguments
-    local domain_args="-d ${ipv4}"
+    local domain_args=(-d "$ipv4")
     if [[ -n "$ipv6" ]] && is_ipv6 "$ipv6"; then
-        domain_args="${domain_args} -d ${ipv6}"
+        domain_args+=(-d "$ipv6")
         echo -e "${green}已包含 IPv6 地址：${ipv6}${plain}"
     fi
 
@@ -331,22 +262,20 @@ setup_ip_certificate() {
     echo -e "${green}正在为 ${ipv4} 签发 IP 证书...${plain}"
     ~/.acme.sh/acme.sh --set-default-ca --server letsencrypt --force >/dev/null 2>&1
     
-    ~/.acme.sh/acme.sh --issue \
-        ${domain_args} \
+    if ! ~/.acme.sh/acme.sh --issue \
+        "${domain_args[@]}" \
         --standalone \
         --server letsencrypt \
         --certificate-profile shortlived \
         --days 6 \
-        --httpport ${WebPort} \
-        --force
-
-    if [ $? -ne 0 ]; then
+        --httpport "${WebPort}" \
+        --force; then
         echo -e "${red}IP 证书签发失败${plain}"
         echo -e "${yellow}请确认端口 ${WebPort} 可访问（或已从外部 80 端口转发）${plain}"
         # Cleanup acme.sh data for both IPv4 and IPv6 if specified
-        rm -rf ~/.acme.sh/${ipv4} 2>/dev/null
-        [[ -n "$ipv6" ]] && rm -rf ~/.acme.sh/${ipv6} 2>/dev/null
-        rm -rf ${certDir} 2>/dev/null
+        rm -rf "$HOME/.acme.sh/${ipv4}" 2>/dev/null
+        [[ -n "$ipv6" ]] && rm -rf "$HOME/.acme.sh/${ipv6}" 2>/dev/null
+        rm -rf "$certDir" 2>/dev/null
         return 1
     fi
 
@@ -355,7 +284,7 @@ setup_ip_certificate() {
     # Install certificate
     # Note: acme.sh may report "Reload error" and exit non-zero if reloadcmd fails,
     # but the cert files are still installed. We check for files instead of exit code.
-    ~/.acme.sh/acme.sh --installcert -d ${ipv4} \
+    ~/.acme.sh/acme.sh --installcert -d "${ipv4}" \
         --key-file "${certDir}/privkey.pem" \
         --fullchain-file "${certDir}/fullchain.pem" \
         --reloadcmd "${reloadCmd}" 2>&1 || true
@@ -364,9 +293,9 @@ setup_ip_certificate() {
     if [[ ! -f "${certDir}/fullchain.pem" || ! -f "${certDir}/privkey.pem" ]]; then
         echo -e "${red}安装后未找到证书文件${plain}"
         # Cleanup acme.sh data for both IPv4 and IPv6 if specified
-        rm -rf ~/.acme.sh/${ipv4} 2>/dev/null
-        [[ -n "$ipv6" ]] && rm -rf ~/.acme.sh/${ipv6} 2>/dev/null
-        rm -rf ${certDir} 2>/dev/null
+        rm -rf "$HOME/.acme.sh/${ipv4}" 2>/dev/null
+        [[ -n "$ipv6" ]] && rm -rf "$HOME/.acme.sh/${ipv6}" 2>/dev/null
+        rm -rf "$certDir" 2>/dev/null
         return 1
     fi
     
@@ -376,14 +305,12 @@ setup_ip_certificate() {
     ~/.acme.sh/acme.sh --upgrade --auto-upgrade >/dev/null 2>&1
 
     # Secure permissions: private key readable only by owner
-    chmod 600 ${certDir}/privkey.pem 2>/dev/null
-    chmod 644 ${certDir}/fullchain.pem 2>/dev/null
+    chmod 600 "$certDir/privkey.pem" 2>/dev/null
+    chmod 644 "$certDir/fullchain.pem" 2>/dev/null
 
     # Configure panel to use the certificate
     echo -e "${green}正在为面板设置证书路径...${plain}"
-    ${xui_folder}/x-ui cert -webCert "${certDir}/fullchain.pem" -webCertKey "${certDir}/privkey.pem"
-    
-    if [ $? -ne 0 ]; then
+    if ! "${xui_folder}/x-ui" cert -webCert "${certDir}/fullchain.pem" -webCertKey "${certDir}/privkey.pem"; then
         echo -e "${yellow}警告：无法自动设置证书路径${plain}"
         echo -e "${yellow}证书文件位置：${plain}"
         echo -e "  证书：${certDir}/fullchain.pem"
@@ -400,15 +327,13 @@ setup_ip_certificate() {
 
 # Comprehensive manual SSL certificate issuance via acme.sh
 ssl_cert_issue() {
-    local existing_webBasePath=$(${xui_folder}/x-ui setting -show true | grep 'webBasePath:' | awk -F': ' '{print $2}' | tr -d '[:space:]' | sed 's#^/##')
-    local existing_port=$(${xui_folder}/x-ui setting -show true | grep 'port:' | awk -F': ' '{print $2}' | tr -d '[:space:]')
+    local existing_port=$1 existing_webBasePath=$2
     
     # check for acme.sh first
     if ! command -v ~/.acme.sh/acme.sh &>/dev/null; then
         echo "未找到 acme.sh，正在安装..."
         cd ~ || return 1
-        curl -s https://get.acme.sh | sh
-        if [ $? -ne 0 ]; then
+        if ! curl -s https://get.acme.sh | sh; then
             echo -e "${red}acme.sh 安装失败${plain}"
             return 1
         else
@@ -441,7 +366,8 @@ ssl_cert_issue() {
     local cert_exists=0
     if ~/.acme.sh/acme.sh --list 2>/dev/null | awk '{print $1}' | grep -Fxq "${domain}"; then
         cert_exists=1
-        local certInfo=$(~/.acme.sh/acme.sh --list 2>/dev/null | grep -F "${domain}")
+        local certInfo
+        certInfo=$(~/.acme.sh/acme.sh --list 2>/dev/null | grep -F "${domain}")
         echo -e "${yellow}已找到 ${domain} 的现有证书，将直接复用。${plain}"
         [[ -n "${certInfo}" ]] && echo "$certInfo"
     else
@@ -473,10 +399,9 @@ ssl_cert_issue() {
     if [[ ${cert_exists} -eq 0 ]]; then
         # issue the certificate
         ~/.acme.sh/acme.sh --set-default-ca --server letsencrypt --force
-        ~/.acme.sh/acme.sh --issue -d ${domain} --listen-v6 --standalone --httpport ${WebPort} --force
-        if [ $? -ne 0 ]; then
+        if ! ~/.acme.sh/acme.sh --issue -d "${domain}" --listen-v6 --standalone --httpport "${WebPort}" --force; then
             echo -e "${red}证书签发失败，请检查日志。${plain}"
-            rm -rf ~/.acme.sh/${domain}
+            rm -rf "$HOME/.acme.sh/${domain}"
             systemctl start x-ui 2>/dev/null || rc-service x-ui start 2>/dev/null
             return 1
         else
@@ -514,9 +439,9 @@ ssl_cert_issue() {
 
     # install the certificate
     local installOutput=""
-    installOutput=$(~/.acme.sh/acme.sh --installcert -d ${domain} \
-        --key-file /root/cert/${domain}/privkey.pem \
-        --fullchain-file /root/cert/${domain}/fullchain.pem --reloadcmd "${reloadCmd}" 2>&1)
+    installOutput=$(~/.acme.sh/acme.sh --installcert -d "${domain}" \
+        --key-file "/root/cert/${domain}/privkey.pem" \
+        --fullchain-file "/root/cert/${domain}/fullchain.pem" --reloadcmd "${reloadCmd}" 2>&1)
     local installRc=$?
     echo "${installOutput}"
 
@@ -530,26 +455,25 @@ ssl_cert_issue() {
     else
         echo -e "${red}证书安装失败，正在退出。${plain}"
         if [[ ${cert_exists} -eq 0 ]]; then
-            rm -rf ~/.acme.sh/${domain}
+            rm -rf "$HOME/.acme.sh/${domain}"
         fi
         systemctl start x-ui 2>/dev/null || rc-service x-ui start 2>/dev/null
         return 1
     fi
 
     # enable auto-renew
-    ~/.acme.sh/acme.sh --upgrade --auto-upgrade
-    if [ $? -ne 0 ]; then
+    if ! ~/.acme.sh/acme.sh --upgrade --auto-upgrade; then
         echo -e "${yellow}自动续期配置可能存在问题，证书详情如下：${plain}"
-        ls -lah /root/cert/${domain}/
+        ls -lah "/root/cert/${domain}/"
         # Secure permissions: private key readable only by owner
-        chmod 600 $certPath/privkey.pem 2>/dev/null
-        chmod 644 $certPath/fullchain.pem 2>/dev/null
+        chmod 600 "$certPath/privkey.pem" 2>/dev/null
+        chmod 644 "$certPath/fullchain.pem" 2>/dev/null
     else
         echo -e "${green}自动续期已启用，证书详情如下：${plain}"
-        ls -lah /root/cert/${domain}/
+        ls -lah "/root/cert/${domain}/"
         # Secure permissions: private key readable only by owner
-        chmod 600 $certPath/privkey.pem 2>/dev/null
-        chmod 644 $certPath/fullchain.pem 2>/dev/null
+        chmod 600 "$certPath/privkey.pem" 2>/dev/null
+        chmod 644 "$certPath/fullchain.pem" 2>/dev/null
     fi
 
     # start panel
@@ -562,7 +486,7 @@ ssl_cert_issue() {
         local webKeyFile="/root/cert/${domain}/privkey.pem"
 
         if [[ -f "$webCertFile" && -f "$webKeyFile" ]]; then
-            ${xui_folder}/x-ui cert -webCert "$webCertFile" -webCertKey "$webKeyFile"
+            "${xui_folder}/x-ui" cert -webCert "$webCertFile" -webCertKey "$webKeyFile"
             echo -e "${green}已为面板设置证书路径${plain}"
             echo -e "${green}证书文件：$webCertFile${plain}"
             echo -e "${green}私钥文件：$webKeyFile${plain}"
@@ -583,9 +507,7 @@ ssl_cert_issue() {
 # Reusable interactive SSL setup (domain or IP)
 # Sets global `SSL_HOST` to the chosen domain/IP for Access URL usage
 prompt_and_setup_ssl() {
-    local panel_port="$1"
-    local web_base_path="$2"   # expected without leading slash
-    local server_ip="$3"
+    local server_ip="$1"
 
     local ssl_choice=""
 
@@ -606,7 +528,7 @@ prompt_and_setup_ssl() {
     1)
         # User chose Let's Encrypt domain option
         echo -e "${green}正在使用 Let's Encrypt 申请域名证书...${plain}"
-        if ssl_cert_issue; then
+        if ssl_cert_issue "$2" "$3"; then
             local cert_domain="${SSL_ISSUED_DOMAIN}"
             if [[ -z "${cert_domain}" ]]; then
                 cert_domain=$(~/.acme.sh/acme.sh --list 2>/dev/null | tail -1 | awk '{print $1}')
@@ -640,8 +562,7 @@ prompt_and_setup_ssl() {
             systemctl stop x-ui >/dev/null 2>&1
         fi
         
-        setup_ip_certificate "${server_ip}" "${ipv6_addr}"
-        if [ $? -eq 0 ]; then
+        if setup_ip_certificate "${server_ip}" "${ipv6_addr}"; then
             SSL_HOST="${server_ip}"
             echo -e "${green}[成功] Let's Encrypt IP 证书配置完成${plain}"
         else
@@ -695,7 +616,7 @@ prompt_and_setup_ssl() {
         done
 
         # 3.4 Apply Settings via x-ui binary
-        ${xui_folder}/x-ui cert -webCert "$custom_cert" -webCertKey "$custom_key" >/dev/null 2>&1
+        "${xui_folder}/x-ui" cert -webCert "$custom_cert" -webCertKey "$custom_key" >/dev/null 2>&1
         
         # Set SSL_HOST for composing Panel URL
         if [[ -n "$custom_domain" ]]; then
@@ -716,12 +637,39 @@ prompt_and_setup_ssl() {
     esac
 }
 
+read_panel_settings() {
+    local settings line value initialize_path=auto path_found=false cert_found=false
+    settings=$("${xui_folder}/x-ui" setting -show -getCert) || return 1
+    existing_port=""
+    existing_hasDefaultCredential=""
+    while IFS= read -r line; do
+        value=${line#*:}
+        value=${value# }
+        case "$line" in
+            port:*) existing_port=$value ;;
+            hasDefaultCredential:*) existing_hasDefaultCredential=$value ;;
+            webBasePath:*) existing_webBasePath=${value#/}; path_found=true ;;
+            initializeWebBasePath:*) initialize_path=$value ;;
+            cert:*) existing_cert=$value; cert_found=true ;;
+            'get '*' failed, error info:'*) return 1 ;;
+        esac
+    done <<< "$settings"
+    [[ $path_found == true && $cert_found == true ]] || return 1
+    [[ $existing_hasDefaultCredential == true || $existing_hasDefaultCredential == false ]] || return 1
+    [[ $existing_port =~ ^[1-9][0-9]{0,4}$ ]] && (( existing_port <= 65535 )) || return 1
+    case "$initialize_path" in
+        true) existing_webBasePath="" ;;
+        false|auto) ;; # Older releases only report the effective path.
+        *) return 1 ;;
+    esac
+}
+
 config_after_install() {
-    local existing_hasDefaultCredential=$(${xui_folder}/x-ui setting -show true | grep -Eo 'hasDefaultCredential: .+' | awk '{print $2}')
-    local existing_webBasePath=$(${xui_folder}/x-ui setting -show true | grep -Eo 'webBasePath: .+' | awk '{print $2}' | sed 's#^/##')
-    local existing_port=$(${xui_folder}/x-ui setting -show true | grep -Eo 'port: .+' | awk '{print $2}')
-    # Properly detect empty cert by checking if cert: line exists and has content after it
-    local existing_cert=$(${xui_folder}/x-ui setting -getCert true | grep 'cert:' | awk -F': ' '{print $2}' | tr -d '[:space:]')
+    local existing_hasDefaultCredential existing_webBasePath existing_port existing_cert
+    if ! read_panel_settings; then
+        echo '无法读取完整的面板设置，已停止安装。' >&2
+        return 1
+    fi
     local URL_lists=(
         "https://api4.ipify.org"
         "https://ipv4.icanhazip.com"
@@ -732,31 +680,34 @@ config_after_install() {
     )
     local server_ip=""
     for ip_address in "${URL_lists[@]}"; do
-        local response=$(curl -s -w "\n%{http_code}" --max-time 3 "${ip_address}" 2>/dev/null)
-        local http_code=$(echo "$response" | tail -n1)
-        local ip_result=$(echo "$response" | head -n-1 | tr -d '[:space:]')
+        local response http_code ip_result
+        response=$(curl -s -w "\n%{http_code}" --max-time 3 "${ip_address}" 2>/dev/null)
+        http_code=$(echo "$response" | tail -n1)
+        ip_result=$(echo "$response" | head -n-1 | tr -d '[:space:]')
         if [[ "${http_code}" == "200" && -n "${ip_result}" ]]; then
             server_ip="${ip_result}"
             break
         fi
     done
     
-    if [[ ${#existing_webBasePath} -lt 4 ]]; then
+    if [[ -z $existing_webBasePath ]]; then
         if [[ "$existing_hasDefaultCredential" == "true" ]]; then
-            local config_webBasePath=$(gen_random_string 18)
-            local config_username=$(gen_random_string 10)
-            local config_password=$(gen_random_string 10)
+            local config_webBasePath config_username config_password
+            config_webBasePath=$(gen_random_string 18)
+            config_username=$(gen_random_string 10)
+            config_password=$(gen_random_string 10)
             
             read -rp "是否自定义面板端口？（选择 n 将自动生成随机端口）[y/n]: " config_confirm
             if [[ "${config_confirm}" == "y" || "${config_confirm}" == "Y" ]]; then
                 read -rp "请设置面板端口：" config_port
                 echo -e "${yellow}面板端口：${config_port}${plain}"
             else
-                local config_port=$(shuf -i 1024-62000 -n 1)
+                local config_port
+                config_port=$(shuf -i 1024-62000 -n 1)
                 echo -e "${yellow}已生成随机端口：${config_port}${plain}"
             fi
             
-            ${xui_folder}/x-ui setting -username "${config_username}" -password "${config_password}" -port "${config_port}" -webBasePath "${config_webBasePath}"
+            "${xui_folder}/x-ui" setting -username "${config_username}" -password "${config_password}" -port "${config_port}" -webBasePath "${config_webBasePath}" || return 1
             
             echo ""
             echo -e "${green}═══════════════════════════════════════════${plain}"
@@ -766,7 +717,7 @@ config_after_install() {
             echo -e "${yellow}Let's Encrypt 目前支持域名和 IP 地址证书。${plain}"
             echo ""
 
-            prompt_and_setup_ssl "${config_port}" "${config_webBasePath}" "${server_ip}"
+            prompt_and_setup_ssl "${server_ip}" "${config_port}" "${config_webBasePath}"
             
             # Display final credentials and access information
             echo ""
@@ -782,9 +733,10 @@ config_after_install() {
             echo -e "${yellow}[重要] 请妥善保存以上登录凭据！${plain}"
             echo -e "${yellow}[SSL] 证书已启用并完成配置${plain}"
         else
-            local config_webBasePath=$(gen_random_string 18)
-            echo -e "${yellow}WebBasePath 缺失或过短，正在生成新的路径...${plain}"
-            ${xui_folder}/x-ui setting -webBasePath "${config_webBasePath}"
+            local config_webBasePath
+            config_webBasePath=$(gen_random_string 18)
+            echo -e "${yellow}WebBasePath 为空或根路径，正在生成新的路径...${plain}"
+            "${xui_folder}/x-ui" setting -webBasePath "${config_webBasePath}" || return 1
             echo -e "${green}新的 WebBasePath：${config_webBasePath}${plain}"
 
             # If the panel is already installed but no certificate is configured, prompt for SSL now
@@ -795,7 +747,7 @@ config_after_install() {
                 echo -e "${green}═══════════════════════════════════════════${plain}"
                 echo -e "${yellow}Let's Encrypt 目前支持域名和 IP 地址证书。${plain}"
                 echo ""
-                prompt_and_setup_ssl "${existing_port}" "${config_webBasePath}" "${server_ip}"
+                prompt_and_setup_ssl "${server_ip}" "${existing_port}" "${config_webBasePath}"
                 echo -e "${green}访问地址：  https://${SSL_HOST}:${existing_port}/${config_webBasePath}${plain}"
             else
                 # If a cert already exists, just show the access URL
@@ -804,11 +756,12 @@ config_after_install() {
         fi
     else
         if [[ "$existing_hasDefaultCredential" == "true" ]]; then
-            local config_username=$(gen_random_string 10)
-            local config_password=$(gen_random_string 10)
+            local config_username config_password
+            config_username=$(gen_random_string 10)
+            config_password=$(gen_random_string 10)
             
             echo -e "${yellow}检测到默认凭据，需要进行安全更新...${plain}"
-            ${xui_folder}/x-ui setting -username "${config_username}" -password "${config_password}"
+            "${xui_folder}/x-ui" setting -username "${config_username}" -password "${config_password}" || return 1
             echo -e "已生成新的随机登录凭据："
             echo -e "###############################################"
             echo -e "${green}用户名：${config_username}${plain}"
@@ -819,8 +772,6 @@ config_after_install() {
         fi
 
         # Existing install: if no cert configured, prompt user for SSL setup
-        # Properly detect empty cert by checking if cert: line exists and has content after it
-        existing_cert=$(${xui_folder}/x-ui setting -getCert true | grep 'cert:' | awk -F': ' '{print $2}' | tr -d '[:space:]')
         if [[ -z "$existing_cert" ]]; then
             echo ""
             echo -e "${green}═══════════════════════════════════════════${plain}"
@@ -828,22 +779,138 @@ config_after_install() {
             echo -e "${green}═══════════════════════════════════════════${plain}"
             echo -e "${yellow}Let's Encrypt 目前支持域名和 IP 地址证书。${plain}"
             echo ""
-            prompt_and_setup_ssl "${existing_port}" "${existing_webBasePath}" "${server_ip}"
+            prompt_and_setup_ssl "${server_ip}" "${existing_port}" "${existing_webBasePath}"
             echo -e "${green}访问地址：  https://${SSL_HOST}:${existing_port}/${existing_webBasePath}${plain}"
         else
             echo -e "${green}SSL 证书已配置，无需操作。${plain}"
         fi
     fi
     
-    ${xui_folder}/x-ui migrate
+    "${xui_folder}/x-ui" migrate
+}
+
+create_release_stage() {
+    xui_folder=$(readlink -f -- "$xui_folder") || return 1
+    [[ -n "$xui_folder" && "$xui_folder" != / ]] || return 1
+    if [[ -d "$xui_folder" && ! -f "$xui_folder/x-ui" && -n "$(ls -A -- "$xui_folder")" ]]; then
+        echo "Installation directory contains unrelated files: $xui_folder" >&2
+        return 1
+    fi
+    release_stage=$(mktemp -d "${xui_folder}.stage.XXXXXX") || return 1
+    trap finish_release EXIT
+    release_switched=false
+    release_was_running=false
+    release_unit="${xui_service}/x-ui.service"
+    [[ $release != alpine ]] || release_unit=/etc/init.d/x-ui
+    if [[ -e "$release_unit" ]]; then cp -a -- "$release_unit" "$release_stage/old-unit" || return 1; fi
+    if [[ -e /usr/bin/x-ui ]]; then cp -a -- /usr/bin/x-ui "$release_stage/old-cli" || return 1; fi
+}
+
+extract_release() {
+    mkdir -- "$release_stage/unpacked" || return 1
+    tar -xzf "$release_stage/release.tar.gz" -C "$release_stage/unpacked" || return 1
+    local root="$release_stage/unpacked/x-ui"
+    [[ -d "$root" && ! -L "$root" && ! -L "$root/bin" ]] || return 1
+    local member
+    for member in "$root/x-ui" "$root/bin/xray-linux-$package_arch"; do
+        [[ -f "$member" && ! -L "$member" && -s "$member" ]] || return 1
+        chmod +x -- "$member" || return 1
+    done
+}
+
+switch_release() {
+    if [[ -e "$xui_folder" ]]; then
+        local next="$release_stage/unpacked/x-ui"
+        local packaged_generic_unit=false
+        [[ ! -f "$next/x-ui.service" ]] || packaged_generic_unit=true
+        cp -an -- "$xui_folder/." "$next/" || return 1
+        if [[ $packaged_generic_unit == false ]]; then
+            rm -f -- "$next/x-ui.service" || return 1
+        fi
+        mv -T -- "$xui_folder" "$release_stage/previous" || return 1
+    fi
+    mv -T -- "$release_stage/unpacked/x-ui" "$xui_folder" || return 1
+    release_switched=true
+}
+
+finish_release() {
+    local status=$?
+    if (( status != 0 )); then
+        if [[ $release_switched == true ]]; then
+            if [[ $release == alpine ]]; then rc-service x-ui stop; else systemctl stop x-ui; fi
+            mv -T -- "$xui_folder" "$release_stage/failed" || return 1
+            local old destination
+            for old in old-cli old-unit; do
+                if [[ $old == old-cli ]]; then destination=/usr/bin/x-ui; else destination=$release_unit; fi
+                if [[ -e "$release_stage/$old" ]]; then
+                    cp -a -- "$release_stage/$old" "$destination" || return 1
+                else
+                    rm -f -- "$destination" || return 1
+                fi
+            done
+            [[ $release == alpine ]] || systemctl daemon-reload
+        fi
+        if [[ -d "$release_stage/previous" ]]; then
+            mv -T -- "$release_stage/previous" "$xui_folder" || return 1
+        fi
+        if [[ $release_was_running == true ]]; then
+            if [[ $release == alpine ]]; then rc-service x-ui start; else systemctl start x-ui; fi
+        fi
+    fi
+    rm -rf -- "${release_stage:?}"
+}
+
+configure_unit_path() {
+    [[ $xui_folder != /usr/local/x-ui ]] || return 0
+    local line dir_value exec_value shell_value
+    dir_value=$(printf '%s' "$xui_folder" | sed 's/%/%%/g')
+    exec_value=$(printf '%s' "$dir_value" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\$/$$/g')
+    shell_value=$(printf '%s' "$xui_folder" | sed "s/'/'\\\\''/g")
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        case "$release:$line" in
+            alpine:command=*) printf "command='%s/x-ui'\n" "$shell_value" ;;
+            alpine:*'cd /usr/local/x-ui'*) printf "    cd '%s' || return 1\n" "$shell_value" ;;
+            *:WorkingDirectory=*) printf 'WorkingDirectory=%s\n' "$dir_value" ;;
+            *:ExecStart=*) printf 'ExecStart="%s/x-ui"\n' "$exec_value" ;;
+            *) printf '%s\n' "$line" ;;
+        esac
+    done < "$release_unit" > "$release_stage/rendered-unit" || return 1
+    cat "$release_stage/rendered-unit" > "$release_unit"
+}
+
+install_release_menu() {
+    local target=/usr/bin/x-ui
+    if [[ $xui_folder == /usr/local/x-ui ]]; then
+        install -m 755 "$release_stage/menu.sh" "$target"
+        return
+    fi
+    install -m 755 "$release_stage/menu.sh" "$xui_folder/x-ui.sh" || return 1
+    {
+        printf '#!/bin/bash\nexport XUI_MAIN_FOLDER=%q\n' "$xui_folder"
+        printf 'export XUI_MENU_TARGET=%q\n' "$xui_folder/x-ui.sh"
+        printf 'exec %q "$@"\n' "$xui_folder/x-ui.sh"
+    } > "$release_stage/launcher" || return 1
+    install -m 755 "$release_stage/launcher" "$target"
+}
+
+stop_release_service() {
+    if [[ $release == alpine ]]; then
+        if rc-service x-ui status >/dev/null 2>&1; then
+            release_was_running=true
+            rc-service x-ui stop || return 1
+        fi
+    elif systemctl is-active --quiet x-ui; then
+        release_was_running=true
+        systemctl stop x-ui || return 1
+    fi
 }
 
 install_x-ui() {
-    cd ${xui_folder%/x-ui}/
+    create_release_stage || exit 1
     
     # Download resources
     if [ $# == 0 ]; then
-        if ! resolve_release_tag || [[ ! -n "${RELEASE_TAG}" ]]; then
+        if ! resolve_release_tag || [[ -z "${RELEASE_TAG}" ]]; then
             echo -e "${red}获取 SuperXray Release 版本失败，GitHub 未返回可用版本。${plain}"
             echo -e "${yellow}请检查 ${release_base}/releases，或手动指定版本，例如：bash install.sh v2.9.10${plain}"
             exit 1
@@ -853,8 +920,7 @@ install_x-ui() {
             echo -e "${yellow}已回退到最新公开 Release：${tag_version}。建议将稳定版本标记为正式 Release。${plain}"
         fi
         echo -e "已获取 SuperXray 版本：${tag_version}，开始安装..."
-        curl -4fLRo ${xui_folder}-linux-$(arch).tar.gz "${release_base}/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz"
-        if [[ $? -ne 0 ]]; then
+        if ! curl -4fLRo "$release_stage/release.tar.gz" "${release_base}/releases/download/${tag_version}/x-ui-linux-${package_arch}.tar.gz"; then
             echo -e "${red}下载 x-ui 失败，请确认服务器可以访问 GitHub ${plain}"
             exit 1
         fi
@@ -868,51 +934,31 @@ install_x-ui() {
             exit 1
         fi
         
-        url="${release_base}/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz"
+        url="${release_base}/releases/download/${tag_version}/x-ui-linux-${package_arch}.tar.gz"
         echo -e "开始安装 x-ui $1"
-        curl -4fLRo ${xui_folder}-linux-$(arch).tar.gz ${url}
-        if [[ $? -ne 0 ]]; then
+        if ! curl -4fLRo "$release_stage/release.tar.gz" "$url"; then
             echo -e "${red}下载 x-ui $1 失败，请检查该版本是否存在 ${plain}"
             exit 1
         fi
     fi
+    if ! extract_release; then
+        echo "安装包无效，已取消安装。" >&2
+        exit 1
+    fi
     raw_base="https://raw.githubusercontent.com/${script_repo}/${tag_version}"
-    curl -4fLRo /usr/bin/x-ui-temp "${raw_base}/x-ui.sh"
-    if [[ $? -ne 0 ]]; then
+    if ! curl -4fLRo "$release_stage/menu.sh" "${raw_base}/x-ui.sh"; then
         echo -e "${red}下载 x-ui.sh 失败${plain}"
         exit 1
     fi
     
-    # Stop x-ui service and remove old resources
-    if [[ -e ${xui_folder}/ ]]; then
-        if [[ $release == "alpine" ]]; then
-            rc-service x-ui stop
-        else
-            systemctl stop x-ui
-        fi
-        rm ${xui_folder}/ -rf
+    if [[ -f "$xui_folder/x-ui" ]]; then
+        stop_release_service || exit 1
     fi
-    
-    # Extract resources and set permissions
-    tar zxvf x-ui-linux-$(arch).tar.gz
-    rm x-ui-linux-$(arch).tar.gz -f
-    
-    cd x-ui
-    chmod +x x-ui
-    chmod +x x-ui.sh
-    
-    # Check the system's architecture and rename the file accordingly
-    if [[ $(arch) == "armv5" || $(arch) == "armv6" || $(arch) == "armv7" ]]; then
-        mv bin/xray-linux-$(arch) bin/xray-linux-arm
-        chmod +x bin/xray-linux-arm
-    fi
-    chmod +x x-ui bin/xray-linux-$(arch)
-    
-    # Update x-ui cli and se set permission
-    mv -f /usr/bin/x-ui-temp /usr/bin/x-ui
-    chmod +x /usr/bin/x-ui
+    switch_release || exit 1
+    cd "$xui_folder" || exit 1
+    install_release_menu || exit 1
     mkdir -p /var/log/x-ui
-    config_after_install
+    config_after_install || exit 1
 
     # Etckeeper compatibility
     if [ -d "/etc/.git" ]; then
@@ -929,22 +975,21 @@ install_x-ui() {
     fi
     
     if [[ $release == "alpine" ]]; then
-        curl -4fLRo /etc/init.d/x-ui "${raw_base}/x-ui.rc"
-        if [[ $? -ne 0 ]]; then
+        if ! curl -4fLRo /etc/init.d/x-ui "${raw_base}/x-ui.rc"; then
             echo -e "${red}下载 x-ui.rc 失败${plain}"
             exit 1
         fi
+        configure_unit_path || exit 1
         chmod +x /etc/init.d/x-ui
-        rc-update add x-ui
-        rc-service x-ui start
+        rc-update add x-ui || exit 1
+        rc-service x-ui start || exit 1
     else
         # Install systemd service file
         service_installed=false
         
         if [ -f "x-ui.service" ]; then
             echo -e "${green}已在解压文件中找到 x-ui.service，正在安装...${plain}"
-            cp -f x-ui.service ${xui_service}/ >/dev/null 2>&1
-            if [[ $? -eq 0 ]]; then
+            if cp -f x-ui.service "${xui_service}/" >/dev/null 2>&1; then
                 service_installed=true
             fi
         fi
@@ -954,8 +999,7 @@ install_x-ui() {
                 ubuntu | debian | armbian)
                     if [ -f "x-ui.service.debian" ]; then
                         echo -e "${green}已在解压文件中找到 x-ui.service.debian，正在安装...${plain}"
-                        cp -f x-ui.service.debian ${xui_service}/x-ui.service >/dev/null 2>&1
-                        if [[ $? -eq 0 ]]; then
+                        if cp -f x-ui.service.debian "${xui_service}/x-ui.service" >/dev/null 2>&1; then
                             service_installed=true
                         fi
                     fi
@@ -963,8 +1007,7 @@ install_x-ui() {
                 arch | manjaro | parch)
                     if [ -f "x-ui.service.arch" ]; then
                         echo -e "${green}已在解压文件中找到 x-ui.service.arch，正在安装...${plain}"
-                        cp -f x-ui.service.arch ${xui_service}/x-ui.service >/dev/null 2>&1
-                        if [[ $? -eq 0 ]]; then
+                        if cp -f x-ui.service.arch "${xui_service}/x-ui.service" >/dev/null 2>&1; then
                             service_installed=true
                         fi
                     fi
@@ -972,8 +1015,7 @@ install_x-ui() {
                 *)
                     if [ -f "x-ui.service.rhel" ]; then
                         echo -e "${green}已在解压文件中找到 x-ui.service.rhel，正在安装...${plain}"
-                        cp -f x-ui.service.rhel ${xui_service}/x-ui.service >/dev/null 2>&1
-                        if [[ $? -eq 0 ]]; then
+                        if cp -f x-ui.service.rhel "${xui_service}/x-ui.service" >/dev/null 2>&1; then
                             service_installed=true
                         fi
                     fi
@@ -984,19 +1026,13 @@ install_x-ui() {
         # If service file not found in tar.gz, download from GitHub
         if [ "$service_installed" = false ]; then
             echo -e "${yellow}压缩包中未找到服务文件，正在从 GitHub 下载...${plain}"
-            case "${release}" in
-                ubuntu | debian | armbian)
-                    curl -4fLRo ${xui_service}/x-ui.service "${raw_base}/x-ui.service.debian" >/dev/null 2>&1
-                ;;
-                arch | manjaro | parch)
-                    curl -4fLRo ${xui_service}/x-ui.service "${raw_base}/x-ui.service.arch" >/dev/null 2>&1
-                ;;
-                *)
-                    curl -4fLRo ${xui_service}/x-ui.service "${raw_base}/x-ui.service.rhel" >/dev/null 2>&1
-                ;;
+            local service_suffix
+            case "$release" in
+                ubuntu | debian | armbian) service_suffix=debian ;;
+                arch | manjaro | parch) service_suffix=arch ;;
+                *) service_suffix=rhel ;;
             esac
-            
-            if [[ $? -ne 0 ]]; then
+            if ! curl -4fLRo "$xui_service/x-ui.service" "$raw_base/x-ui.service.$service_suffix" >/dev/null 2>&1; then
                 echo -e "${red}从 GitHub 安装 x-ui.service 失败${plain}"
                 exit 1
             fi
@@ -1005,11 +1041,12 @@ install_x-ui() {
         
         if [ "$service_installed" = true ]; then
             echo -e "${green}正在配置 systemd 服务...${plain}"
-            chown root:root ${xui_service}/x-ui.service >/dev/null 2>&1
-            chmod 644 ${xui_service}/x-ui.service >/dev/null 2>&1
-            systemctl daemon-reload
-            systemctl enable x-ui
-            systemctl start x-ui
+            configure_unit_path || exit 1
+            chown root:root "${xui_service}/x-ui.service" >/dev/null 2>&1
+            chmod 644 "${xui_service}/x-ui.service" >/dev/null 2>&1
+            systemctl daemon-reload || exit 1
+            systemctl enable x-ui || exit 1
+            systemctl start x-ui || exit 1
         else
             echo -e "${red}安装 x-ui.service 文件失败${plain}"
             exit 1
@@ -1042,4 +1079,4 @@ install_x-ui() {
 
 echo -e "${green}开始执行安装...${plain}"
 install_base
-install_x-ui $1
+install_x-ui "$@"

@@ -2245,8 +2245,12 @@ func (s *InboundService) ResetAllClientTraffics(id int) error {
 	return s.inbounds().ResetAllClientTraffics(id)
 }
 
-func (s *InboundService) ResetAllTraffics() error {
-	return s.inbounds().ResetAllTraffics()
+func (s *InboundService) ResetAllTraffics(userID int) error {
+	return s.inbounds().ResetAllTraffics(userID)
+}
+
+func (s *InboundService) ResetUserInboundTraffic(userID, id int) error {
+	return s.inbounds().ResetUserInboundTraffic(userID, id)
 }
 
 func (s *InboundService) ResetInboundTraffic(id int) error {

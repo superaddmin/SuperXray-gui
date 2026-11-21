@@ -121,27 +121,19 @@ PATTERNS = [
 ]
 
 
-def command(root: pathlib.Path, args: list[str]) -> str:
-    result = subprocess.run(
-        args,
-        cwd=root,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        capture_output=True,
-    )
-    if result.returncode not in (0, 1):
-        raise RuntimeError(result.stderr or result.stdout)
-    return result.stdout
-
-
 def git_files(root: pathlib.Path) -> list[pathlib.Path]:
-    output = command(root, ["git", "ls-files", "--cached", "--others", "--exclude-standard"])
-    return [root / line for line in output.splitlines() if line.strip()]
+    output = subprocess.check_output(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=root
+    )
+    return [root / os.fsdecode(name) for name in output.split(b"\0") if name]
 
 
 def all_files(root: pathlib.Path) -> list[pathlib.Path]:
-    return [path for path in root.rglob("*") if path.is_file()]
+    paths = []
+    for directory, children, names in os.walk(root):
+        children[:] = [child for child in children if child not in SKIP_DIRS]
+        paths.extend(pathlib.Path(directory) / name for name in names)
+    return paths
 
 
 def should_scan(root: pathlib.Path, path: pathlib.Path) -> bool:
@@ -155,17 +147,11 @@ def should_scan(root: pathlib.Path, path: pathlib.Path) -> bool:
     if rel_posix == "scripts/secret_scan.py":
         return False
     suffix = path.suffix.lower()
-    if (
-        suffix not in TEXT_SUFFIXES
-        and suffix not in BINARY_KEY_CONTAINER_SUFFIXES
-        and suffix not in BINARY_PRIVATE_KEY_SUFFIXES
-    ):
-        return False
-    return True
+    return suffix in TEXT_SUFFIXES or suffix in BINARY_KEY_CONTAINER_SUFFIXES or suffix in BINARY_PRIVATE_KEY_SUFFIXES
 
 
 def scan_file(root: pathlib.Path, path: pathlib.Path) -> list[str]:
-    if not path.exists():
+    if path.is_symlink() or not path.is_file():
         return []
     rel = path.relative_to(root).as_posix()
     suffix = path.suffix.lower()
@@ -187,20 +173,11 @@ def scan_file(root: pathlib.Path, path: pathlib.Path) -> list[str]:
         for pattern in PATTERNS:
             if pattern.suffixes is not None and path.suffix.lower() not in pattern.suffixes:
                 continue
-            lowered = line.lower()
             if pattern.name == "private-key" and private_key_looks_like_fixture(line):
                 continue
-            if pattern.name in {"subscription-url", "socks-uri-credential"} and (
-                "example.com" in lowered
-                or "example.org" in lowered
-                or "localhost" in lowered
-                or "127.0.0.1" in lowered
-                or "192.168." in lowered
-                or "10." in lowered
-                or "<" in line
-            ):
-                continue
-            if pattern.name == "socks-uri-credential" and socks_uri_looks_like_fixture(line):
+            if pattern.name in {"subscription-url", "socks-uri-credential"}:
+                if any(not uri_looks_like_fixture(match.group()) for match in pattern.regex.finditer(line)):
+                    findings.append(f"{rel}:{lineno}: {pattern.name}: {pattern.guidance}")
                 continue
             if pattern.name in {"sub-id", "explicit-proxy-password"} and "<" in line:
                 continue
@@ -228,19 +205,23 @@ def private_key_looks_like_fixture(line: str) -> bool:
     return payload == "MIIB"
 
 
-def socks_uri_looks_like_fixture(line: str) -> bool:
-    match = re.search(r"\bsocks5h?://[^\s`\"']+", line, re.I)
-    if not match:
+def uri_looks_like_fixture(uri: str) -> bool:
+    if "<" in uri:
+        return True
+    try:
+        parsed = urlparse(uri)
+        host = parsed.hostname or ""
+    except ValueError:
         return False
-    parsed = urlparse(match.group(0))
-    host = parsed.hostname or ""
-    username = parsed.username or ""
-    password = parsed.password or ""
-    if host.startswith(("10.", "127.", "192.168.")) or host in {"localhost", "example.com", "example.org"}:
+    if host in {"localhost", "example.com", "example.org"} or host.endswith((".example.com", ".example.org")):
         return True
-    if username in {"user", "username", "test"} and password in {"pass", "password", "secret", "test"}:
+    if re.fullmatch(r"(?:10\.\d+|127\.\d+|192\.168)\.\d+\.\d+", host):
         return True
-    return False
+    return (
+        parsed.scheme in {"socks5", "socks5h"}
+        and parsed.username in {"user", "username", "test"}
+        and parsed.password in {"pass", "password", "secret", "test"}
+    )
 
 
 def find_root(start: pathlib.Path) -> pathlib.Path:

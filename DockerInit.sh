@@ -29,14 +29,14 @@ case ${1:-amd64} in
         FNAME="armv6"
         ;;
     *)
-        ARCH="64"
-        FNAME="amd64"
+        echo "Unsupported Xray target architecture: $1" >&2
+        exit 1
         ;;
 esac
 mkdir -p build/bin
 cd build/bin
-download -O "https://github.com/XTLS/Xray-core/releases/download/v26.10.21/Xray-linux-${ARCH}.zip"
-download -O "https://github.com/XTLS/Xray-core/releases/download/v26.10.21/Xray-linux-${ARCH}.zip.dgst"
+download -O "https://github.com/XTLS/Xray-core/releases/download/v26.11.9/Xray-linux-${ARCH}.zip"
+download -O "https://github.com/XTLS/Xray-core/releases/download/v26.11.9/Xray-linux-${ARCH}.zip.dgst"
 expected_sha=$(awk '/^SHA2-256=/{print $2}' "Xray-linux-${ARCH}.zip.dgst")
 test "${#expected_sha}" -eq 64
 printf '%s  %s\n' "$expected_sha" "Xray-linux-${ARCH}.zip" | sha256sum -c -

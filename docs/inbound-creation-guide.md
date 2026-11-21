@@ -1,6 +1,6 @@
 # 入站规则创建填写教程
 
-> 目标读者：面板管理员。基础源码核对日期：2026-10-15，本轮增量：2026-11-15；项目版本：`v3.7.4`。当前选择性吸收 `3x-ui v3.11.0` 与 `x-ui v1.15.0`，默认运行时 Xray：`v26.10.21`；API 类型依赖仍为 `v26.10.10` 基线。新增兼容校验和暂缓向导见 [上游集成记录](upstream-v3.7.3-integration.md)。
+> 本指南面向面板管理员，2026-11-21 更新。项目版本为 `v3.7.5`，当前工作树默认分发 Xray `v26.11.9`，Go API 类型依赖使用 `v26.10.10` 基线。[上游同步决策与验证](upstream-sync-assessment-2026-11-21.md)
 > 事实来源：`frontend/src/views/InboundsView.vue`、`frontend/src/schemas/protocolRegistry.ts`、`frontend/src/utils/inboundCompat.ts`、`frontend/src/utils/realitySettings.ts`、`web/controller/inbound.go`、`web/service/protocol_validation.go`、`database/repository.go`。
 
 打开运行时 `webBasePath + "panel/inbounds"`，点击 `New Inbound`（中文界面对应“添加入站”）。页面使用当前 Vue 表单，下文保留源码中的英文标签便于对照。编辑已有入站时 Protocol 禁用。
@@ -93,6 +93,8 @@ VMess、VLESS、Trojan、Shadowsocks、Hysteria 的客户端通过独立表单�
 页面提供 Settings JSON、Stream Settings JSON、Sniffing JSON 的编辑与 Format。必须填写 JSON 对象；有独立客户端表单的协议不能在 Settings JSON 中手工加入 `clients`，否则提示 `Manage clients with the client form instead of Settings JSON`。
 
 VLESS decryption/encryption、Trojan fallbacks、Shadowsocks 服务端 method/network 等未结构化协议项应在 Settings JSON 中编辑。当前没有独立的旧版 VLESS Authentication、Fallbacks 或 Vision Seed 面板。Sniffing 使用 JSON，支持项必须符合实际 Xray schema。
+
+VLESS 入站可以在 Settings JSON 中配置 `fallbacks`。使用非空回落规则时，必须显式设置 `"decryption": "none"`。启用服务端解密前请移除已有回落规则。新增、编辑和导入入站时，面板会移除空回落数组，并在写入前检查非空规则的目标、路径和 PROXY 协议版本。
 
 ### 5.1 旧配置兼容与高级字段
 

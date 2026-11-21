@@ -1,18 +1,24 @@
 #!/sbin/openrc-run
+# shellcheck shell=sh
 
 command="/usr/local/x-ui/x-ui"
-command_background=true
 pidfile="/run/x-ui.pid"
-description="x-ui Service"
-procname="x-ui"
+# openrc-run reads these shell variables when it dispatches service commands.
+# shellcheck disable=SC2034
+{
+    command_background=true
+    description="x-ui Service"
+    procname="x-ui"
+    extra_started_commands="reload"
+}
 depend() {
     need net
 }
 start_pre(){
-    cd /usr/local/x-ui
+    cd /usr/local/x-ui || return 1
 }
 reload() {
   ebegin "Reloading ${RC_SVCNAME}"
-  kill -USR1  $pidfile
+  start-stop-daemon --signal USR1 --pidfile "$pidfile" --exec "$command"
   eend $?
 }

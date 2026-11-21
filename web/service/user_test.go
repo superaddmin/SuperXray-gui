@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
@@ -67,6 +68,33 @@ func TestUserServiceUsesRepositoryBoundary(t *testing.T) {
 	}
 	if !crypto.CheckPasswordHash(userRepo.users[1].Password, "new-secret") {
 		t.Fatal("UpdateFirstUser did not persist a bcrypt hash for the new password")
+	}
+}
+
+func TestAccountWritesValidateUsernameBeforeChangingCredentialsOrTOTP(t *testing.T) {
+	users := newFakeUserRepository()
+	settings := NewSettingService(newFakeSettingRepository())
+	svc := NewUserService(users, *settings)
+	if err := settings.SetTwoFactorEnable(true); err != nil {
+		t.Fatal(err)
+	}
+	limitName := strings.Repeat("é", MaxUsernameBytes/2)
+	if err := svc.UpdateFirstUser(limitName, "fixture"); err != nil {
+		t.Fatal(err)
+	}
+	for _, update := range []func(string, string) error{
+		svc.UpdateFirstUser,
+		func(name, password string) error { return svc.UpdateUser(1, name, password) },
+	} {
+		if err := update(limitName+"a", "changed"); err == nil {
+			t.Fatal("accepted an oversized username")
+		}
+		if users.users[1].Username != limitName || !crypto.CheckPasswordHash(users.users[1].Password, "fixture") {
+			t.Fatal("rejected update changed credentials")
+		}
+		if enabled, err := settings.GetTwoFactorEnable(); err != nil || !enabled {
+			t.Fatal("rejected update changed two-factor settings")
+		}
 	}
 }
 

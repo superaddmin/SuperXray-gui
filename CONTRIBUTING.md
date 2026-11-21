@@ -46,6 +46,7 @@ go build -o bin/SuperXray.exe ./main.go
 ```powershell
 Set-Location frontend
 npm run typecheck
+npm run format
 npm run lint
 npm run test
 npm run build
@@ -53,6 +54,15 @@ Set-Location ..
 ```
 
 Run `npm run e2e` from the repository root when a browser workflow is affected.
+
+### Shell and OpenRC
+
+From the repository root on Linux or WSL, run the same full-severity scan and isolated regression suite used for the shell audit. The scan was verified with ShellCheck 0.9.0.
+
+```bash
+shellcheck --severity=style install.sh update.sh x-ui.sh DockerEntrypoint.sh DockerInit.sh scripts/gateway-egress-validate.sh tests/ops-scripts.sh x-ui.rc
+bash tests/ops-scripts.sh
+```
 
 ## Documentation and secrets
 

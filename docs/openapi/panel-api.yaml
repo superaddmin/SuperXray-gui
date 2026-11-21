@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: SuperXray Panel API
-  version: 3.7.4
+  version: 3.7.5
   x-source-audit-date: '2026-10-23'
   description: |
     Machine-readable contract for the Vue panel API implemented by the local Go/Gin backend.
@@ -308,10 +308,27 @@ paths:
           $ref: '#/components/responses/ForbiddenCSRF'
         '404':
           $ref: '#/components/responses/AuthNotFound'
+  /panel/api/inbounds/resetTraffic/{id}:
+    post:
+      tags: [Inbounds]
+      summary: Reset counters for one owned inbound and restore it if disabled by quota and still valid.
+      operationId: resetInboundTraffic
+      parameters:
+        - $ref: '#/components/parameters/IDPath'
+      security:
+        - cookieAuth: []
+          csrfToken: []
+      responses:
+        '200':
+          $ref: '#/components/responses/LegacyMsg'
+        '403':
+          $ref: '#/components/responses/ForbiddenCSRF'
+        '404':
+          $ref: '#/components/responses/AuthNotFound'
   /panel/api/inbounds/resetAllTraffics:
     post:
       tags: [Inbounds]
-      summary: Reset all inbound traffic counters.
+      summary: Reset all owned inbound counters and restore non-expired inbounds disabled by quota.
       operationId: resetAllTraffics
       security:
         - cookieAuth: []

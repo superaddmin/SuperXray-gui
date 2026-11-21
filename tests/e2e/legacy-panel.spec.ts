@@ -49,7 +49,7 @@ function originHeader(page: Page): Record<string, string> {
   };
 }
 
-async function expectJsonSuccess(response: APIResponse) {
+async function expectJsonSuccess(response: Pick<APIResponse, "status" | "json">) {
   expect(response.status()).toBe(200);
   const body = await response.json();
   expect(
@@ -348,6 +348,40 @@ function cspDirective(csp: string | undefined, name: string): string {
 }
 
 test.describe("new Vue UI and API baseline", () => {
+  test("Xray log filtering keeps the newest result when responses arrive out of order", async ({ page }) => {
+    await login(page);
+    await page.goto(appUrl("panel/logs"));
+    let releaseFirst!: () => void;
+    const firstResponse = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    await page.route("**/panel/api/server/xraylogs/*", async (route) => {
+      const filter = new URLSearchParams(route.request().postData() || "").get("filter");
+      if (filter === "earlier") await firstResponse;
+      await route.fulfill({
+        json: {
+          success: true,
+          obj: [{ DateTime: "2000-01-01T00:00:00Z", Email: filter || "initial", Event: 1 }],
+        },
+      });
+    });
+    await page.getByLabel("Log source").getByText("Xray", { exact: true }).click();
+    await expect(page.locator(".log-line")).toContainText("initial");
+    const keyword = page.getByRole("textbox", { name: "Filter", exact: true });
+    await Promise.all([
+      page.waitForRequest((req) => req.postData()?.includes("filter=earlier") === true),
+      keyword.fill("earlier"),
+    ]);
+    try {
+      await keyword.fill("latest");
+      await expect(page.locator(".log-line")).toContainText("latest");
+    } finally {
+      const earlierResponse = page.waitForResponse((res) => res.request().postData()?.includes("filter=earlier") === true);
+      releaseFirst();
+      await earlierResponse;
+    }
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await expect(page.locator(".log-line")).toContainText("latest");
+  });
+
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem("superxray.locale", "en-US");
@@ -430,6 +464,71 @@ test.describe("new Vue UI and API baseline", () => {
       page.getByRole("button", { name: "Reset All Traffic" }),
     ).toBeVisible();
     await expect(page.getByText("Warp / Nord")).toBeVisible();
+  });
+
+  test("routing tag candidates include panel and unsaved template tags and accept custom tags", async ({ page }) => {
+    await login(page);
+    const rule = { inboundTag: ["historical,tag"], network: "tcp", outboundTag: "direct", ruleTag: "custom-rule" };
+    const template = { routing: { rules: [rule] } };
+    await page.route("**/panel/api/xray/", (route) => route.fulfill({
+      json: { success: true, obj: JSON.stringify({ xraySetting: template, inboundTags: ["panel-tag"] }) },
+    }));
+    await page.goto(appUrl("panel/xray"));
+    const editor = page.getByLabel("Xray JSON template");
+    await expect(editor).toHaveValue(/historical,tag/);
+    const draft = {
+      ...template,
+      inbounds: [{ tag: "template-tag" }],
+      dns: { tag: "dns-global", servers: [{ tag: "dns-server" }] },
+    };
+    await editor.fill(JSON.stringify(draft));
+    await page.locator("#xray-dns-policy").getByRole("button", { name: "Edit" }).click();
+    const dialog = page.getByRole("dialog", { name: "Routing Rule Editor" });
+    const tags = dialog.getByRole("combobox");
+    await tags.click();
+    const dropdown = page.locator(".ant-select-dropdown:visible");
+    for (const tag of ["dns-global", "dns-server", "panel-tag", "template-tag"]) {
+      await dropdown.locator(".ant-select-item-option").filter({ hasText: tag }).click();
+    }
+    await tags.fill("pasted-first, pasted-second");
+    await tags.fill("custom-tag");
+    await tags.press("Tab");
+    await dialog.getByRole("button", { name: "OK" }).click();
+    await expect(dialog).toBeHidden();
+    expect(JSON.parse(await editor.inputValue())).toEqual({
+      ...draft,
+      routing: { rules: [{ ...rule, inboundTag: ["historical,tag", "dns-global", "dns-server", "panel-tag", "template-tag", "pasted-first", "pasted-second", "custom-tag"] }] },
+    });
+  });
+
+  test("single inbound traffic reset uses the counter endpoint and preserves configuration", async ({ page }) => {
+    test.skip(process.env.SUPERXRAY_E2E_MUTATION !== "1", "Requires an isolated writable panel");
+    await login(page);
+    const remark = `e2e-reset-${Date.now()}`;
+    const added = await postForm(page, "panel/api/inbounds/add", {
+      up: 12, down: 34, total: 1000000, remark, enable: false,
+      listen: "127.0.0.1", port: 49000 + Math.floor(Math.random() * 1000),
+      protocol: "vless", settings: JSON.stringify({ clients: [], decryption: "none" }),
+      streamSettings: JSON.stringify({ network: "tcp", security: "none" }),
+      sniffing: "{}",
+    });
+    const id: number = added.obj.id;
+    try {
+      const before = await getAPIInbound(page, id);
+      expect(before).toMatchObject({ up: 12, down: 34, total: 1000000 });
+      await openNewUiInbounds(page);
+      await newUiInboundRow(page, remark).getByRole("button", { name: /\bReset$/ }).click();
+      const response = page.waitForResponse((result) =>
+        result.url() === appUrl(`panel/api/inbounds/resetTraffic/${id}`) && result.request().method() === "POST",
+      );
+      await page.getByRole("dialog").getByRole("button", { name: "Reset", exact: true }).click();
+      await expectJsonSuccess(await response);
+      expect(await getAPIInbound(page, id)).toMatchObject({
+        up: 0, down: 0, total: 1000000, remark, settings: before.settings, enable: before.enable,
+      });
+    } finally {
+      await postForm(page, `panel/api/inbounds/del/${id}`, {});
+    }
   });
 
   test("can open new UI inbound import and batch controls", async ({
@@ -1344,7 +1443,10 @@ test.describe("new Vue UI and API baseline", () => {
         }),
         sniffing: JSON.stringify({ enabled: false, destOverride: [] }),
       });
-      inboundId = added.obj.id;
+      inboundId = added.obj?.id;
+      if (typeof inboundId !== "number") {
+        throw new Error("Expected the new inbound ID in the add response");
+      }
       expect(inboundId).toBeGreaterThan(0);
 
       const clientId = crypto.randomUUID();

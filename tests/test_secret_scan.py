@@ -171,6 +171,23 @@ class SecretScanTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1, result.stderr)
             self.assertIn("untracked.pem:1: private-key:", result.stdout)
 
+    def test_cli_reports_key_in_non_ascii_filename(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self.initialize_git_repository(root)
+            key = root / "\u8bc1\u4e66.pem"
+            self.write_private_key(key)
+            self.assertIn(key, secret_scan.git_files(root))
+            self.assertEqual(self.run_cli(root).returncode, 1)
+
+    def test_uri_fixture_on_same_line_does_not_hide_second_match(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            sample = root / "sample.md"
+            route = "/clash/" + "x" * 12
+            sample.write_text("https://example.org" + route + " https://review.invalid" + route, encoding="utf-8")
+            self.assertEqual(len(secret_scan.scan_file(root, sample)), 1)
+
     def test_cli_default_reports_force_tracked_ignored_pem(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = pathlib.Path(temporary_directory)

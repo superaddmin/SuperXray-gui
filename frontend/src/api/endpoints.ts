@@ -7,7 +7,6 @@ export const legacyEndpoints = {
   },
   cores: {
     instances: 'panel/api/cores/instances',
-    instance: (id: string) => `panel/api/cores/instances/${encodePath(id)}`,
     status: (id: string) => `panel/api/cores/instances/${encodePath(id)}/status`,
     validate: (id: string) => `panel/api/cores/instances/${encodePath(id)}/validate`,
     start: (id: string) => `panel/api/cores/instances/${encodePath(id)}/start`,
@@ -52,6 +51,7 @@ export const legacyEndpoints = {
       `panel/api/inbounds/${encodePath(id)}/delClient/${encodePath(clientId)}`,
     resetClientTraffic: (id: number, email: string) =>
       `panel/api/inbounds/${encodePath(id)}/resetClientTraffic/${encodePath(email)}`,
+    resetTraffic: (id: number) => `panel/api/inbounds/resetTraffic/${encodePath(id)}`,
     resetAllTraffics: 'panel/api/inbounds/resetAllTraffics',
     resetAllClientTraffics: (id: number) =>
       `panel/api/inbounds/resetAllClientTraffics/${encodePath(id)}`,

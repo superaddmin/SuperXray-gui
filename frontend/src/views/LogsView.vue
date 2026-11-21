@@ -114,6 +114,7 @@ const loading = ref(false);
 const error = ref('');
 const panelLines = ref<string[]>([]);
 const xrayEntries = ref<XrayAccessLogEntry[]>([]);
+let latestRequest = 0;
 
 const sourceOptions = [
   { label: 'Panel', value: 'panel' },
@@ -142,16 +143,26 @@ watch([logSource, lineCount, panelLevel, syslog, showDirect, showBlocked, showPr
   void refreshLogs();
 });
 
+watch([keyword, logSource], ([, source], [, previousSource], onCleanup) => {
+  if (source !== 'xray' || source !== previousSource) {
+    return;
+  }
+  latestRequest++;
+  const timer = window.setTimeout(refreshLogs, 250);
+  onCleanup(() => window.clearTimeout(timer));
+});
+
 async function refreshLogs() {
   if (!hasInjectedRuntimeConfig()) {
     return;
   }
 
+  const requestId = ++latestRequest;
   loading.value = true;
   error.value = '';
   try {
     if (logSource.value === 'panel') {
-      panelLines.value = await getPanelLogs(
+      const lines = await getPanelLogs(
         {
           count: lineCount.value,
           level: panelLevel.value,
@@ -159,8 +170,9 @@ async function refreshLogs() {
         },
         { notifyOnError: false },
       );
+      if (requestId === latestRequest) panelLines.value = lines;
     } else {
-      xrayEntries.value = await getXrayLogs(
+      const entries = await getXrayLogs(
         {
           count: lineCount.value,
           filter: keyword.value,
@@ -170,11 +182,14 @@ async function refreshLogs() {
         },
         { notifyOnError: false },
       );
+      if (requestId === latestRequest) xrayEntries.value = entries;
     }
   } catch (caught) {
-    error.value = caught instanceof Error ? caught.message : 'Failed to load logs';
+    if (requestId === latestRequest) {
+      error.value = caught instanceof Error ? caught.message : 'Failed to load logs';
+    }
   } finally {
-    loading.value = false;
+    if (requestId === latestRequest) loading.value = false;
   }
 }
 

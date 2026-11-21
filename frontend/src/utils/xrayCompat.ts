@@ -18,7 +18,7 @@ export interface RoutingRuleEditorForm {
   ipText: string;
   sourceText: string;
   userText: string;
-  inboundTagText: string;
+  inboundTags: string[];
   protocolText: string;
   attrsJson: string;
   networkText: string;
@@ -112,20 +112,8 @@ export interface OutboundRow extends JsonObject {
   address: string;
 }
 
-export interface RoutingRuleRow extends JsonObject {
+export interface RoutingRuleRow extends JsonObject, RoutingRuleEditorForm {
   key: number;
-  type: string;
-  outboundTag: string;
-  balancerTag: string;
-  domainText: string;
-  ipText: string;
-  sourceText: string;
-  userText: string;
-  inboundTagText: string;
-  protocolText: string;
-  networkText: string;
-  portText: string;
-  sourcePortText: string;
 }
 
 export interface DnsServerRow extends JsonObject {
@@ -228,7 +216,7 @@ export const DNS_PRESET_OPTIONS: DnsPresetOption[] = [
   {
     name: 'Adguard Family DNS',
     family: true,
-    data: ['94.140.14.14', '94.140.15.15', '2a10:50c0::ad1:ff', '2a10:50c0::ad2:ff'],
+    data: ['94.140.14.15', '94.140.15.16', '2a10:50c0::bad1:ff', '2a10:50c0::bad2:ff'],
   },
   {
     name: 'Cloudflare Family DNS',
@@ -410,9 +398,26 @@ export function applyAiResidentialRouting(config: JsonValue | null | undefined):
   return template;
 }
 
+export function getRoutingInboundTagCandidates(
+  config: JsonValue | null | undefined,
+  panelTags: JsonValue | undefined,
+): string[] {
+  const template = asObject(config);
+  const dns = asObject(template.dns);
+  return uniqueList([
+    ...arrayValue(panelTags).map(stringValue),
+    ...asObjectArray(template.inbounds).map((inbound) => stringValue(inbound.tag)),
+    stringValue(dns.tag),
+    ...asObjectArray(dns.servers).map((server) => stringValue(server.tag)),
+  ]).sort();
+}
+
 export function getRoutingRuleRows(config: JsonValue | null | undefined): RoutingRuleRow[] {
-  const rules = getRoutingRules(config);
-  return rules.map((rule, index) => ({
+  return getRoutingRules(config).map(routingRuleRow);
+}
+
+function routingRuleRow(rule: JsonObject, index: number): RoutingRuleRow {
+  return {
     ...rule,
     key: index,
     type: stringValue(rule.type) || 'field',
@@ -422,12 +427,13 @@ export function getRoutingRuleRows(config: JsonValue | null | undefined): Routin
     ipText: joinStringArray(rule.ip),
     sourceText: joinStringArray(rule.source),
     userText: joinStringArray(rule.user),
-    inboundTagText: joinStringArray(rule.inboundTag),
+    inboundTags: arrayValue(rule.inboundTag).map(stringValue).filter(Boolean),
     protocolText: joinStringArray(rule.protocol),
-    networkText: joinStringArray(rule.network),
+    attrsJson: JSON.stringify(rule.attrs || {}, null, 2),
+    networkText: typeof rule.network === 'string' ? rule.network : joinStringArray(rule.network),
     portText: formatScalar(rule.port),
     sourcePortText: formatScalar(rule.sourcePort),
-  }));
+  };
 }
 
 export function upsertRoutingRule(
@@ -438,32 +444,42 @@ export function upsertRoutingRule(
   const template = cloneObject(config);
   const routing = asObject(template.routing);
   const rules = asObjectArray(routing.rules);
-  const rule: JsonObject = {
-    type: form.type.trim() || 'field',
-  };
-
-  setStringField(rule, 'outboundTag', form.outboundTag);
-  setStringField(rule, 'balancerTag', form.balancerTag);
-  setArrayField(rule, 'domain', form.domainText);
-  setArrayField(rule, 'ip', form.ipText);
-  setArrayField(rule, 'source', form.sourceText);
-  setArrayField(rule, 'user', form.userText);
-  setArrayField(rule, 'inboundTag', form.inboundTagText);
-  setArrayField(rule, 'protocol', form.protocolText);
-  setArrayField(rule, 'network', form.networkText);
-  setScalarField(rule, 'port', form.portText);
-  setScalarField(rule, 'sourcePort', form.sourcePortText);
-  setObjectField(rule, 'attrs', parseJsonObject(form.attrsJson));
-
+  const changes = serializeRoutingRule(form);
   if (index === null || index < 0 || index >= rules.length) {
-    rules.push(rule);
+    rules.push(changes);
   } else {
-    rules[index] = rule;
+    const rule = rules[index];
+    const previous = serializeRoutingRule(routingRuleRow(rule, index));
+    // Apply only edited fields, preserving unexposed fields and equivalent scalar representations.
+    for (const key of new Set([...Object.keys(previous), ...Object.keys(changes)])) {
+      if (JSON.stringify(previous[key]) === JSON.stringify(changes[key])) continue;
+      if (key in changes) rule[key] = changes[key];
+      else delete rule[key];
+    }
   }
 
   routing.rules = rules;
   template.routing = routing;
   return template;
+}
+
+function serializeRoutingRule(form: RoutingRuleEditorForm): JsonObject {
+  const changes: JsonObject = { type: form.type.trim() || 'field' };
+  setStringField(changes, 'outboundTag', form.outboundTag);
+  setStringField(changes, 'balancerTag', form.balancerTag);
+  setArrayField(changes, 'domain', form.domainText);
+  setArrayField(changes, 'ip', form.ipText);
+  setArrayField(changes, 'source', form.sourceText);
+  setArrayField(changes, 'user', form.userText);
+  const inboundTags = uniqueList(form.inboundTags);
+  if (inboundTags.length) changes.inboundTag = inboundTags;
+  setArrayField(changes, 'protocol', form.protocolText);
+  setArrayField(changes, 'network', form.networkText);
+  setScalarField(changes, 'port', form.portText);
+  setScalarField(changes, 'sourcePort', form.sourcePortText);
+  setObjectField(changes, 'attrs', parseJsonObject(form.attrsJson));
+
+  return changes;
 }
 
 export function deleteRoutingRuleAt(
@@ -845,7 +861,7 @@ export function getRuntimePolicyForm(config: JsonValue | null | undefined): Runt
   return {
     freedomStrategy: stringValue(directSettings.domainStrategy) || 'AsIs',
     routingStrategy: stringValue(routing.domainStrategy) || 'AsIs',
-    logLevel: stringValue(log.loglevel) || 'warning',
+    logLevel: stringValue(log.logLevel) || stringValue(log.loglevel) || 'warning',
     accessLog: stringValue(log.access),
     errorLog: stringValue(log.error),
     dnsLog: Boolean(log.dnsLog),
@@ -867,7 +883,8 @@ export function applyRuntimePolicyForm(
   template.routing = routing;
 
   const log = asObject(template.log);
-  log.loglevel = form.logLevel || 'warning';
+  log.logLevel = form.logLevel || 'warning';
+  delete log.loglevel;
   setStringField(log, 'access', form.accessLog);
   setStringField(log, 'error', form.errorLog);
   setBooleanField(log, 'dnsLog', form.dnsLog);

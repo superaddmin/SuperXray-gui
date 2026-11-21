@@ -2,15 +2,29 @@ package service
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/util/crypto"
 	ldaputil "github.com/superaddmin/SuperXray-gui/v2/util/ldap"
-	"github.com/xlzd/gotp"
 	"gorm.io/gorm"
 )
+
+// MaxUsernameBytes applies to newly configured panel usernames.
+const MaxUsernameBytes = 256
+
+func validateNewUsername(username string) error {
+	if username == "" {
+		return errors.New("username can not be empty")
+	}
+	if len(username) > MaxUsernameBytes {
+		return fmt.Errorf("username must be at most %d bytes", MaxUsernameBytes)
+	}
+	return nil
+}
 
 // UserService provides business logic for user management and authentication.
 // It handles user creation, login, password management, and 2FA operations.
@@ -93,7 +107,7 @@ func (s *UserService) CheckUser(username string, password string, twoFactorCode 
 			return nil, err
 		}
 
-		if gotp.NewDefaultTOTP(twoFactorToken).Now() != twoFactorCode {
+		if !validTwoFactorCode(twoFactorToken, twoFactorCode, time.Now()) {
 			return nil, errors.New("invalid 2fa code")
 		}
 	}
@@ -102,6 +116,9 @@ func (s *UserService) CheckUser(username string, password string, twoFactorCode 
 }
 
 func (s *UserService) UpdateUser(id int, username string, password string) error {
+	if err := validateNewUsername(username); err != nil {
+		return err
+	}
 	hashedPassword, err := crypto.HashPasswordAsBcrypt(password)
 
 	if err != nil {
@@ -126,9 +143,10 @@ func (s *UserService) UpdateUser(id int, username string, password string) error
 }
 
 func (s *UserService) UpdateFirstUser(username string, password string) error {
-	if username == "" {
-		return errors.New("username can not be empty")
-	} else if password == "" {
+	if err := validateNewUsername(username); err != nil {
+		return err
+	}
+	if password == "" {
 		return errors.New("password can not be empty")
 	}
 	hashedPassword, er := crypto.HashPasswordAsBcrypt(password)

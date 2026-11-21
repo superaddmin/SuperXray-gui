@@ -633,24 +633,25 @@
               </AFormItem>
               <AFormItem label="Tag"><AInput v-model:value="protocolTool.tag" /></AFormItem>
               <AFormItem label="Server"><AInput v-model:value="protocolTool.server" /></AFormItem>
-              <AFormItem label="Port"
-                ><AInputNumber
+              <AFormItem label="Port">
+                <AInputNumber
                   v-model:value="protocolTool.port"
                   class="full-width"
                   :min="1"
                   :max="65535"
-              /></AFormItem>
+                />
+              </AFormItem>
               <AFormItem label="UUID"><AInput v-model:value="protocolTool.uuid" /></AFormItem>
-              <AFormItem label="Password"
-                ><AInput v-model:value="protocolTool.password"
-              /></AFormItem>
+              <AFormItem label="Password">
+                <AInput v-model:value="protocolTool.password" />
+              </AFormItem>
               <AFormItem label="SNI"><AInput v-model:value="protocolTool.sni" /></AFormItem>
-              <AFormItem label="Public Key"
-                ><AInput v-model:value="protocolTool.publicKey"
-              /></AFormItem>
-              <AFormItem label="Short ID"
-                ><AInput v-model:value="protocolTool.shortId"
-              /></AFormItem>
+              <AFormItem label="Public Key">
+                <AInput v-model:value="protocolTool.publicKey" />
+              </AFormItem>
+              <AFormItem label="Short ID">
+                <AInput v-model:value="protocolTool.shortId" />
+              </AFormItem>
               <AFormItem label="Path"><AInput v-model:value="protocolTool.path" /></AFormItem>
             </div>
           </template>
@@ -665,15 +666,15 @@
                   ]"
                 />
               </AFormItem>
-              <AFormItem label="Origin URL"
-                ><AInput v-model:value="protocolTool.originUrl"
-              /></AFormItem>
-              <AFormItem v-if="protocolTool.combo === 'fixed'" label="Tunnel Name"
-                ><AInput v-model:value="protocolTool.tunnelName"
-              /></AFormItem>
-              <AFormItem v-if="protocolTool.combo === 'fixed'" label="Tunnel Token"
-                ><AInput v-model:value="protocolTool.token"
-              /></AFormItem>
+              <AFormItem label="Origin URL">
+                <AInput v-model:value="protocolTool.originUrl" />
+              </AFormItem>
+              <AFormItem v-if="protocolTool.combo === 'fixed'" label="Tunnel Name">
+                <AInput v-model:value="protocolTool.tunnelName" />
+              </AFormItem>
+              <AFormItem v-if="protocolTool.combo === 'fixed'" label="Tunnel Token">
+                <AInput v-model:value="protocolTool.token" />
+              </AFormItem>
             </div>
           </template>
         </AForm>
@@ -709,7 +710,7 @@
         </template>
         <AAlert
           :message="
-            warpDataRaw && warpConfigRaw
+            warpBaseSettings
               ? 'WARP data and config loaded. Matrix can now be applied.'
               : 'Load WARP data and config before applying the matrix.'
           "
@@ -772,13 +773,13 @@
           <AButton type="primary" @click="applyDnsPolicyChanges">Apply DNS Policy</AButton>
         </template>
         <div class="form-grid">
-          <AFormItem label="Enable DNS"
-            ><ASwitch v-model:checked="dnsPolicyForm.enableDNS"
-          /></AFormItem>
+          <AFormItem label="Enable DNS">
+            <ASwitch v-model:checked="dnsPolicyForm.enableDNS" />
+          </AFormItem>
           <AFormItem label="Tag"><AInput v-model:value="dnsPolicyForm.dnsTag" /></AFormItem>
-          <AFormItem label="Client IP"
-            ><AInput v-model:value="dnsPolicyForm.dnsClientIp"
-          /></AFormItem>
+          <AFormItem label="Client IP">
+            <AInput v-model:value="dnsPolicyForm.dnsClientIp" />
+          </AFormItem>
           <AFormItem label="Strategy">
             <ASelect
               v-model:value="dnsPolicyForm.dnsStrategy"
@@ -790,21 +791,21 @@
               "
             />
           </AFormItem>
-          <AFormItem label="Disable Cache"
-            ><ASwitch v-model:checked="dnsPolicyForm.dnsDisableCache"
-          /></AFormItem>
-          <AFormItem label="Disable Fallback"
-            ><ASwitch v-model:checked="dnsPolicyForm.dnsDisableFallback"
-          /></AFormItem>
-          <AFormItem label="Disable Fallback If Match"
-            ><ASwitch v-model:checked="dnsPolicyForm.dnsDisableFallbackIfMatch"
-          /></AFormItem>
-          <AFormItem label="Enable Parallel Query"
-            ><ASwitch v-model:checked="dnsPolicyForm.dnsEnableParallelQuery"
-          /></AFormItem>
-          <AFormItem label="Use System Hosts"
-            ><ASwitch v-model:checked="dnsPolicyForm.dnsUseSystemHosts"
-          /></AFormItem>
+          <AFormItem label="Disable Cache">
+            <ASwitch v-model:checked="dnsPolicyForm.dnsDisableCache" />
+          </AFormItem>
+          <AFormItem label="Disable Fallback">
+            <ASwitch v-model:checked="dnsPolicyForm.dnsDisableFallback" />
+          </AFormItem>
+          <AFormItem label="Disable Fallback If Match">
+            <ASwitch v-model:checked="dnsPolicyForm.dnsDisableFallbackIfMatch" />
+          </AFormItem>
+          <AFormItem label="Enable Parallel Query">
+            <ASwitch v-model:checked="dnsPolicyForm.dnsEnableParallelQuery" />
+          </AFormItem>
+          <AFormItem label="Use System Hosts">
+            <ASwitch v-model:checked="dnsPolicyForm.dnsUseSystemHosts" />
+          </AFormItem>
         </div>
       </FormSection>
     </ACard>
@@ -866,21 +867,21 @@
               "
             />
           </AFormItem>
-          <AFormItem label="DNS Log"
-            ><ASwitch v-model:checked="runtimePolicyForm.dnsLog"
-          /></AFormItem>
-          <AFormItem label="Stats Inbound Uplink"
-            ><ASwitch v-model:checked="runtimePolicyForm.statsInboundUplink"
-          /></AFormItem>
-          <AFormItem label="Stats Inbound Downlink"
-            ><ASwitch v-model:checked="runtimePolicyForm.statsInboundDownlink"
-          /></AFormItem>
-          <AFormItem label="Stats Outbound Uplink"
-            ><ASwitch v-model:checked="runtimePolicyForm.statsOutboundUplink"
-          /></AFormItem>
-          <AFormItem label="Stats Outbound Downlink"
-            ><ASwitch v-model:checked="runtimePolicyForm.statsOutboundDownlink"
-          /></AFormItem>
+          <AFormItem label="DNS Log">
+            <ASwitch v-model:checked="runtimePolicyForm.dnsLog" />
+          </AFormItem>
+          <AFormItem label="Stats Inbound Uplink">
+            <ASwitch v-model:checked="runtimePolicyForm.statsInboundUplink" />
+          </AFormItem>
+          <AFormItem label="Stats Inbound Downlink">
+            <ASwitch v-model:checked="runtimePolicyForm.statsInboundDownlink" />
+          </AFormItem>
+          <AFormItem label="Stats Outbound Uplink">
+            <ASwitch v-model:checked="runtimePolicyForm.statsOutboundUplink" />
+          </AFormItem>
+          <AFormItem label="Stats Outbound Downlink">
+            <ASwitch v-model:checked="runtimePolicyForm.statsOutboundDownlink" />
+          </AFormItem>
         </div>
       </FormSection>
     </ACard>
@@ -927,9 +928,9 @@
       <AForm layout="vertical">
         <AFormItem label="Tag"><AInput v-model:value="outboundEditor.tag" /></AFormItem>
         <AFormItem label="Protocol"><AInput v-model:value="outboundEditor.protocol" /></AFormItem>
-        <AFormItem label="Send Through"
-          ><AInput v-model:value="outboundEditor.sendThrough"
-        /></AFormItem>
+        <AFormItem label="Send Through">
+          <AInput v-model:value="outboundEditor.sendThrough" />
+        </AFormItem>
         <AFormItem label="Settings JSON">
           <textarea v-model="outboundEditor.settingsJson" class="json-editor compact-json-editor" />
         </AFormItem>
@@ -965,9 +966,9 @@
               :options="[{ label: 'SOCKS5', value: 'socks' }]"
             />
           </AFormItem>
-          <AFormItem label="Server"
-            ><AInput v-model:value="residentialIpEditor.server"
-          /></AFormItem>
+          <AFormItem label="Server">
+            <AInput v-model:value="residentialIpEditor.server" />
+          </AFormItem>
           <AFormItem label="Port">
             <AInputNumber
               v-model:value="residentialIpEditor.port"
@@ -994,19 +995,19 @@
       <AForm layout="vertical">
         <div class="form-grid">
           <AFormItem label="Type"><AInput v-model:value="routingRuleEditor.type" /></AFormItem>
-          <AFormItem label="Outbound Tag"
-            ><AInput v-model:value="routingRuleEditor.outboundTag"
-          /></AFormItem>
-          <AFormItem label="Balancer Tag"
-            ><AInput v-model:value="routingRuleEditor.balancerTag"
-          /></AFormItem>
-          <AFormItem label="Network"
-            ><AInput v-model:value="routingRuleEditor.networkText" placeholder="tcp,udp"
-          /></AFormItem>
+          <AFormItem label="Outbound Tag">
+            <AInput v-model:value="routingRuleEditor.outboundTag" />
+          </AFormItem>
+          <AFormItem label="Balancer Tag">
+            <AInput v-model:value="routingRuleEditor.balancerTag" />
+          </AFormItem>
+          <AFormItem label="Network">
+            <AInput v-model:value="routingRuleEditor.networkText" placeholder="tcp,udp" />
+          </AFormItem>
           <AFormItem label="Port"><AInput v-model:value="routingRuleEditor.portText" /></AFormItem>
-          <AFormItem label="Source Port"
-            ><AInput v-model:value="routingRuleEditor.sourcePortText"
-          /></AFormItem>
+          <AFormItem label="Source Port">
+            <AInput v-model:value="routingRuleEditor.sourcePortText" />
+          </AFormItem>
         </div>
         <AFormItem label="Domain">
           <textarea
@@ -1024,9 +1025,13 @@
           />
         </AFormItem>
         <AFormItem label="Inbound Tags">
-          <textarea
-            v-model="routingRuleEditor.inboundTagText"
-            class="json-editor compact-json-editor"
+          <ASelect
+            v-model:value="selectedRoutingInboundTags"
+            mode="tags"
+            aria-label="Inbound Tags"
+            allow-clear
+            :options="routingInboundTagOptions"
+            :token-separators="[',', '\n']"
           />
         </AFormItem>
         <AFormItem label="Users">
@@ -1057,15 +1062,15 @@
           />
         </AFormItem>
         <div class="form-grid">
-          <AFormItem label="Skip Fallback"
-            ><ASwitch v-model:checked="dnsServerEditor.skipFallback"
-          /></AFormItem>
-          <AFormItem label="Client IP"
-            ><AInput v-model:value="dnsServerEditor.clientIP"
-          /></AFormItem>
-          <AFormItem label="Query Strategy"
-            ><AInput v-model:value="dnsServerEditor.queryStrategy"
-          /></AFormItem>
+          <AFormItem label="Skip Fallback">
+            <ASwitch v-model:checked="dnsServerEditor.skipFallback" />
+          </AFormItem>
+          <AFormItem label="Client IP">
+            <AInput v-model:value="dnsServerEditor.clientIP" />
+          </AFormItem>
+          <AFormItem label="Query Strategy">
+            <AInput v-model:value="dnsServerEditor.queryStrategy" />
+          </AFormItem>
         </div>
       </AForm>
     </Modal>
@@ -1073,9 +1078,9 @@
     <Modal v-model:open="fakeDnsModalOpen" title="FakeDNS Editor" @ok="submitFakeDnsModal">
       <AForm layout="vertical">
         <AFormItem label="IP Pool"><AInput v-model:value="fakeDnsEditor.ipPool" /></AFormItem>
-        <AFormItem label="Pool Size"
-          ><AInputNumber v-model:value="fakeDnsEditor.poolSize" class="full-width" :min="0"
-        /></AFormItem>
+        <AFormItem label="Pool Size">
+          <AInputNumber v-model:value="fakeDnsEditor.poolSize" class="full-width" :min="0" />
+        </AFormItem>
       </AForm>
     </Modal>
 
@@ -1086,23 +1091,24 @@
         <AFormItem label="Selectors">
           <textarea v-model="balancerEditor.selectorText" class="json-editor compact-json-editor" />
         </AFormItem>
-        <AFormItem label="Fallback Tag"
-          ><AInput v-model:value="balancerEditor.fallbackTag"
-        /></AFormItem>
+        <AFormItem label="Fallback Tag">
+          <AInput v-model:value="balancerEditor.fallbackTag" />
+        </AFormItem>
       </AForm>
     </Modal>
 
     <Modal v-model:open="reverseModalOpen" title="Reverse Editor" @ok="submitReverseModal">
       <AForm layout="vertical">
         <div class="form-grid">
-          <AFormItem label="Type"
-            ><ASelect
+          <AFormItem label="Type">
+            <ASelect
               v-model:value="reverseEditor.type"
               :options="[
                 { label: 'bridge', value: 'bridge' },
                 { label: 'portal', value: 'portal' },
               ]"
-          /></AFormItem>
+            />
+          </AFormItem>
           <AFormItem label="Tag"><AInput v-model:value="reverseEditor.tag" /></AFormItem>
           <AFormItem label="Domain"><AInput v-model:value="reverseEditor.domain" /></AFormItem>
           <AFormItem v-if="reverseEditor.type === 'bridge'" label="Bridge Outbound">
@@ -1153,7 +1159,7 @@ import {
   Table as ATable,
   message,
 } from 'ant-design-vue';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, shallowRef } from 'vue';
 
 import {
   getXrayVersions,
@@ -1214,6 +1220,7 @@ import {
   getOutboundRows,
   getResidentialIpRows,
   getReverseRows,
+  getRoutingInboundTagCandidates,
   getRoutingRuleRows,
   getRuntimePolicyForm,
   moveArrayItem,
@@ -1232,6 +1239,7 @@ import {
   buildWarpMatrixBaseSettings,
   generateProtocolToolArgo,
   generateProtocolToolCombo,
+  type WarpBaseSettings,
 } from '@/utils/xrayProtocolTools';
 import { copyText, downloadText } from '@/utils/textExport';
 import {
@@ -1246,6 +1254,7 @@ const appStore = useAppStore();
 const serverStore = useServerStore();
 const error = ref('');
 const configText = ref('');
+const panelInboundTags = shallowRef<JsonValue>([]);
 const originalConfigText = ref('');
 const outboundTestUrl = ref('');
 const lifecycleBusy = ref(false);
@@ -1307,8 +1316,7 @@ const protocolTool = reactive({
 });
 const warpMatrixSelected = ref<string[]>(['warp']);
 const loadingWarpMatrix = ref(false);
-const warpDataRaw = ref<Record<string, unknown> | null>(null);
-const warpConfigRaw = ref<Record<string, unknown> | null>(null);
+const warpBaseSettings = shallowRef<WarpBaseSettings | null>(null);
 const dnsPolicyForm = reactive<DnsPolicyForm>(createDnsPolicyForm());
 const runtimePolicyForm = reactive<RuntimePolicyForm>(createRuntimePolicyForm());
 const observatoryForm = reactive<ObservatoryForm>(createObservatoryForm());
@@ -1412,7 +1420,8 @@ const outboundsFromConfig = computed<JsonObject[]>(() => {
 });
 const firstOutboundTestIndex = computed(() =>
   outboundsFromConfig.value.findIndex((outbound) => {
-    const protocol = typeof outbound.protocol === 'string' ? outbound.protocol.trim().toLowerCase() : '';
+    const protocol =
+      typeof outbound.protocol === 'string' ? outbound.protocol.trim().toLowerCase() : '';
     const tag = typeof outbound.tag === 'string' ? outbound.tag : '';
     return !['blackhole', 'loopback', 'freedom', 'dns'].includes(protocol) && tag !== 'blocked';
   }),
@@ -1534,6 +1543,22 @@ const outboundTrafficRows = computed(() => {
 const outboundRows = computed(() => getOutboundRows(parsedConfig.value));
 const residentialIpRows = computed(() => getResidentialIpRows(parsedConfig.value));
 const routingRuleRows = computed(() => getRoutingRuleRows(parsedConfig.value));
+const routingInboundTagOptions = computed(() =>
+  getRoutingInboundTagCandidates(parsedConfig.value, panelInboundTags.value).map((value) => ({
+    value,
+  })),
+);
+const selectedRoutingInboundTags = computed({
+  get: () => routingRuleEditor.inboundTags,
+  set: (tags: string[]) => {
+    const exact = new Set([
+      ...routingRuleEditor.inboundTags,
+      ...routingInboundTagOptions.value.map((option) => option.value),
+    ]);
+    const normalized = tags.map((tag) => (exact.has(tag) ? tag : tag.trim()));
+    routingRuleEditor.inboundTags = [...new Set(normalized.filter(Boolean))];
+  },
+});
 const dnsServerRows = computed(() => getDnsServerRows(parsedConfig.value));
 const fakeDnsRows = computed(() => getFakeDnsRows(parsedConfig.value));
 const balancerRows = computed(() => getBalancerRows(parsedConfig.value));
@@ -1599,7 +1624,7 @@ function createRoutingRuleEditor(): RoutingRuleEditorForm {
     ipText: '',
     sourceText: '',
     userText: '',
-    inboundTagText: '',
+    inboundTags: [],
     protocolText: '',
     attrsJson: '{}',
     networkText: '',
@@ -1768,6 +1793,7 @@ async function refreshConfig() {
   try {
     const payload = await getXraySetting({ notifyOnError: false });
     const formatted = JSON.stringify(payload.xraySetting, null, 2);
+    panelInboundTags.value = payload.inboundTags;
     configText.value = formatted;
     originalConfigText.value = formatted;
     outboundTestUrl.value = payload.outboundTestUrl || '';
@@ -1829,9 +1855,9 @@ function openRoutingRuleModal(index?: number) {
     ipText: row?.ipText || '',
     sourceText: row?.sourceText || '',
     userText: row?.userText || '',
-    inboundTagText: row?.inboundTagText || '',
+    inboundTags: row?.inboundTags || [],
     protocolText: row?.protocolText || '',
-    attrsJson: JSON.stringify(row?.attrs || {}, null, 2),
+    attrsJson: row?.attrsJson || '{}',
     networkText: row?.networkText || '',
     portText: row?.portText || '',
     sourcePortText: row?.sourcePortText || '',
@@ -2125,14 +2151,17 @@ function applyProtocolToolOutbound() {
 
 async function loadWarpMatrixConfig() {
   loadingWarpMatrix.value = true;
+  warpBaseSettings.value = null;
   error.value = '';
   try {
     const [dataRaw, configRaw] = await Promise.all([
       runWarpAction('data', {}, { notifyOnError: false }),
       runWarpAction('config', {}, { notifyOnError: false }),
     ]);
-    warpDataRaw.value = JSON.parse(dataRaw || '{}') as Record<string, unknown>;
-    warpConfigRaw.value = JSON.parse(configRaw || '{}') as Record<string, unknown>;
+    warpBaseSettings.value = buildWarpMatrixBaseSettings(
+      JSON.parse(dataRaw),
+      JSON.parse(configRaw),
+    );
     void message.success('WARP data loaded');
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : 'Failed to load WARP data';
@@ -2142,24 +2171,17 @@ async function loadWarpMatrixConfig() {
 }
 
 async function applyWarpMatrix() {
-  if (!warpDataRaw.value || !warpConfigRaw.value) {
+  if (!warpBaseSettings.value) {
     await loadWarpMatrixConfig();
   }
-  if (!warpDataRaw.value || !warpConfigRaw.value) {
+  if (!warpBaseSettings.value) {
     return;
   }
 
   try {
-    const baseSettings = buildWarpMatrixBaseSettings(
-      warpDataRaw.value as { private_key: string; client_id: string },
-      warpConfigRaw.value as {
-        interface: { addresses: { v4?: string; v6?: string } };
-        peers: Array<{ public_key: string; endpoint: { host: string } }>;
-      },
-    );
     const next = applyWarpMatrixToTemplate(
       parsedConfig.value,
-      baseSettings,
+      warpBaseSettings.value,
       warpMatrixSelected.value.length > 0 ? warpMatrixSelected.value : ['warp'],
     );
     applyTemplateConfig(next);

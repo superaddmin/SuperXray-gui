@@ -43,26 +43,6 @@ export interface ProtocolToolResult {
   notice?: string;
 }
 
-export interface WarpDataPayload {
-  private_key: string;
-  client_id: string;
-}
-
-export interface WarpConfigPayload {
-  interface: {
-    addresses: {
-      v4?: string;
-      v6?: string;
-    };
-  };
-  peers: Array<{
-    public_key: string;
-    endpoint: {
-      host: string;
-    };
-  }>;
-}
-
 export interface WarpBaseSettings extends JsonObject {
   mtu: number;
   secretKey: string;
@@ -294,29 +274,40 @@ export function generateProtocolToolCombo(input: ProtocolToolInput): ProtocolToo
 }
 
 export function buildWarpMatrixBaseSettings(
-  warpData: WarpDataPayload,
-  warpConfig: WarpConfigPayload,
+  storedData: unknown,
+  registration: unknown,
 ): WarpBaseSettings {
-  const peer = warpConfig.peers[0];
-  const address: string[] = [];
-  if (warpConfig.interface.addresses.v4) {
-    address.push(`${warpConfig.interface.addresses.v4}/32`);
+  const data = asObject(storedData);
+  const response = asObject(registration);
+  const config = asObject(response.config ?? response);
+  const addresses = asObject(asObject(config.interface).addresses);
+  const peer = asObject(Array.isArray(config.peers) ? config.peers[0] : null);
+  const endpoint = stringValue(asObject(peer.endpoint).host);
+  const publicKey = stringValue(peer.public_key);
+  const privateKey = stringValue(data.private_key);
+  const clientId = stringValue(config.client_id ?? data.client_id);
+  if (!privateKey || !publicKey || !endpoint || !clientId) {
+    throw new Error(
+      'WARP configuration requires registration keys, a client ID, and a peer endpoint',
+    );
   }
-  if (warpConfig.interface.addresses.v6) {
-    address.push(`${warpConfig.interface.addresses.v6}/128`);
+  const address: string[] = [];
+  if (typeof addresses.v4 === 'string' && addresses.v4) {
+    address.push(`${addresses.v4}/32`);
+  }
+  if (typeof addresses.v6 === 'string' && addresses.v6) {
+    address.push(`${addresses.v6}/128`);
+  }
+  if (!address.length) {
+    throw new Error('WARP configuration requires an interface address');
   }
 
   return {
     mtu: 1420,
-    secretKey: warpData.private_key,
+    secretKey: privateKey,
     address,
-    reserved: decodeWarpClientId(warpData.client_id),
-    peers: [
-      {
-        publicKey: peer.public_key,
-        endpoint: peer.endpoint.host,
-      },
-    ],
+    reserved: decodeWarpClientId(clientId),
+    peers: [{ publicKey, endpoint }],
     noKernelTun: false,
   };
 }

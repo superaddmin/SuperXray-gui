@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/superaddmin/SuperXray-gui/v2/util/json_util"
+	"github.com/superaddmin/SuperXray-gui/v2/util/xraycompat"
 )
 
 // Config represents the complete Xray configuration structure.
@@ -51,6 +52,13 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 
 func (c Config) MarshalJSON() ([]byte, error) {
 	type alias Config
+	// Startup, staged-core preflight, and outbound probes serialize through
+	// this same boundary. The value receiver keeps the source JSON intact.
+	outbounds, err := xraycompat.RuntimeOutbounds(c.OutboundConfigs)
+	if err != nil {
+		return nil, err
+	}
+	c.OutboundConfigs = outbounds
 	data, err := json.Marshal(alias(c))
 	if err != nil {
 		return nil, err

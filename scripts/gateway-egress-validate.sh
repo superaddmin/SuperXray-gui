@@ -142,7 +142,7 @@ check_host_strategy() {
     ""|"0.0.0.0"|"::"|"[::]"|"*")
       fail "manifest host is empty or wildcard"
       ;;
-    127.0.0.1|localhost)
+    127.*|localhost|"::1"|"[::1]")
       if [ -n "$GATEWAY_CONTAINER" ]; then
         fail "Gateway container is set but manifest host is loopback; container loopback will not reach host Xray"
       else
@@ -250,9 +250,9 @@ check_xray_config() {
   fi
 
   local risky_inbounds
-  risky_inbounds="$(jq -r '.inbounds[]? | select((.tag // "") | startswith("gateway-")) | select((.settings.auth // "") == "noauth") | [.tag, (.listen // ""), (.port // ""), (.settings.auth // "")] | @tsv' "$XRAY_CONFIG")"
+  risky_inbounds="$(jq -r '.inbounds[]? | select((.tag // "") | startswith("gateway-")) | select((.settings.auth // "") == "noauth") | [.tag, (if (.listen // "") == "" then "*" else .listen end), (.port // "")] | @tsv' "$XRAY_CONFIG")"
   if [ -n "$risky_inbounds" ]; then
-    while IFS="$(printf '\t')" read -r tag listen port auth; do
+    while IFS="$(printf '\t')" read -r tag listen port; do
       if is_wildcard_host "$listen"; then
         fail "$tag uses noauth SOCKS on wildcard listen address"
       elif ! is_loopback_host "$listen"; then
@@ -262,7 +262,6 @@ check_xray_config() {
           warn "$tag uses noauth SOCKS on non-loopback listen address $listen:$port; verify firewall allows only $GATEWAY_ALLOWED_SOURCE_CIDR"
         fi
       fi
-      [ "$auth" = "noauth" ] || true
     done <<EOF
 $risky_inbounds
 EOF
@@ -329,7 +328,8 @@ EOF
 }
 
 check_xray_config_python() {
-  python3 - "$XRAY_CONFIG" <<'PY' | while IFS='|' read -r level message; do
+  local result
+  if ! result=$(python3 - "$XRAY_CONFIG" "$GATEWAY_ALLOWED_SOURCE_CIDR" <<'PY'
 import ipaddress
 import json
 import sys
@@ -399,7 +399,10 @@ for inbound in gateway_inbounds:
         if listen in {"", "0.0.0.0", "::", "[::]", "*"}:
             emit("FAIL", f"{tag} uses noauth SOCKS on wildcard listen address")
         elif not (listen.startswith("127.") or listen in {"localhost", "::1", "[::1]"}):
-            emit("WARN", f"{tag} uses noauth SOCKS on non-loopback listen address {listen}:{port}; verify firewall source restriction")
+            if sys.argv[2]:
+                emit("WARN", f"{tag} uses noauth SOCKS on non-loopback listen address {listen}:{port}; verify firewall source restriction")
+            else:
+                emit("FAIL", f"{tag} uses noauth SOCKS on non-loopback listen address {listen}:{port} without allowed source evidence")
 
 placeholder_count = sum(
     1 for outbound in data.get("outbounds", []) or []
@@ -452,6 +455,11 @@ for value in observability:
     else:
         emit("PASS", f"observatory probeURL has public-looking host: {parsed.hostname}")
 PY
+  ); then
+    fail "cannot validate Xray configuration with python3"
+    return
+  fi
+  while IFS='|' read -r level message; do
     case "$level" in
       PASS)
         pass "$message"
@@ -466,7 +474,7 @@ PY
         printf '%s\n' "$message"
         ;;
     esac
-  done
+  done <<< "$result"
 }
 
 validate_probe_url() {
@@ -620,7 +628,8 @@ check_gateway_container_probes() {
     return
   fi
 
-  local script='
+  local script
+  script=$(cat <<'CONTAINER_SH'
 set -u
 host="$1"
 port="$2"
@@ -639,7 +648,8 @@ if [ -n "$proxy_user" ] || [ -n "$proxy_pass" ]; then
 else
   curl -sS -o /dev/null --socks5-hostname "${host}:${port}" --connect-timeout "$connect_timeout" --max-time "$max_time" -w "platform=${label} http=%{http_code} connect=%{time_connect} tls=%{time_appconnect} ttfb=%{time_starttransfer} total=%{time_total}" "$url"
 fi
-'
+CONTAINER_SH
+  )
 
   local output code
   output="$(

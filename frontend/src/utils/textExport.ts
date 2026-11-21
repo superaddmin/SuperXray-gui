@@ -10,9 +10,14 @@ export async function copyText(text: string): Promise<void> {
   textarea.style.position = 'fixed';
   textarea.style.opacity = '0';
   document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand('copy');
-  document.body.removeChild(textarea);
+  try {
+    textarea.select();
+    if (!document.execCommand('copy')) {
+      throw new Error('Clipboard copy was denied');
+    }
+  } finally {
+    textarea.remove();
+  }
 }
 
 export function downloadText(filename: string, text: string, type = 'text/plain;charset=utf-8') {

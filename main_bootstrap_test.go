@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -77,6 +78,86 @@ func TestSettingCLIInitializesEmptyPanelWithoutLoggingCredentials(t *testing.T) 
 	}
 	if err := database.GetDB().Model(&model.User{}).Count(&count).Error; err != nil || count != 1 {
 		t.Fatalf("configured database must contain one user: count=%d, err=%v", count, err)
+	}
+}
+
+func TestSettingCLISnapshot(t *testing.T) {
+	if os.Getenv("SUPERXRAY_TEST_SETTING_CLI") == "1" {
+		os.Args = []string{os.Args[0], "setting", "-show", "-getCert"}
+		main()
+		os.Exit(0)
+	}
+	for _, test := range []struct {
+		name, key, value, path, initialize string
+	}{
+		{"absent", "", "", "/super/", "false"},
+		{"explicit empty", "webBasePath", "", "/super/", "true"},
+		{"explicit root", "webBasePath", "/", "/super/", "true"},
+		{"short path", "webBasePath", "/a", "/a/", "false"},
+		{"stored default", "webBasePath", "/super/", "/super/", "false"},
+		{"invalid port", "webPort", "invalid", "", ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("XUI_DB_FOLDER", t.TempDir())
+			if err := database.InitDB(config.GetDBPath()); err != nil {
+				t.Fatal(err)
+			}
+			if test.key != "" {
+				if err := database.GetDB().Create(&model.Setting{Key: test.key, Value: test.value}).Error; err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := database.CloseDB(); err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command(os.Args[0], "-test.run=^TestSettingCLISnapshot$")
+			cmd.Env = append(os.Environ(), "SUPERXRAY_TEST_SETTING_CLI=1")
+			output, err := cmd.CombinedOutput()
+			if test.initialize == "" {
+				if err == nil || strings.Contains(string(output), "webBasePath:") || !strings.Contains(string(output), "get current port") {
+					t.Fatalf("expected read error without partial settings, got %v, %s", err, output)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("setting -show -getCert: %v, %s", err, output)
+			}
+			lines := "\n" + strings.ReplaceAll(string(output), "\r\n", "\n")
+			for _, line := range []string{"webBasePath: " + test.path, "initializeWebBasePath: " + test.initialize, "cert: "} {
+				if !strings.Contains(lines, "\n"+line+"\n") {
+					t.Errorf("snapshot missing %q in %s", line, output)
+				}
+			}
+		})
+	}
+}
+
+func TestSettingCLIWriteFailureRollsBackCredentialsAndPort(t *testing.T) {
+	t.Setenv("XUI_DB_FOLDER", t.TempDir())
+	t.Cleanup(func() { _ = database.CloseDB() })
+	if err := updateSetting(54321, "previous-user", "fixture-initial-password", "", "", false); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.GetDB().Exec(`CREATE TRIGGER reject_install_path BEFORE INSERT ON settings
+		WHEN NEW.key = 'webBasePath' BEGIN SELECT RAISE(ABORT, 'fixture write failure'); END`).Error; err != nil {
+		t.Fatal(err)
+	}
+	output := captureBootstrapOutput(t, func() {
+		err := updateSetting(43210, "replacement-user", "fixture-replacement-password", "/new/", "", false)
+		if err == nil || !strings.Contains(err.Error(), "fixture write failure") {
+			t.Fatalf("expected forced settings write failure, got %v", err)
+		}
+	})
+	if strings.Contains(output, "成功") {
+		t.Fatal("reported a successful change before the transaction committed")
+	}
+	settings := service.SettingService{}
+	if port, err := settings.GetPort(); err != nil || port != 54321 {
+		t.Fatalf("previous port was not preserved: port=%d err=%v", port, err)
+	}
+	users := service.UserService{}
+	if user, err := users.CheckUser("previous-user", "fixture-initial-password", ""); err != nil || user == nil {
+		t.Fatalf("previous credentials stopped working: %v", err)
 	}
 }
 

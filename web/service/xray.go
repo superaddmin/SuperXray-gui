@@ -132,7 +132,7 @@ func (s *XrayService) getXrayConfig(updateTraffic bool) (*xray.Config, error) {
 
 	normalizedTemplate, _, normalizeErr := xraycompat.NormalizeConfig(templateConfig)
 	if normalizeErr != nil {
-		return nil, fmt.Errorf("invalid Xray template for v26.10.10: %w", normalizeErr)
+		return nil, fmt.Errorf("invalid Xray template: %w", normalizeErr)
 	}
 	xrayConfig := &xray.Config{}
 	err = json.Unmarshal([]byte(normalizedTemplate), xrayConfig)
@@ -166,7 +166,7 @@ func (s *XrayService) getXrayConfig(updateTraffic bool) (*xray.Config, error) {
 		}
 		normalizedSettings, normalizedStream, _, normalizeErr := xraycompat.NormalizeInbound(string(inbound.Protocol.XrayProtocol()), inbound.Settings, inbound.StreamSettings)
 		if normalizeErr != nil {
-			return nil, fmt.Errorf("inbound %q is incompatible with Xray v26.10.10: %w", inbound.Tag, normalizeErr)
+			return nil, fmt.Errorf("inbound %q is incompatible with Xray: %w", inbound.Tag, normalizeErr)
 		}
 		inbound.Settings = normalizedSettings
 		inbound.StreamSettings = normalizedStream

@@ -2,9 +2,10 @@ package job
 
 import (
 	"encoding/json"
-	"time"
-
+	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
@@ -17,9 +18,12 @@ import (
 var DefaultTruthyValues = []string{"true", "1", "yes", "on"}
 
 type LdapSyncJob struct {
-	settingService service.SettingService
-	inboundService service.InboundService
-	xrayService    service.XrayService
+	runMu              sync.Mutex
+	referenceEmails    map[string]bool
+	directoryConfirmed bool
+	settingService     service.SettingService
+	inboundService     service.InboundService
+	xrayService        service.XrayService
 }
 
 // --- Helper functions for mustGet ---
@@ -60,6 +64,14 @@ func NewLdapSyncJob() *LdapSyncJob {
 }
 
 func (j *LdapSyncJob) Run() {
+	j.run(ldaputil.FetchVlessFlags)
+}
+
+func (j *LdapSyncJob) run(fetch func(ldaputil.Config) (map[string]bool, error)) {
+	if !j.runMu.TryLock() {
+		return
+	}
+	defer j.runMu.Unlock()
 	logger.Info("LDAP sync job started")
 
 	enabled, err := j.settingService.GetLdapEnable()
@@ -83,7 +95,7 @@ func (j *LdapSyncJob) Run() {
 		Invert:     mustGetBool(j.settingService.GetLdapInvertFlag),
 	}
 
-	flags, err := ldaputil.FetchVlessFlags(cfg)
+	flags, err := fetch(cfg)
 	if err != nil {
 		logger.Warning("LDAP fetch failed:", err)
 		return
@@ -100,11 +112,20 @@ func (j *LdapSyncJob) Run() {
 
 	allClients := map[string]*model.Client{}  // email -> client
 	inboundMap := map[string]*model.Inbound{} // tag -> inbound
+	managedEmails := make(map[string]bool)
 	for _, ib := range inbounds {
 		inboundMap[ib.Tag] = ib
-		clients, _ := j.inboundService.GetClients(ib)
+		clients, err := j.inboundService.GetClients(ib)
+		managed := slices.Contains(inboundTags, ib.Tag)
+		if err != nil && managed {
+			logger.Warningf("LDAP sync skipped: cannot read clients for inbound %s", ib.Tag)
+			return
+		}
 		for i := range clients {
 			allClients[clients[i].Email] = &clients[i]
+			if managed {
+				managedEmails[clients[i].Email] = true
+			}
 		}
 	}
 	resolvedTags := make([]string, 0, len(inboundTags))
@@ -167,17 +188,42 @@ func (j *LdapSyncJob) Run() {
 
 	// --- Auto delete clients not in LDAP ---
 	autoDelete := mustGetBool(j.settingService.GetLdapAutoDelete)
-	// An empty successful LDAP response is commonly a bind/filter failure. Never
-	// interpret it as proof that every panel client was removed.
-	if autoDelete && len(flags) > 0 {
-		ldapEmailSet := map[string]struct{}{}
-		for e := range flags {
-			ldapEmailSet[e] = struct{}{}
-		}
-		for _, tag := range resolvedTags {
-			j.deleteClientsNotInLDAP(tag, ldapEmailSet)
+	if !autoDelete {
+		j.referenceEmails = nil
+		j.directoryConfirmed = false
+		return
+	}
+	if len(resolvedTags) == 0 || !j.allowAutoDelete(flags, managedEmails) {
+		logger.Warningf("LDAP auto-delete skipped: fetched %d users, reference count %d", len(flags), len(j.referenceEmails))
+		return
+	}
+	for _, tag := range resolvedTags {
+		j.deleteClientsNotInLDAP(tag, flags)
+	}
+}
+
+// Use the pre-sync local membership until the first credible directory read.
+// Never let rejected results or clients they auto-created shift this reference.
+func (j *LdapSyncJob) allowAutoDelete(flags, managedEmails map[string]bool) bool {
+	if j.referenceEmails == nil {
+		j.referenceEmails = managedEmails
+	}
+	if len(flags) == 0 {
+		return false
+	}
+	retained := 0
+	for email := range j.referenceEmails {
+		if _, present := flags[email]; present {
+			retained++
 		}
 	}
+	if retained < (len(j.referenceEmails)+1)/2 {
+		return false
+	}
+	canDelete := j.directoryConfirmed
+	j.referenceEmails = flags
+	j.directoryConfirmed = true
+	return canDelete
 }
 
 func truthyValuesOrDefault(s string) []string {
@@ -253,7 +299,7 @@ func (j *LdapSyncJob) batchSetEnable(ib *model.Inbound, emails []string, enable 
 }
 
 // deleteClientsNotInLDAP deletes clients not in LDAP using batches and a single restart
-func (j *LdapSyncJob) deleteClientsNotInLDAP(inboundTag string, ldapEmails map[string]struct{}) {
+func (j *LdapSyncJob) deleteClientsNotInLDAP(inboundTag string, ldapEmails map[string]bool) {
 	inbounds, err := j.inboundService.GetAllInbounds()
 	if err != nil {
 		logger.Warning("Failed to get inbounds for deletion:", err)

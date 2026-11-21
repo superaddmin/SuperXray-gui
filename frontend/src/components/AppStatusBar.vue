@@ -9,11 +9,7 @@
       class="status-tag status-tag-update"
       color="blue"
     >
-      <a
-        :href="serverStore.panelUpdate.releaseUrl"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a :href="serverStore.panelUpdate.releaseUrl" target="_blank" rel="noopener noreferrer">
         {{ panelUpdateLabel }}
       </a>
     </ATag>

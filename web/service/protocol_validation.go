@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/xtls/xray-core/infra/conf"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
 )
@@ -19,6 +20,11 @@ func validateInboundProtocolConfig(inbound *model.Inbound) error {
 	clients, err := parseInboundClients(inbound.Settings)
 	if err != nil {
 		return fmt.Errorf("invalid %s settings: %w", inbound.Protocol, err)
+	}
+	if inbound.Protocol == model.VLESS && strings.TrimSpace(inbound.Settings) != "" {
+		if err := validateVLESSFallbacks(inbound.Settings); err != nil {
+			return err
+		}
 	}
 	return validateInboundProtocolClients(inbound.Protocol, inbound.Settings, inbound.StreamSettings, clients)
 }
@@ -53,6 +59,37 @@ func validateInboundProtocolClients(protocol model.Protocol, settingsText string
 	}
 	if err := validateInboundProtocolStream(protocol, streamSettings); err != nil {
 		return fmt.Errorf("%s stream settings: %w", protocol, err)
+	}
+	return nil
+}
+
+func validateVLESSFallbacks(raw string) error {
+	var settings struct {
+		Decryption string                       `json:"decryption"`
+		Fallbacks  []*conf.VLessInboundFallback `json:"fallbacks"`
+	}
+	if err := json.Unmarshal([]byte(raw), &settings); err != nil {
+		return fmt.Errorf("invalid VLESS fallback settings: %w", err)
+	}
+	if len(settings.Fallbacks) == 0 {
+		return nil
+	}
+	if settings.Decryption == "" {
+		return fmt.Errorf("VLESS fallbacks require an explicit decryption value of none")
+	}
+	if settings.Decryption != "none" {
+		return fmt.Errorf("VLESS fallbacks cannot be combined with server decryption")
+	}
+	for _, fallback := range settings.Fallbacks {
+		if fallback == nil {
+			return fmt.Errorf("VLESS fallback entries must be objects")
+		}
+	}
+	// Let the core validate the same dest, path and PROXY version that it
+	// will build at startup. Other protocol settings are validated separately.
+	candidate := conf.VLessInboundConfig{Decryption: "none", Fallbacks: settings.Fallbacks}
+	if _, err := candidate.Build(); err != nil {
+		return fmt.Errorf("invalid VLESS fallbacks: %w", err)
 	}
 	return nil
 }

@@ -27,6 +27,16 @@ export default tseslint.config(
     rules: {
       'vue/multi-word-component-names': 'off',
       'vue/no-v-html': 'error',
+      // Prettier aligns continued logical operands inside v-if at the same indent.
+      'vue/html-indent': [
+        'warn',
+        2,
+        {
+          ignores: [
+            'VAttribute[directive=true][key.name.name="if"] > VExpressionContainer > LogicalExpression',
+          ],
+        },
+      ],
       'vue/max-attributes-per-line': 'off',
       'vue/singleline-html-element-content-newline': 'off',
       '@stylistic/semi': ['error', 'always'],

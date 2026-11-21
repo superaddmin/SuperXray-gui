@@ -103,6 +103,26 @@ test('buildWarpMatrixBaseSettings derives wireguard settings from warp payloads'
   assert.equal(settings.peers[0].publicKey, 'peer-public');
 });
 
+test('WARP accepts the provider registration and rejects missing peer or address data', () => {
+  const stored = { private_key: 'private-key' };
+  const config = {
+    client_id: 'AQID',
+    interface: { addresses: { v6: '2001:db8::7' } },
+    peers: [{ public_key: 'peer-key', endpoint: { host: 'example.invalid:2408' } }],
+  };
+  const settings = buildWarpMatrixBaseSettings(stored, { config });
+  assert.deepEqual(settings.address, ['2001:db8::7/128']);
+  assert.deepEqual(settings.reserved, [1, 2, 3]);
+  assert.throws(
+    () => buildWarpMatrixBaseSettings(stored, { config: { ...config, peers: [] } }),
+    /peer/,
+  );
+  assert.throws(
+    () => buildWarpMatrixBaseSettings(stored, { config: { ...config, interface: {} } }),
+    /address/,
+  );
+});
+
 test('applyWarpMatrixToTemplate preserves non-warp config and replaces old warp outputs', () => {
   const result = applyWarpMatrixToTemplate(
     {

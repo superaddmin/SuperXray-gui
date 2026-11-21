@@ -49,3 +49,28 @@ func TestSaveXrayTemplateValidatesBeforePersisting(t *testing.T) {
 		t.Fatal("normalized template was not persisted losslessly")
 	}
 }
+
+func TestFreedomRuntimeProjectionPreservesStoredTemplate(t *testing.T) {
+	setupSettingServiceTestDB(t)
+	s := &XraySettingService{}
+	s.validateConfig = func(cfg *xray.Config) error {
+		wire, err := json.Marshal(cfg)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(wire), `"delay"`) || !strings.Contains(string(wire), `"blockDelay":1`) {
+			t.Fatalf("staged and installed cores need the same block delay: %s", wire)
+		}
+		return nil
+	}
+	raw := `{"outbounds":[{"protocol":"freedom","settings":{"finalRules":[{"action":"allow","blockDelay":9},{"action":"block","delay":1}]}}]}`
+	if err := s.SaveXraySetting(raw); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SaveXraySetting(strings.Replace(raw, `"blockDelay":9`, `"delay":9`, 1)); err == nil {
+		t.Fatal("invalid allow rule was saved")
+	}
+	if stored, err := s.GetXrayConfigTemplate(); err != nil || stored != raw {
+		t.Fatalf("stored template changed: %s, %v", stored, err)
+	}
+}

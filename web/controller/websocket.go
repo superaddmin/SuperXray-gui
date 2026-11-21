@@ -2,12 +2,14 @@ package controller
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/superaddmin/SuperXray-gui/v2/logger"
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
+	"github.com/superaddmin/SuperXray-gui/v2/util/trustedproxy"
 	"github.com/superaddmin/SuperXray-gui/v2/web/session"
 	"github.com/superaddmin/SuperXray-gui/v2/web/websocket"
 
@@ -29,42 +31,26 @@ const (
 	maxMessageSize = 512
 )
 
-var upgrader = ws.Upgrader{
-	ReadBufferSize:    32768,
-	WriteBufferSize:   32768,
-	EnableCompression: true, // Negotiate permessage-deflate compression if the client supports it
-
-	CheckOrigin: func(r *http.Request) bool {
-		// Check origin for security
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			// Allow connections without Origin header (same-origin requests)
-			return true
-		}
-		// Get the host from the request
-		host := r.Host
-		// Extract scheme and host from origin
-		originURL := origin
-		// Simple check: origin should match the request host
-		// This prevents cross-origin WebSocket hijacking
-		if strings.HasPrefix(originURL, "http://") || strings.HasPrefix(originURL, "https://") {
-			// Extract host from origin
-			originHost := strings.TrimPrefix(strings.TrimPrefix(originURL, "http://"), "https://")
-			if idx := strings.Index(originHost, "/"); idx != -1 {
-				originHost = originHost[:idx]
-			}
-			if idx := strings.Index(originHost, ":"); idx != -1 {
-				originHost = originHost[:idx]
-			}
-			// Compare hosts (without port)
-			requestHost := host
-			if idx := strings.Index(requestHost, ":"); idx != -1 {
-				requestHost = requestHost[:idx]
-			}
-			return originHost == requestHost || originHost == "" || requestHost == ""
-		}
+func webSocketOriginAllowed(c *gin.Context) bool {
+	origins := c.Request.Header.Values("Origin")
+	if len(origins) == 0 {
+		return true // Non-browser clients may omit Origin.
+	}
+	if len(origins) != 1 {
 		return false
-	},
+	}
+	origin, err := url.Parse(origins[0])
+	if err != nil || origin.Hostname() == "" || origin.User != nil ||
+		origin.Path != "" || origin.RawQuery != "" || origin.ForceQuery || origin.Fragment != "" {
+		return false
+	}
+	scheme := trustedproxy.Scheme(c)
+	defaultPort := ":80"
+	if scheme == "https" {
+		defaultPort = ":443"
+	}
+	return strings.EqualFold(origin.Scheme, scheme) &&
+		strings.EqualFold(strings.TrimSuffix(origin.Host, defaultPort), strings.TrimSuffix(c.Request.Host, defaultPort))
 }
 
 // WebSocketController handles WebSocket connections for real-time updates
@@ -90,6 +76,12 @@ func (w *WebSocketController) HandleWebSocket(c *gin.Context) {
 	}
 
 	// Upgrade connection to WebSocket
+	upgrader := ws.Upgrader{
+		ReadBufferSize:    32768,
+		WriteBufferSize:   32768,
+		EnableCompression: true,
+		CheckOrigin:       func(*http.Request) bool { return webSocketOriginAllowed(c) },
+	}
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		logger.Error("Failed to upgrade WebSocket connection:", err)
@@ -150,9 +142,7 @@ func (w *WebSocketController) readPump(client *websocket.Client, conn *ws.Conn) 
 			continue
 		}
 
-		// Handle incoming messages (e.g., subscription requests)
-		// For now, we'll just log them
-		logger.Debugf("Received WebSocket message from client %s: %s", client.ID, string(message))
+		logger.Debugf("Received WebSocket message from client %s (%d bytes)", client.ID, len(message))
 	}
 }
 

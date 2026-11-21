@@ -20,6 +20,8 @@ import (
 	"github.com/superaddmin/SuperXray-gui/v2/util/common"
 )
 
+const startupWindow = 500 * time.Millisecond
+
 // GetBinaryName returns the Xray binary filename for the current OS and architecture.
 func GetBinaryName() string {
 	arch := runtime.GOARCH
@@ -331,7 +333,7 @@ func (p *process) Start() (err error) {
 	p.refreshAPIPort()
 	// #nosec G204 -- binary path and config path are local project-controlled values; no shell is invoked.
 	cmd := exec.Command(GetBinaryPath(), "-c", configPath)
-	if err := p.startWithConfig(configPath, data, cmd); err != nil {
+	if err := p.startWithConfig(configPath, data, cmd, startupWindow); err != nil {
 		return err
 	}
 	return nil
@@ -339,7 +341,7 @@ func (p *process) Start() (err error) {
 
 // startWithConfig restores the last runtime file when launching fails or the
 // child exits during its initial startup window (for example, a busy port).
-func (p *process) startWithConfig(configPath string, data []byte, cmd *exec.Cmd) (err error) {
+func (p *process) startWithConfig(configPath string, data []byte, cmd *exec.Cmd, window time.Duration) (err error) {
 	// #nosec G304 -- configuration path comes from the panel bin directory or a private test process.
 	previous, readErr := os.ReadFile(configPath)
 	if readErr != nil && !errors.Is(readErr, os.ErrNotExist) {
@@ -371,7 +373,7 @@ func (p *process) startWithConfig(configPath string, data []byte, cmd *exec.Cmd)
 	p.mu.RLock()
 	done := p.done
 	p.mu.RUnlock()
-	timer := time.NewTimer(500 * time.Millisecond)
+	timer := time.NewTimer(window)
 	defer timer.Stop()
 	select {
 	case <-done:

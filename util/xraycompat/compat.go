@@ -122,6 +122,16 @@ func NormalizeInbound(protocol, settings, stream string) (string, string, bool, 
 				}
 			}
 		}
+		if strings.EqualFold(protocol, "vless") {
+			// An empty array is still a configured fallback list to Xray,
+			// which rejects it when server-side decryption is enabled.
+			for key, value := range obj {
+				if fallbacks, ok := value.([]any); ok && strings.EqualFold(key, "fallbacks") && len(fallbacks) == 0 {
+					delete(obj, key)
+					changed = true
+				}
+			}
+		}
 		if strings.EqualFold(protocol, "shadowsocks") {
 			if method := stringValue(obj["method"]); method == "none" || method == "plain" {
 				return settings, stream, false, fmt.Errorf("shadowsocks cipher %q was removed by Xray; choose an AEAD cipher before upgrading", method)

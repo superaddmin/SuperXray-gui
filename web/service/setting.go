@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/superaddmin/SuperXray-gui/v2/database"
 	"github.com/superaddmin/SuperXray-gui/v2/database/model"
@@ -509,11 +510,18 @@ func (s *SettingService) SetBasePath(basePath string) error {
 }
 
 func (s *SettingService) GetBasePath() (string, error) {
+	basePath, _, err := s.GetBasePathInfo()
+	return basePath, err
+}
+
+// GetBasePathInfo reports the effective path and whether a stored legacy root needs initialization.
+func (s *SettingService) GetBasePathInfo() (string, bool, error) {
 	basePath, err := s.getString("webBasePath")
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
-	return normalizePanelBasePath(basePath), nil
+	basePath = strings.TrimSpace(basePath)
+	return normalizePanelBasePath(basePath), basePath == "" || basePath == "/", nil
 }
 
 func normalizePanelBasePath(basePath string) string {
@@ -831,12 +839,10 @@ func (s *SettingService) updateAllSetting(allSetting *entity.AllSetting, code st
 	if err != nil {
 		return err
 	}
-	submittedToken := strings.TrimSpace(allSetting.TwoFactorToken)
-	if submittedToken == "" {
+	submittedToken := normalizeTwoFactorSecret(allSetting.TwoFactorToken)
+	storedToken = normalizeTwoFactorSecret(storedToken)
+	if strings.TrimSpace(allSetting.TwoFactorToken) == "" {
 		submittedToken = storedToken
-	} else {
-		// Store the canonical unpadded form accepted by the login verifier.
-		submittedToken = strings.ToUpper(strings.TrimRight(submittedToken, "="))
 	}
 	if storedEnabled && (!allSetting.TwoFactorEnable || submittedToken != storedToken) {
 		if !validTwoFactorCode(storedToken, code, time.Now()) {
@@ -873,12 +879,22 @@ func (s *SettingService) updateAllSetting(allSetting *entity.AllSetting, code st
 	return common.Combine(errs...)
 }
 
+func normalizeTwoFactorSecret(secret string) string {
+	secret = strings.Map(func(r rune) rune {
+		if r == '-' || unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, secret)
+	return strings.TrimRight(strings.ToUpper(secret), "=")
+}
+
 func validTwoFactorSecret(secret string) bool {
+	secret = normalizeTwoFactorSecret(secret)
 	if len(secret) < 16 || len(secret) > 128 {
 		return false
 	}
-	unpadded := strings.TrimRight(secret, "=")
-	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(unpadded)
+	decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(secret)
 	return err == nil && len(decoded) >= 10
 }
 
@@ -886,10 +902,11 @@ func validTwoFactorCode(secret, code string, now time.Time) bool {
 	// Validate before invoking gotp, which panics on invalid Base32 input.
 	// Existing installations may have shorter secrets; verify them so users
 	// can still replace or disable a legacy authenticator safely.
+	secret = normalizeTwoFactorSecret(secret)
 	if secret == "" || len(secret) > 128 || len(code) != 6 {
 		return false
 	}
-	if _, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(strings.TrimRight(secret, "=")); err != nil {
+	if decoded, err := base32.StdEncoding.WithPadding(base32.NoPadding).DecodeString(secret); err != nil || len(decoded) == 0 {
 		return false
 	}
 	for _, character := range code {
@@ -897,7 +914,7 @@ func validTwoFactorCode(secret, code string, now time.Time) bool {
 			return false
 		}
 	}
-	expected := gotp.NewDefaultTOTP(strings.TrimRight(secret, "=")).AtTime(now)
+	expected := gotp.NewDefaultTOTP(secret).AtTime(now)
 	return subtle.ConstantTimeCompare([]byte(expected), []byte(code)) == 1
 }
 

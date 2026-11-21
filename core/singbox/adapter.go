@@ -37,9 +37,9 @@ type Adapter struct {
 	mu       sync.Mutex
 	options  Options
 	cmd      *exec.Cmd
-	running  bool
+	done     chan struct{}
+	stopping bool
 	lastErr  string
-	lastExit time.Time
 }
 
 func DefaultOptions() Options {
@@ -112,7 +112,7 @@ func (a *Adapter) Status(context.Context) (panelcore.Status, error) {
 
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.running && a.cmd != nil && a.cmd.Process != nil {
+	if a.cmd != nil {
 		return a.statusLocked(panelcore.StateRunning, "", a.cmd.Process.Pid), nil
 	}
 	return a.statusLocked(panelcore.StateStopped, a.lastErr, 0), nil
@@ -147,7 +147,7 @@ func (a *Adapter) Validate(ctx context.Context) (panelcore.LifecycleResult, erro
 	return panelcore.LifecycleResult{State: panelcore.StateStopped, Msg: "sing-box config is valid"}, nil
 }
 
-func (a *Adapter) Start(context.Context) (panelcore.LifecycleResult, error) {
+func (a *Adapter) Start(ctx context.Context) (panelcore.LifecycleResult, error) {
 	if err := a.ensureBinary(); err != nil {
 		return result(panelcore.StateNotInstalled, "", err), err
 	}
@@ -156,8 +156,18 @@ func (a *Adapter) Start(context.Context) (panelcore.LifecycleResult, error) {
 	}
 
 	a.mu.Lock()
+	for a.stopping {
+		done := a.done
+		a.mu.Unlock()
+		select {
+		case <-done:
+		case <-ctx.Done():
+			return result(panelcore.StateError, "", ctx.Err()), ctx.Err()
+		}
+		a.mu.Lock()
+	}
 	defer a.mu.Unlock()
-	if a.running && a.cmd != nil && a.cmd.Process != nil {
+	if a.cmd != nil {
 		return panelcore.LifecycleResult{State: panelcore.StateRunning, PID: a.cmd.Process.Pid, Msg: "sing-box is already running"}, nil
 	}
 
@@ -185,34 +195,37 @@ func (a *Adapter) Start(context.Context) (panelcore.LifecycleResult, error) {
 	}
 
 	a.cmd = cmd
-	a.running = true
+	a.done = make(chan struct{})
 	a.lastErr = ""
 	go a.wait(cmd, stdout, stderr)
 
 	return panelcore.LifecycleResult{State: panelcore.StateRunning, PID: cmd.Process.Pid, Msg: "sing-box started"}, nil
 }
 
-func (a *Adapter) Stop(context.Context) (panelcore.LifecycleResult, error) {
+func (a *Adapter) Stop(ctx context.Context) (panelcore.LifecycleResult, error) {
 	a.mu.Lock()
 	cmd := a.cmd
-	if !a.running || cmd == nil || cmd.Process == nil {
+	if cmd == nil {
 		a.mu.Unlock()
 		return panelcore.LifecycleResult{State: panelcore.StateStopped, Msg: "sing-box is not running"}, nil
 	}
 	pid := cmd.Process.Pid
-	a.mu.Unlock()
-
-	if err := cmd.Process.Kill(); err != nil {
-		return result(panelcore.StateError, "", err), err
+	done := a.done
+	if !a.stopping {
+		err := cmd.Process.Kill()
+		if err != nil && !errors.Is(err, os.ErrProcessDone) {
+			a.mu.Unlock()
+			return result(panelcore.StateError, "", err), err
+		}
+		a.stopping = err == nil
 	}
-
-	a.mu.Lock()
-	a.running = false
-	a.lastErr = ""
-	a.lastExit = time.Now()
 	a.mu.Unlock()
-
-	return panelcore.LifecycleResult{State: panelcore.StateStopped, PID: pid, Msg: "sing-box stopped"}, nil
+	select {
+	case <-done:
+		return panelcore.LifecycleResult{State: panelcore.StateStopped, PID: pid, Msg: "sing-box stopped"}, nil
+	case <-ctx.Done():
+		return result(panelcore.StateError, "", ctx.Err()), ctx.Err()
+	}
 }
 
 func (a *Adapter) Restart(ctx context.Context) (panelcore.LifecycleResult, error) {
@@ -223,20 +236,17 @@ func (a *Adapter) Restart(ctx context.Context) (panelcore.LifecycleResult, error
 }
 
 func (a *Adapter) wait(cmd *exec.Cmd, stdout *os.File, stderr *os.File) {
-	defer stdout.Close()
-	defer stderr.Close()
-
 	err := cmd.Wait()
+	_ = stdout.Close()
+	_ = stderr.Close()
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.cmd == cmd {
-		a.running = false
-		a.cmd = nil
-		a.lastExit = time.Now()
-		if err != nil {
-			a.lastErr = err.Error()
-		}
+	if err != nil && !a.stopping {
+		a.lastErr = err.Error()
 	}
+	a.cmd = nil
+	a.stopping = false
+	close(a.done)
 }
 
 func (a *Adapter) ensureBinary() error {

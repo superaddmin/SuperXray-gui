@@ -3,6 +3,8 @@ package ldaputil
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
+	"time"
 
 	"github.com/go-ldap/ldap/v3"
 )
@@ -21,8 +23,9 @@ type Config struct {
 	Invert     bool
 }
 
-// FetchVlessFlags returns map[email]enabled
-func FetchVlessFlags(cfg Config) (map[string]bool, error) {
+const directoryTimeout = 30 * time.Second
+
+func dialDirectory(cfg Config, timeout time.Duration) (*ldap.Conn, error) {
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 
 	scheme := "ldap"
@@ -32,7 +35,7 @@ func FetchVlessFlags(cfg Config) (map[string]bool, error) {
 
 	ldapURL := fmt.Sprintf("%s://%s", scheme, addr)
 
-	var opts []ldap.DialOpt
+	opts := []ldap.DialOpt{ldap.DialWithDialer(&net.Dialer{Timeout: timeout})}
 	if cfg.UseTLS {
 		opts = append(opts, ldap.DialWithTLSConfig(&tls.Config{
 			InsecureSkipVerify: false,
@@ -40,6 +43,16 @@ func FetchVlessFlags(cfg Config) (map[string]bool, error) {
 	}
 
 	conn, err := ldap.DialURL(ldapURL, opts...)
+	if err != nil {
+		return nil, err
+	}
+	conn.SetTimeout(timeout)
+	return conn, nil
+}
+
+// FetchVlessFlags returns map[email]enabled.
+func FetchVlessFlags(cfg Config) (map[string]bool, error) {
+	conn, err := dialDirectory(cfg, directoryTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -99,23 +112,7 @@ func FetchVlessFlags(cfg Config) (map[string]bool, error) {
 
 // AuthenticateUser searches user by cfg.UserAttr and attempts to bind with provided password.
 func AuthenticateUser(cfg Config, username, password string) (bool, error) {
-	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
-
-	scheme := "ldap"
-	if cfg.UseTLS {
-		scheme = "ldaps"
-	}
-
-	ldapURL := fmt.Sprintf("%s://%s", scheme, addr)
-
-	var opts []ldap.DialOpt
-	if cfg.UseTLS {
-		opts = append(opts, ldap.DialWithTLSConfig(&tls.Config{
-			InsecureSkipVerify: false,
-		}))
-	}
-
-	conn, err := ldap.DialURL(ldapURL, opts...)
+	conn, err := dialDirectory(cfg, directoryTimeout)
 	if err != nil {
 		return false, err
 	}

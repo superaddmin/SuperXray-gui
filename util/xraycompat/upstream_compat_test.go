@@ -2,11 +2,71 @@ package xraycompat
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/xtls/xray-core/infra/conf"
 )
+
+func TestRuntimeFreedomFinalRulesAcrossCoreVersions(t *testing.T) {
+	input := `[{"protocol":"direct","settings":{"finalRules":[
+		{"action":"Allow","blockDelay":9,"vendor":9007199254740993},
+		{"action":"Block","delay":2,"blockDelay":"3-5","logLevel":"Warning"},
+		{"action":"block","delay":0,"blockDelay":null}]}}]`
+	wire, err := RuntimeOutbounds([]byte(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got, want any
+	if err := decode(string(wire), &got); err != nil {
+		t.Fatal(err)
+	}
+	if err := decode(`[{"protocol":"direct","settings":{"finalRules":[
+		{"action":"Allow","vendor":9007199254740993},{"action":"Block","blockDelay":"3-5","logLevel":"Warning"},
+		{"action":"block","blockDelay":0}]}}]`, &want); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected runtime rules: %s", wire)
+	}
+	if again, err := RuntimeOutbounds(wire); err != nil || string(again) != string(wire) {
+		t.Fatalf("second projection changed rules: %s %v", again, err)
+	}
+	for _, rule := range []string{
+		`{"action":"allow","delay":0}`, `{"action":"allow","logLevel":"none"}`,
+		`{"action":"block","logLevel":[]}`, `{"action":"block","logLevel":"invalid"}`,
+	} {
+		_, err := RuntimeOutbounds([]byte(`[{"protocol":"freedom","settings":{"finalRules":[` + rule + `]}}]`))
+		if err == nil || !strings.Contains(err.Error(), "finalRules[0]") {
+			t.Fatalf("invalid rule was not located: %s %v", rule, err)
+		}
+	}
+}
+
+func TestRuntimeFreedomUsesCoreFieldMatching(t *testing.T) {
+	raw := `[{"Protocol":"freedom","Settings":{"FinalRules":[
+		{"Action":"Allow","BlockDelay":3,"note":9007199254740993},
+		{"Action":"Block","BLOCKDELAY":1,"blockdelay":2,"Delay":9},
+		{"Action":"Block","Delay":4,"LOGLEVEL":"debug"}]}}]`
+	wire, err := RuntimeOutbounds([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got, want any
+	if err := decode(string(wire), &got); err != nil {
+		t.Fatal(err)
+	}
+	if err := decode(`[{"Protocol":"freedom","settings":{"finalRules":[
+		{"Action":"Allow","note":9007199254740993},
+		{"Action":"Block","blockDelay":2},
+		{"Action":"Block","blockDelay":4,"LOGLEVEL":"debug"}]}}]`, &want); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("historical key spellings were not projected: %s", wire)
+	}
+}
 
 func TestUpstreamLuaConflictsFailAtomically(t *testing.T) {
 	for _, raw := range []string{

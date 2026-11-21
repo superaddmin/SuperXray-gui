@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "cd .. && node --test --experimental-strip-types frontend/tests/*.test.ts",
     "typecheck": "vue-tsc -b --noEmit",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
   },

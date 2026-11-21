@@ -473,6 +473,8 @@ test('validateTunSettings accepts IPv4 and IPv6 values and rejects invalid netwo
   assert.match(validateTunSettings({ ...valid, gateway: ['10.0.0.1/99'] }), /gateway CIDR/);
   assert.match(validateTunSettings({ ...valid, dns: ['1.1.1.999'] }), /DNS address/);
   assert.match(validateTunSettings({ ...valid, dns: ['010.0.0.1'] }), /DNS address/);
+  assert.match(validateTunSettings({ ...valid, dns: ['192.0.2.1::'] }), /DNS address/);
+  assert.equal(validateTunSettings({ ...valid, dns: ['::ffff:192.0.2.1'] }), '');
   assert.match(
     validateTunSettings({ ...valid, autoSystemRoutingTable: ['not-a-prefix'] }),
     /system route CIDR/,

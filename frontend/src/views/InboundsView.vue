@@ -1730,6 +1730,7 @@ import {
   resetAllInboundTraffics,
   resetAllInboundClientTraffics,
   resetInboundClientTraffic,
+  resetInboundTraffic,
   updateInbound,
   updateInboundClient,
 } from '@/api/inbounds';
@@ -2880,7 +2881,7 @@ async function runResetInboundTraffic(inbound: Inbound) {
   busyInboundId.value = inbound.id;
   error.value = '';
   try {
-    await updateInbound(inbound.id, { ...inbound, up: 0, down: 0 }, { notifyOnError: false });
+    await resetInboundTraffic(inbound.id, { notifyOnError: false });
     void message.success('Inbound traffic reset');
     await refreshInbounds();
   } catch (caught) {

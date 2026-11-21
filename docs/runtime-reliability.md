@@ -1,6 +1,6 @@
 # 请求、数据库迁移、Xray 与流量统计可靠性
 
-> 源码核对日期：基础文档 2026-10-15；v3.7.4 增量 2026-11-15。事实来源：`database/`、`web/web.go`、`sub/sub.go`、`web/middleware/`、`web/service/{metrics,geofile,inbound,outbound,database_import,xray,xray_update,public_ip_cache}.go`、`web/job/`、`xray/` 及其回归测试。
+> 源码核对日期：基础文档 2026-10-15；v3.7.5 增量 2026-11-21。事实来源：`database/`、`web/web.go`、`sub/sub.go`、`web/middleware/`、`web/service/{metrics,geofile,inbound,outbound,database_import,xray,xray_update,public_ip_cache}.go`、`web/job/`、`xray/` 及其回归测试。
 
 本文记录请求观测、HTTP 超时、定时任务、数据库迁移、Xray/Geo 更新与流量统计的当前行为和验证方式。
 
@@ -20,7 +20,7 @@
 
 `service.InitDB` 将建表、baseline、密码 seeder、旧 Xray JSON 规范化、历史入站/客户端迁移及孤立流量清理放入同一事务。成功提交后才原子发布连接；字段转换失败包含相关入站或设置上下文并回滚全部数据写入。再次运行不会重复创建 baseline 或对 bcrypt 再次哈希。当前没有通用 down migration runner。
 
-v3.7.4 新库保持没有账号，使用本地 CLI [显式初始化](upstream-v3.7.3-bootstrap.md)。新增的内部 `inbounds.quota_disabled` 列默认 `false`，不对 API JSON/表单开放；旧版没有原因标记的关闭状态不会被迁移推断为配额关闭。
+v3.7.5 新库保持没有账号，使用本地 CLI [显式初始化](upstream-v3.7.3-bootstrap.md)。新增的内部 `inbounds.quota_disabled` 列默认 `false`，不对 API JSON/表单开放；旧版没有原因标记的关闭状态不会被迁移推断为配额关闭。
 
 导出通过 SQLite `VACUUM INTO` 生成包括已提交 WAL 页的独立快照。导入最多接收 64 MiB 数据库，先在私有候选库运行 `integrity_check`、完整迁移和实际 Xray 配置预检；预检期间不把候选连接发布到全局，也不调用流量更新。导入需要可用的本机 Xray 以及配置引用的证书和 Geo 文件。
 

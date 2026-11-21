@@ -23,6 +23,7 @@ import {
   getOutboundRows,
   getResidentialIpRows,
   getReverseRows,
+  getRoutingInboundTagCandidates,
   getRoutingRuleRows,
   getRuntimePolicyForm,
   moveArrayItem,
@@ -34,6 +35,15 @@ import {
   upsertReverse,
   upsertRoutingRule,
 } from '../src/utils/xrayCompat.ts';
+
+test('AdGuard Family DNS installs the family protection IPv4 and IPv6 resolvers', () => {
+  const family = DNS_PRESET_OPTIONS.find((item) => item.name === 'Adguard Family DNS');
+  assert.ok(family);
+  assert.deepEqual(applyDnsPreset({}, family.data).dns, {
+    servers: ['94.140.14.15', '94.140.15.16', '2a10:50c0::bad1:ff', '2a10:50c0::bad2:ff'],
+    queryStrategy: 'UseIP',
+  });
+});
 
 test('upsertOutbound adds and updates outbound rows in template settings', () => {
   const template = { outbounds: [{ tag: 'direct', protocol: 'freedom' }] };
@@ -73,7 +83,7 @@ test('routing helpers manage rules without destroying existing routing config', 
     ipText: '',
     sourceText: '',
     userText: '',
-    inboundTagText: '',
+    inboundTags: [],
     protocolText: '',
     attrsJson: '{}',
     networkText: 'tcp',
@@ -85,6 +95,53 @@ test('routing helpers manage rules without destroying existing routing config', 
 
   const deleted = deleteRoutingRuleAt(next, 0);
   assert.equal(getRoutingRuleRows(deleted).length, 0);
+});
+
+test('routing candidate sources preserve tag identity and ignore duplicates and malformed entries', () => {
+  const config = {
+    inbounds: [{ tag: 'db' }, { tag: 'local,only' }, { port: 80 }, null],
+    dns: {
+      tag: 'DNS',
+      servers: ['localhost', { tag: 'dns' }, { tag: 'DNS' }, { tag: 4 }, null],
+    },
+    outbounds: [{ tag: 'out-only' }],
+  };
+  assert.deepEqual(getRoutingInboundTagCandidates(config, ['db', null, '', '  ', ' DB ']), [
+    ' DB ',
+    'DNS',
+    'db',
+    'dns',
+    'local,only',
+  ]);
+  assert.deepEqual(getRoutingInboundTagCandidates(null, ['db']), ['db']);
+  assert.deepEqual(getRoutingInboundTagCandidates({}, null), []);
+});
+
+test('editing routing tags preserves exact historical tags and unedited Xray rule fields', () => {
+  const original = {
+    ruleTag: 'custom',
+    outboundTag: 'direct',
+    inboundTag: ['old,tag', ' old tag '],
+    network: 'tcp,udp',
+    port: '443',
+    sourceIP: ['geoip:private'],
+  };
+  const unrelated = { type: 'field', domain: ['example.org'], outboundTag: 'blocked' };
+  const config = { routing: { rules: [original, unrelated] } };
+  const [row] = getRoutingRuleRows(config);
+  assert.deepEqual(row.inboundTags, original.inboundTag);
+  const next = upsertRoutingRule(config, 0, {
+    ...row,
+    inboundTags: [...row.inboundTags, 'custom', 'custom'],
+  });
+  assert.deepEqual(next.routing, {
+    rules: [{ ...original, inboundTag: [...original.inboundTag, 'custom'] }, unrelated],
+  });
+  const cleared = upsertRoutingRule(next, 0, { ...getRoutingRuleRows(next)[0], inboundTags: [] });
+  const { inboundTag, ...withoutTags } = original;
+  assert.deepEqual(inboundTag, ['old,tag', ' old tag ']);
+  assert.deepEqual(cleared.routing, { rules: [withoutTags, unrelated] });
+  assert.deepEqual(config.routing.rules[0], original);
 });
 
 test('dns helpers create dns section on demand and preserve query strategy', () => {
@@ -253,6 +310,16 @@ test('runtime policy form updates routing, log, policy.system, and direct freedo
   assert.equal(form.dnsLog, true);
   assert.equal(form.statsInboundUplink, true);
   assert.equal(form.statsOutboundDownlink, true);
+});
+
+test('runtime log levels accept both spellings and save only the canonical Xray key', () => {
+  assert.equal(getRuntimePolicyForm({ log: { loglevel: 'error' } }).logLevel, 'error');
+  const config = { log: { logLevel: 'info', loglevel: 'none', access: '/var/log/access' } };
+  const form = getRuntimePolicyForm(config);
+  assert.equal(form.logLevel, 'info');
+  const next = applyRuntimePolicyForm(config, { ...form, logLevel: 'debug' });
+  assert.deepEqual(next.log, { logLevel: 'debug', access: '/var/log/access', dnsLog: false });
+  assert.equal(config.log.loglevel, 'none');
 });
 
 test('observatory form reads and writes observatory json blocks', () => {

@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	_ "unsafe"
 
 	"github.com/superaddmin/SuperXray-gui/v2/config"
 	"github.com/superaddmin/SuperXray-gui/v2/database"
@@ -23,6 +22,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/op/go-logging"
+	"gorm.io/gorm"
 )
 
 // runWebServer initializes and starts the web server for the SuperXray panel.
@@ -66,7 +66,6 @@ func runWebServer() {
 	err = server.Start()
 	if err != nil {
 		log.Fatalf("Error starting web server: %v", err)
-		return
 	}
 
 	var subServer *sub.Server
@@ -75,7 +74,6 @@ func runWebServer() {
 	err = subServer.Start()
 	if err != nil {
 		log.Fatalf("Error starting sub server: %v", err)
-		return
 	}
 
 	sigCh := make(chan os.Signal, 1)
@@ -106,7 +104,6 @@ func runWebServer() {
 			err = server.Start()
 			if err != nil {
 				log.Fatalf("Error restarting web server: %v", err)
-				return
 			}
 			log.Println("Web server restarted successfully.")
 
@@ -115,7 +112,6 @@ func runWebServer() {
 			err = subServer.Start()
 			if err != nil {
 				log.Fatalf("Error restarting sub server: %v", err)
-				return
 			}
 			log.Println("Sub server restarted successfully.")
 		case sys.SIGUSR1:
@@ -175,46 +171,45 @@ func hasDefaultPanelCredential() (bool, error) {
 	return user.Username == "admin" && crypto.CheckPasswordHash(user.Password, "admin"), nil
 }
 
-// showSetting displays the current panel settings if show is true.
-func showSetting(show bool) {
-	if show {
-		settingService := service.SettingService{}
-		port, err := settingService.GetPort()
-		if err != nil {
-			fmt.Println("get current port failed, error info:", err)
-		}
-
-		webBasePath, err := settingService.GetBasePath()
-		if err != nil {
-			fmt.Println("get webBasePath failed, error info:", err)
-		}
-
-		certFile, err := settingService.GetCertFile()
-		if err != nil {
-			fmt.Println("get cert file failed, error info:", err)
-		}
-		keyFile, err := settingService.GetKeyFile()
-		if err != nil {
-			fmt.Println("get key file failed, error info:", err)
-		}
-
-		hasDefaultCredential, err := hasDefaultPanelCredential()
-		if err != nil {
-			fmt.Println("get current user info failed, error info:", err)
-			return
-		}
-
-		fmt.Println("current panel settings as follows:")
-		if certFile == "" || keyFile == "" {
-			fmt.Println("Warning: Panel is not secure with SSL")
-		} else {
-			fmt.Println("Panel is secure with SSL")
-		}
-
-		fmt.Println("hasDefaultCredential:", hasDefaultCredential)
-		fmt.Println("port:", port)
-		fmt.Println("webBasePath:", webBasePath)
+// showSetting prints a complete snapshot after all reads have succeeded.
+func showSetting(includeCert bool) error {
+	settingService := service.SettingService{}
+	port, err := settingService.GetPort()
+	if err != nil {
+		return fmt.Errorf("get current port: %w", err)
 	}
+	webBasePath, initializePath, err := settingService.GetBasePathInfo()
+	if err != nil {
+		return fmt.Errorf("get webBasePath: %w", err)
+	}
+	certFile, err := settingService.GetCertFile()
+	if err != nil {
+		return fmt.Errorf("get certificate path: %w", err)
+	}
+	keyFile, err := settingService.GetKeyFile()
+	if err != nil {
+		return fmt.Errorf("get certificate key path: %w", err)
+	}
+	hasDefaultCredential, err := hasDefaultPanelCredential()
+	if err != nil {
+		return fmt.Errorf("get current user: %w", err)
+	}
+
+	fmt.Println("current panel settings as follows:")
+	if certFile == "" || keyFile == "" {
+		fmt.Println("Warning: Panel is not secure with SSL")
+	} else {
+		fmt.Println("Panel is secure with SSL")
+	}
+	fmt.Println("hasDefaultCredential:", hasDefaultCredential)
+	fmt.Println("port:", port)
+	fmt.Println("webBasePath:", webBasePath)
+	if includeCert {
+		fmt.Println("initializeWebBasePath:", initializePath)
+		fmt.Println("cert:", certFile)
+		fmt.Println("key:", keyFile)
+	}
+	return nil
 }
 
 // updateTgbotEnableSts enables or disables the Telegram bot notifications based on the status parameter.
@@ -283,59 +278,55 @@ func updateSetting(port int, username string, password string, webBasePath strin
 		return err
 	}
 
-	settingService := service.SettingService{}
-	userService := service.UserService{}
-
-	if port > 0 {
-		err := settingService.SetPort(port)
-		if err != nil {
-			fmt.Println("端口设置失败:", err)
-		} else {
-			fmt.Printf("端口设置成功: %v\n", port)
-		}
+	if port <= 0 && username == "" && password == "" && webBasePath == "" && listenIP == "" && !resetTwoFactor {
+		return nil
 	}
-
-	if username != "" || password != "" {
-		err := userService.UpdateFirstUser(username, password)
-		if err != nil {
-			fmt.Println("用户名和密码更新失败:", err)
-		} else {
-			fmt.Println("用户名和密码更新成功")
-		}
-	}
-
-	if webBasePath != "" {
-		err := settingService.SetBasePath(webBasePath)
-		if err != nil {
-			fmt.Println("Web 基础路径设置失败:", err)
-		} else {
-			fmt.Println("Web 基础路径设置成功")
-		}
-	}
-
-	if resetTwoFactor {
-		err := settingService.SetTwoFactorEnable(false)
-
-		if err != nil {
-			fmt.Println("双因素认证重置失败:", err)
-		} else {
-			if err := settingService.SetTwoFactorToken(""); err != nil {
-				fmt.Println("双因素认证令牌重置失败:", err)
-				return err
+	var messages []string
+	err = database.GetDB().Transaction(func(tx *gorm.DB) error {
+		repos := database.NewRepositories(tx)
+		settings := service.NewSettingService(repos.Settings)
+		if port > 0 {
+			if err := settings.SetPort(port); err != nil {
+				return fmt.Errorf("端口设置失败: %w", err)
 			}
-			fmt.Println("双因素认证重置成功")
+			messages = append(messages, fmt.Sprintf("端口设置成功: %v", port))
 		}
-	}
-
-	if listenIP != "" {
-		err := settingService.SetListen(listenIP)
-		if err != nil {
-			fmt.Println("监听 IP 设置失败:", err)
-		} else {
-			fmt.Printf("监听地址 %v 设置成功", listenIP)
+		if username != "" || password != "" {
+			users := service.NewUserService(repos.Users, *settings)
+			if err := users.UpdateFirstUser(username, password); err != nil {
+				return fmt.Errorf("用户名和密码更新失败: %w", err)
+			}
+			messages = append(messages, "用户名和密码更新成功")
 		}
+		if webBasePath != "" {
+			if err := settings.SetBasePath(webBasePath); err != nil {
+				return fmt.Errorf("设置 Web 基础路径失败: %w", err)
+			}
+			messages = append(messages, "Web 基础路径设置成功")
+		}
+		if resetTwoFactor {
+			if err := settings.SetTwoFactorEnable(false); err != nil {
+				return fmt.Errorf("双因素认证重置失败: %w", err)
+			}
+			if err := settings.SetTwoFactorToken(""); err != nil {
+				return fmt.Errorf("双因素认证令牌重置失败: %w", err)
+			}
+			messages = append(messages, "双因素认证重置成功")
+		}
+		if listenIP != "" {
+			if err := settings.SetListen(listenIP); err != nil {
+				return fmt.Errorf("监听 IP 设置失败: %w", err)
+			}
+			messages = append(messages, fmt.Sprintf("监听地址 %v 设置成功", listenIP))
+		}
+		return nil
+	})
+	if err != nil {
+		return err
 	}
-
+	for _, message := range messages {
+		fmt.Println(message)
+	}
 	return nil
 }
 
@@ -509,16 +500,20 @@ func main() {
 			}
 		} else {
 			if err = updateSetting(port, username, password, webBasePath, listenIP, resetTwoFactor); err != nil {
-				return
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
 			}
 		}
 		if show {
-			showSetting(show)
+			if err := showSetting(getCert); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
 		}
 		if getListen {
 			GetListenIP(getListen)
 		}
-		if getCert {
+		if getCert && !show {
 			GetCertificate(getCert)
 		}
 		if (tgbottoken != "") || (tgbotchatid != "") || (tgbotRuntime != "") {
