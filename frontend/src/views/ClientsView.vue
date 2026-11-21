@@ -1,9 +1,8 @@
 <template>
   <section class="page-stack clients-page" :aria-busy="loading">
     <PageHeader
-      eyebrow="Overview"
-      title="Clients"
-      :description="translate('clients.description', appStore.locale)"
+      :title="translate('common.clients', appStore.locale)"
+      :description="translate('clients.detailsDescription', appStore.locale)"
     >
       <AButton
         :aria-label="translate('clients.refreshLabel', appStore.locale)"
@@ -14,13 +13,12 @@
         @click="refresh"
       >
         <template #icon><ReloadOutlined /></template>
-        Refresh
+        {{ translate('action.refresh', appStore.locale) }}
       </AButton>
     </PageHeader>
 
     <AAlert
       v-if="error"
-      class="clients-error"
       banner
       closable
       show-icon
@@ -29,83 +27,67 @@
       @close="error = ''"
     />
 
-    <div class="status-grid">
+    <div class="status-grid clients-stats">
       <StatusTile
         label="Clients"
         :value="formatCount(rows.length)"
-        hint="Across all inbounds"
+        :hint="translate('clients.allInboundsHint', appStore.locale)"
         tone="success"
       />
       <StatusTile
         label="Enabled"
         :value="formatCount(enabledCount)"
-        hint="Enabled client records"
+        :hint="translate('clients.enabledHint', appStore.locale)"
         tone="success"
       />
       <StatusTile
         label="Online"
-        :value="formatCount(onlineCount)"
-        hint="Currently online"
+        :value="onlineCount === null ? '—' : formatCount(onlineCount)"
+        :hint="translate('clients.onlineHint', appStore.locale)"
         tone="info"
       />
       <StatusTile
         label="Inbounds"
         :value="formatCount(inbounds.length)"
-        hint="Source inbounds"
+        :hint="translate('clients.inboundsHint', appStore.locale)"
         tone="neutral"
       />
     </div>
 
-    <ACard class="work-panel" :bordered="false">
+    <ACard class="work-panel clients-panel" :bordered="false">
       <div class="section-toolbar clients-toolbar">
-        <div class="clients-toolbar-copy">
-          <div class="clients-title-row">
-            <h2>{{ translate('clients.detailsTitle', appStore.locale) }}</h2>
-            <ATag class="clients-result-tag" color="blue">
-              {{ resultSummary }}
-            </ATag>
-          </div>
-          <p>
-            {{ translate('clients.detailsDescription', appStore.locale) }}
-          </p>
-        </div>
-        <div
-          class="client-filter-toolbar"
-          role="search"
-          :aria-label="translate('clients.filterLabel', appStore.locale)"
-        >
-          <AInput
-            v-model:value="search"
-            :aria-label="translate('clients.searchLabel', appStore.locale)"
-            class="client-filter-input"
-            allow-clear
-            :placeholder="translate('clients.searchPlaceholder', appStore.locale)"
-          >
-            <template #prefix><SearchOutlined /></template>
-          </AInput>
-          <ASelect
-            v-model:value="inboundFilter"
-            :aria-label="translate('clients.filterInboundLabel', appStore.locale)"
-            class="client-filter-select"
-          >
-            <ASelectOption value="all">
-              {{ translate('clients.allInbounds', appStore.locale) }}
-            </ASelectOption>
-            <ASelectOption v-for="inbound in inbounds" :key="inbound.id" :value="inbound.id">
-              {{ inboundLabel(inbound) }}
-            </ASelectOption>
-          </ASelect>
-          <AButton v-if="hasFilters" class="client-clear-filters" type="text" @click="clearFilters">
-            {{ translate('clients.clearFilters', appStore.locale) }}
-          </AButton>
-        </div>
+        <h2>{{ translate('clients.detailsTitle', appStore.locale) }}</h2>
+        <span class="clients-count" role="status">{{ resultSummary }}</span>
       </div>
-
-      <div class="client-table-meta" aria-live="polite">
-        <span>{{ resultSummary }}</span>
-        <span v-if="hasFilters" class="client-table-meta-hint">
-          {{ translate('clients.filtersActive', appStore.locale) }}
-        </span>
+      <div
+        class="client-filter-toolbar"
+        role="search"
+        :aria-label="translate('clients.filterLabel', appStore.locale)"
+      >
+        <AInput
+          v-model:value="search"
+          :aria-label="translate('clients.searchLabel', appStore.locale)"
+          class="client-filter-input"
+          allow-clear
+          :placeholder="translate('clients.searchPlaceholder', appStore.locale)"
+        >
+          <template #prefix><SearchOutlined /></template>
+        </AInput>
+        <ASelect
+          v-model:value="inboundFilter"
+          :aria-label="translate('clients.filterInboundLabel', appStore.locale)"
+          class="client-filter-select"
+        >
+          <ASelectOption value="all">
+            <span>{{ translate('clients.allInbounds', appStore.locale) }}</span>
+          </ASelectOption>
+          <ASelectOption v-for="inbound in inbounds" :key="inbound.id" :value="inbound.id">
+            {{ inboundLabel(inbound) }}
+          </ASelectOption>
+        </ASelect>
+        <AButton v-if="hasFilters" class="client-clear-filters" @click="clearFilters">
+          {{ translate('clients.clearFilters', appStore.locale) }}
+        </AButton>
       </div>
 
       <ATable
@@ -114,69 +96,102 @@
         :data-source="filteredRows"
         :locale="tableLocale"
         :loading="loading"
-        :pagination="{ pageSize: 20, showSizeChanger: true }"
-        :row-class-name="rowClassName"
-        row-key="key"
+        :pagination="pagination"
+        row-key="tableKey"
         size="middle"
-        :scroll="{ x: 1500 }"
+        table-layout="fixed"
+        @change="changePage"
       >
         <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'inbound'">
-            <strong>{{ record.inboundLabel }}</strong>
-            <div class="muted-text">{{ record.inboundMeta }}</div>
+          <template v-if="column.key === 'client'">
+            <strong class="client-name">{{
+              record.email || translate('clients.unnamed', appStore.locale)
+            }}</strong>
+            <ATag class="client-protocol">{{ record.protocol }}</ATag>
           </template>
-          <template v-else-if="column.key === 'email'">
-            {{ record.email || '-' }}
-          </template>
-          <template v-else-if="column.key === 'protocol'">
-            <ATag>{{ record.protocol }}</ATag>
-          </template>
-          <template v-else-if="column.key === 'credential'">
-            <code class="client-credential">{{ maskSecret(record.credential) || '-' }}</code>
-          </template>
-          <template v-else-if="column.key === 'subId'">
-            <code class="client-credential">{{ maskSecret(record.subId) || '-' }}</code>
+          <template v-else-if="column.key === 'inbound'">
+            <span class="client-mobile-label">{{ column.title }}</span>
+            <span>{{ record.inboundLabel }}</span>
           </template>
           <template v-else-if="column.key === 'traffic'">
-            {{ record.trafficLabel }}
+            <span class="client-mobile-label">{{ column.title }}</span>
+            <span>{{ record.trafficLabel }}</span>
           </template>
-          <template v-else-if="column.key === 'expiry'">
-            {{ record.expiryLabel }}
-          </template>
-          <template v-else-if="column.key === 'enabled'">
-            <ATag :color="record.enabled ? 'green' : 'red'">
-              {{ record.enabled ? 'Enabled' : 'Disabled' }}
-            </ATag>
-          </template>
-          <template v-else-if="column.key === 'online'">
-            <ATag :color="record.online ? 'green' : undefined">
-              {{ record.online ? 'Online' : 'Offline' }}
-            </ATag>
-          </template>
-          <template v-else-if="column.key === 'lastOnline'">
-            {{ record.lastOnlineLabel }}
+          <template v-else-if="column.key === 'status'">
+            <span class="client-mobile-label">{{ column.title }}</span>
+            <div class="client-states">
+              <ATag :color="record.enabled ? 'green' : 'red'">
+                <span>{{ record.enabled ? 'Enabled' : 'Disabled' }}</span>
+              </ATag>
+              <span class="client-online">{{
+                record.online === null
+                  ? translate('clients.unknown', appStore.locale)
+                  : translateDomText(record.online ? 'Online' : 'Offline', appStore.locale)
+              }}</span>
+            </div>
           </template>
           <template v-else-if="column.key === 'actions'">
-            <AButton
-              :aria-label="clientActionAriaLabel(asClientRow(record))"
-              class="client-action-button"
-              :danger="record.clientEnabled"
-              :disabled="clientActionDisabled(asClientRow(record))"
-              :loading="clientActionKey === record.key"
-              size="middle"
-              type="text"
-              @click="toggleClient(asClientRow(record))"
-            >
-              <template #icon>
-                <StopOutlined v-if="record.clientEnabled" />
-                <PlayCircleOutlined v-else />
-              </template>
-              {{ record.clientEnabled ? 'Stop' : 'Start' }}
-            </AButton>
+            <div class="client-actions">
+              <AButton aria-haspopup="dialog" @click="openClientDetails(record.key, $event)">
+                {{ translate('clients.detailsAction', appStore.locale) }}
+              </AButton>
+              <AButton
+                :aria-label="clientActionAriaLabel(asClientRow(record))"
+                class="client-action-button"
+                :danger="record.clientEnabled"
+                :disabled="clientActionDisabled(asClientRow(record))"
+                :loading="clientActionKey === record.key"
+                @click="toggleClient(asClientRow(record))"
+              >
+                <template #icon>
+                  <StopOutlined v-if="record.clientEnabled" aria-hidden="true" />
+                  <PlayCircleOutlined v-else aria-hidden="true" />
+                </template>
+                {{
+                  translate(record.clientEnabled ? 'action.stop' : 'action.start', appStore.locale)
+                }}
+              </AButton>
+            </div>
           </template>
         </template>
       </ATable>
     </ACard>
+
+    <AModal
+      :open="Boolean(selectedClient)"
+      :title="translate('clients.detailsTitle', appStore.locale)"
+      :footer="null"
+      :focus-trigger-after-close="false"
+      :after-close="restoreDetailsFocus"
+      width="min(32rem, calc(100vw - 24px))"
+      @cancel="selectedClientKey = ''"
+    >
+      <template v-if="selectedClient">
+        <h3 ref="detailHeading" class="client-detail-heading" tabindex="-1">
+          {{ selectedClient.email || translate('clients.unnamed', appStore.locale) }}
+        </h3>
+        <dl class="client-detail-fields">
+          <dt>Inbound</dt>
+          <dd>{{ selectedClient.inboundLabel }}</dd>
+          <dt>Address</dt>
+          <dd>{{ selectedClient.inboundMeta }}</dd>
+          <dt>Traffic</dt>
+          <dd>{{ selectedClient.trafficLabel }}</dd>
+          <dt>Expiry</dt>
+          <dd>{{ selectedClient.expiryLabel }}</dd>
+          <dt>Last Online</dt>
+          <dd>{{ selectedClient.lastOnlineLabel }}</dd>
+          <dt>{{ translate('common.credentials', appStore.locale) }}</dt>
+          <dd>
+            <code>{{ maskSecret(selectedClient.credential) || '—' }}</code>
+          </dd>
+          <dt>Sub ID</dt>
+          <dd>
+            <code>{{ maskSecret(selectedClient.subId) || '—' }}</code>
+          </dd>
+        </dl>
+      </template>
+    </AModal>
   </section>
 </template>
 
@@ -192,13 +207,15 @@ import {
   Button as AButton,
   Card as ACard,
   Input as AInput,
+  Modal as AModal,
   Select as ASelect,
   SelectOption as ASelectOption,
   Table as ATable,
   Tag as ATag,
 } from 'ant-design-vue';
-import type { TableColumnsType } from 'ant-design-vue';
-import { computed, onMounted, ref } from 'vue';
+import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue';
+import zhPagination from 'ant-design-vue/es/vc-pagination/locale/zh_CN';
+import { computed, onMounted, ref, watch } from 'vue';
 
 import {
   getClientsLastOnline,
@@ -209,7 +226,7 @@ import {
 } from '@/api/inbounds';
 import PageHeader from '@/components/PageHeader.vue';
 import StatusTile from '@/components/StatusTile.vue';
-import { translate } from '@/i18n/messages';
+import { translate, translateDomText } from '@/i18n/messages';
 import { protocolSupportsClients } from '@/schemas/protocolRegistry';
 import { useAppStore } from '@/stores/app';
 import type { Inbound, InboundClient } from '@/types/inbound';
@@ -224,6 +241,7 @@ import {
 
 interface AggregatedClientRow {
   key: string;
+  tableKey: string;
   inboundId: number;
   inboundLabel: string;
   inboundMeta: string;
@@ -236,33 +254,45 @@ interface AggregatedClientRow {
   enabled: boolean;
   client: InboundClient;
   clientEnabled: boolean;
-  online: boolean;
+  online: boolean | null;
   lastOnlineLabel: string;
 }
 
 const appStore = useAppStore();
 const inbounds = ref<Inbound[]>([]);
-const onlineClients = ref<string[]>([]);
+const onlineClients = ref<Set<string> | null>(null);
 const lastOnlineMap = ref<Record<string, number>>({});
 const loading = ref(false);
+const clientListCurrent = ref(false);
 const error = ref('');
 const search = ref('');
 const inboundFilter = ref<number | 'all'>('all');
 const clientActionKey = ref('');
 
-const columns: TableColumnsType<AggregatedClientRow> = [
-  { title: 'Inbound', key: 'inbound', width: 230 },
-  { title: 'Email', key: 'email', width: 220 },
-  { title: 'Protocol', key: 'protocol', width: 110 },
-  { title: 'Credential', key: 'credential', width: 280 },
-  { title: 'Sub ID', key: 'subId', width: 220 },
-  { title: 'Traffic', key: 'traffic', width: 180 },
-  { title: 'Expiry', key: 'expiry', width: 190 },
-  { title: 'Enabled', key: 'enabled', width: 110 },
-  { title: 'Online', key: 'online', width: 110 },
-  { title: 'Last Online', key: 'lastOnline', width: 190 },
-  { title: 'Actions', key: 'actions', width: 110, fixed: 'right' },
-];
+const currentPage = ref(1);
+const pageSize = ref(20);
+const pagination = computed<TablePaginationConfig>(() => ({
+  current: currentPage.value,
+  pageSize: pageSize.value,
+  showSizeChanger: true,
+  showLessItems: true,
+  locale: appStore.locale === 'zh-CN' ? zhPagination : undefined,
+}));
+const selectedClientKey = ref('');
+const detailHeading = ref<HTMLElement>();
+let detailTrigger: HTMLElement | null = null;
+const columns = computed<TableColumnsType<AggregatedClientRow>>(() => [
+  { title: translateDomText('Client', appStore.locale), key: 'client', className: 'identity-cell' },
+  { title: translateDomText('Inbound', appStore.locale), key: 'inbound' },
+  { title: translate('common.traffic', appStore.locale), key: 'traffic' },
+  { title: translate('action.status', appStore.locale), key: 'status', width: 112 },
+  {
+    title: translate('common.actions', appStore.locale),
+    key: 'actions',
+    className: 'actions-cell',
+    width: 184,
+  },
+]);
 
 const rows = computed<AggregatedClientRow[]>(() =>
   inbounds.value.flatMap((inbound) => {
@@ -278,6 +308,8 @@ const rows = computed<AggregatedClientRow[]>(() =>
       const lastOnline = lastOnlineMap.value[client.email] || stats?.lastOnline || 0;
       return {
         key: `${inbound.id}:${credential || client.email || index}`,
+        // Ant renders its row key as a DOM attribute. Keep credentials out of that key.
+        tableKey: `${inbound.id}:${index}`,
         inboundId: inbound.id,
         inboundLabel: inboundLabel(inbound),
         inboundMeta: `${inbound.protocol} · ${inbound.listen || '0.0.0.0'}:${inbound.port}`,
@@ -290,7 +322,7 @@ const rows = computed<AggregatedClientRow[]>(() =>
         enabled: client.enable !== false && (stats?.enable ?? true),
         client: { ...client },
         clientEnabled: client.enable !== false,
-        online: onlineClients.value.includes(client.email),
+        online: onlineClients.value?.has(client.email) ?? null,
         lastOnlineLabel: formatTimestamp(lastOnline),
       };
     });
@@ -313,7 +345,26 @@ const filteredRows = computed(() => {
 });
 
 const enabledCount = computed(() => rows.value.filter((row) => row.enabled).length);
-const onlineCount = computed(() => rows.value.filter((row) => row.online).length);
+const selectedClient = computed(() =>
+  rows.value.find((row) => row.key === selectedClientKey.value),
+);
+watch([search, inboundFilter], () => {
+  currentPage.value = 1;
+});
+watch(
+  () => filteredRows.value.length,
+  (count) => {
+    currentPage.value = Math.min(currentPage.value, Math.max(1, Math.ceil(count / pageSize.value)));
+  },
+);
+
+function changePage(nextPage: TablePaginationConfig) {
+  pageSize.value = nextPage.pageSize ?? pageSize.value;
+  currentPage.value = nextPage.current ?? 1;
+}
+const onlineCount = computed(() =>
+  onlineClients.value === null ? null : rows.value.filter((row) => row.online).length,
+);
 const hasFilters = computed(() => Boolean(search.value.trim()) || inboundFilter.value !== 'all');
 const resultSummary = computed(() => {
   const visible = filteredRows.value.length;
@@ -339,7 +390,9 @@ function inboundLabel(inbound: Inbound): string {
 
 function formatTraffic(used: number, total: number): string {
   const usedLabel = formatBytes(used);
-  return total > 0 ? `${usedLabel} / ${formatBytes(total)}` : `${usedLabel} / Unlimited`;
+  const quotaLabel =
+    total > 0 ? formatBytes(total) : translate('clients.unlimited', appStore.locale);
+  return `${usedLabel} / ${quotaLabel}`;
 }
 
 function maskSecret(value: string): string {
@@ -351,10 +404,14 @@ function formatTimestamp(value: number): string {
     return '-';
   }
   if (value < 0) {
-    return `${Math.abs(Math.round(value / 86_400_000))} days`;
+    return new Intl.NumberFormat(appStore.locale, {
+      style: 'unit',
+      unit: 'day',
+      unitDisplay: 'long',
+    }).format(Math.abs(Math.round(value / 86_400_000)));
   }
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString(appStore.locale);
 }
 
 function asClientRow(record: AggregatedClientRow | Record<string, unknown>): AggregatedClientRow {
@@ -366,20 +423,31 @@ function clearFilters() {
   inboundFilter.value = 'all';
 }
 
-function rowClassName(record: AggregatedClientRow): string {
-  return record.clientEnabled ? '' : 'client-row-disabled';
+function openClientDetails(key: string, event: MouseEvent) {
+  detailTrigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+  selectedClientKey.value = key;
+}
+
+// The dialog can receive keyboard input as soon as it mounts, including during its opening transition.
+watch(detailHeading, (heading) => heading?.focus({ preventScroll: true }), { flush: 'post' });
+
+function restoreDetailsFocus() {
+  detailTrigger?.focus({ preventScroll: true });
+  detailTrigger = null;
 }
 
 function clientActionAriaLabel(row: AggregatedClientRow): string {
   const action = translate(row.clientEnabled ? 'action.stop' : 'action.start', appStore.locale);
   const client = translate('common.clients', appStore.locale);
   return appStore.locale === 'zh-CN'
-    ? `${action}${client} ${row.email || row.key}`
-    : `${action} client ${row.email || row.key}`;
+    ? `${action}${client} ${row.email || row.inboundLabel}`
+    : `${action} client ${row.email || row.inboundLabel}`;
 }
 
 function clientActionDisabled(row: AggregatedClientRow): boolean {
   return (
+    loading.value ||
+    !clientListCurrent.value ||
     Boolean(clientActionKey.value) ||
     !inbounds.value.some((inbound) => inbound.id === row.inboundId) ||
     !getClientPrimaryId(row.protocol, row.client)
@@ -438,20 +506,26 @@ async function toggleClient(row: AggregatedClientRow) {
 }
 
 async function refresh() {
-  if (!hasInjectedRuntimeConfig()) {
+  if (loading.value || !hasInjectedRuntimeConfig()) {
     return;
   }
   loading.value = true;
   error.value = '';
   try {
-    const [inboundList, online, lastOnline] = await Promise.all([
+    const [inboundList, online, lastOnline] = await Promise.allSettled([
       listInbounds({ notifyOnError: false }),
       getOnlineClients({ notifyOnError: false }),
       getClientsLastOnline({ notifyOnError: false }),
     ]);
-    inbounds.value = inboundList;
-    onlineClients.value = Array.isArray(online) ? online : [];
-    lastOnlineMap.value = lastOnline || {};
+    clientListCurrent.value = inboundList.status === 'fulfilled';
+    if (inboundList.status === 'fulfilled') inbounds.value = inboundList.value;
+    onlineClients.value =
+      online.status === 'fulfilled' && Array.isArray(online.value) ? new Set(online.value) : null;
+    if (lastOnline.status === 'fulfilled') lastOnlineMap.value = lastOnline.value || {};
+    const failure = [inboundList, online, lastOnline].find(
+      (result) => result.status === 'rejected',
+    );
+    if (failure) throw failure.reason;
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : 'Failed to load clients';
   } finally {
@@ -465,154 +539,206 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.clients-page {
-  --clients-surface: rgba(255, 255, 255, 0.035);
+.clients-page,
+.clients-panel {
+  min-width: 0;
 }
 
-.clients-refresh-button {
-  min-width: 112px;
+.clients-panel {
+  container: clients-panel / inline-size;
+}
+
+.clients-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.clients-refresh-button,
+.client-clear-filters,
+.client-filter-input {
   min-height: 44px;
-}
-
-.clients-error {
-  margin-bottom: 0;
 }
 
 .clients-toolbar {
-  align-items: stretch;
-  gap: 24px;
+  align-items: baseline;
+  justify-content: flex-start;
+  flex-flow: row wrap;
+  gap: 8px 14px;
 }
 
-.clients-toolbar-copy {
-  flex: 1 1 360px;
-  min-width: 0;
-}
-
-.clients-title-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.clients-title-row h2 {
-  margin-bottom: 0;
-}
-
-.clients-result-tag {
-  margin: 0;
-  border: 1px solid rgba(82, 139, 255, 0.32);
-  background: rgba(0, 102, 255, 0.12);
-  color: var(--brand-primary-soft);
-  font-size: 12px;
-  line-height: 24px;
+.clients-count,
+.client-online,
+.client-detail-fields dt,
+.client-mobile-label {
+  color: var(--brand-muted-strong);
 }
 
 .client-filter-toolbar {
-  display: grid;
-  grid-template-columns: minmax(240px, 1.1fr) minmax(190px, 0.9fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  min-width: min(640px, 100%);
-  padding: 10px;
-  border: 1px solid var(--brand-border-soft);
-  border-radius: 14px;
-  background: var(--clients-surface);
+  gap: 8px;
+  margin-bottom: 18px;
 }
 
-.client-filter-input,
-.client-filter-select {
+.client-filter-input {
+  flex: 2 1 16rem;
   min-width: 0;
-  width: 100%;
 }
 
-.client-filter-input :deep(.ant-input-affix-wrapper),
+.client-filter-select {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
 .client-filter-select :deep(.ant-select-selector) {
   min-height: 44px;
-}
-
-.client-clear-filters {
-  min-height: 44px;
-  padding-inline: 12px;
-  color: var(--brand-muted-strong);
-  white-space: nowrap;
-}
-
-.client-clear-filters:hover,
-.client-clear-filters:focus {
-  color: var(--brand-ink) !important;
-}
-
-.client-table-meta {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: -2px 0 12px;
-  color: var(--brand-muted-strong);
-  font-size: 13px;
-  font-weight: 700;
 }
 
-.client-table-meta-hint {
-  color: var(--brand-primary-soft);
-  font-weight: 600;
-}
-
-.client-table :deep(.client-row-disabled > td) {
-  opacity: 0.68;
-}
-
-.client-table :deep(.client-row-disabled:hover > td) {
-  opacity: 0.86;
-}
-
-.client-table :deep(.client-row-disabled .client-action-button) {
-  opacity: 1;
-}
-
-.client-action-button {
-  min-width: 84px;
-  min-height: 44px;
-  padding-inline: 8px;
-  font-weight: 800;
-}
-
-.client-credential {
+.client-name,
+.client-detail-heading,
+.client-detail-fields dd,
+.client-table :deep(td) {
   overflow-wrap: anywhere;
-  font-size: 12px;
-  word-break: normal;
 }
 
-@media (max-width: 1100px) {
-  .clients-toolbar {
-    flex-direction: column;
-    gap: 14px;
-  }
+.client-name,
+.client-online {
+  display: block;
+}
 
-  .client-filter-toolbar {
-    min-width: 100%;
-  }
+.client-protocol {
+  margin: 4px 0 0;
+}
+
+.client-states .ant-tag {
+  margin-inline-end: 0;
+}
+
+.client-online,
+.client-mobile-label {
+  font-size: 13px;
+}
+
+.client-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.client-actions .ant-btn {
+  min-height: 44px;
+  padding-inline: 10px;
+}
+
+.client-mobile-label {
+  display: none;
+}
+
+.client-detail-heading {
+  margin: 12px 0 18px;
+  color: var(--brand-ink);
+  font-size: 18px;
+}
+
+.client-detail-fields {
+  display: grid;
+  grid-template-columns: minmax(5rem, 0.9fr) minmax(0, 2fr);
+  column-gap: 16px;
+  margin: 0;
+}
+
+.client-detail-fields dt,
+.client-detail-fields dd {
+  margin: 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--brand-border-soft);
+}
+
+.client-table :deep(.ant-pagination) {
+  flex-wrap: wrap;
+  row-gap: 8px;
 }
 
 @media (max-width: 760px) {
-  .clients-toolbar {
-    gap: 14px;
+  .clients-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+/* Use the available panel width, which also changes when the sidebar opens. */
+@container clients-panel (max-width: 760px) {
+  .client-table :deep(.ant-table) {
+    min-width: 0;
+    background: transparent;
   }
 
-  .client-filter-toolbar {
-    grid-template-columns: 1fr;
-    padding: 8px;
-  }
-
-  .client-clear-filters {
+  .client-table :deep(table),
+  .client-table :deep(tbody) {
+    display: block;
     width: 100%;
   }
 
-  .client-table-meta {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 4px;
+  .client-table :deep(thead) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .client-table :deep(colgroup) {
+    display: none;
+  }
+
+  .client-table :deep(.ant-pagination-options) {
+    display: inline-block;
+  }
+
+  .client-table :deep(.ant-table-row) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 14px;
+    border: 1px solid var(--brand-border-soft);
+    border-radius: 12px;
+  }
+
+  .client-table :deep(.ant-table-row > td) {
+    display: grid;
+    grid-template-columns: minmax(4rem, 0.4fr) minmax(0, 1fr);
+    align-items: baseline;
+    gap: 8px;
+    padding: 0 !important;
+    border: 0;
+  }
+
+  .client-table :deep(.ant-table-row > .identity-cell),
+  .client-table :deep(.ant-table-row > .actions-cell) {
+    display: block;
+  }
+
+  .client-mobile-label {
+    display: inline;
+  }
+
+  .client-states {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+
+  .client-actions {
+    padding-top: 8px;
+    border-top: 1px solid var(--brand-border-soft);
+  }
+
+  .client-actions .ant-btn {
+    flex: 1 1 5rem;
   }
 }
 </style>

@@ -33,7 +33,7 @@
       </div>
     </PageHeader>
 
-    <AAlert v-if="error" banner type="warning" :message="error" />
+    <AAlert v-if="error && !detailOpen" banner type="warning" :message="error" />
 
     <div class="status-grid">
       <StatusTile
@@ -204,8 +204,15 @@
       </ATable>
     </ACard>
 
-    <ADrawer v-model:open="detailOpen" destroy-on-close :title="selectedInboundTitle" width="760">
+    <ADrawer
+      v-model:open="detailOpen"
+      destroy-on-close
+      root-class-name="inbound-detail-drawer"
+      :title="selectedInboundTitle"
+      width="min(100%, 1040px)"
+    >
       <template v-if="selectedInbound">
+        <AAlert v-if="error" class="mb-12" banner type="warning" :message="error" />
         <div class="drawer-summary">
           <StatusTile
             label="Address"
@@ -230,11 +237,8 @@
         </div>
 
         <ACard class="work-panel drawer-panel" :bordered="false">
-          <div class="panel-header">
-            <div>
-              <p class="page-eyebrow">Activity</p>
-              <h2>Online / IP Management</h2>
-            </div>
+          <div class="panel-header detail-panel-header">
+            <h2>Online / IP Management</h2>
             <AButton :loading="loadingActivity" @click="refreshClientActivity">
               <template #icon><ReloadOutlined /></template>
               Refresh Activity
@@ -242,19 +246,21 @@
           </div>
 
           <ATable
+            class="detail-table detail-activity-table"
             :columns="activityColumns"
             :data-source="selectedClientRows"
             :loading="loadingActivity"
             :pagination="{ pageSize: 6 }"
             row-key="key"
             size="small"
+            table-layout="fixed"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'client'">
-                <ASpace direction="vertical" :size="2">
+                <div class="detail-client-identity">
                   <strong>{{ asClientRow(record).email || '-' }}</strong>
                   <span class="muted-text">{{ clientPrimaryText(selectedInbound, record) }}</span>
-                </ASpace>
+                </div>
               </template>
 
               <template v-else-if="column.key === 'online'">
@@ -264,11 +270,12 @@
               </template>
 
               <template v-else-if="column.key === 'lastOnline'">
+                <span class="detail-field-label">Last Online</span>
                 <span>{{ formatClientLastOnline(asClientRow(record)) }}</span>
               </template>
 
               <template v-else-if="column.key === 'actions'">
-                <ASpace wrap>
+                <div class="detail-row-actions">
                   <AButton
                     :disabled="!asClientRow(record).email"
                     size="small"
@@ -286,19 +293,26 @@
                   >
                     Clear IPs
                   </AButton>
-                </ASpace>
+                </div>
               </template>
             </template>
           </ATable>
         </ACard>
 
         <ACard class="work-panel drawer-panel" :bordered="false">
-          <div class="panel-header">
-            <div>
-              <p class="page-eyebrow">Users</p>
-              <h2>Clients</h2>
-            </div>
-            <ASpace wrap>
+          <div class="panel-header detail-panel-header">
+            <h2>Clients</h2>
+            <AButton
+              :disabled="!selectedInboundClientManageable || clientAddDisabled(selectedInbound)"
+              type="primary"
+              @click="openCreateClient(selectedInbound)"
+            >
+              <template #icon><UserAddOutlined /></template>
+              Add Client
+            </AButton>
+          </div>
+          <div class="detail-client-tools">
+            <div class="detail-tool-group">
               <AButton
                 :disabled="copyClientSourceOptions.length === 0"
                 @click="openCopyClientsModal(selectedInbound)"
@@ -330,6 +344,8 @@
                 <template #icon><LinkOutlined /></template>
                 Export Subscription Links
               </AButton>
+            </div>
+            <div class="detail-tool-group">
               <AButton
                 :disabled="!canResetSelectedClients"
                 :loading="busyClient"
@@ -365,38 +381,34 @@
               >
                 Delete Depleted
               </AButton>
-              <AButton
-                :disabled="!selectedInboundClientManageable || clientAddDisabled(selectedInbound)"
-                type="primary"
-                @click="openCreateClient(selectedInbound)"
-              >
-                <template #icon><UserAddOutlined /></template>
-                Add Client
-              </AButton>
-            </ASpace>
+            </div>
           </div>
 
           <ATable
+            class="detail-table detail-clients-table"
             :columns="clientColumns"
             :data-source="selectedClientRows"
             :pagination="{ pageSize: 6 }"
             :row-selection="clientRowSelection"
             row-key="key"
             size="small"
+            table-layout="fixed"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.key === 'client'">
-                <ASpace direction="vertical" :size="2">
+                <div class="detail-client-identity">
                   <strong>{{ record.email || '-' }}</strong>
                   <span class="muted-text">{{ clientPrimaryText(selectedInbound, record) }}</span>
-                </ASpace>
+                </div>
               </template>
 
               <template v-else-if="column.key === 'limit'">
+                <span class="detail-field-label">Limit</span>
                 <span>{{ formatLimit(record.traffic?.total ?? record.totalGB) }}</span>
               </template>
 
               <template v-else-if="column.key === 'usage'">
+                <span class="detail-field-label">Usage</span>
                 <span>{{
                   formatTraffic(
                     record.traffic?.up || 0,
@@ -407,11 +419,14 @@
               </template>
 
               <template v-else-if="column.key === 'expiry'">
+                <span class="detail-field-label">Expiry</span>
                 <span>{{ formatTimestamp(record.traffic?.expiryTime ?? record.expiryTime) }}</span>
               </template>
 
               <template v-else-if="column.key === 'enable'">
+                <span class="detail-field-label">Enabled</span>
                 <ASwitch
+                  :aria-label="`${translateDomText('Enabled', appStore.locale)} ${record.email || selectedInboundTitle}`"
                   :checked="record.enable !== false"
                   :disabled="clientActionDisabled(selectedInbound, record)"
                   :loading="busyClientKey === record.key"
@@ -420,7 +435,7 @@
               </template>
 
               <template v-else-if="column.key === 'actions'">
-                <ASpace wrap>
+                <div class="detail-row-actions">
                   <AButton
                     :disabled="clientActionDisabled(selectedInbound, record)"
                     size="small"
@@ -463,7 +478,7 @@
                     <template #icon><DeleteOutlined /></template>
                     Delete
                   </AButton>
-                </ASpace>
+                </div>
               </template>
             </template>
           </ATable>
@@ -1357,10 +1372,12 @@
       v-model:open="clientModalOpen"
       destroy-on-close
       :confirm-loading="savingClient"
-      :title="clientModalTitle"
       width="620px"
       @ok="submitClient"
     >
+      <template #title>
+        <span v-dialog-focus tabindex="-1">{{ clientModalTitle }}</span>
+      </template>
       <AForm layout="vertical">
         <AFormItem label="Email">
           <AInput v-model:value="clientEditor.email" />
@@ -1459,12 +1476,12 @@
     <AModal
       v-model:open="clientIpsModalOpen"
       :footer="null"
-      :title="clientIpsModalTitle"
       destroy-on-close
-      :focus-trigger-after-close="false"
-      :get-container="false"
       :mask-closable="false"
     >
+      <template #title>
+        <span v-dialog-focus tabindex="-1">{{ clientIpsModalTitle }}</span>
+      </template>
       <textarea
         aria-label="Client IP records"
         class="json-editor compact-json-editor"
@@ -1475,13 +1492,13 @@
 
     <AModal
       v-model:open="clientAccessModalOpen"
-      :title="clientAccessTitle"
       width="880px"
       destroy-on-close
-      :focus-trigger-after-close="false"
-      :get-container="false"
       :mask-closable="false"
     >
+      <template #title>
+        <span v-dialog-focus tabindex="-1">{{ clientAccessTitle }}</span>
+      </template>
       <template #footer>
         <AButton @click="clientAccessModalOpen = false">Close</AButton>
       </template>
@@ -1562,14 +1579,14 @@
     <AModal
       v-model:open="copyClientsModalOpen"
       :confirm-loading="copyingClients"
-      title="Copy Clients from Other Inbound"
       width="900px"
       destroy-on-close
-      :focus-trigger-after-close="false"
-      :get-container="false"
       :mask-closable="false"
       @ok="submitCopyClients"
     >
+      <template #title>
+        <span v-dialog-focus tabindex="-1">Copy Clients from Other Inbound</span>
+      </template>
       <AForm layout="vertical">
         <AFormItem label="Source Inbound">
           <ASelect
@@ -1605,14 +1622,14 @@
     <AModal
       v-model:open="bulkClientModalOpen"
       :confirm-loading="bulkAddingClients"
-      title="Bulk Add Clients"
       width="760px"
       destroy-on-close
-      :focus-trigger-after-close="false"
-      :get-container="false"
       :mask-closable="false"
       @ok="submitBulkAddClients"
     >
+      <template #title>
+        <span v-dialog-focus tabindex="-1">Bulk Add Clients</span>
+      </template>
       <AForm layout="vertical">
         <div class="form-grid">
           <AFormItem label="Quantity">
@@ -1713,6 +1730,7 @@ import {
 import type { ItemType } from 'ant-design-vue';
 import type { MenuInfo } from 'ant-design-vue/es/menu/src/interface';
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
+import type { ObjectDirective } from 'vue';
 
 import {
   addInbound,
@@ -2098,6 +2116,23 @@ const copySourceInboundId = ref<number>();
 const copySelectedClientKeys = ref<string[]>([]);
 const copyFlowOverride = ref('');
 
+// Move keyboard focus before the modal's entrance animation can leave Escape on the drawer.
+const dialogTriggers = new WeakMap<HTMLElement, HTMLElement>();
+const vDialogFocus: ObjectDirective<HTMLElement> = {
+  mounted(title) {
+    if (document.activeElement instanceof HTMLElement) {
+      dialogTriggers.set(title, document.activeElement);
+    }
+    title.focus({ preventScroll: true });
+  },
+  unmounted(title) {
+    const trigger = dialogTriggers.get(title);
+    if (trigger?.isConnected) {
+      trigger.focus({ preventScroll: true });
+    }
+  },
+};
+
 const headerPrimaryActionKeys: HeaderPrimaryActionKey[] = [
   'refresh',
   'refreshActivity',
@@ -2252,12 +2287,12 @@ const inboundColumns = [
   { title: 'Actions', key: 'actions', width: 260 },
 ];
 const clientColumns = [
-  { title: 'Client', key: 'client' },
-  { title: 'Limit', key: 'limit', width: 110 },
-  { title: 'Usage', key: 'usage', width: 150 },
-  { title: 'Expiry', key: 'expiry', width: 150 },
-  { title: 'Enabled', key: 'enable', width: 90 },
-  { title: 'Actions', key: 'actions', width: 330 },
+  { title: 'Client', key: 'client', className: 'detail-identity-cell' },
+  { title: 'Limit', key: 'limit', width: '10%' },
+  { title: 'Usage', key: 'usage', width: '15%' },
+  { title: 'Expiry', key: 'expiry', width: '16%' },
+  { title: 'Enabled', key: 'enable', width: '10%' },
+  { title: 'Actions', key: 'actions', width: '27%', className: 'detail-actions-cell' },
 ];
 const copyClientColumns = [
   { title: 'Client', dataIndex: 'email', key: 'email' },
@@ -2265,10 +2300,10 @@ const copyClientColumns = [
   { title: 'Expiry', dataIndex: 'expiryLabel', key: 'expiryLabel', width: 180 },
 ];
 const activityColumns = [
-  { title: 'Client', key: 'client' },
+  { title: 'Client', key: 'client', className: 'detail-identity-cell' },
   { title: 'Online', key: 'online', width: 96 },
   { title: 'Last Online', key: 'lastOnline', width: 170 },
-  { title: 'IP Records', key: 'actions', width: 190 },
+  { title: 'IP Records', key: 'actions', width: 190, className: 'detail-actions-cell' },
 ];
 
 const filteredInbounds = computed(() => {
@@ -5228,3 +5263,133 @@ onMounted(() => {
   void refreshInbounds();
 });
 </script>
+
+<style scoped>
+:global(.inbound-detail-drawer .ant-drawer-title) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.detail-panel-header {
+  flex-flow: row wrap;
+  align-items: center;
+}
+
+.detail-client-tools {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.detail-tool-group,
+.detail-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-tool-group + .detail-tool-group {
+  padding-top: 10px;
+  border-top: 1px solid var(--brand-border-soft);
+}
+
+.detail-client-identity {
+  display: grid;
+  gap: 2px;
+}
+
+.detail-table :deep(td),
+.detail-client-identity {
+  overflow-wrap: anywhere;
+}
+
+.detail-field-label {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  :global(.inbound-detail-drawer .ant-drawer-body) {
+    padding: 12px;
+  }
+
+  .detail-table :deep(.ant-table) {
+    min-width: 0;
+  }
+
+  .detail-table :deep(table),
+  .detail-table :deep(thead),
+  .detail-table :deep(tbody) {
+    display: block;
+    width: 100%;
+  }
+
+  .detail-table :deep(colgroup) {
+    display: none;
+  }
+
+  .detail-activity-table :deep(thead),
+  .detail-clients-table :deep(th:not(.ant-table-selection-column, .detail-identity-cell)) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0 !important;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .detail-table :deep(tr) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .detail-table :deep(tbody > tr) {
+    margin-top: 10px;
+    padding: 8px;
+    border: 1px solid var(--brand-border-soft);
+    border-radius: 8px;
+  }
+
+  .detail-table :deep(td) {
+    display: block;
+    box-sizing: border-box;
+    flex: 0 0 50%;
+    min-width: 0;
+    padding: 6px !important;
+    border-bottom: none;
+  }
+
+  .detail-table :deep(.ant-table-selection-column) {
+    flex: 0 0 44px;
+  }
+
+  .detail-clients-table :deep(.detail-identity-cell) {
+    flex: 1 0 calc(100% - 44px);
+  }
+
+  .detail-table :deep(.detail-actions-cell),
+  .detail-activity-table :deep(.detail-identity-cell),
+  .detail-table :deep(.ant-table-placeholder td) {
+    flex-basis: 100%;
+  }
+
+  .detail-field-label {
+    display: block;
+    color: var(--brand-muted-strong);
+    font-size: 12px;
+  }
+
+  .detail-panel-header :deep(.ant-btn),
+  .detail-tool-group :deep(.ant-btn),
+  .detail-row-actions :deep(.ant-btn) {
+    height: auto;
+    min-height: 44px;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .detail-table :deep(.ant-pagination) {
+    flex-wrap: wrap;
+  }
+}
+</style>

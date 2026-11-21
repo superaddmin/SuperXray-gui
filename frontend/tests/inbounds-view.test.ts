@@ -190,7 +190,7 @@ test('inbounds export preview keeps copy and download actions', () => {
 test('inbounds view exposes client access, copy-clients, and clone flows', () => {
   assert.match(source, /Copy Clients/);
   assert.match(source, /@click="openCopyClientsModal\(selectedInbound\)"/);
-  assert.match(source, /title="Copy Clients from Other Inbound"/);
+  assert.match(source, />Copy Clients from Other Inbound</);
   assert.match(source, /@ok="submitCopyClients"/);
   assert.match(source, /confirmCloneInbound\(asInbound\(record\)\)/);
   assert.match(source, />\s*Clone\s*</);
@@ -208,7 +208,7 @@ test('inbounds client access does not load retired legacy asset scripts', () => 
 test('inbounds view exposes bulk add clients flow', () => {
   assert.match(source, /Bulk Add/);
   assert.match(source, /@click="openBulkAddClientsModal\(selectedInbound\)"/);
-  assert.match(source, /title="Bulk Add Clients"/);
+  assert.match(source, />Bulk Add Clients</);
   assert.match(source, /@ok="submitBulkAddClients"/);
   assert.match(source, /v-model:value="bulkClientForm\.quantity"/);
   assert.match(source, /v-model:value="bulkClientForm\.emailPrefix"/);

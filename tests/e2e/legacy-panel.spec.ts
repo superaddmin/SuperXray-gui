@@ -546,7 +546,7 @@ test.describe("new Vue UI and API baseline", () => {
     ).toBeVisible();
   });
 
-  test("can open new UI online and IP management controls", async ({
+  test("inbound client actions fit the phone drawer and open their controls", async ({
     page,
   }) => {
     test.skip(
@@ -560,9 +560,10 @@ test.describe("new Vue UI and API baseline", () => {
     const remark = `e2e-activity-vless-${stamp}`;
     const email = `e2e-activity-${stamp}@example.invalid`;
     let inboundId: number | undefined;
+    let sourceId: number | undefined;
 
     try {
-      const added = await postForm(page, "panel/api/inbounds/add", {
+      const inboundForm = {
         up: 0,
         down: 0,
         total: 0,
@@ -589,6 +590,12 @@ test.describe("new Vue UI and API baseline", () => {
               comment: "activity fixture",
               reset: 0,
             },
+            {
+              id: crypto.randomUUID(),
+              email: `second-${stamp}@example.invalid`,
+              subId: `second${stamp}`,
+              enable: true,
+            },
           ],
           decryption: "none",
           encryption: "none",
@@ -599,9 +606,26 @@ test.describe("new Vue UI and API baseline", () => {
           tcpSettings: { acceptProxyProtocol: false, header: { type: "none" } },
         }),
         sniffing: JSON.stringify({ enabled: false, destOverride: [] }),
-      });
+      };
+      const added = await postForm(page, "panel/api/inbounds/add", inboundForm);
       inboundId = added.obj.id;
+      const source = await postForm(page, "panel/api/inbounds/add", {
+        ...inboundForm,
+        remark: `copy-source-${stamp}`,
+        port: inboundForm.port - 1000,
+        settings: JSON.stringify({
+          clients: [{ id: crypto.randomUUID(), email: `source-${stamp}@example.invalid`, enable: true }],
+          decryption: "none",
+        }),
+      });
+      sourceId = source.obj.id;
 
+      await page.route("**/panel/api/setting/all", (route) =>
+        route.fulfill({
+          json: { success: true, obj: { subEnable: true, subURI: "https://sub.example.invalid/" } },
+        }),
+      );
+      await page.setViewportSize({ width: 320, height: 720 });
       await page.goto(appUrl("panel/inbounds"));
 
       await expect(page.getByText("Online Clients")).toBeVisible();
@@ -611,14 +635,76 @@ test.describe("new Vue UI and API baseline", () => {
       const row = page.locator(".ant-table-row").filter({ hasText: remark });
       await expect(row).toBeVisible();
       await row.getByRole("button", { name: "Details" }).click();
-      await expect(page.getByText("Online / IP Management")).toBeVisible();
-      await expect(
-        page.getByRole("button", { name: "View IPs" }),
-      ).toBeVisible();
-      await expect(
-        page.getByRole("button", { name: "Clear IPs" }),
-      ).toBeVisible();
+      const drawer = page.locator(".inbound-detail-drawer");
+      await expect(drawer.getByText("Online / IP Management")).toBeVisible();
+      const clients = drawer.locator(".detail-clients-table");
+      const activity = drawer.locator(".detail-activity-table");
+      const tools = drawer.locator(".detail-client-tools");
+      const client = clients.getByRole("row").filter({ hasText: email });
+      const clientActivity = activity.getByRole("row").filter({ hasText: email });
+      for (const button of [
+        drawer.getByRole("button", { name: "Add Client" }),
+        drawer.getByRole("button", { name: "Refresh Activity" }),
+        ...await tools.getByRole("button").all(),
+        ...await client.getByRole("button").all(),
+        ...await clientActivity.getByRole("button").all(),
+      ]) {
+        await expect(button).toBeVisible();
+        await button.scrollIntoViewIfNeeded();
+        const box = await button.boundingBox();
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(321);
+      }
+      const selectedReset = tools.getByRole("button", { name: "Reset Selected" });
+      await expect(selectedReset).toBeDisabled();
+      await client.getByRole("checkbox").check();
+      await expect(selectedReset).toBeEnabled();
+      const editors = [
+        drawer.getByRole("button", { name: "Add Client" }),
+        tools.getByRole("button", { name: "Copy Clients" }),
+        tools.getByRole("button", { name: "Bulk Add" }),
+        client.getByRole("button", { name: /Edit$/ }),
+        client.getByRole("button", { name: /Access$/ }),
+        clientActivity.getByRole("button", { name: "View IPs" }),
+      ];
+      const modal = page.locator(".ant-modal:visible");
+      for (const trigger of editors) {
+        await trigger.click();
+        await expect(modal).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(modal).toHaveCount(0);
+        await expect(trigger).toBeFocused();
+      }
+      for (const trigger of [
+        clientActivity.getByRole("button", { name: "Clear IPs" }),
+        client.getByRole("button", { name: /Reset$/ }),
+        client.getByRole("button", { name: /Delete$/ }),
+        selectedReset,
+        tools.getByRole("button", { name: "Delete Selected" }),
+        tools.getByRole("button", { name: "Reset All" }),
+        tools.getByRole("button", { name: "Delete Depleted" }),
+      ]) {
+        await trigger.click();
+        await modal.getByRole("button", { name: "Cancel" }).click();
+        await expect(modal).toHaveCount(0);
+        await expect(drawer).toBeVisible();
+      }
+      for (const [trigger, title] of [
+        [client.getByRole("button", { name: /Share$/ }), "Share Link"],
+        [tools.getByRole("button", { name: "Export Share Links" }), "Share Links"],
+        [tools.getByRole("button", { name: "Export Subscription Links" }), "Subscription Links"],
+      ] as const) {
+        await trigger.click();
+        await expect(drawer.getByRole("heading", { name: title, exact: true })).toBeVisible();
+        await expect(drawer.locator("textarea[readonly]")).toHaveValue(/\S/);
+      }
+      const downloaded = page.waitForEvent("download");
+      await drawer.getByRole("button", { name: /Download$/ }).click();
+      expect((await downloaded).suggestedFilename()).toMatch(/\.txt$/);
     } finally {
+      if (sourceId) {
+        await postForm(page, `panel/api/inbounds/del/${sourceId}`, {});
+      }
       if (inboundId) {
         await postForm(page, `panel/api/inbounds/del/${inboundId}`, {});
       }

@@ -18,7 +18,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//go:embed ui
+// Directory embeds skip underscore-prefixed Vite chunks.
+//
+//go:embed ui ui/assets/[^.]*.js
 var newUIFS embed.FS
 
 type newUIRuntimeConfig struct {

@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -357,6 +358,19 @@ func newTestNewUIRouterWithBasePath(authenticated bool, basePath string) *gin.En
 
 	(&Server{}).registerNewUIRoutes(router.Group(basePath), basePath)
 	return router
+}
+
+func TestNewUIEmbedsAllBuiltScripts(t *testing.T) {
+	// Vite can emit shared chunks whose names start with an underscore.
+	scripts, err := fs.Glob(os.DirFS("."), "ui/assets/[^.]*.js")
+	if err != nil || len(scripts) == 0 {
+		t.Fatalf("find built UI scripts: got %d, error %v", len(scripts), err)
+	}
+	for _, script := range scripts {
+		if _, err := fs.Stat(newUIFS, script); err != nil {
+			t.Errorf("missing built UI script %s: %v", script, err)
+		}
+	}
 }
 
 func firstNewUIAsset(t *testing.T) string {

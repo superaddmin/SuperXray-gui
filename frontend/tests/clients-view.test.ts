@@ -5,8 +5,10 @@ import test from 'node:test';
 const source = readFileSync('frontend/src/views/ClientsView.vue', 'utf8');
 
 test('clients overview masks credentials and subscription identifiers by default', () => {
-  assert.match(source, /maskSecret\(record\.credential\)/);
-  assert.match(source, /maskSecret\(record\.subId\)/);
+  assert.match(source, /maskSecret\(selectedClient\.credential\)/);
+  assert.match(source, /maskSecret\(selectedClient\.subId\)/);
+  assert.match(source, /row-key="tableKey"/);
+  assert.match(source, /tableKey: `\$\{inbound\.id\}:\$\{index\}`/);
   assert.match(source, /function maskSecret\(value: string\): string/);
   assert.match(source, /return value\.trim\(\) \? '••••••••' : ''/);
 });
@@ -16,7 +18,7 @@ test('clients overview falls back to the stored client quota when traffic stats 
 });
 
 test('clients overview exposes start and stop actions backed by inbound client updates', () => {
-  assert.match(source, /title: 'Actions', key: 'actions'/);
+  assert.match(source, /key: 'actions'/);
   assert.match(source, /updateInboundClient/);
   assert.match(source, /updateInbound\(/);
   assert.match(source, /parseInboundSettings\(inbound\)/);
@@ -25,7 +27,7 @@ test('clients overview exposes start and stop actions backed by inbound client u
   assert.match(source, /:disabled="Boolean\(clientActionKey\)"/);
   assert.match(source, /\{\s*\.\.\.row\.client,\s*enable: enabled\s*\}/);
   assert.match(source, /settings\.peers = peers\.map/);
-  assert.match(source, /record\.clientEnabled \? 'Stop' : 'Start'/);
+  assert.match(source, /record\.clientEnabled \? 'action\.stop' : 'action\.start'/);
 });
 
 test('clients overview makes filtering state visible and accessible', () => {
@@ -33,7 +35,7 @@ test('clients overview makes filtering state visible and accessible', () => {
   assert.match(source, /clients\.filterLabel/);
   assert.match(source, /clients\.searchLabel/);
   assert.match(source, /clients\.filterInboundLabel/);
-  assert.match(source, /aria-live="polite"/);
+  assert.match(source, /role="status"/);
   assert.match(source, /function clearFilters\(\)/);
   assert.match(source, /clients\.noSupported/);
   assert.match(source, /clients\.noMatches/);

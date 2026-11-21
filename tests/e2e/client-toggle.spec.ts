@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const requiredEnv = [
   "SUPERXRAY_E2E_BASE_URL",
@@ -12,10 +12,8 @@ const missingEnv = requiredEnv.filter((key) =>
 const mutationDisabled = process.env.SUPERXRAY_E2E_MUTATION !== "1";
 
 test.skip(
-  missingEnv.length > 0 || mutationDisabled,
-  missingEnv.length > 0
-    ? `Missing or placeholder E2E env: ${missingEnv.join(", ")}`
-    : "Set SUPERXRAY_E2E_MUTATION=1 to run client toggle mutations",
+  missingEnv.length > 0,
+  `Missing or placeholder E2E env: ${missingEnv.join(", ")}`,
 );
 
 const wireguardTestServerPrivate =
@@ -258,6 +256,10 @@ async function addInbound(
 }
 
 test.describe("Clients overview client lifecycle controls", () => {
+  test.skip(
+    mutationDisabled,
+    "Set SUPERXRAY_E2E_MUTATION=1 to run client toggle mutations",
+  );
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem("superxray.locale", "en-US");
@@ -431,3 +433,182 @@ test.describe("Clients overview client lifecycle controls", () => {
     }
   });
 });
+
+async function expectWithinViewportWidth(locator: Locator) {
+  await expect(locator).toBeVisible();
+  await expect
+    .poll(() =>
+      locator.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return (
+          bounds.left >= -1 &&
+          bounds.right <= document.documentElement.clientWidth + 1
+        );
+      }),
+    )
+    .toBe(true);
+}
+
+for (const width of [1280, 320]) {
+  test(`client details controls remain accessible at ${width}px`, async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      if (!localStorage.getItem("superxray.locale")) {
+        localStorage.setItem("superxray.locale", "en-US");
+      }
+    });
+    await login(page);
+    await page.setViewportSize({ width, height: width === 320 ? 640 : 900 });
+    const email = `fixture-${"unbroken".repeat(12)}@example.invalid`;
+    const credential = "a13e996a-eaa1-4119-a011-a64446c1925f";
+    const subscription = "fixture-subscription-secret";
+    const firstInbound = "Read-only fixture";
+    const lastEmail = "final-page@example.invalid";
+    const clients = Array.from({ length: 20 }, (_, index) => ({
+      id: index === 0 ? credential : crypto.randomUUID(),
+      email: index === 0 ? email : `fixture-${index}@example.invalid`,
+      enable: true,
+      subId: subscription,
+    }));
+    const fixtures = [
+      { id: 10001, remark: firstInbound, clients },
+      {
+        id: 10002,
+        remark: "第二入站",
+        clients: [{ email: lastEmail, enable: false }],
+      },
+    ].map(({ id, remark, clients }) => ({
+      id,
+      remark,
+      tag: `fixture-${id}`,
+      port: id,
+      protocol: "vless",
+      enable: false,
+      settings: JSON.stringify({ clients }),
+    }));
+    let listUnavailable = false;
+    let onlineResponse: { success: boolean; obj: unknown; msg?: string } = {
+      success: true,
+      obj: [email],
+    };
+    await page.route("**/panel/api/inbounds/list", (route) =>
+      route.fulfill({
+        json: listUnavailable
+          ? { success: false, msg: "Fixture list unavailable", obj: null }
+          : { success: true, obj: fixtures },
+      }),
+    );
+    await page.route("**/panel/api/inbounds/onlines", (route) =>
+      route.fulfill({ json: onlineResponse }),
+    );
+    await page.route("**/panel/api/inbounds/lastOnline", (route) =>
+      route.fulfill({ json: { success: true, obj: {} } }),
+    );
+    // Keep login in English and exercise the Chinese detail view on the smaller device.
+    if (width === 320) {
+      await page.evaluate(() =>
+        localStorage.setItem("superxray.locale", "zh-CN"),
+      );
+    }
+    await page.goto(appUrl("panel/clients"));
+    const details = page.locator(".clients-page");
+    if (width === 320) {
+      await expect(
+        details.getByRole("heading", { name: "客户端详情" }),
+      ).toBeVisible();
+    }
+    const filters = details.getByRole("search");
+    const search = filters.getByRole("textbox");
+    const select = filters.getByRole("combobox");
+    const refresh = details.getByRole("button", {
+      name: /Refresh client list|刷新客户端列表/,
+    });
+    const first = findClientRow(page, email);
+    const onlineCount = details
+      .locator(".status-tile")
+      .filter({ has: page.getByText(/^(Online|在线)$/) })
+      .locator("strong");
+    await expect(onlineCount).toHaveText("1");
+    await expect(first.locator(".client-online")).toHaveText(/^(Online|在线)$/);
+    const open = first.getByRole("button", { name: /Details|详\s*情/ });
+    const toggle = first.getByRole("button", {
+      name: /Stop client|停止客户端/,
+    });
+    await expectWithinViewportWidth(search);
+    await expectWithinViewportWidth(select);
+    await expectWithinViewportWidth(refresh);
+    await expectWithinViewportWidth(open);
+    await expectWithinViewportWidth(toggle);
+    await expect(toggle).toBeEnabled();
+    await open.focus();
+    await page.keyboard.press("Enter");
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText(email);
+    await expect(dialog).toContainText(firstInbound);
+    await expect(dialog).not.toContainText(credential);
+    await expect(dialog).not.toContainText(subscription);
+    await expectWithinViewportWidth(dialog);
+    await expect(dialog.locator(":focus")).toHaveCount(1);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(open).toBeFocused();
+    await open.click();
+    await dialog
+      .getByRole("button", { name: /close|关\s*闭/i })
+      .first()
+      .click();
+    await expect(dialog).toBeHidden();
+
+    await search.fill("no-such-client-in-this-fixture");
+    await expect(
+      details.getByText(/No clients match|没有符合筛选条件/),
+    ).toBeVisible();
+    const clear = filters.getByRole("button", {
+      name: /Clear filters|清除筛选/,
+    });
+    await expectWithinViewportWidth(clear);
+    await clear.click();
+    await expect(search).toHaveValue("");
+    await details.locator(".ant-pagination-item-2").click();
+    const last = findClientRow(page, lastEmail);
+    await expect(last).toBeVisible();
+    await expect(
+      last.getByRole("button", { name: /Start client|启动客户端/ }),
+    ).toBeDisabled();
+    await filters.locator(".ant-select-selector").click();
+    await page
+      .locator(".ant-select-dropdown:visible .ant-select-item-option")
+      .getByText(firstInbound)
+      .click();
+    await expect(open).toBeVisible();
+    await expect(last).toHaveCount(0);
+    await clear.click();
+    onlineResponse =
+      width === 320
+        ? { success: true, obj: { unexpected: true } }
+        : { success: false, msg: "Fixture status unavailable", obj: null };
+    await refresh.click();
+    await expect(first.locator(".client-online")).toHaveText(/Unknown|未知/i);
+    await expect(onlineCount).toHaveText("—");
+    await expect(toggle).toBeEnabled();
+    listUnavailable = true;
+    await refresh.click();
+    await expect(details.getByRole("alert")).toContainText(
+      "Fixture list unavailable",
+    );
+    await expect(toggle).toBeDisabled();
+    await open.click();
+    await expect(dialog).toContainText(email);
+    await expect(dialog.locator(":focus")).toHaveCount(1);
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    listUnavailable = false;
+    onlineResponse = { success: true, obj: [] };
+    await refresh.click();
+    await expect(toggle).toBeEnabled();
+    await expect(first.locator(".client-online")).toHaveText(/Offline|离线/i);
+    await expect(onlineCount).toHaveText("0");
+  });
+}
