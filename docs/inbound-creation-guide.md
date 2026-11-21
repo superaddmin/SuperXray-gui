@@ -1,6 +1,6 @@
 # 入站规则创建填写教程
 
-> 本指南面向面板管理员，2026-11-21 更新。项目版本为 `v3.7.5`，当前工作树默认分发 Xray `v26.11.9`，Go API 类型依赖使用 `v26.10.10` 基线。[上游同步决策与验证](upstream-sync-assessment-2026-11-21.md)
+> 本指南面向面板管理员，2026-11-21 更新。项目版本为 `v3.7.6`，当前工作树默认分发 Xray `v26.11.9`，Go API 类型依赖使用 `v26.10.10` 基线。[上游同步决策与验证](upstream-sync-assessment-2026-11-21.md)
 > 事实来源：`frontend/src/views/InboundsView.vue`、`frontend/src/schemas/protocolRegistry.ts`、`frontend/src/utils/inboundCompat.ts`、`frontend/src/utils/realitySettings.ts`、`web/controller/inbound.go`、`web/service/protocol_validation.go`、`database/repository.go`。
 
 打开运行时 `webBasePath + "panel/inbounds"`，点击 `New Inbound`（中文界面对应“添加入站”）。页面使用当前 Vue 表单，下文保留源码中的英文标签便于对照。编辑已有入站时 Protocol 禁用。

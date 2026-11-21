@@ -1,8 +1,8 @@
 # 开发者贡献指南
 
 > **目标读者**：贡献者 / 维护者 / 自动化 Agent
-> **适用版本**：`v3.7.5`
-> **源码核对日期**：基础文档 2026-10-15；本轮增量 2026-11-21。当前分支选择性吸收 `MHSanaei/3x-ui v3.11.0` 与 `alireza0/x-ui v1.15.0`，项目版本由 `config/version` 声明为 `3.7.5`；运行时 Xray `v26.11.9`，API 类型依赖仍为 `v26.10.10` 基线，新增兼容规则见 [本轮同步与验证](upstream-sync-assessment-2026-11-21.md)。
+> **适用版本**：`v3.7.6`
+> **源码核对日期**：基础文档 2026-10-15；本轮增量 2026-11-21。当前分支选择性吸收 `MHSanaei/3x-ui v3.11.0` 与 `alireza0/x-ui v1.15.0`，项目版本由 `config/version` 声明为 `3.7.6`；运行时 Xray `v26.11.9`，API 类型依赖仍为 `v26.10.10` 基线，新增兼容规则见 [本轮同步与验证](upstream-sync-assessment-2026-11-21.md)。
 > **事实来源**：`go.mod`、`.env.example`、`frontend/package.json`、`.github/workflows/*`、`.codex/project.toml`
 > **相关文档**：[系统架构设计](architecture.md) | [核心模块解析](modules.md) | [API 接口说明](api.md) | [部署指南](deployment.md)
 

@@ -31,10 +31,10 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 Para fijar la versión actual:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.5
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.6
 ```
 
-La instalación oficial publica binarios Linux `amd64` y `arm64`. El instalador imprime al final el usuario, la contraseña, el puerto del panel y el `webBasePath` generados; guarda esos datos. La imagen Docker está disponible en `ghcr.io/superaddmin/superxray-gui:3.7.5`. Una base de datos nueva no tiene cuenta predeterminada: antes del primer acceso en Docker, créala con `docker exec <container> /app/x-ui setting -username '<username>' -password '<strong-password>'`. Las cuentas existentes se conservan. Consulta la [inicialización de la cuenta](docs/upstream-v3.7.3-bootstrap.md) y la [guía de despliegue](docs/deployment.md).
+La instalación oficial publica binarios Linux `amd64` y `arm64`. El instalador imprime al final el usuario, la contraseña, el puerto del panel y el `webBasePath` generados; guarda esos datos. La imagen Docker está disponible en `ghcr.io/superaddmin/superxray-gui:3.7.6`. Una base de datos nueva no tiene cuenta predeterminada: antes del primer acceso en Docker, créala con `docker exec <container> /app/x-ui setting -username '<username>' -password '<strong-password>'`. Las cuentas existentes se conservan. Consulta la [inicialización de la cuenta](docs/upstream-v3.7.3-bootstrap.md) y la [guía de despliegue](docs/deployment.md).
 
 Para documentación completa, visita la [Wiki del proyecto](https://github.com/superaddmin/SuperXray-gui/wiki).
 

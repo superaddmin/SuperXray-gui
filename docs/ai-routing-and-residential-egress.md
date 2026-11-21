@@ -1,8 +1,8 @@
 # AI 平台智能分流与住宅出口运行手册
 
 > **目标读者**：需要在 SuperXray 中为 OpenAI/ChatGPT、Anthropic/Claude、Google/Gemini 等 AI 平台配置专用出口的运维人员
-> **适用版本**：`v3.7.5`
-> **代码核对日期**：基础文档 2026-10-15；版本与本轮增量 2026-11-21。当前选择性吸收 `3x-ui v3.11.0` 与 `x-ui v1.15.0`，默认运行时 Xray 为 `v26.11.9`（API 类型依赖仍为 `v26.10.10` 基线），项目版本由 `config/version` 声明为 `3.7.5`，详见 [本轮同步与验证](upstream-sync-assessment-2026-11-21.md)。服务器、住宅供应商和 OpenWrt 的运行状态需在目标环境重新验证。
+> **适用版本**：`v3.7.6`
+> **代码核对日期**：基础文档 2026-10-15；版本与本轮增量 2026-11-21。当前选择性吸收 `3x-ui v3.11.0` 与 `x-ui v1.15.0`，默认运行时 Xray 为 `v26.11.9`（API 类型依赖仍为 `v26.10.10` 基线），项目版本由 `config/version` 声明为 `3.7.6`，详见 [本轮同步与验证](upstream-sync-assessment-2026-11-21.md)。服务器、住宅供应商和 OpenWrt 的运行状态需在目标环境重新验证。
 > **事实来源**：`frontend/src/views/XrayView.vue`、`frontend/src/utils/xrayCompat.ts`、`frontend/src/utils/gatewayEgressMvp.ts`、`web/controller/xray_setting.go`
 > **相关文档**：[系统架构设计](architecture.md) | [API 接口说明](api.md) | [入站创建教程](inbound-creation-guide.md) | [服务器部署 + OpenWrt 路由 + AI 出口治理统一总览](operations-ai-routing-overview.md)
 
