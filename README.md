@@ -157,7 +157,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 To pin the current release:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.4
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.5
 ```
 
 The installer prepares the required Linux packages (`cron`/`cronie`, `curl`, `tar`, `tzdata`, `socat`, `ca-certificates`, `openssl`), downloads the matching GitHub Release asset, and prints the generated username, password, panel port, and `webBasePath` at the end. Official binary assets are currently published for Linux `amd64` and `arm64`.
@@ -170,10 +170,10 @@ docker run -d --name superxray-gui --network host --restart unless-stopped \
   -v $PWD/cert:/root/cert \
   -e XRAY_VMESS_AEAD_FORCED=false \
   -e XUI_ENABLE_FAIL2BAN=true \
-  ghcr.io/superaddmin/superxray-gui:3.7.4
+  ghcr.io/superaddmin/superxray-gui:3.7.5
 ```
 
-The repository `docker-compose.yml` builds the image from local source. For image-based container deployment, you can switch Compose to `image: ghcr.io/superaddmin/superxray-gui:3.7.4`. A fresh database has no default account. Before logging in, initialize one with `docker exec superxray-gui /app/x-ui setting -username '<username>' -password '<strong-password>'`, then configure the panel port, `webBasePath`, and HTTPS. Existing accounts are preserved. See [first-account initialization](docs/upstream-v3.7.3-bootstrap.md) and the [upstream integration report](docs/upstream-v3.7.3-integration.md).
+The repository `docker-compose.yml` builds the image from local source. For image-based container deployment, you can switch Compose to `image: ghcr.io/superaddmin/superxray-gui:3.7.5`. A fresh database has no default account. Before logging in, initialize one with `docker exec superxray-gui /app/x-ui setting -username '<username>' -password '<strong-password>'`, then configure the panel port, `webBasePath`, and HTTPS. Existing accounts are preserved. See [first-account initialization](docs/upstream-v3.7.3-bootstrap.md) and the [upstream integration report](docs/upstream-v3.7.3-integration.md).
 
 For deployment details, see [docs/deployment.md](docs/deployment.md). For AI-platform routing through a dedicated residential egress, see [docs/ai-routing-and-residential-egress.md](docs/ai-routing-and-residential-egress.md). For the Xray-compatible Gateway egress MVP boundary and cross-project handoff, see [docs/SUPERXRAY_GUI_VPN_LAYER_HANDOFF_CN.md](docs/SUPERXRAY_GUI_VPN_LAYER_HANDOFF_CN.md). For development and release workflow notes, see [docs/development.md](docs/development.md). The project Wiki remains available at <https://github.com/superaddmin/SuperXray-gui/wiki>.
 

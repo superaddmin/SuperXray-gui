@@ -31,10 +31,10 @@ bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main
 لتثبيت الإصدار الحالي صراحةً:
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.4
+bash <(curl -Ls https://raw.githubusercontent.com/superaddmin/SuperXray-gui/main/install.sh) v3.7.5
 ```
 
-تُنشر الحزم الرسمية حاليًا لنظام Linux بمعماريتي `amd64` و `arm64`. يعرض المثبّت في النهاية اسم المستخدم وكلمة المرور ومنفذ اللوحة و `webBasePath` التي تم إنشاؤها؛ احفظ هذه القيم. تتوفر صورة Docker على `ghcr.io/superaddmin/superxray-gui:3.7.4`. لا تحتوي قاعدة البيانات الجديدة على حساب افتراضي؛ قبل أول تسجيل دخول في Docker، أنشئ الحساب بالأمر `docker exec <container> /app/x-ui setting -username '<username>' -password '<strong-password>'`. تُحفظ الحسابات الموجودة. راجع [تهيئة الحساب](docs/upstream-v3.7.3-bootstrap.md) و[دليل النشر](docs/deployment.md).
+تُنشر الحزم الرسمية حاليًا لنظام Linux بمعماريتي `amd64` و `arm64`. يعرض المثبّت في النهاية اسم المستخدم وكلمة المرور ومنفذ اللوحة و `webBasePath` التي تم إنشاؤها؛ احفظ هذه القيم. تتوفر صورة Docker على `ghcr.io/superaddmin/superxray-gui:3.7.5`. لا تحتوي قاعدة البيانات الجديدة على حساب افتراضي؛ قبل أول تسجيل دخول في Docker، أنشئ الحساب بالأمر `docker exec <container> /app/x-ui setting -username '<username>' -password '<strong-password>'`. تُحفظ الحسابات الموجودة. راجع [تهيئة الحساب](docs/upstream-v3.7.3-bootstrap.md) و[دليل النشر](docs/deployment.md).
 
 للحصول على الوثائق الكاملة، يرجى زيارة [ويكي المشروع](https://github.com/superaddmin/SuperXray-gui/wiki).
 
