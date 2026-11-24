@@ -1,19 +1,18 @@
 <template>
   <main class="login-page">
-    <AButton
-      class="login-language-toggle"
-      size="small"
-      :aria-label="languageToggleAriaLabel"
-      @click="appStore.toggleLocale"
-    >
-      {{ languageButtonLabel }}
-    </AButton>
     <section class="login-card" aria-labelledby="login-title">
-      <div class="login-mark" aria-hidden="true">
-        <StarOutlined />
-      </div>
-      <h1 id="login-title">Control Xray with Confidence</h1>
-      <p>Sign in to access the SuperXray operations console</p>
+      <header class="login-brand-row">
+        <!-- eslint-disable-next-line vue/html-self-closing -->
+        <img class="login-wordmark" :src="logoUrl" width="556" height="128" alt="SuperXray" />
+        <AButton
+          class="login-language-toggle"
+          :aria-label="languageToggleAriaLabel"
+          @click="appStore.toggleLocale"
+        >
+          {{ languageButtonLabel }}
+        </AButton>
+      </header>
+      <h1 id="login-title">{{ translate('login.title', appStore.locale) }}</h1>
 
       <AForm
         class="login-form"
@@ -86,12 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  LockOutlined,
-  SafetyCertificateOutlined,
-  StarOutlined,
-  UserOutlined,
-} from '@ant-design/icons-vue';
+import { LockOutlined, SafetyCertificateOutlined, UserOutlined } from '@ant-design/icons-vue';
 import {
   Button as AButton,
   Form as AForm,
@@ -104,6 +98,7 @@ import type { Rule } from 'ant-design-vue/es/form';
 import { computed, onMounted, reactive, ref } from 'vue';
 
 import { getTwoFactorEnabled, login } from '@/api/auth';
+import logoUrl from '@/assets/logo-dark.svg';
 import { getLanguageButtonLabel, getLanguageToggleAriaLabel, translate } from '@/i18n/messages';
 import { useAppStore } from '@/stores/app';
 import { getRuntimeConfig } from '@/types/runtime';

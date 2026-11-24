@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">SuperXray</title>
+  <g fill="#2976FC">
+    <path d="M2 8h6c7 0 12 2 17 7l5 5-8 8-6-6c-2-2-4-3-8-3H2Z"/>
+    <path d="M62 56h-6c-7 0-12-2-17-7l-5-5 8-8 6 6c2 2 4 3 8 3h6Z"/>
+    <path d="M2 45h5c3 0 5-1 7.5-3.5L38 18l8 8-23 23c-4.5 4.5-9.5 7-16 7H2Z"/>
+  </g>
+  <path fill="#F77E38" d="m41 15 2-2c3.5-3.5 8-5 13-5h6v11h-5c-3 0-5 1-7 3l-1 1Z"/>
+</svg>

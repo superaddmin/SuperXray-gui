@@ -1,36 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="100%" height="100%">
-  <defs>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-      <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
-
-  <!-- Radar/Target icon centered in 64x64 -->
-  <g transform="translate(32, 32)">
-    <!-- Background wings -->
-    <path d="M 28 -18 L 0 -18 C -14 -18 -18 -12 -18 0 L -18 3 L -10 3 L -10 -3 C -10 -10 -7 -12 0 -12 L 16 -12 Z" fill="#2563EB" transform="translate(0, 0)" />
-    <polygon points="0,0 18,-18 28,-18 10,0" fill="#2563EB" />
-    <polygon points="0,0 -18,18 -8,18 10,0" fill="#2563EB" />
-    <polygon points="0,0 18,18 28,18 10,0" fill="#2563EB" />
-
-    <!-- Center circle background -->
-    <circle cx="0" cy="0" r="14" fill="#F0F4F8" />
-
-    <!-- Blue rings -->
-    <circle cx="0" cy="0" r="11.5" fill="none" stroke="#2563EB" stroke-width="2.5" />
-    <circle cx="0" cy="0" r="7" fill="none" stroke="#2563EB" stroke-width="1.5" />
-
-    <!-- Orange center dot -->
-    <circle cx="0" cy="0" r="3" fill="#F97316" filter="url(#glow)" />
-
-    <!-- Signal line -->
-    <line x1="0" y1="0" x2="24" y2="0" stroke="#F97316" stroke-width="1" />
-
-    <!-- Signal bars -->
-    <path d="M 12 -3 L 12 3 M 14 -5 L 14 5 M 16 -6.5 L 16 6.5 M 18 -8 L 18 8 M 19 -7 L 19 7 M 20 -5.5 L 20 5.5 M 21.5 -4 L 21.5 4 M 22.5 -2.5 L 22.5 2.5" stroke="#F97316" stroke-width="1.2" stroke-linecap="round" fill="none" />
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">SuperXray</title>
+  <g fill="#2976FC">
+    <path d="M2 8h6c7 0 12 2 17 7l5 5-8 8-6-6c-2-2-4-3-8-3H2Z"/>
+    <path d="M62 56h-6c-7 0-12-2-17-7l-5-5 8-8 6 6c2 2 4 3 8 3h6Z"/>
+    <path d="M2 45h5c3 0 5-1 7.5-3.5L38 18l8 8-23 23c-4.5 4.5-9.5 7-16 7H2Z"/>
   </g>
+  <path fill="#F77E38" d="m41 15 2-2c3.5-3.5 8-5 13-5h6v11h-5c-3 0-5 1-7 3l-1 1Z"/>
 </svg>

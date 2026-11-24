@@ -2,7 +2,7 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./media/superxray.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="./frontend/src/assets/logo-dark.svg">
     <img alt="SuperXray" src="./media/superxray.svg">
   </picture>
 </p>

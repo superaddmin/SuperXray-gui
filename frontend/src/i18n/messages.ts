@@ -313,14 +313,10 @@ const messages = {
   'language.button.zh': { 'zh-CN': '中文', 'en-US': '中文' },
   'language.toggleToEnglish': { 'zh-CN': '切换到 English', 'en-US': 'Switch to English' },
   'language.toggleToChinese': { 'zh-CN': '切换到中文', 'en-US': 'Switch to Chinese' },
-  'login.description': {
-    'zh-CN': '登录访问 SuperXray 运维控制台',
-    'en-US': 'Sign in to access the SuperXray operations console',
-  },
   'login.passwordPlaceholder': { 'zh-CN': '输入密码', 'en-US': 'Enter your password' },
   'login.passwordRequired': { 'zh-CN': '请输入密码', 'en-US': 'Password is required' },
   'login.signInFailed': { 'zh-CN': '登录失败', 'en-US': 'Sign in failed' },
-  'login.title': { 'zh-CN': '安心掌控 Xray', 'en-US': 'Control Xray with Confidence' },
+  'login.title': { 'zh-CN': '登录控制台', 'en-US': 'Sign in to console' },
   'login.twoFactorRequired': {
     'zh-CN': '请输入双因素验证码',
     'en-US': 'Two-factor code is required',
@@ -1312,7 +1308,6 @@ const englishTextToKey: Record<string, MessageKey> = {
 
 const phraseTextToKey: Record<string, MessageKey> = {
   'Add Resource': 'action.addResource',
-  'Control Xray with Confidence': 'login.title',
   'Core Instances': 'route.cores',
   'Custom Geo': 'dashboard.customGeo',
   'Default Xray and experimental core adapters under the current migration gate.': 'route.cores',
@@ -1325,7 +1320,6 @@ const phraseTextToKey: Record<string, MessageKey> = {
   'Manage external geoip/geosite resources without leaving the new UI.': 'dashboard.geoText',
   'Manage panel security, subscription endpoints, backups, and legacy-compatible settings.':
     'settings.description',
-  'Sign in to access the SuperXray operations console': 'login.description',
   'Stream Settings Form': 'inbounds.streamSettingsForm',
   'Subscription Public Links': 'settings.publicLinks',
   'The requested panel route was not found.': 'notFound.description',

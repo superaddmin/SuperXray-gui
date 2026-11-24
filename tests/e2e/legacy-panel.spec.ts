@@ -393,7 +393,7 @@ test.describe("new Vue UI and API baseline", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "Control Xray with Confidence",
+        name: "Sign in to console",
         exact: true,
       }),
     ).toBeVisible();
