@@ -1,6 +1,6 @@
 # 请求、数据库迁移、Xray 与流量统计可靠性
 
-> 适用版本：v3.7.6。源码核对日期：基础文档 2026-10-15，增量 2026-11-21。事实来源：`database/`、`web/web.go`、`sub/sub.go`、`web/middleware/`、`web/service/{metrics,geofile,inbound,outbound,database_import,xray,xray_update,public_ip_cache}.go`、`web/job/`、`xray/` 及其回归测试。
+> 适用版本：v3.7.7。源码核对日期：基础文档 2026-10-15，增量 2026-11-21。事实来源：`database/`、`web/web.go`、`sub/sub.go`、`web/middleware/`、`web/service/{metrics,geofile,inbound,outbound,database_import,xray,xray_update,public_ip_cache}.go`、`web/job/`、`xray/` 及其回归测试。
 
 本文记录请求观测、HTTP 超时、定时任务、数据库迁移、Xray/Geo 更新与流量统计的当前行为和验证方式。
 
