@@ -144,7 +144,15 @@ The Vue 3 operations UI now centers the dashboard, inbound management, outbound 
 
 7. The MVP uses `listenHost` for the generated Xray inbound listen address and `manifestHost` for the Gateway CSV host rows, so Docker bridge deployments can register a Gateway-reachable address instead of a container-local loopback.
 
-8. The current MVP keeps the existing Xray template save path as the only persistence path.
+8. Replace the generated `freedom` placeholders for the entries you use with real proxy outbounds, save the template, and restart Xray. On an existing deployment, reapply the relevant generators after upgrading the panel, then save and restart.
+
+### AI service routing
+
+Clash/Mihomo subscriptions give Claude a dedicated node selector. ChatGPT, Gemini, and Antigravity use the general client rules. The full template's shared rule set covers Antigravity service domains.
+
+On the server, **Apply AI Routing** sends matching TCP traffic to the `ai-residential` pool and UDP to `blocked`. A new pool rejects connections when its selector finds no candidate. Existing pools retain an explicitly configured fallback. Gateway rules take precedence in either generation order. The OpenAI entry (`11801`) covers ChatGPT and its content domains. The Anthropic entry (`11802`) includes Claude attachments at `claudeusercontent.com`. The Gemini entry (`11803`) includes its login and token endpoints. Both that entry and the shared residential rules cover Antigravity's `daily-cloudcode-pa.googleapis.com` requests. [AI routing and residential egress guide](docs/ai-routing-and-residential-egress.md)
+
+In a local Xray `26.11.9` loopback test, all 50 simulated Claude streams finished in each configuration. The number that finished through the intended platform outbound rose from **0/50 to 50/50**. Public-network latency and interruption rates still need per-service measurements. [Test results and A/B measurement procedure](docs/gateway-egress-timeout-remediation-runbook.md#51-业务请求-ab-与隔离回归)
 
 ## Quick Start
 

@@ -257,13 +257,28 @@ CGO_ENABLED=1 go build -ldflags "-w -s" -o x-ui main.go
 >
 > 默认订阅服务监听 `2096/tcp`，提供 `/sub/`、`/json/`、`/clash/` 三类入口。若直接从公网访问订阅链接，需要在云安全组和系统防火墙放行 `2096/tcp`；更推荐通过 Nginx/Caddy 将订阅路径反向代理到统一的 `443/tcp`。
 
+### AI 服务分流
+
+Clash/Mihomo 订阅在客户端选节点。Claude 域名优先使用只含代理节点的 `CLAUDE` 组，ChatGPT、Gemini 和 Antigravity 按通用规则选路。完整模板的共享规则集覆盖 Antigravity 的服务域名。服务端可以再按域名或 Gateway 入站选择最终出口。
+
+| 服务 | 服务端路由覆盖 |
+|---|---|
+| ChatGPT | OpenAI 专用入口 `11801` 将匹配的 ChatGPT、API 和内容域名送往 `openai-egress`。 |
+| Claude | Anthropic 专用入口 `11802` 将匹配的 API 和附件域（含 `claudeusercontent.com`）送往 `anthropic-egress`。 |
+| Gemini | Gemini 专用入口 `11803` 覆盖模型 API，并精确放行 `accounts.google.com` 和 `oauth2.googleapis.com`，用于登录和令牌刷新。 |
+| Antigravity | Code Assist 及模型列表请求使用的 `daily-cloudcode-pa.googleapis.com` 同时受共享住宅规则和 Gemini 专用入口覆盖。其他 IDE 请求按各自的目的域名匹配。 |
+
+在 **Xray → Residential IP Pool** 添加住宅 SOCKS5 出站并点击 **Apply AI Routing**。匹配共享清单的 TCP 走 `ai-residential`，UDP 走 `blocked`。新建住宅池在选不到候选时默认拒绝连接，已有池沿用显式设置的备用出口。Gateway 的平台白名单和拒绝规则始终先于共享 AI 规则生效，两种配置可以按任一顺序生成。[AI 分流与住宅出口手册](docs/ai-routing-and-residential-egress.md)
+
 ### Gateway 出口 MVP
 
 新 UI 的 **Xray** 页面已经将 **Gateway 出口 MVP** 前置到模板编辑器之前。该入口只生成 Xray 兼容配置和 Gateway CSV 登记清单，不新增数据库模型、不接管 CoreManager、不触碰 sing-box 生产路径。
 
 - `listenHost` 写入 Xray 生成入站的监听地址。
 - `manifestHost` 写入 Gateway CSV 的 `host` 字段；Gateway 运行在 Docker 容器内时，不应把容器内不可达的 `127.0.0.1` 直接登记给 Gateway。
-- 当前 MVP 固定生成 OpenAI、Anthropic、Gemini、US、JP 五个本机 SOCKS5 出口端口，并通过旧版 Xray 模板保存路径应用。
+- 生成器提供 OpenAI、Anthropic、Gemini 和美、日两个区域的 SOCKS5 入站。将需要使用的 `freedom` 占位出站替换为真实代理，保存模板并重启 Xray。已有部署更新面板后也需重新应用所用的生成操作，再保存、重启。
+
+Xray `26.11.9` 的本地回环对照中，改前和改后各 50 次模拟 Claude 流式请求全部正常结束，经指定平台出口完成的请求从 **0/50** 变为 **50/50**。四个服务的公网首字节延迟与流中断率仍待业务采样。[回环测试与业务 A/B 测量方法](docs/gateway-egress-timeout-remediation-runbook.md#51-业务请求-ab-与隔离回归)
 
 ### 入站协议能力矩阵
 
@@ -501,7 +516,7 @@ x-ui migrate                                # 数据库迁移
 |------|------|
 | [系统架构设计](docs/architecture.md) | 整体架构、数据流、安全设计、实时通信架构 |
 | [部署指南](docs/deployment.md) | Docker/脚本/手动部署、反向代理、故障排查 |
-| [AI 平台智能分流与住宅出口运行手册](docs/ai-routing-and-residential-egress.md) | OpenAI、Claude、Google/Gemini 等 AI 平台域名级分流、住宅 SOCKS 出口、DNS、健康检测和回滚步骤 |
+| [AI 平台智能分流与住宅出口运行手册](docs/ai-routing-and-residential-egress.md) | ChatGPT、Claude、Gemini 与 Antigravity 的域名规则、住宅池回退、DNS 和 Gateway 专用入口 |
 | [核心模块解析](docs/modules.md) | 每个模块的详细分析、关键代码路径 |
 | [API 接口说明](docs/api.md) | 完整的 REST API 文档、请求/响应示例 |
 | [开发者贡献指南](docs/development.md) | 开发环境搭建、代码规范、测试、CI/CD |

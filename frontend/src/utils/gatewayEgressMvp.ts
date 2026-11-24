@@ -1,4 +1,5 @@
 import type { JsonObject, JsonValue } from '@/types/api';
+import { ensureBlockedOutbound, isGeneratedGatewayRule } from './xrayRoutingPolicy.ts';
 
 export type GatewayEgressPlatform = 'openai' | 'anthropic' | 'gemini';
 
@@ -98,13 +99,18 @@ const PLATFORM_DOMAINS: Record<GatewayEgressPlatform, string[]> = {
     'domain:claude.ai',
     'domain:anthropic.com',
     'domain:claude.com',
+    'domain:claudeusercontent.com',
   ],
   gemini: [
     'domain:generativelanguage.googleapis.com',
     'domain:cloudcode-pa.googleapis.com',
+    'full:daily-cloudcode-pa.googleapis.com',
     'domain:aiplatform.googleapis.com',
     'domain:aistudio.google.com',
     'domain:gemini.google.com',
+    'domain:makersuite.google.com',
+    'full:accounts.google.com',
+    'full:oauth2.googleapis.com',
   ],
 };
 
@@ -165,9 +171,7 @@ export function mergeGatewayEgressMvpConfig(
     ...preservedRules,
   ];
 
-  if (!outbounds.some((outbound) => isJsonObject(outbound) && outbound.tag === 'blocked')) {
-    outbounds.push({ tag: 'blocked', protocol: 'blackhole' });
-  }
+  ensureBlockedOutbound(outbounds);
 
   next.inbounds = inbounds;
   next.outbounds = outbounds;
@@ -307,10 +311,6 @@ function ensureOutbound(items: JsonValue[], item: JsonObject): void {
   if (!items.some((candidate) => isJsonObject(candidate) && candidate.tag === tag)) {
     items.push(item);
   }
-}
-
-function isGeneratedGatewayRule(value: JsonValue): boolean {
-  return isJsonObject(value) && value._gatewayEgressMvp === true;
 }
 
 function cloneObject(value: JsonValue | null | undefined): JsonObject {

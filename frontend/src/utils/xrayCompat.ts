@@ -1,4 +1,5 @@
 import type { JsonObject, JsonValue } from '@/types/api';
+import { ensureBlockedOutbound, isGeneratedGatewayRule } from './xrayRoutingPolicy.ts';
 
 export interface OutboundEditorForm {
   tag: string;
@@ -171,12 +172,14 @@ export const AI_RESIDENTIAL_DOMAINS = [
   'domain:anthropic.com',
   'domain:claude.ai',
   'domain:claude.com',
+  'domain:claudeusercontent.com',
   // Google / Gemini: keep concrete API subdomains, never the google.com / googleapis.com roots
   'domain:aistudio.google.com',
   'domain:generativelanguage.googleapis.com',
   'domain:makersuite.google.com',
   'domain:gemini.google.com',
   'domain:cloudcode-pa.googleapis.com',
+  'full:daily-cloudcode-pa.googleapis.com',
   'domain:aiplatform.googleapis.com',
   // Third-party model APIs and aggregators
   'domain:openrouter.ai',
@@ -343,29 +346,56 @@ export function applyAiResidentialRouting(config: JsonValue | null | undefined):
   const residentialTags = getResidentialIpRows(template)
     .map((row) => row.tag)
     .filter(Boolean);
-  if (residentialTags.length === 0) {
+  const routing = asObject(template.routing);
+  const balancers = asObjectArray(routing.balancers);
+  const existingBalancer = balancers.find(
+    (balancer) => balancer.tag === AI_RESIDENTIAL_BALANCER_TAG,
+  );
+  if (residentialTags.length === 0 && !existingBalancer) {
     return template;
   }
-
-  const routing = asObject(template.routing);
-  const balancers = asObjectArray(routing.balancers).filter(
-    (balancer) => stringValue(balancer.tag) !== AI_RESIDENTIAL_BALANCER_TAG,
+  const selectors = arrayValue(existingBalancer?.selector).map(stringValue);
+  // The pool generates whole residential tags. Other names and prefixes may
+  // select an operator-managed pool that is not listed in the residential UI.
+  const hasCustomSelector = selectors.some(
+    (selector) =>
+      selector &&
+      (!selector.toLowerCase().includes('residential') ||
+        (!residentialTags.includes(selector) &&
+          residentialTags.some((tag) => tag.startsWith(selector)))),
   );
-  balancers.unshift({
+  const selected =
+    residentialTags.length && !hasCustomSelector ? uniqueList(residentialTags) : selectors;
+  if (!selected.length || selected.some((selector) => !selector.trim())) {
+    throw new Error('AI residential routing needs a non-empty outbound selector.');
+  }
+  const fallbackTag = stringValue(existingBalancer?.fallbackTag) || 'blocked';
+  const residentialBalancer = {
+    strategy: { type: 'random' },
+    ...existingBalancer,
     tag: AI_RESIDENTIAL_BALANCER_TAG,
-    selector: uniqueList(residentialTags),
-    strategy: {
-      type: 'random',
-    },
-  });
-  routing.balancers = balancers;
+    selector: selected,
+    fallbackTag,
+  };
+  routing.balancers = [
+    residentialBalancer,
+    ...balancers.filter((balancer) => balancer.tag !== AI_RESIDENTIAL_BALANCER_TAG),
+  ];
+  // A random balancer with a fallback needs an Observatory feature in Xray.
+  // An empty selector enables that feature without starting external probes.
+  if (!template.observatory && !template.burstObservatory) {
+    template.observatory = { subjectSelector: [] };
+  }
 
-  const rules = asObjectArray(routing.rules).filter(
-    (rule) => !isManagedAiResidentialRule(rule, residentialTags),
+  const existingRules = asObjectArray(routing.rules);
+  const gatewayRules = existingRules.filter(isGeneratedGatewayRule);
+  const rules = existingRules.filter(
+    (rule) => !isGeneratedGatewayRule(rule) && !isManagedAiResidentialRule(rule, residentialTags),
   );
   const apiRules = rules.filter((rule) => stringValue(rule.outboundTag) === 'api');
   const remainingRules = rules.filter((rule) => stringValue(rule.outboundTag) !== 'api');
   routing.rules = [
+    ...gatewayRules,
     ...apiRules,
     {
       type: 'field',
@@ -387,13 +417,8 @@ export function applyAiResidentialRouting(config: JsonValue | null | undefined):
   template.routing = routing;
 
   const outbounds = asObjectArray(template.outbounds);
-  if (!outbounds.some((outbound) => stringValue(outbound.tag) === 'blocked')) {
-    outbounds.push({
-      tag: 'blocked',
-      protocol: 'blackhole',
-    });
-    template.outbounds = outbounds;
-  }
+  ensureBlockedOutbound(outbounds);
+  template.outbounds = outbounds;
 
   return template;
 }
@@ -1062,6 +1087,14 @@ function getResidentialRoutingTags(template: JsonObject): Set<string> {
 }
 
 function isManagedAiResidentialRule(rule: JsonObject, residentialTags: string[]): boolean {
+  // Legacy generated rules have only these fields. Keep operator-scoped rules.
+  if (
+    Object.keys(rule).some(
+      (key) => !['type', 'balancerTag', 'outboundTag', 'network', 'domain'].includes(key),
+    )
+  ) {
+    return false;
+  }
   const domains = arrayValue(rule.domain).filter(
     (item): item is string => typeof item === 'string',
   );

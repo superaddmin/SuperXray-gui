@@ -23,9 +23,9 @@
 | 文档 | 使用范围 |
 |---|---|
 | [部署与路由总览](operations-ai-routing-overview.md) | 服务器、OpenWrt/Passwall 与 AI 出口的职责分离、三视角验证和常见误判；已合并原 Passwall 手册 |
-| [AI 分流与住宅出口](ai-routing-and-residential-egress.md) | Xray 模板示例与客户端/网关/服务端取证 |
+| [AI 分流与住宅出口](ai-routing-and-residential-egress.md) | ChatGPT、Claude、Gemini、Antigravity 的域名覆盖，Gateway 规则优先级与住宅池回退 |
 | [Gateway MVP 交接](SUPERXRAY_GUI_VPN_LAYER_HANDOFF_CN.md) | SOCKS 入站与 CSV；外部 Gateway 的集成约定 |
-| [Gateway 超时修复](gateway-egress-timeout-remediation-runbook.md) | 分层排障、验证脚本的能力和限制 |
+| [Gateway 超时修复](gateway-egress-timeout-remediation-runbook.md) | 分层排障、Xray 回环回归，以及按业务场景统计成功率、P95 首字节延迟与流中断率的方法 |
 | [入站/订阅审计模板](server-inbound-subscription-audit.template.md) | 脱敏模板；必须填写现场证据，不能当已验收结果 |
 
 示例中的主机、端口、网段和凭据需替换为本环境值。保存配置不等于运行时生效；必须重新验证实际路由、出口、端口和目标服务。`docs/private-ops/` 是被忽略的本地私有历史记录，不属于公开源码文档或默认配置。

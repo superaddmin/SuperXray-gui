@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { applyAiResidentialRouting } from '../src/utils/xrayCompat.ts';
 import {
   GATEWAY_EGRESS_MVP_PROFILES,
   buildGatewayEgressManifestCsv,
@@ -40,6 +41,19 @@ test('gateway egress mvp merge defaults to same-network loopback hosts', () => {
   );
   assert.ok(rules.some((rule) => rule.domain?.includes('domain:api.openai.com')));
   assert.ok(rules.some((rule) => rule.domain?.includes('domain:api.anthropic.com')));
+  assert.ok(
+    rules
+      .find((rule) => rule.outboundTag === 'anthropic-egress')
+      ?.domain?.includes('domain:claudeusercontent.com'),
+  );
+  const geminiDomains = rules.find((rule) => rule.outboundTag === 'gemini-egress')?.domain;
+  for (const host of [
+    'daily-cloudcode-pa.googleapis.com',
+    'accounts.google.com',
+    'oauth2.googleapis.com',
+  ]) {
+    assert.ok(geminiDomains?.includes(`full:${host}`));
+  }
   assert.ok(
     rules.some((rule) => rule.domain?.includes('domain:generativelanguage.googleapis.com')),
   );
@@ -103,6 +117,87 @@ test('gateway egress mvp preserves existing real outbound definitions', () => {
 
   const outbounds = merged.outbounds as Array<{ protocol: string; tag: string }>;
   assert.equal(outbounds.find((outbound) => outbound.tag === 'openai-egress')?.protocol, 'socks');
+});
+
+test('gateway allowlists and their deny rule take precedence in either generation order', () => {
+  const apiRule = { type: 'field', inboundTag: ['api'], outboundTag: 'api' };
+  const scopedRule = {
+    type: 'field',
+    inboundTag: ['operator'],
+    domain: ['domain:openai.com'],
+    outboundTag: 'us-residential',
+  };
+  const userRule = { type: 'field', network: 'tcp,udp', outboundTag: 'direct' };
+  const source = {
+    outbounds: [{ tag: 'us-residential', protocol: 'socks' }],
+    routing: { rules: [apiRule, scopedRule, userRule] },
+  };
+  const gatewayLast = mergeGatewayEgressMvpConfig(applyAiResidentialRouting(source));
+  const aiLast = applyAiResidentialRouting(mergeGatewayEgressMvpConfig(source));
+  assert.deepEqual(aiLast.routing, gatewayLast.routing);
+  assert.deepEqual(applyAiResidentialRouting(aiLast), aiLast);
+  assert.deepEqual(mergeGatewayEgressMvpConfig(gatewayLast), gatewayLast);
+  const rules = (
+    aiLast.routing as {
+      rules: Array<{
+        inboundTag?: string[];
+        domain?: string[];
+        network?: string;
+        outboundTag?: string;
+        balancerTag?: string;
+      }>;
+    }
+  ).rules;
+  assert.deepEqual(rules.slice(-2), [scopedRule, userRule]);
+
+  function firstRoute(inbound: string, host: string, network = 'tcp') {
+    const route = rules.find(
+      (rule) =>
+        (!rule.inboundTag || rule.inboundTag.includes(inbound)) &&
+        (!rule.network || rule.network.split(',').includes(network)) &&
+        (!rule.domain ||
+          rule.domain.some((value) => {
+            if (value.startsWith('full:')) return host === value.slice('full:'.length);
+            const domain = value.slice('domain:'.length);
+            return host === domain || host.endsWith('.' + domain);
+          })),
+    );
+    return route?.outboundTag ?? route?.balancerTag;
+  }
+  assert.equal(firstRoute('gateway-anthropic-us-primary', 'api.anthropic.com'), 'anthropic-egress');
+  assert.equal(firstRoute('gateway-openai-us-primary', 'api.openai.com'), 'openai-egress');
+  assert.equal(firstRoute('gateway-gemini-us-primary', 'gemini.google.com'), 'gemini-egress');
+  assert.equal(
+    firstRoute('gateway-gemini-us-primary', 'daily-cloudcode-pa.googleapis.com'),
+    'gemini-egress',
+  );
+  assert.equal(
+    firstRoute('gateway-gemini-us-primary', 'sub.daily-cloudcode-pa.googleapis.com'),
+    'blocked',
+  );
+  assert.equal(firstRoute('gateway-anthropic-us-primary', 'api.openai.com'), 'blocked');
+  assert.equal(firstRoute('gateway-openai-us-primary', 'example.org'), 'blocked');
+  assert.equal(firstRoute('gateway-region-jp-primary', 'api.openai.com'), 'region-jp');
+  assert.equal(firstRoute('api', 'api.openai.com'), 'api');
+  assert.equal(firstRoute('ordinary', 'api.openai.com'), 'ai-residential');
+  assert.equal(firstRoute('ordinary', 'api.openai.com', 'udp'), 'blocked');
+  assert.equal(firstRoute('ordinary', 'example.org'), 'direct');
+});
+
+test('both actions reject conflicting blocked tags without rewriting operator outbounds', () => {
+  for (const conflicts of [
+    [{ tag: 'blocked', protocol: 'freedom' }],
+    [
+      { tag: 'blocked', protocol: 'blackhole' },
+      { tag: 'blocked', protocol: 'freedom' },
+    ],
+  ]) {
+    const config = { outbounds: [{ tag: 'us-residential', protocol: 'socks' }, ...conflicts] };
+    const original = structuredClone(config);
+    assert.throws(() => applyAiResidentialRouting(config), /blocked.*blackhole/);
+    assert.throws(() => mergeGatewayEgressMvpConfig(config), /blocked.*blackhole/);
+    assert.deepEqual(config, original);
+  }
 });
 
 test('gateway egress mvp preview includes network strategy', () => {

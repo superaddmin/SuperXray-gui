@@ -110,6 +110,7 @@ tag 转小写后包含 "residential"
   "selector": [
     "us-residential-socks"
   ],
+  "fallbackTag": "blocked",
   "strategy": {
     "type": "random"
   }
@@ -133,11 +134,13 @@ tag 转小写后包含 "residential"
     "domain:anthropic.com",
     "domain:claude.ai",
     "domain:claude.com",
+    "domain:claudeusercontent.com",
     "domain:aistudio.google.com",
     "domain:generativelanguage.googleapis.com",
     "domain:makersuite.google.com",
     "domain:gemini.google.com",
     "domain:cloudcode-pa.googleapis.com",
+    "full:daily-cloudcode-pa.googleapis.com",
     "domain:aiplatform.googleapis.com",
     "domain:openrouter.ai",
     "domain:x.ai",
@@ -175,11 +178,13 @@ tag 转小写后包含 "residential"
     "domain:anthropic.com",
     "domain:claude.ai",
     "domain:claude.com",
+    "domain:claudeusercontent.com",
     "domain:aistudio.google.com",
     "domain:generativelanguage.googleapis.com",
     "domain:makersuite.google.com",
     "domain:gemini.google.com",
     "domain:cloudcode-pa.googleapis.com",
+    "full:daily-cloudcode-pa.googleapis.com",
     "domain:aiplatform.googleapis.com",
     "domain:openrouter.ai",
     "domain:x.ai",
@@ -204,13 +209,13 @@ tag 转小写后包含 "residential"
 
 规则顺序：
 
-- 原有 `outboundTag=api` 的规则保留在前。
-- AI TCP 和 UDP 规则插在 API 规则之后。
+- Gateway 生成的平台、区域及拒绝规则最先匹配，随后保留原有 `outboundTag=api` 规则。
+- AI TCP 和 UDP 规则插在 API 规则之后。两种生成操作可以按任一顺序执行。
 - 其他已有规则跟在后面。
 
-默认不设置 balancer `fallbackTag`。住宅出口不可用时，请求应失败关闭，而不是自动直连。
+新均衡器使用 `random` 和 `fallbackTag: blocked`。候选标签失配时由黑洞出站拒绝连接。已选中的 SOCKS 节点拨号失败时，核心重试同一个节点，当前连接最终可能失败。其他新连接可以重新选点。已有均衡器的显式策略和备用标签继续生效，包括运维人员指定的直连备用出口。
 
-这是生成配置的目标行为，必须以实际域名命中和故障演练验证。无 residential outbound 时操作返回原模板；已有 `blocked` tag 会保留，生成器不检查它是否确实为 `blackhole`。与 Gateway MVP 同时使用时，先应用 AI Routing，再生成 Gateway 配置，使 Gateway 专属规则位于最前；之后再次应用 AI Routing 会把共享 AI 规则前置，可能改变 Gateway 的专属出口选择，保存前必须重新检查顺序。
+Xray 的随机策略配置备用标签时需要 Observatory。已有常规或 Burst Observatory 会继续使用，缺少两者时生成空 `subjectSelector` 的 Observatory，默认不发起外部探测。若要根据健康状态选点，应配置实际探测目标并覆盖住宅候选。两个生成入口都检查 `blocked` 对应的协议，发现同名非 `blackhole` 出站时提示冲突。已有部署升级后，在面板重新应用所用的生成操作，保存模板并显式重启核心，再用正确域、错平台域和空候选三类请求验收。
 
 维护域名清单时必须同步改三处，否则会出现重复或残留规则：
 
@@ -307,7 +312,7 @@ Host 校验会拒绝：
 - 通配监听：`0.0.0.0`、`::`、`[::]`、`*`。
 - 带协议、路径、逗号或空白的值。
 
-该校验只检查字符串形态，不验证 DNS、真实连通性、是否公网地址、端口冲突或防火墙。`noauth` 入口使用非 loopback 地址时，必须另行限制来源。生成器按 tag 替换同名 inbound，不检查其他 tag 是否占用相同端口；同名 outbound 与已有 `blocked` 会原样保留，需人工确认它们是预期的真实出口和拒绝出口。
+该校验只检查字符串形态，不验证 DNS、真实连通性、是否公网地址、端口冲突或防火墙。`noauth` 入口使用非 loopback 地址时，必须另行限制来源。生成器按 tag 替换同名 inbound。保存前核对端口冲突和同名平台 outbound 的实际出口。`blocked` 必须对应单一 `blackhole` 出站。
 
 ### 6.2 生成的 profiles
 
@@ -362,8 +367,10 @@ Host 校验会拒绝：
 | platform | domains |
 |---|---|
 | `openai` | `domain:api.openai.com`、`domain:chatgpt.com`、`domain:chat.openai.com`、`domain:openai.com`、`domain:oaistatic.com`、`domain:oaiusercontent.com`、`domain:sora.com`、`domain:openai.azure.com` |
-| `anthropic` | `domain:api.anthropic.com`、`domain:claude.ai`、`domain:anthropic.com`、`domain:claude.com` |
-| `gemini` | `domain:generativelanguage.googleapis.com`、`domain:cloudcode-pa.googleapis.com`、`domain:aiplatform.googleapis.com`、`domain:aistudio.google.com`、`domain:gemini.google.com` |
+| `anthropic` | `domain:api.anthropic.com`、`domain:claude.ai`、`domain:anthropic.com`、`domain:claude.com`、`domain:claudeusercontent.com` |
+| `gemini` | `domain:generativelanguage.googleapis.com`、`domain:cloudcode-pa.googleapis.com`、`full:daily-cloudcode-pa.googleapis.com`、`domain:aiplatform.googleapis.com`、`domain:aistudio.google.com`、`domain:gemini.google.com`、`domain:makersuite.google.com`、`full:accounts.google.com`、`full:oauth2.googleapis.com` |
+
+Claude 内容域沿用订阅已使用的后缀。Antigravity 语言服务日志记录了在 `daily-cloudcode-pa.googleapis.com` 执行 `loadCodeAssist` 和 `fetchAvailableModels`，因此精确匹配该主机。Google 登录和令牌交换是多产品共享端点，仅在 Gemini 专用入口精确放行。来源见 [Claude 网络配置](https://code.claude.com/docs/en/network-config) 和 [Google 原生应用 OAuth 文档](https://developers.google.com/identity/protocols/oauth2/native-app)。
 
 区域 profile 只按 inboundTag 绑定到对应 egress group。
 

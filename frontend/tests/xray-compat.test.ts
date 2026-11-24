@@ -401,13 +401,16 @@ test('ai residential routing uses a balancer and keeps google domains narrowed t
     tag: 'ai-residential',
     selector: ['residential-us-1', 'residential-us-2'],
     strategy: { type: 'random' },
+    fallbackTag: 'blocked',
   });
+  assert.deepEqual(next.observatory, { subjectSelector: [] });
   assert.equal(routing.rules[0].balancerTag, 'ai-residential');
   assert.equal(routing.rules[0].network, 'tcp');
   assert.equal(routing.rules[1].outboundTag, 'blocked');
   assert.equal(routing.rules[1].network, 'udp');
   assert.ok(routing.rules[0].domain?.includes('domain:gemini.google.com'));
   assert.ok(routing.rules[0].domain?.includes('domain:generativelanguage.googleapis.com'));
+  assert.ok(routing.rules[0].domain?.includes('domain:claudeusercontent.com'));
   assert.ok(!routing.rules[0].domain?.includes('domain:google.com'));
   assert.ok(!routing.rules[0].domain?.includes('domain:googleapis.com'));
   assert.deepEqual(
@@ -418,6 +421,7 @@ test('ai residential routing uses a balancer and keeps google domains narrowed t
       'domain:makersuite.google.com',
       'domain:gemini.google.com',
       'domain:cloudcode-pa.googleapis.com',
+      'full:daily-cloudcode-pa.googleapis.com',
       'domain:aiplatform.googleapis.com',
     ],
   );
@@ -459,4 +463,77 @@ test('ai residential routing replaces previous broad google rules for residentia
   assert.ok(rules.every((rule) => !rule.domain?.includes('domain:google.com')));
   assert.ok(rules.every((rule) => !rule.domain?.includes('domain:googleapis.com')));
   assert.ok(rules[0].domain?.includes('domain:gemini.google.com'));
+});
+
+test('reapplying AI routing keeps a configured strategy, fallback and observatory', () => {
+  const balancer = {
+    tag: 'ai-residential',
+    selector: ['us-residential'],
+    strategy: { type: 'leastPing' },
+    fallbackTag: 'backup',
+  };
+  const config = {
+    outbounds: [
+      { tag: 'us-residential', protocol: 'socks' },
+      { tag: 'backup', protocol: 'socks' },
+    ],
+    routing: { balancers: [balancer] },
+    observatory: { subjectSelector: ['us-residential'], probeInterval: '5m' },
+  };
+  const next = applyAiResidentialRouting(config);
+  assert.deepEqual((next.routing as { balancers: unknown[] }).balancers, [balancer]);
+  assert.deepEqual(next.observatory, config.observatory);
+});
+
+test('an emptied legacy residential pool can be repaired and later repopulated', () => {
+  const source = {
+    outbounds: [{ tag: 'direct', protocol: 'freedom' }],
+    routing: { balancers: [{ tag: 'ai-residential', selector: ['retired-residential-socks'] }] },
+  };
+  const empty = applyAiResidentialRouting(source);
+  const routing = empty.routing as {
+    balancers: Array<{ selector: string[]; fallbackTag: string }>;
+    rules: Array<{ outboundTag?: string; balancerTag?: string }>;
+  };
+  assert.deepEqual(routing.balancers[0].selector, ['retired-residential-socks']);
+  assert.equal(routing.balancers[0].fallbackTag, 'blocked');
+  assert.equal(routing.rules[0].balancerTag, 'ai-residential');
+  assert.equal(routing.rules[1].outboundTag, 'blocked');
+  assert.deepEqual(applyAiResidentialRouting(empty), empty);
+  const restored = applyAiResidentialRouting({
+    ...empty,
+    outbounds: [...source.outbounds, { tag: 'new-residential', protocol: 'socks' }],
+  });
+  const restoredRouting = restored.routing as typeof routing;
+  assert.deepEqual(restoredRouting.balancers[0].selector, ['new-residential']);
+  assert.equal(restoredRouting.rules.length, 2);
+  assert.equal(restoredRouting.rules[0].balancerTag, 'ai-residential');
+  assert.deepEqual(applyAiResidentialRouting({}), {});
+});
+
+test('reapplying AI routing keeps operator prefixes with or without named residential nodes', () => {
+  const source = {
+    outbounds: [{ tag: 'paid-node-a', protocol: 'socks' }],
+    routing: { balancers: [{ tag: 'ai-residential', selector: ['paid-node-'] }] },
+  };
+  for (const extra of [[], [{ tag: 'us-residential', protocol: 'socks' }]]) {
+    const config = applyAiResidentialRouting({
+      ...source,
+      outbounds: [...source.outbounds, ...extra],
+    });
+    const routing = config.routing as {
+      balancers: Array<{ selector: string[]; fallbackTag: string }>;
+      rules: Array<{ balancerTag?: string }>;
+    };
+    assert.deepEqual(routing.balancers[0].selector, ['paid-node-']);
+    assert.equal(routing.balancers[0].fallbackTag, 'blocked');
+    assert.equal(routing.rules[0].balancerTag, 'ai-residential');
+  }
+  assert.throws(
+    () =>
+      applyAiResidentialRouting({
+        routing: { balancers: [{ tag: 'ai-residential', selector: [] }] },
+      }),
+    /non-empty outbound selector/,
+  );
 });

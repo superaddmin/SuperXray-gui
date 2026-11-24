@@ -331,7 +331,7 @@
               Add SOCKS5 IP
             </AButton>
             <AButton
-              :disabled="residentialIpRows.length === 0"
+              :disabled="residentialIpRows.length === 0 && !hasAiResidentialBalancer"
               @click="applyAiResidentialRoutingChanges"
             >
               <template #icon><ClusterOutlined /></template>
@@ -1200,6 +1200,7 @@ import type {
   RoutingRuleEditorForm,
 } from '@/utils/xrayCompat';
 import {
+  AI_RESIDENTIAL_BALANCER_TAG,
   DNS_PRESET_OPTIONS,
   applyAiResidentialRouting,
   applyDnsPolicyForm,
@@ -1562,6 +1563,9 @@ const selectedRoutingInboundTags = computed({
 const dnsServerRows = computed(() => getDnsServerRows(parsedConfig.value));
 const fakeDnsRows = computed(() => getFakeDnsRows(parsedConfig.value));
 const balancerRows = computed(() => getBalancerRows(parsedConfig.value));
+const hasAiResidentialBalancer = computed(() =>
+  balancerRows.value.some((row) => row.tag === AI_RESIDENTIAL_BALANCER_TAG),
+);
 const reverseRows = computed(() => getReverseRows(parsedConfig.value));
 const gatewayEgressNetworkError = computed(() => {
   try {
@@ -1938,9 +1942,15 @@ function submitResidentialIpModal() {
 }
 
 function applyAiResidentialRoutingChanges() {
-  const next = applyAiResidentialRouting(parsedConfig.value);
-  applyTemplateConfig(next);
-  void message.success('AI residential routing updated');
+  try {
+    const next = applyAiResidentialRouting(parsedConfig.value);
+    applyTemplateConfig(next);
+    void message.success('AI residential routing updated');
+  } catch (caught) {
+    const detail = caught instanceof Error ? caught.message : 'Failed to apply AI routing';
+    error.value = detail;
+    void message.error(detail);
+  }
 }
 
 async function testResidentialIpOutbound(index: number) {
